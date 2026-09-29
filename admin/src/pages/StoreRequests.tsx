@@ -999,7 +999,7 @@ export default function StoreRequests() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', background: '#f1f3f6', overflow: 'hidden' },
+  page: { display: 'flex', height: 'calc(100vh - 64px)', background: 'var(--background)', overflow: 'hidden' },
 
   // ── Sidebar (Chat style) ──
   sidebar: {

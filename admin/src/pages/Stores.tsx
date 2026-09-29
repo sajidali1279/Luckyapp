@@ -12,6 +12,9 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { showPhone, phoneDigits } from '../lib/phoneText';
 import { useSingleFlight } from '../hooks/useSingleFlight';
+import { PageHeader, HeaderStat, Button } from '../components/kit';
+import { Plus } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 const ALL_CATEGORIES = [
   { value: 'GAS',           label: 'Gas',          icon: '⛽' },
@@ -280,7 +283,7 @@ export default function Stores() {
       // Clear the inline form for this store
       setGasForms((prev) => { const n = { ...prev }; delete n[storeId]; return n; });
       setPendingGas(null);
-      toast.success(res.data?.changed === false ? 'Those prices were already saved.' : '⛽ Prices saved. The store\'s staff were told to update the pumps.');
+      toast.success(res.data?.changed === false ? 'Those prices were already saved.' : 'Prices saved. The store\'s staff were told to update the pumps.');
     },
     onError: (e: any) => { setPendingGas(null); toast.error(failureMessage(e, 'Could not save the prices. Nothing was changed.')); },
   });
@@ -681,20 +684,20 @@ export default function Stores() {
         onCancel={() => setPendingGas(null)}
       />
       {/* Header */}
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>Stores</h1>
-          <p style={s.subtitle}>Manage store details and location coordinates</p>
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={s.countPill}>{stores.length} stores</div>
-          {isDevAdmin && (
-            <button style={s.addStoreBtn} onClick={() => { setAddForm(BLANK_ADD_FORM); setAddError(''); setShowAddStore(true); }}>
-              + Add Store
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Stores"
+        description="Manage store details and location coordinates."
+        actions={
+          <>
+            <HeaderStat label="stores" value={stores.length} />
+            {isDevAdmin && (
+              <Button variant="primary" icon={<Plus />} onClick={() => { setAddForm(BLANK_ADD_FORM); setAddError(''); setShowAddStore(true); }}>
+                Add Store
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {isLoading ? (
         <CardSkeleton count={4} />
@@ -708,7 +711,7 @@ export default function Stores() {
             return (
               <div key={store.id} style={{ ...s.card, ...(store.isActive ? {} : s.cardInactive) }}>
                 {!store.isActive && (
-                  <div style={s.inactiveBanner}>🚫 Inactive, hidden from customers and staff</div>
+                  <div style={s.inactiveBanner}>Inactive, hidden from customers and staff</div>
                 )}
                 {/* Card header */}
                 <div style={s.cardTop}>
@@ -721,11 +724,11 @@ export default function Stores() {
                   </div>
                   <div style={s.badgeStack}>
                     <div style={{ ...s.coordBadge, background: hasCoords ? '#edf7f0' : '#fdf2f2', border: hasCoords ? '1px solid #c8e6d2' : '1px solid #f3cdd1', color: hasCoords ? '#1f8a4c' : '#a51b28' }}>
-                      {hasCoords ? '📍 Located' : '❌ No coords'}
+                      {hasCoords ? 'Located' : 'No coords'}
                     </div>
                     {store.minimumAge === 21 && (
                       <div style={{ ...s.coordBadge, background: '#fdf6e8', border: '1px solid #f1dcaf', color: '#8a5300' }}>
-                        🔞 21+ Required
+                        21+ Required
                       </div>
                     )}
                   </div>
@@ -761,9 +764,9 @@ export default function Stores() {
                 {/* ── Launch readiness ── */}
                 {store.isActive && store.readiness && (
                   store.isReady ? (
-                    <div style={s.readyLine}>✅ Ready for customers</div>
+                    <div style={s.readyLine}>Ready for customers</div>
                   ) : (
-                    <div style={s.notReadyLine}>⚠️ Needs: {readinessGaps(store).join(', ')}</div>
+                    <div style={s.notReadyLine}>Needs: {readinessGaps(store).join(', ')}</div>
                   )
                 )}
 
@@ -775,7 +778,7 @@ export default function Stores() {
                     const enabled = store.enabledCategories.length === 0 || store.enabledCategories.includes(cat.value);
                     return (
                       <span key={cat.value} style={{ ...s.catPill, ...(enabled ? s.catPillOn : s.catPillOff) }}>
-                        {cat.icon} {cat.label}
+                        <Glyph e={cat.icon} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{cat.label}
                       </span>
                     );
                   })}
@@ -783,7 +786,7 @@ export default function Stores() {
 
                 {/* ── Gas Prices inline editor ── */}
                 <div style={s.divider} />
-                <div style={s.gasSectionLabel}>⛽ Gas Prices</div>
+                <div style={s.gasSectionLabel}>Gas Prices</div>
                 <div style={s.gasRow}>
                   {(['gas', 'diesel'] as const).map((kind) => {
                     const saved = kind === 'gas' ? store.gasPricePerGallon : store.dieselPricePerGallon;
@@ -792,7 +795,7 @@ export default function Stores() {
                     const enabled = categoryEnabled(store, kind === 'gas' ? 'GAS' : 'DIESEL');
                     return (
                       <div key={kind} style={s.gasField}>
-                        <label style={s.gasLabel} htmlFor={`${kind}-${store.id}`}>{kind === 'gas' ? '⛽ Gas $/gal' : '🚛 Diesel $/gal'}</label>
+                        <label style={s.gasLabel} htmlFor={`${kind}-${store.id}`}>{kind === 'gas' ? 'Gas $/gal' : 'Diesel $/gal'}</label>
                         <input
                           id={`${kind}-${store.id}`}
                           style={s.gasInput}
@@ -828,14 +831,14 @@ export default function Stores() {
                   <>
                     <div style={s.divider} />
                     <div style={s.apiKeySection}>
-                      <div style={s.apiKeyLabel}>🔑 Printer Agent API Key</div>
+                      <div style={s.apiKeyLabel}>Printer Agent API Key</div>
                       {apiKeyVisible[store.id] && apiKeys[store.id] ? (
                         <div style={s.apiKeyBox}>
                           <code style={s.apiKeyCode}>{apiKeys[store.id]}</code>
                           <div style={s.apiKeyHint}>Copy this now - it can't be shown again after you leave this page.</div>
                           <div style={s.apiKeyBtns}>
-                            <button style={s.apiKeyBtn} onClick={() => copyApiKey(apiKeys[store.id])}>📋 Copy</button>
-                            <button style={{ ...s.apiKeyBtn, color: '#a51b28', borderColor: '#f3cdd1' }} onClick={() => setConfirmRegenId(store.id)}>🔄 Regenerate</button>
+                            <button style={s.apiKeyBtn} onClick={() => copyApiKey(apiKeys[store.id])}>Copy</button>
+                            <button style={{ ...s.apiKeyBtn, color: '#a51b28', borderColor: '#f3cdd1' }} onClick={() => setConfirmRegenId(store.id)}>Regenerate</button>
                             <button style={{ ...s.apiKeyBtn, color: TEXT_MUTED }} onClick={() => setApiKeyVisible((p) => ({ ...p, [store.id]: false }))}>Hide</button>
                           </div>
                         </div>
@@ -845,7 +848,7 @@ export default function Stores() {
                             {apiKeyStatus[store.id] ? '✓ A key is configured (not shown again - regenerate for a new one)' : 'No key set yet'}
                           </div>
                           <div style={s.apiKeyBtns}>
-                            <button style={s.apiKeyBtn} onClick={() => setConfirmRegenId(store.id)}>🔄 Regenerate</button>
+                            <button style={s.apiKeyBtn} onClick={() => setConfirmRegenId(store.id)}>Regenerate</button>
                           </div>
                         </div>
                       ) : (
@@ -854,7 +857,7 @@ export default function Stores() {
                           onClick={() => checkApiKeyStatus(store.id)}
                           disabled={apiKeyStoreId === store.id}
                         >
-                          {apiKeyStoreId === store.id ? 'Checking…' : '🔎 Check API Key Status'}
+                          {apiKeyStoreId === store.id ? 'Checking…' : 'Check API Key Status'}
                         </button>
                       )}
                     </div>
@@ -880,7 +883,7 @@ export default function Stores() {
                       onClick={() => store.isActive ? setConfirmDeactivateId(store.id) : runActive({ storeId: store.id, isActive: true })}
                       disabled={activeMutation.isPending}
                     >
-                      {store.isActive ? '🚫 Deactivate' : '✅ Reactivate'}
+                      {store.isActive ? 'Deactivate' : 'Reactivate'}
                     </button>
                   </div>
                 )}
@@ -888,15 +891,15 @@ export default function Stores() {
                 <div style={s.divider} />
                 <div style={s.cardBtns}>
                   <button style={s.kwBtn} onClick={() => openKwModal(store.id)}>
-                    🗂️ POS Mappings
+                    POS Mappings
                   </button>
                   <button style={s.kwBtn} onClick={() => openHoursModal(store.id)}>
-                    🕐 Store Hours
+                    Store Hours
                   </button>
                 </div>
                 <div style={{ ...s.cardBtns, marginTop: 8 }}>
                   <button style={{ ...s.editBtn, borderColor: color, color: PRIMARY }} onClick={() => openEdit(store)}>
-                    ✏️ Edit Store
+                    Edit Store
                   </button>
                 </div>
               </div>
@@ -927,7 +930,7 @@ export default function Stores() {
                   <div key={m.id} style={s.kwRow}>
                     <code style={s.kwKeyword}>{m.keyword}</code>
                     <span style={s.kwArrow} aria-hidden="true">→</span>
-                    <span style={s.kwCat}>{catMeta?.icon} {catMeta?.label ?? m.category}</span>
+                    <span style={s.kwCat}><Glyph e={catMeta?.icon} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{catMeta?.label ?? m.category}</span>
                     <button style={s.kwDeleteBtn} aria-label={`Remove the keyword ${m.keyword}`} onClick={() => deleteKwMapping(m.id)}>✕</button>
                   </div>
                 );
@@ -954,7 +957,7 @@ export default function Stores() {
                 onChange={(e) => setKwForm((f) => ({ ...f, category: e.target.value }))}
               >
                 {ALL_CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.icon} {c.label}</option>
+                  <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
               <button
@@ -1143,7 +1146,7 @@ export default function Stores() {
                 Fill in the address above, then click <strong>Auto-fill</strong> to get coordinates automatically - or enter them manually. The app finds the nearest store from these.
               </div>
               <button type="button" style={s.geocodeBtn} onClick={geocodeAddress} disabled={geocoding}>
-                {geocoding ? '⏳ Looking up…' : '🔍 Auto-fill from Address'}
+                {geocoding ? 'Looking up…' : 'Auto-fill from Address'}
               </button>
               <div style={s.fieldRow}>
                 <div style={s.field}>
@@ -1169,7 +1172,7 @@ export default function Stores() {
                 style={{ ...s.catToggleBtn, width: '100%', flexDirection: 'row', justifyContent: 'center', marginBottom: 8, ...(form.requiresAgeGate ? s.catToggleBtnOn : s.catToggleBtnOff) }}
                 onClick={() => setForm((f) => ({ ...f, requiresAgeGate: !f.requiresAgeGate }))}
               >
-                <span>🔞 Requires 21+ Confirmation</span>
+                <span>Requires 21+ Confirmation</span>
                 <span style={s.catToggleCheck}>{form.requiresAgeGate ? '✓ On' : '✕ Off'}</span>
               </button>
             </div>
@@ -1195,7 +1198,7 @@ export default function Stores() {
                           toggleCat(cat.value);
                         }
                       }}>
-                      <span aria-hidden="true">{cat.icon}</span>
+                      <span aria-hidden="true"><Glyph e={cat.icon} size={18} /></span>
                       <span>{cat.label}</span>
                       <span style={s.catToggleCheck}>{on ? '✓ On' : '✕ Off'}</span>
                     </button>

@@ -76,14 +76,16 @@ export function Button({ variant = 'secondary', size = 'md', icon, children, cla
 
 export type TabItem<T extends string> = { value: T; label: ReactNode; count?: number };
 
-/** The one tab style: text with an underline on the chosen tab, an optional count beside it. */
-export function Tabs<T extends string>({ tabs, value, onChange, ariaLabel, style }: {
-  tabs: TabItem<T>[]; value: T; onChange: (v: T) => void; ariaLabel: string; style?: CSSProperties;
+/** The one tab style: text with an underline on the chosen tab, an optional count beside it. `asButtons` keeps them plain
+ * buttons with aria-pressed (for view switches that were buttons before), with the same look. */
+export function Tabs<T extends string>({ tabs, value, onChange, ariaLabel, style, asButtons }: {
+  tabs: TabItem<T>[]; value: T; onChange: (v: T) => void; ariaLabel: string; style?: CSSProperties; asButtons?: boolean;
 }) {
   return (
-    <div role="tablist" aria-label={ariaLabel} className="ui-tabs" style={{ marginBottom: 20, ...style }}>
+    <div role={asButtons ? 'group' : 'tablist'} aria-label={ariaLabel} className="ui-tabs" style={{ marginBottom: 20, ...style }}>
       {tabs.map((t) => (
-        <button key={t.value} type="button" role="tab" aria-selected={value === t.value} className="ui-tab" onClick={() => onChange(t.value)}>
+        <button key={t.value} type="button" className="ui-tab" onClick={() => onChange(t.value)}
+          {...(asButtons ? { 'aria-pressed': value === t.value } : { role: 'tab', 'aria-selected': value === t.value })}>
           {t.label}
           {t.count != null && <span className="ui-tab-count">{t.count}</span>}
         </button>
@@ -184,6 +186,26 @@ export function Field({ label, htmlFor, hint, required, children, style }: {
       </label>
       {children}
       {hint && <div style={{ fontSize: FONT.caption, color: C.muted, lineHeight: 1.5 }}>{hint}</div>}
+    </div>
+  );
+}
+
+// ─── Header stats (inside the navy band) ─────────────────────────────────────
+
+const STAT_DOT: Record<Tone, string> = { neutral: '#8fa0b8', info: '#8fb3d9', success: '#4ade80', warning: '#fbbf24', danger: '#ff8a95' };
+
+/** A small figure inside the page header band: a number, what it counts, and a coloured dot only when it is a status. */
+export function HeaderStat({ label, value, tone = 'neutral' }: { label: ReactNode; value: ReactNode; tone?: Tone }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 14px', borderRadius: RADIUS.md,
+      background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.14)', minWidth: 86,
+    }}>
+      <span style={{ fontSize: 18, fontWeight: 700, color: '#fff', fontVariantNumeric: 'tabular-nums', lineHeight: 1.2 }}>{value}</span>
+      <span style={{ fontSize: FONT.caption, color: 'rgba(255, 255, 255, 0.72)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        {tone !== 'neutral' && <span style={{ width: 7, height: 7, borderRadius: 4, background: STAT_DOT[tone] }} />}
+        {label}
+      </span>
     </div>
   );
 }

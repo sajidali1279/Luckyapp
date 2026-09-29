@@ -439,7 +439,7 @@ export default function ScannedProducts() {
 }
 
 const s: Record<string, CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f7f8fa', padding: '32px 0' },
+  page: { minHeight: '100vh', background: 'var(--background)', padding: '32px 0' },
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },

@@ -15,15 +15,18 @@ import { storeToday, addDays, storeDay, storeTime } from '../lib/storeDates';
 import { badgeInk } from './dashboard/shared';
 import { serverMessage } from '../lib/apiError';
 import { useDialog } from '../hooks/useDialog';
+import { PageHeader, HeaderStat, Button } from '../components/kit';
+import { Download } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 const CATEGORIES = [
-  { value: 'GAS', label: '⛽ Gas' },
-  { value: 'DIESEL', label: '🚛 Diesel' },
-  { value: 'GROCERIES', label: '🛒 Groceries' },
-  { value: 'HOT_FOODS', label: '🌮 Hot Foods' },
-  { value: 'FROZEN_FOODS', label: '🧊 Frozen Foods' },
-  { value: 'FRESH_FOODS', label: '🥗 Fresh Foods' },
-  { value: 'OTHER', label: '🏪 Other' },
+  { value: 'GAS', label: 'Gas' },
+  { value: 'DIESEL', label: 'Diesel' },
+  { value: 'GROCERIES', label: 'Groceries' },
+  { value: 'HOT_FOODS', label: 'Hot Foods' },
+  { value: 'FROZEN_FOODS', label: 'Frozen Foods' },
+  { value: 'FRESH_FOODS', label: 'Fresh Foods' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -51,7 +54,7 @@ function fmt$(n: number) {
 }
 
 function statusLabel(status: string) {
-  if (status === 'FLAGGED') return '🚨 FLAGGED';
+  if (status === 'FLAGGED') return 'FLAGGED';
   if (status === 'VOIDED') return '↩️ VOIDED';
   return status;
 }
@@ -416,31 +419,24 @@ export default function Transactions() {
         onConfirm={confirmDecision}
         onCancel={() => setDecision(null)}
       />
-      <div style={s.header}>
-        <div>
-          <h1 style={s.title}>🧾 Transactions</h1>
-          <p style={s.sub}>Review and manage point grant activity</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {total > 0 && <div style={s.totalBadge}>{total.toLocaleString()} transaction{total !== 1 ? 's' : ''}</div>}
-          {total > 0 && (
-            <button
-              style={s.exportBtn}
-              onClick={handleExportCsv}
-              disabled={exporting}
-              title="Download filtered transactions as CSV"
-            >
-              {exporting ? '⏳ Exporting…' : '⬇ Export CSV'}
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Transactions"
+        description="Review and manage point grant activity."
+        actions={total > 0 && (
+          <>
+            <HeaderStat label={total === 1 ? 'transaction' : 'transactions'} value={total.toLocaleString()} />
+            <Button icon={<Download />} onClick={handleExportCsv} disabled={exporting} title="Download filtered transactions as CSV">
+              {exporting ? 'Exporting…' : 'Export CSV'}
+            </Button>
+          </>
+        )}
+      />
 
       {/* ── Filters ── */}
       <div style={s.filterBar}>
         {isSuperAdmin && (
           <select aria-label="Store" style={s.select} value={selectedStore} onChange={(e) => changeStore(e.target.value)}>
-            <option value="">🌐 All Stores</option>
+            <option value="">All Stores</option>
             {stores.map((store: any) => (
               <option key={store.id} value={store.id}>{store.name}</option>
             ))}
@@ -448,10 +444,10 @@ export default function Transactions() {
         )}
 
         <select aria-label="Status" style={s.select} value={statusFilter} onChange={(e) => changeStatus(e.target.value)}>
-          {isSuperAdmin && <option value="NEEDS_REVIEW">🚨 Needs review</option>}
+          {isSuperAdmin && <option value="NEEDS_REVIEW">Needs review</option>}
           <option value="">All Statuses</option>
-          <option value="PENDING">⏳ Pending</option>
-          <option value="FLAGGED">🚨 Flagged</option>
+          <option value="PENDING">Pending</option>
+          <option value="FLAGGED">Flagged</option>
           <option value="APPROVED">✓ Approved</option>
           <option value="REJECTED">✕ Rejected</option>
           <option value="VOIDED">↩️ Voided</option>
@@ -554,7 +550,7 @@ export default function Transactions() {
       ) : transactions.length === 0 ? (
         statusFilter === 'NEEDS_REVIEW' ? (
           <div style={s.empty}>
-            <div style={{ fontSize: 34 }} aria-hidden="true">✅</div>
+            <div style={{ fontSize: 34 }} aria-hidden="true"><Glyph e="✅" size={28} color="#5a6472" /></div>
             <div style={{ fontWeight: 700, color: PRIMARY, margin: '8px 0 4px' }}>Nothing needs review right now</div>
             <div style={{ marginBottom: 16 }}>Flagged sales, and sales still waiting for a receipt, will appear here.</div>
             <button style={s.clearBtn} onClick={() => changeStatus('')}>Show all transactions</button>

@@ -540,7 +540,7 @@ export default function Support() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page:         { minHeight: '100vh', background: '#f8f7f4', fontFamily: 'Inter, sans-serif' },
+  page:         { minHeight: '100vh', background: 'var(--background)', fontFamily: 'Inter, sans-serif' },
   inner:        { maxWidth: 1280, margin: '0 auto', padding: '32px 24px' },
   header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   title:        { fontSize: 26, fontWeight: 700, color: '#111827' },

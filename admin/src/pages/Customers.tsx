@@ -13,6 +13,9 @@ import { failureMessage } from '../lib/apiError';
 import { showPhone } from '../lib/phoneText';
 import { storeDayLong, storeDayTime, storeToday } from '../lib/storeDates';
 import { useSingleFlight } from '../hooks/useSingleFlight';
+import { PageHeader, HeaderStat, Button, Tabs } from '../components/kit';
+import { Download } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 function fmt$(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -247,46 +250,32 @@ export default function Customers() {
   return (
     <div style={s.page}>
       {/* ── Header ── */}
-      <div style={s.header}>
-        <div>
-          <div style={s.eyebrow}>Platform</div>
-          <h1 style={s.title}>Customers</h1>
+      <PageHeader
+        title="Customers"
+        description="Every customer account, their balances, and disputes to settle."
+        actions={isSuperAdmin && total > 0 && (
+          <Button icon={<Download />} onClick={handleExportCustomers} disabled={exportingCustomers}>
+            {exportingCustomers ? 'Exporting…' : 'Export CSV'}
+          </Button>
+        )}
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <HeaderStat label="Total" value={(activeTotal + restrictedTotal).toLocaleString()} />
+          <HeaderStat label="Active" value={activeTotal.toLocaleString()} tone="success" />
+          <HeaderStat label="Restricted" value={restrictedTotal.toLocaleString()} tone={restrictedTotal > 0 ? 'danger' : 'neutral'} />
+          <HeaderStat label="Credits out" value={fmt$(totalCreditsOutstanding)} tone="warning" />
         </div>
-        <div style={s.headerStats}>
-          <div style={s.statChip}>
-            <span style={s.statNum}>{(activeTotal + restrictedTotal).toLocaleString()}</span>
-            <span style={s.statLbl}>Total</span>
-          </div>
-          <div style={{ ...s.statChip, background: '#edf7f0', borderColor: '#c8e6d2' }}>
-            <span style={{ ...s.statNum, color: GREEN_TEXT }}>{activeTotal.toLocaleString()}</span>
-            <span style={s.statLbl}>Active</span>
-          </div>
-          <div style={{ ...s.statChip, ...(restrictedTotal > 0 ? { background: '#fdf2f2', borderColor: '#f3cdd1' } : {}) }}>
-            <span style={{ ...s.statNum, color: restrictedTotal > 0 ? RED_TEXT : PRIMARY }}>{restrictedTotal.toLocaleString()}</span>
-            <span style={s.statLbl}>Restricted</span>
-          </div>
-          <div style={{ ...s.statChip, background: '#fdf6e8', borderColor: '#f1dcaf' }}>
-            <span style={{ ...s.statNum, color: AMBER_TEXT }}>{fmt$(totalCreditsOutstanding)}</span>
-            <span style={s.statLbl}>Credits Out</span>
-          </div>
-          {isSuperAdmin && total > 0 && (
-            <button style={s.exportBtn} onClick={handleExportCustomers} disabled={exportingCustomers}>
-              {exportingCustomers ? 'Exporting…' : '⬇ Export CSV'}
-            </button>
-          )}
-        </div>
-      </div>
+      </PageHeader>
 
-      {/* ── Tabs ── */}
-      <div style={s.tabs} role="tablist" aria-label="Customers and disputes">
-        <button role="tab" aria-selected={activeTab === 'customers'} style={{ ...s.tab, ...(activeTab === 'customers' ? s.tabActive : {}) }} onClick={() => setActiveTab('customers')}>
-          Customers
-        </button>
-        <button role="tab" aria-selected={activeTab === 'disputes'} style={{ ...s.tab, ...(activeTab === 'disputes' ? s.tabActive : {}) }} onClick={() => setActiveTab('disputes')}>
-          Disputes{pendingCount > 0 ? ` (${pendingCount} pending)` : ''}
-        </button>
-      </div>
-
+      <Tabs
+        ariaLabel="Customers and disputes"
+        value={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { value: 'customers', label: 'Customers' },
+          { value: 'disputes', label: pendingCount > 0 ? `Disputes (${pendingCount} pending)` : 'Disputes' },
+        ]}
+      />
       {/* ── Disputes tab ── */}
       {activeTab === 'disputes' && (
         <div role="tabpanel" aria-label="Disputes">
@@ -309,7 +298,7 @@ export default function Customers() {
           ) : disputesLoading ? (
             <CardSkeleton count={3} />
           ) : disputes.length === 0 ? (
-            <div style={s.emptyState}><div style={{ fontSize: 48 }} aria-hidden="true">✅</div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear - no missing points reports</div></div>
+            <div style={s.emptyState}><div style={{ fontSize: 48 }} aria-hidden="true"><Glyph e="✅" size={28} color="#5a6472" /></div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear - no missing points reports</div></div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {disputesTotal > disputes.length && <div style={s.disputeMeta}>Showing the newest {disputes.length} of {disputesTotal.toLocaleString()} reports. Use the filters to narrow the list.</div>}
@@ -344,7 +333,7 @@ export default function Customers() {
       {activeTab === 'customers' && (<div role="tabpanel" aria-label="Customers">
       <form style={s.searchRow} onSubmit={handleSearch} role="search">
         <div style={s.searchWrap}>
-          <span style={s.searchIcon} aria-hidden="true">🔍</span>
+          <span style={s.searchIcon} aria-hidden="true"><Glyph e="🔍" size={15} color="#5a6472" /></span>
           <input
             style={s.searchInput}
             aria-label="Search customers by name or phone number"
@@ -419,7 +408,7 @@ export default function Customers() {
         <CardSkeleton count={4} />
       ) : customers.length === 0 ? (
         <div style={s.emptyState}>
-          <div style={{ fontSize: 48 }} aria-hidden="true">🙋</div>
+          <div style={{ fontSize: 48 }} aria-hidden="true"><Glyph e="🙋" size={28} color="#5a6472" /></div>
           <div style={s.emptyTitle}>{search ? `No results for "${search}"` : 'No customers yet'}</div>
           <div style={s.emptySub}>{search ? 'Try part of a name, or a phone number written any way' : 'Customers will appear here once they sign up'}</div>
         </div>
@@ -480,7 +469,7 @@ export default function Customers() {
                     aria-label={`View ${displayName}'s sales, redemptions and reports`}
                     onClick={() => setDetailTarget({ id: c.id, name: displayName })}
                   >
-                    🔍 View Details
+                    View Details
                   </button>
                   <button
                     style={{ ...s.actionBtn, ...(c.isActive ? s.actionBtnRestrict : s.actionBtnRestore) }}
@@ -488,7 +477,7 @@ export default function Customers() {
                     onClick={() => { setRestrictTarget({ id: c.id, name: displayName, isActive: c.isActive }); setFraudNote(''); setRestrictError(''); }}
                     disabled={toggleMutation.isPending}
                   >
-                    {c.isActive ? '🚫 Restrict Account' : '✅ Restore Account'}
+                    {c.isActive ? 'Restrict Account' : 'Restore Account'}
                   </button>
 
                   {isDevAdmin && (
@@ -497,7 +486,7 @@ export default function Customers() {
                       aria-label={`Delete ${displayName}'s account`}
                       onClick={() => { setDeleteTarget({ id: c.id, name: displayName, phone: c.phone }); setDeleteTyped(''); setDeleteError(''); }}
                     >
-                      🗑 Delete Account
+                      Delete Account
                     </button>
                   )}
                 </div>
@@ -687,7 +676,7 @@ export default function Customers() {
                 {detail.sales.map((t: any) => (
                   <div key={t.id} style={s.detailRow}>
                     <span>{storeDayTime(t.createdAt)} · {t.store?.name || 'Unknown store'}</span>
-                    <span>${Number(t.purchaseAmount).toFixed(2)} · {statusWord(t.status)}{t.receiptImageUrl && <a href={t.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6 }}>📷</a>}</span>
+                    <span>${Number(t.purchaseAmount).toFixed(2)} · {statusWord(t.status)}{t.receiptImageUrl && <a href={t.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6 }}><Glyph e="📷" size={28} color="#5a6472" /></a>}</span>
                   </div>
                 ))}
               </div>

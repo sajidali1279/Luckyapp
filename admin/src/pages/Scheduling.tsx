@@ -630,7 +630,7 @@ function RequestCard({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f1f3f6' },
+  page: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: 'var(--background)' },
 
   // ── Sidebar (Chat style) ──
   sidebar: {

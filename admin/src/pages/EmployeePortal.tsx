@@ -420,7 +420,7 @@ function MyRequestsTab() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page:       { minHeight: '100vh', background: '#f7f8fa', paddingBottom: 40 },
+  page:       { minHeight: '100vh', background: 'var(--background)', paddingBottom: 40 },
 
   header:     { background: 'linear-gradient(135deg, #1D3557 0%, #1D3557 100%)', padding: '0 0 0 0' },
   headerInner:{ maxWidth: 600, margin: '0 auto', padding: '20px 20px' },

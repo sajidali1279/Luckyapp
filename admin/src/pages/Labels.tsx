@@ -22,6 +22,9 @@ import { canonicalPrice, priceProblem, priceChangePercent, BIG_PRICE_CHANGE_PERC
 import { Copy, Trash2, RotateCcw, Download } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { labelsCsv, downloadCsv, CsvCoverage } from '../utils/labelsCsv';
+import { PageHeader, Button, Tabs } from '../components/kit';
+import { Plus } from 'lucide-react';
+import Glyph from '../components/Glyph';
 
 const CATALOG_PAGE_SIZE = 50;
 
@@ -820,65 +823,38 @@ export default function Labels() {
       )}
 
       <div style={s.inner}>
-        <div style={s.pageHeader}>
-          <div>
-            <h1 style={s.pageTitle}>🏷️ Labels</h1>
-            <p style={s.pageSub}>
-              {viewMode === 'catalog'
-                ? 'Chain-wide catalog and base prices.'
-                : viewMode === 'store'
-                ? 'Per-store pricing, overrides, and printing.'
-                : viewMode === 'coverage'
-                ? 'Which stores have each item — and which are missing it.'
-                : 'How many labels need printing right now, by store.'}
-            </p>
-          </div>
-          {viewMode === 'catalog' && (
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                type="button"
-                style={{ ...s.exportBtn, ...(exporting || filteredLabels.length === 0 ? { opacity: 0.6, cursor: exporting ? 'wait' : 'not-allowed' } : {}) }}
-                onClick={exportList}
-                disabled={exporting || filteredLabels.length === 0}
-                title="Download the items shown below as a spreadsheet (opens in Excel)"
-              >
-                <Download size={15} strokeWidth={2.2} aria-hidden /> {exporting ? 'Exporting…' : 'Export'}
-              </button>
-              <button style={s.addBtn} onClick={openAddModal}>+ Add Label</button>
-            </div>
+        <PageHeader
+          title="Labels"
+          description={viewMode === 'catalog'
+            ? 'Chain-wide catalog and base prices.'
+            : viewMode === 'store'
+            ? 'Per-store pricing, overrides, and printing.'
+            : viewMode === 'coverage'
+            ? 'Which stores have each item, and which are missing it.'
+            : 'How many labels need printing right now, by store.'}
+          actions={viewMode === 'catalog' && (
+            <>
+              <Button icon={<Download />} onClick={exportList} disabled={exporting || filteredLabels.length === 0}
+                title="Download the items shown below as a spreadsheet (opens in Excel)">
+                {exporting ? 'Exporting…' : 'Export'}
+              </Button>
+              <Button variant="primary" icon={<Plus />} onClick={openAddModal}>Add Label</Button>
+            </>
           )}
-        </div>
+        />
 
-        <div style={s.viewToggleRow}>
-          <button
-            type="button"
-            style={{ ...s.viewToggleChip, ...(viewMode === 'catalog' ? s.viewToggleChipActive : {}) }}
-            onClick={() => setViewMode('catalog')}
-          >
-            Catalog
-          </button>
-          <button
-            type="button"
-            style={{ ...s.viewToggleChip, ...(viewMode === 'store' ? s.viewToggleChipActive : {}) }}
-            onClick={() => setViewMode('store')}
-          >
-            By Store
-          </button>
-          <button
-            type="button"
-            style={{ ...s.viewToggleChip, ...(viewMode === 'coverage' ? s.viewToggleChipActive : {}) }}
-            onClick={() => setViewMode('coverage')}
-          >
-            Coverage
-          </button>
-          <button
-            type="button"
-            style={{ ...s.viewToggleChip, ...(viewMode === 'health' ? s.viewToggleChipActive : {}) }}
-            onClick={() => setViewMode('health')}
-          >
-            Health
-          </button>
-        </div>
+        <Tabs
+          asButtons
+          ariaLabel="Labels view"
+          value={viewMode}
+          onChange={setViewMode}
+          tabs={[
+            { value: 'catalog', label: 'Catalog' },
+            { value: 'store', label: 'By Store' },
+            { value: 'coverage', label: 'Coverage' },
+            { value: 'health', label: 'Health' },
+          ]}
+        />
 
         {viewMode === 'store' ? (
           <StoreLabelsPanel />
@@ -926,13 +902,13 @@ export default function Labels() {
               <TableSkeleton columns={8} />
             ) : labels.length === 0 ? (
               <div style={s.emptyBox}>
-                <div style={s.emptyIcon}>🏷️</div>
+                <div style={s.emptyIcon}><Glyph e="🏷️" size={28} color="#5a6472" /></div>
                 <div style={s.emptyTitle}>No labels yet</div>
                 <div style={s.emptySub}>Add a label to start building the catalog</div>
               </div>
             ) : filteredLabels.length === 0 ? (
               <div style={s.emptyBox}>
-                <div style={s.emptyIcon}>🔍</div>
+                <div style={s.emptyIcon}><Glyph e="🔍" size={28} color="#5a6472" /></div>
                 <div style={s.emptyTitle}>No labels match your filters</div>
                 <div style={s.emptySub}>Try clearing the search or category filter</div>
               </div>
@@ -1104,7 +1080,7 @@ export default function Labels() {
 }
 
 const s: Record<string, CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f7f8fa', padding: '32px 0' },
+  page: { minHeight: '100vh', background: 'var(--background)', padding: '32px 0' },
   inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 20 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },

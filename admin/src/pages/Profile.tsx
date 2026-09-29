@@ -174,7 +174,7 @@ export default function Profile() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: '#f1f3f6', padding: '32px 24px' },
+  page: { minHeight: '100vh', background: 'var(--background)', padding: '32px 24px' },
   inner: { display: 'flex', flexDirection: 'column', gap: 28 },
 
   header: {

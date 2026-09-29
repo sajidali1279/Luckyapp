@@ -431,7 +431,7 @@ export default function Chat() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: '#f1f3f6' },
+  container: { display: 'flex', height: 'calc(100vh - 64px)', overflow: 'hidden', background: 'var(--background)' },
 
   // ── Sidebar ──
   sidebar: {

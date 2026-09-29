@@ -13,6 +13,10 @@ import { failureMessage } from '../lib/apiError';
 import { phoneDigits, typedPhone, showPhone } from '../lib/phoneText';
 import { storeDayLong } from '../lib/storeDates';
 import { useSingleFlight } from '../hooks/useSingleFlight';
+import { PageHeader, HeaderStat, Button, Chip } from '../components/kit';
+import { Plus, Search } from 'lucide-react';
+import { INPUT } from '../lib/theme';
+import Glyph from '../components/Glyph';
 
 type Tab = 'list' | 'create';
 
@@ -294,29 +298,30 @@ export default function Staff() {
   return (
     <div style={s.page}>
       {/* ── Page Header ── */}
-      <div style={s.pageHeader}>
-        <div style={s.pageHeaderLeft}>
-          <h1 style={s.pageTitle}>Staff Management</h1>
-          <div style={s.pageSubRow}>
-            <span style={s.statChip}>
-              <span style={s.statChipNum}>{staffList.length}</span> total
-            </span>
-            <span style={{ ...s.statChip, background: '#edf7f0', color: GREEN_TEXT, border: '1px solid #c8e6d2' }}>
-              <span style={s.statChipNum}>{activeCount}</span> active
-            </span>
-            {inactiveCount > 0 && (
-              <span style={{ ...s.statChip, background: '#fdf2f2', color: RED_TEXT, border: '1px solid #f3cdd1' }}>
-                <span style={s.statChipNum}>{inactiveCount}</span> deactivated
-              </span>
+      <PageHeader
+        title="Staff"
+        description="Staff accounts, their roles and the stores they work at."
+        actions={
+          <>
+            <Chip selected={tab === 'list'} onClick={() => setTab('list')}>Staff List</Chip>
+            {isSuperAdmin && (
+              <Button variant={tab === 'create' ? 'secondary' : 'primary'} aria-pressed={tab === 'create'} icon={<Plus />} onClick={() => setTab('create')}>
+                New Account
+              </Button>
             )}
-          </div>
-        </div>
-        <div style={s.headerRight}>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <HeaderStat label="total" value={staffList.length} />
+          <HeaderStat label="active" value={activeCount} tone="success" />
+          {inactiveCount > 0 && <HeaderStat label="deactivated" value={inactiveCount} tone="danger" />}
           {tab === 'list' && (
-            <div style={s.searchWrap}>
-              <span style={s.searchIcon} aria-hidden="true">🔍</span>
+            <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: 380, marginLeft: 'auto' }}>
+              <Search size={15} aria-hidden="true" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
               <input
-                style={s.searchInput}
+                className="ui-input"
+                style={{ ...INPUT, paddingLeft: 32 }}
                 aria-label="Search staff by name, phone, store or role"
                 placeholder="Search name, phone, store, role…"
                 value={search}
@@ -324,18 +329,8 @@ export default function Staff() {
               />
             </div>
           )}
-          <div style={s.tabRow}>
-            <button style={{ ...s.tab, ...(tab === 'list' ? s.tabActive : {}) }} aria-pressed={tab === 'list'} onClick={() => setTab('list')}>
-              👥 Staff List
-            </button>
-            {isSuperAdmin && (
-              <button style={{ ...s.tab, ...(tab === 'create' ? s.tabActive : {}) }} aria-pressed={tab === 'create'} onClick={() => setTab('create')}>
-                + New Account
-              </button>
-            )}
-          </div>
         </div>
-      </div>
+      </PageHeader>
 
       {/* ── Staff List ── */}
       {tab === 'list' && (
@@ -345,7 +340,7 @@ export default function Staff() {
           <CardSkeleton count={4} />
         ) : filtered.length === 0 ? (
           <div style={s.emptyState}>
-            <div style={{ fontSize: 48 }} aria-hidden="true">👥</div>
+            <div style={{ fontSize: 48 }} aria-hidden="true"><Glyph e="👥" size={28} color="#5a6472" /></div>
             <div style={s.emptyTitle}>{search ? 'No results' : 'No staff accounts yet'}</div>
             <div style={s.emptySub}>{search ? 'Try a different name, phone number, store or role' : 'Create the first account to get started'}</div>
           </div>
@@ -366,7 +361,7 @@ export default function Staff() {
                 <div key={role} style={s.roleSection}>
                   {/* Section header */}
                   <div style={{ ...s.roleSectionHeader, borderLeft: `4px solid ${rColor}` }}>
-                    <span style={s.roleSectionIcon} aria-hidden="true">{groupIcons[role]}</span>
+                    <span style={s.roleSectionIcon} aria-hidden="true"><Glyph e={groupIcons[role]} size={18} /></span>
                     <h2 style={{ ...s.roleSectionTitle, color: rColor }}>{ROLE_LABELS[role] || role}</h2>
                     <span style={{ ...s.roleSectionCount, background: rBg, color: rColor, border: `1px solid ${rColor}30` }}>
                       {group.length}
@@ -409,14 +404,14 @@ export default function Staff() {
                           {member.storeRoles.length > 0 ? (
                             <div style={s.storeList}>
                               {member.storeRoles.map((sr: any) => (
-                                <span key={sr.store.id} style={s.storeChip}>⛽ {sr.store.name}{sr.store.isActive === false ? ' (closed)' : ''}</span>
+                                <span key={sr.store.id} style={s.storeChip}>{sr.store.name}{sr.store.isActive === false ? ' (closed)' : ''}</span>
                               ))}
-                              {chainWide && member.role === 'STORE_MANAGER' && <span style={s.allStoresTag}>🌐 and every store (chain-wide access)</span>}
+                              {chainWide && member.role === 'STORE_MANAGER' && <span style={s.allStoresTag}>and every store (chain-wide access)</span>}
                             </div>
                           ) : chainWide ? (
-                            <div style={s.allStoresTag}>🌐 All stores</div>
+                            <div style={s.allStoresTag}>All stores</div>
                           ) : (
-                            <div style={s.noStoreTag}>⚠️ No store assigned</div>
+                            <div style={s.noStoreTag}>No store assigned</div>
                           )}
 
                           <div style={s.cardDivider} />
@@ -430,17 +425,17 @@ export default function Staff() {
                           <div style={s.cardActions}>
                             {manageable && !isMe && (
                               <button style={s.actionBtn} onClick={() => openEdit(member)}>
-                                ✏️ Edit
+                                Edit
                               </button>
                             )}
                             {manageable && !isMe && (
                               <button style={s.actionBtn} onClick={() => { setResetTarget({ id: member.id, name: displayName }); setNewPin(''); setNewPin2(''); setResetError(''); }}>
-                                🔒 Reset PIN
+                                Reset PIN
                               </button>
                             )}
                             {manageable && ['EMPLOYEE', 'STORE_MANAGER'].includes(member.role) && (
                               <button style={s.actionBtn} onClick={() => openManageStores(member)}>
-                                🏪 Stores
+                                Stores
                               </button>
                             )}
                             {manageable && !isMe && (
@@ -459,7 +454,7 @@ export default function Staff() {
                                 style={{ ...s.actionBtn, ...s.actionBtnDelete }}
                                 onClick={() => { setDeleteError(''); setDeleteTarget({ id: member.id, name: displayName, role: member.role, isActive: member.isActive }); }}
                               >
-                                🗑️ Delete
+                                Delete
                               </button>
                             )}
                             {(isMe || !manageable) && (
@@ -525,7 +520,7 @@ export default function Staff() {
                         onClick={() => { setCreateRole(opt.value as any); setCreateError(''); }}
                       >
                         <div style={{ ...s.roleCardIcon, background: active ? opt.color + '18' : '#f1f3f6' }} aria-hidden="true">
-                          <span style={{ fontSize: 20 }}>{opt.icon}</span>
+                          <span style={{ fontSize: 20 }}><Glyph e={opt.icon} size={18} /></span>
                         </div>
                         <div style={s.roleCardLabel}>{opt.label}</div>
                         <div style={s.roleCardDesc}>{opt.desc}</div>
@@ -617,7 +612,7 @@ export default function Staff() {
               )}
 
               <div style={s.formHint}>
-                📱 Share the phone number and PIN securely with the staff member. They can change their PIN after logging in.
+                Share the phone number and PIN securely with the staff member. They can change their PIN after logging in.
               </div>
 
               {createError && <div role="alert" style={s.errorBox}>{createError}</div>}
@@ -866,7 +861,7 @@ export default function Staff() {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '28px 32px', minHeight: 'calc(100vh - 64px)', background: '#f7f8fa' },
+  page: { padding: '28px 32px', minHeight: 'calc(100vh - 64px)', background: 'var(--background)' },
 
   // Page header
   pageHeader: {

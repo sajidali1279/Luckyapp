@@ -315,10 +315,10 @@
   font: inherit; font-size: 14px; font-weight: 500; color: #5a6472; transition: color 120ms ease, border-color 120ms ease;
 }
 .ui-tab:hover { color: #111827; }
-.ui-tab[aria-selected="true"] { color: #1D3557; font-weight: 600; border-bottom-color: #D62839; }
+.ui-tab[aria-selected="true"], .ui-tab[aria-pressed="true"] { color: #1D3557; font-weight: 600; border-bottom-color: #D62839; }
 .ui-tab:focus-visible { outline: 2px solid #1D3557; outline-offset: 2px; border-radius: 4px; }
 .ui-tab-count { font-size: 12px; font-weight: 600; color: #5a6472; background: #f1f3f6; border-radius: 999px; padding: 1px 7px; }
-.ui-tab[aria-selected="true"] .ui-tab-count { color: #1D3557; background: #eef2f7; }
+.ui-tab[aria-selected="true"] .ui-tab-count, .ui-tab[aria-pressed="true"] .ui-tab-count { color: #1D3557; background: #eef2f7; }
 
 .ui-chip {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px;
