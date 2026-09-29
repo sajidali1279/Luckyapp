@@ -248,6 +248,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
         'A large sale is held for review',
         [`$${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}, granted by ${employee.name || 'a cashier'} for ${customer.name || customer.phone}.`, `Held because: ${fraudFlags.join(', ')}.`, 'It is not credited until a manager or HQ approves it.'],
         { path: '/transactions', label: 'Review the sale' },
+        'LARGE_SALE',
       );
     }
   }

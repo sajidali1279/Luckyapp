@@ -15,6 +15,7 @@ import { csvText } from '../utils/csv';
 import { storeDateText, storeDateKey } from '../utils/storeTime';
 import { getCurrentPeriod } from '../utils/tier';
 import { canManageAccount, CANNOT_MANAGE_MESSAGE } from '../utils/rolePolicy';
+import { hasMinRole } from '../middleware/auth';
 import { refuse } from '../utils/refusal';
 import { canonicalPhone, staffPhone } from '../utils/phone';
 import { customerSearchWhere, customerListQuery, customerExportQuery, customerFilterClauses } from '../utils/customerSearch';
@@ -81,7 +82,7 @@ export async function clearFailures(phone: string, db: LockoutDb = prisma) {
 // the PIN changes: a reset token can be used once.
 const pinFingerprint = (pinHash: string | null) => createHash('sha256').update(pinHash ?? '').digest('hex').slice(0, 16);
 
-function issueJwt(user: { id: string; phone: string; name?: string | null; role: Role; tier?: string | null }, storeIds: string[]) {
+export function issueJwt(user: { id: string; phone: string; name?: string | null; role: Role; tier?: string | null }, storeIds: string[]) {
   return jwt.sign(
     { id: user.id, phone: user.phone, name: user.name || null, role: user.role, tier: user.tier ?? 'BRONZE', storeIds },
     process.env.JWT_SECRET!,
@@ -243,7 +244,8 @@ export async function login(req: Request, res: Response) {
   }
 
   // Best effort: a write here must never hold up or fail an otherwise-good sign-in.
-  prisma.user.update({ where: { id: user.id }, data: { lastSignInAt: new Date() } }).catch(() => {});
+  // The sign-in before this one is kept too: the admin profile shows it, so a sign-in that was not theirs stands out
+  prisma.user.update({ where: { id: user.id }, data: { previousSignInAt: user.lastSignInAt, lastSignInAt: new Date() } }).catch(() => {});
 
   if (pushToken && platform) {
     await prisma.pushToken.upsert({
@@ -368,7 +370,10 @@ export async function changePin(req: AuthRequest, res: Response) {
 
   const pinHash = await bcrypt.hash(newPin, SALT_ROUNDS);
   const newHistory = [user.pinHash, ...user.pinHistory].slice(0, 3);
-  await prisma.user.update({ where: { id: user.id }, data: { pinHash, pinHistory: newHistory } });
+  // HQ accounts: a new PIN ends every other session too (someone who changes it because it may be known must lock the other
+  // person out). The admin page signs out after a change anyway. Staff phones keep their session, as they have since the 1.2.3 fix.
+  const endSessions = hasMinRole(user.role as Role, Role.SUPER_ADMIN);
+  await prisma.user.update({ where: { id: user.id }, data: { pinHash, pinHistory: newHistory, ...(endSessions ? { sessionsValidAfter: new Date() } : {}) } });
   res.json({ success: true, message: 'PIN updated' });
 }
 

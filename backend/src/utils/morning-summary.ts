@@ -45,7 +45,7 @@ export async function runMorningSummary(now: Date = new Date()): Promise<Summary
   if (unpaid) lines.push(`${plural(unpaid, 'bill is', 'bills are')} unpaid.`);
   if (lines.length === 0) return 'nothing-waiting';
 
-  await emailHQ('Lucky Stop: what is waiting this morning', 'Good morning. This is what is waiting:', lines, { path: '/', label: 'Open the dashboard' });
+  await emailHQ('Lucky Stop: what is waiting this morning', 'Good morning. This is what is waiting:', lines, { path: '/', label: 'Open the dashboard' }, 'MORNING_SUMMARY');
   audit({
     actorId: 'system', actorName: 'Morning summary (automatic)', actorRole: 'DEV_ADMIN',
     action: 'MORNING_SUMMARY', entity: 'notification', entityId: null,

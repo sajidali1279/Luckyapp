@@ -209,6 +209,9 @@ model User {
   sessionsValidAfter  DateTime?
   // Set on every successful sign-in (best effort, never blocks the sign-in itself). Null means never signed in.
   lastSignInAt        DateTime?
+  previousSignInAt    DateTime? // the sign-in before the last one, shown on the admin profile so someone else's use stands out
+  // HQ emails this person has switched off (MORNING_SUMMARY, WEEKLY_SUMMARY, LARGE_SALE, MISSING_POINTS, STORE_ALERT); empty = all of them
+  emailAlertsOff      String[]  @default([])
 
   // Customer-specific
   qrCode          String?  @unique

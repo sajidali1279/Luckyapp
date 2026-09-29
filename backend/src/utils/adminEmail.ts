@@ -15,9 +15,17 @@ export const ADMIN_URL = 'https://admin.luckystop.cliffindus.com';
 export const escapeHtml = (text: unknown) =>
   String(text ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-export async function hqEmailAddresses(): Promise<string[]> {
+/** The HQ emails, each of which a person can switch off on their admin profile. */
+export const HQ_EMAIL_KINDS = ['MORNING_SUMMARY', 'WEEKLY_SUMMARY', 'LARGE_SALE', 'MISSING_POINTS', 'STORE_ALERT'] as const;
+export type HqEmailKind = typeof HQ_EMAIL_KINDS[number];
+
+/** Who gets this kind of email: every active Super Admin and Dev Admin with an address who has not switched it off, plus ADMIN_EMAIL. */
+export async function hqEmailAddresses(kind?: HqEmailKind): Promise<string[]> {
   const rows = await prisma.user.findMany({
-    where: { role: { in: [Role.SUPER_ADMIN, Role.DEV_ADMIN] }, isActive: true, email: { not: null } },
+    where: {
+      role: { in: [Role.SUPER_ADMIN, Role.DEV_ADMIN] }, isActive: true, email: { not: null },
+      ...(kind ? { NOT: { emailAlertsOff: { has: kind } } } : {}),
+    },
     select: { email: true },
   });
   const all = new Set(rows.map((r) => (r.email ?? '').trim().toLowerCase()).filter(Boolean));
@@ -26,9 +34,9 @@ export async function hqEmailAddresses(): Promise<string[]> {
 }
 
 /** A short email with a heading, a few lines and a button into the admin. Never throws: an email problem must not fail the sale or the report that caused it. */
-export async function emailHQ(subject: string, heading: string, lines: string[], link: { path: string; label: string }): Promise<void> {
+export async function emailHQ(subject: string, heading: string, lines: string[], link: { path: string; label: string }, kind?: HqEmailKind): Promise<void> {
   try {
-    const to = await hqEmailAddresses();
+    const to = await hqEmailAddresses(kind);
     if (to.length === 0) return;
     const html = `
       <h2 style="color:#1D3557;font-family:sans-serif;">${escapeHtml(heading)}</h2>

@@ -58,7 +58,7 @@ export async function runWeeklySummary(now: Date = new Date()): Promise<WeeklySu
   ];
   if (busiest) lines.push(`Busiest store: ${busiest[0]} (${dollars(busiest[1])} in purchases this week).`);
 
-  await emailHQ('Lucky Stop: last week in numbers', 'Here is how the past 7 days went:', lines, { path: '/analytics', label: 'Open Analytics' });
+  await emailHQ('Lucky Stop: last week in numbers', 'Here is how the past 7 days went:', lines, { path: '/analytics', label: 'Open Analytics' }, 'WEEKLY_SUMMARY');
   audit({
     actorId: 'system', actorName: 'Weekly summary (automatic)', actorRole: 'DEV_ADMIN',
     action: 'WEEKLY_SUMMARY', entity: 'notification', entityId: null,

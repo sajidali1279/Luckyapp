@@ -165,6 +165,7 @@ import {
 import { getLaunchStats } from '../controllers/launch.controller';
 import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
 import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks } from '../controllers/dailyTask.controller';
+import { getAccount, updateEmailAlerts, signOutOthers } from '../controllers/account.controller';
 import { createNotice, getAllNotices, deactivateNotice, updateNotice, deleteNotice, getActiveNotices } from '../controllers/adminNotice.controller';
 import {
   updateStoreBilling,
@@ -230,7 +231,10 @@ router.delete('/auth/profile/avatar', authenticate, deleteAvatar);              
 router.post('/auth/push-token', authenticate, registerPushToken);
 router.delete('/auth/push-token', authenticate, removePushToken);   // Sign-out: stop this device's pushes for this account
 router.get('/auth/me', authenticate, getMe);
-router.patch('/auth/email', authenticate, updateEmail);                           // Save recovery email
+router.patch('/auth/email', authenticate, updateEmail);
+router.get('/auth/account', authenticate, requireRole(Role.STORE_MANAGER), getAccount);                 // the admin Profile page
+router.patch('/auth/email-alerts', authenticate, requireRole(Role.SUPER_ADMIN), updateEmailAlerts);   // which HQ emails this person gets
+router.post('/auth/sign-out-others', authenticate, requireRole(Role.STORE_MANAGER), signOutOthers);   // end every other session                           // Save recovery email
 router.post('/auth/verify-firebase-reset', verifyFirebaseReset);                  // Firebase phone OTP verified → get resetToken
 router.post('/auth/reset-pin', resetPin);                                         // Reset PIN using resetToken
 router.patch('/auth/confirm-21', authenticate, requireRole(Role.CUSTOMER), confirm21); // Customer confirms 21+ for age-restricted stores/offers

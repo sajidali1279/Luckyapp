@@ -93,6 +93,7 @@ export async function submitRequest(req: AuthRequest, res: Response) {
       'A high-priority store alert was raised',
       [`Store: ${request.store.name}`, `Type: ${request.type.replace(/_/g, ' ').toLowerCase()}`, `From: ${user.name || 'an employee'}`, ...(request.notes ? [`Note: ${request.notes}`] : [])],
       { path: `/store-requests?storeId=${storeId}&tab=alert&highlightId=${request.id}`, label: 'Review the alert' },
+      'STORE_ALERT',
     );
   }
 

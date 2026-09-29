@@ -84,6 +84,7 @@ export async function submitDispute(req: AuthRequest, res: Response) {
     'A customer reported missing points',
     [`Store: ${store.name}`, `Customer: ${req.user!.name || req.user!.phone || 'a customer'}`, `They wrote: ${description}`, ...(estimatedAmt ? [`They say the purchase was about $${Number(estimatedAmt).toFixed(2)}.`] : [])],
     { path: '/customers?tab=disputes', label: 'Review the report' },
+    'MISSING_POINTS',
   );
 
   res.status(201).json({ success: true, data: dispute });
