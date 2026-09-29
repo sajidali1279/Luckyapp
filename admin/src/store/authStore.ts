@@ -9,6 +9,7 @@ interface AuthUser {
   name?: string;
   role: UserRole;
   storeIds?: string[];
+  avatarUrl?: string | null;
 }
 
 interface AuthState {

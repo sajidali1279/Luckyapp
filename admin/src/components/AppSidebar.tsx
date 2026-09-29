@@ -468,8 +468,9 @@ export function AppSidebar() {
                 fontSize: 11,
                 letterSpacing: '0.02em',
                 flexShrink: 0,
+                overflow: 'hidden',
               }}>
-                {initials}
+                {user?.avatarUrl ? <img src={user.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initials}
               </div>
 
               {/* Name + role */}

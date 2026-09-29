@@ -59,6 +59,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   CREATE_STAFF:              { label: 'Create Staff',           color: '#4f6d8f', bg: '#9b5de518', icon: '👤' },
   TOGGLE_USER:               { label: 'Deactivate / Reactivate', color: '#c42130', bg: '#E6394618', icon: '🔒' },
   RESET_PIN:                 { label: 'Reset PIN',              color: '#c42130', bg: '#E6394618', icon: '🔑' },
+  SIGN_OUT_EVERYWHERE:       { label: 'Signed Out Everywhere',  color: '#1D3557', bg: '#1D355718', icon: '🔒' },
   CREATE_SUPER_ADMIN:        { label: 'Create Super Admin',     color: '#4f6d8f', bg: '#9b5de518', icon: '🏢' },
   DELETE_USER:               { label: 'Delete Account',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
   DELETE_USER_REFUSED:       { label: 'Delete Refused',         color: '#c42130', bg: '#E6394618', icon: '⛔' },

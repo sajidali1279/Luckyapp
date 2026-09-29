@@ -41,6 +41,12 @@ export const authApi = {
   updateProfile: (name: string) => api.patch('/auth/profile', { name }),
   changePin: (currentPin: string, newPin: string) => api.patch('/auth/pin', { currentPin, newPin }),
   updateEmail: (email: string) => api.patch('/auth/email', { email }),
+  /** The Profile page: role, stores, sign-ins, email switches, recent actions */
+  getAccount: () => api.get('/auth/account'),
+  setEmailAlerts: (off: string[]) => api.patch('/auth/email-alerts', { off }),
+  signOutOthers: () => api.post('/auth/sign-out-others'),
+  uploadAvatar: (file: File) => { const fd = new FormData(); fd.append('avatar', file); return api.post('/auth/profile/avatar', fd, { headers: { 'Content-Type': 'multipart/form-data' } }); },
+  removeAvatar: () => api.delete('/auth/profile/avatar'),
 };
 
 export interface PaymentBody { paidOn?: string; method?: string; note?: string; expectedAmount?: number; expectedTotal?: number }
