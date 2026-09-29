@@ -14,7 +14,7 @@ import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
 import ModalCloseButton from './ModalCloseButton';
 import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon } from './Icons';
-import NoticeBanner, { usePinnedNotice } from './NoticeBanner';
+import { NoticeStack, usePinnedNotices } from './NoticeBanner';
 import KeyboardSafe from './KeyboardSafe';
 import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
@@ -95,7 +95,7 @@ export default function ChatScreen() {
     queryFn: () => chatApi.getMyStores(),
   });
 
-  const { notice: visibleNotice, dismiss: dismissNotice } = usePinnedNotice(selectedStoreId);
+  const { notices: visibleNotices, dismiss: dismissNotice } = usePinnedNotices(selectedStoreId);
 
   const ROLE_LABELS: Record<string, string> = {
     DEV_ADMIN:     t('sharedChat.roleDev'),
@@ -351,9 +351,7 @@ export default function ChatScreen() {
         </Modal>
 
         {/* ── Pinned Notice ── */}
-        {visibleNotice && (
-          <NoticeBanner notice={visibleNotice} onDismiss={() => dismissNotice(visibleNotice.id)} />
-        )}
+        <NoticeStack notices={visibleNotices} onDismiss={dismissNotice} />
 
         {/* ── Messages ── */}
         {msgsLoading ? (

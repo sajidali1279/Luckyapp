@@ -17,6 +17,7 @@ import {
 } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
 import DashboardWatermark from '../../components/DashboardWatermark';
+import { NoticeStack, usePinnedNotices } from '../../components/NoticeBanner';
 
 const BAR_COLORS = [
   '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
@@ -129,9 +130,12 @@ export default function ManagerHome() {
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
+  // HQ and store notices for managers (everything the server sends is for this manager)
+  const { notices, dismiss: dismissNotice, refetch: refetchNotices } = usePinnedNotices('*');
+
   async function onRefresh() {
     setRefreshing(true);
-    await Promise.all([refetch(), refetchStores(), refetchCategories()]);
+    await Promise.all([refetch(), refetchStores(), refetchCategories(), refetchNotices()]);
     setRefreshing(false);
   }
 
@@ -231,6 +235,8 @@ export default function ManagerHome() {
 
       </View>
       </SafeAreaView>
+
+      <NoticeStack notices={notices} onDismiss={dismissNotice} />
 
       <View style={s.safe}>
       <ScrollView

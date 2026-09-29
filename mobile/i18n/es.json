@@ -2356,5 +2356,13 @@
     "less": "Menos: {{field}}",
     "more": "Más: {{field}}",
     "rowStarts": " · empieza en la {{n}}"
+  },
+  "notices": {
+    "urgent": "Urgente",
+    "showMore": "Ver {{count}} más",
+    "showLess": "Ver menos",
+    "dismissA11y": "Cerrar aviso",
+    "noticeA11y": "Aviso: {{title}}. {{body}}",
+    "urgentA11y": "Aviso urgente: {{title}}. {{body}}"
   }
 }

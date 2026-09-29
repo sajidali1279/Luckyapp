@@ -17,7 +17,7 @@ import {
   InboxIcon, ChevronRightIcon, FlameIcon, ReceiptIcon, DollarSignIcon,
   BellIcon, FileCheckIcon, ListChecksIcon,
 } from '../../components/Icons';
-import NoticeBanner, { usePinnedNotice } from '../../components/NoticeBanner';
+import { NoticeStack, usePinnedNotices } from '../../components/NoticeBanner';
 import DashboardWatermark from '../../components/DashboardWatermark';
 import GasPriceCard from '../../components/GasPriceCard';
 import { useCurrentStoreId } from '../../utils/geo';
@@ -164,10 +164,8 @@ export default function EmployeeHomeScreen() {
   const deals = allOffers.filter((o: any) => o.dealText);
   const isRefreshing = offersRefetching;
 
-  // A notice may be scoped to any store the employee is assigned to, not
-  // just storeIds[0] — pass the full list so a multi-store employee sees
-  // notices for every store they work at, not only their first one.
-  const { notice: pinnedNotice, dismiss: dismissNotice, refetch: refetchNotice } = usePinnedNotice(user?.storeIds);
+  // Every notice the server sends is for this person (their stores and role), so the home screen shows them all
+  const { notices: pinnedNotices, dismiss: dismissNotice, refetch: refetchNotice } = usePinnedNotices('*');
 
   return (
     <View style={s.root}>
@@ -217,9 +215,7 @@ export default function EmployeeHomeScreen() {
         </SafeAreaView>
       </Animated.View>
 
-      {pinnedNotice && (
-        <NoticeBanner notice={pinnedNotice} onDismiss={() => dismissNotice(pinnedNotice.id)} />
-      )}
+      <NoticeStack notices={pinnedNotices} onDismiss={dismissNotice} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
