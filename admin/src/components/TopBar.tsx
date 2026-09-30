@@ -148,10 +148,11 @@ const s: Record<string, React.CSSProperties> = {
   },
   searchBtnText: { flex: 1, textAlign: 'left' as const, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
   kbd: { fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 4, padding: '1px 5px', flexShrink: 0 },
-  right: { display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 0 },
-  freshness: { fontSize: 12, color: TEXT_MUTED, whiteSpace: 'nowrap' as const },
+  // Can shrink (only the freshness text gives way): at phone width the fixed group overflowed the bar by a few pixels
+  right: { display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 1, minWidth: 0 },
+  freshness: { fontSize: 12, color: TEXT_MUTED, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 },
   iconBtn: {
-    position: 'relative', width: 34, height: 34, borderRadius: 8, border: '1px solid transparent', background: 'transparent',
+    position: 'relative', width: 34, height: 34, flexShrink: 0, borderRadius: 8, border: '1px solid transparent', background: 'transparent',
     color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
   },
   spin: { animation: 'spin 0.8s linear infinite' },
