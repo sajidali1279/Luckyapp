@@ -351,3 +351,58 @@
   background: rgba(255, 255, 255, 0.96); color: #111827; border-color: transparent;
 }
 .ui-band input::placeholder { color: #6b7280; }
+
+/* ── One look for the older page parts (2026-09-30) ──────────────────────────────
+   Many pages still style their own fields, buttons and tables inline. These rules give them the theme's shape and focus
+   ring without rewriting each page. !important is what lets a stylesheet win over an inline style, so it is used here on
+   purpose, and only for shape (corners, borders, type), never for the colours a page uses to mean something. */
+#main-content select,
+#main-content textarea,
+#main-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="color"]) {
+  border-radius: 8px !important;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-color: #d5dae1 !important;
+  font-family: inherit !important;
+  font-size: 14px !important;
+  color: #111827;
+  background-color: #fff;
+  outline: none !important;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+#main-content select:focus,
+#main-content textarea:focus,
+#main-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus {
+  border-color: #1D3557 !important;
+  box-shadow: 0 0 0 3px rgb(29 53 87 / 0.12) !important;
+}
+#main-content select:disabled,
+#main-content input:disabled,
+#main-content textarea:disabled { background-color: #f7f8fa; color: #5a6472; cursor: not-allowed; }
+#main-content input::placeholder,
+#main-content textarea::placeholder { color: #8a929e; }
+
+/* Older buttons: the theme's corner, weight and type (their colours stay) */
+#main-content button:not(.ui-btn):not(.ui-tab):not(.ui-chip):not([role="switch"]):not([data-slot]):not([data-sidebar]) {
+  font-family: inherit;
+  border-radius: 8px;
+}
+#main-content button:not(.ui-btn):not(.ui-tab):not(.ui-chip):not([data-slot]):not([data-sidebar]):focus-visible {
+  outline: 2px solid #1D3557;
+  outline-offset: 2px;
+}
+
+/* Tables: one header style and a row hover everywhere */
+#main-content table { border-collapse: separate; border-spacing: 0; }
+#main-content thead th {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5a6472 !important;
+  background: #f7f8fa !important;
+  border-bottom: 1px solid #e4e7ec !important;
+  white-space: nowrap;
+}
+#main-content tbody td { border-bottom: 1px solid #eef0f3; }
+#main-content tbody tr:hover > td { background-color: #f5f7fa; }

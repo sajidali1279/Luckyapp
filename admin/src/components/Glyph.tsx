@@ -38,5 +38,6 @@ export function glyphFor(e?: string | null): LucideIcon | undefined {
 export default function Glyph({ e, size = 16, color, style, strokeWidth }: { e?: string | null; size?: number; color?: string; style?: CSSProperties; strokeWidth?: number }) {
   const Icon = glyphFor(e);
   if (!Icon) return null;
-  return <Icon size={size} color={color} style={{ flexShrink: 0, ...style }} strokeWidth={strokeWidth} aria-hidden="true" />;
+  // inline-block: the emoji it replaces sat in centred text, and Tailwind's reset makes every svg a block (it went to the left)
+  return <Icon size={size} color={color} style={{ flexShrink: 0, display: 'inline-block', verticalAlign: 'middle', ...style }} strokeWidth={strokeWidth} aria-hidden="true" />;
 }
