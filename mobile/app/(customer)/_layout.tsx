@@ -26,7 +26,7 @@ export default function CustomerLayout() {
 
   const groups: NavGroup[] = [
     {
-      title: 'Main',
+      title: t('nav.groupMain'),
       items: [
         { route: '/(customer)/home',     icon: (p) => <HomeIcon {...p} />,    label: t('nav.home') },
         { route: '/(customer)/rewards',  icon: (p) => <StarIcon {...p} />,    label: t('nav.rewards') },
@@ -35,7 +35,7 @@ export default function CustomerLayout() {
       ],
     },
     {
-      title: 'Discover',
+      title: t('nav.groupDiscover'),
       items: [
         { route: '/(customer)/ads',             icon: (p) => <MegaphoneIcon {...p} />,   label: t('nav.adsPromos') },
         { route: '/(customer)/leaderboard',     icon: (p) => <TrophyIcon {...p} />,      label: t('nav.leaderboard') },
@@ -44,7 +44,7 @@ export default function CustomerLayout() {
       ],
     },
     {
-      title: 'Account',
+      title: t('nav.groupAccount'),
       items: [
         { route: '/(customer)/notifications', icon: (p) => <BellIcon {...p} />,      label: t('nav.alerts'), badge: unreadCount },
         { route: '/(customer)/my-disputes',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.myDisputes') },

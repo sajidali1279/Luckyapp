@@ -414,8 +414,8 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
     return (
       <View style={s.center}>
         <ClipboardIcon size={52} color={COLORS.border} strokeWidth={1.25} />
-        <Text style={s.emptyTitle}>No requests yet</Text>
-        <Text style={s.emptyText}>Use "New Request" to ask your manager to add items to the store order.</Text>
+        <Text style={s.emptyTitle}>{t('employeeStockRequest.noRequests')}</Text>
+        <Text style={s.emptyText}>{t('employeeStockRequest.noRequestsSub')}</Text>
       </View>
     );
   }
@@ -528,6 +528,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function StockRequestScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<'new' | 'mine'>('new');
@@ -552,8 +553,8 @@ export default function StockRequestScreen() {
       <SafeAreaView style={s.container}>
         <View style={s.center}>
           <ClipboardIcon size={48} color={COLORS.border} strokeWidth={1.25} />
-          <Text style={s.emptyTitle}>No Store Assigned</Text>
-          <Text style={s.emptyText}>Contact your manager to be assigned to a store.</Text>
+          <Text style={s.emptyTitle}>{t('employeeStockRequest.noStore')}</Text>
+          <Text style={s.emptyText}>{t('employeeStockRequest.noStoreSub')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -567,9 +568,9 @@ export default function StockRequestScreen() {
       <View style={s.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <PackageIcon size={20} color="#fff" strokeWidth={2} />
-          <Text style={s.headerTitle}>Stock Request</Text>
+          <Text style={s.headerTitle}>{t('employeeStockRequest.title')}</Text>
         </View>
-        <Text style={s.headerSub}>Request items for the store's order list</Text>
+        <Text style={s.headerSub}>{t('employeeStockRequest.subtitle')}</Text>
       </View>
 
       {/* Tabs */}
@@ -578,19 +579,19 @@ export default function StockRequestScreen() {
           style={[s.tab, activeTab === 'new' && s.tabActive]}
           onPress={() => setActiveTab('new')}
           accessibilityRole="tab"
-          accessibilityLabel="New Request tab"
+          accessibilityLabel={t('employeeStockRequest.tabNewA11y')}
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
-          <Text style={[s.tabText, activeTab === 'new' && s.tabTextActive]}>+ New Request</Text>
+          <Text style={[s.tabText, activeTab === 'new' && s.tabTextActive]}>{t('employeeStockRequest.tabNew')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.tab, activeTab === 'mine' && s.tabActive]}
           onPress={() => setActiveTab('mine')}
           accessibilityRole="tab"
-          accessibilityLabel="My Requests tab"
+          accessibilityLabel={t('employeeStockRequest.tabMineA11y')}
           hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
         >
-          <Text style={[s.tabText, activeTab === 'mine' && s.tabTextActive]}>My Requests</Text>
+          <Text style={[s.tabText, activeTab === 'mine' && s.tabTextActive]}>{t('employeeStockRequest.tabMine')}</Text>
         </TouchableOpacity>
       </View>
 

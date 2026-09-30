@@ -251,7 +251,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
       qc.invalidateQueries({ queryKey: ['support-thread', thread.id] });
       qc.invalidateQueries({ queryKey: ['support-threads'] });
     },
-    onError: () => Toast.show({ type: 'error', text1: 'Failed to send message' }),
+    onError: () => Toast.show({ type: 'error', text1: t('managerSupport.sendFailed') }),
   });
 
   const sc = STATUS_CFG[thread.status] || STATUS_CFG.OPEN;
@@ -314,7 +314,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
             {thread.status === 'RESOLVED' && (
               <View style={s.resolvedBanner}>
                 <CheckCircleIcon size={14} color="#059669" strokeWidth={2.25} />
-                <Text style={s.resolvedBannerText}>This ticket has been resolved</Text>
+                <Text style={s.resolvedBannerText}>{t('managerSupport.ticketResolved')}</Text>
               </View>
             )}
             <View style={{ height: 8 }} />
@@ -329,7 +329,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
                 style={s.replyInput}
                 value={reply}
                 onChangeText={setReply}
-                placeholder="Reply…"
+                placeholder={t('managerSupport.replyPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 maxLength={2000}
                 multiline
@@ -359,6 +359,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function SupportScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const [showNew,    setShowNew]    = useState(false);
   const [activeThread, setActiveThread] = useState<Thread | null>(null);
@@ -381,8 +382,8 @@ export default function SupportScreen() {
       <SafeAreaView style={s.container} edges={['top']}>
         <View style={s.center}>
           <HeadphonesIcon size={52} color={COLORS.border} strokeWidth={1.25} />
-          <Text style={s.emptyTitle}>Access Restricted</Text>
-          <Text style={s.emptyText}>Support is available to Store Managers and above.</Text>
+          <Text style={s.emptyTitle}>{t('managerSupport.accessRestricted')}</Text>
+          <Text style={s.emptyText}>{t('managerSupport.accessRestrictedSub')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -390,25 +391,25 @@ export default function SupportScreen() {
 
   const threads: Thread[] = data?.data?.data || [];
 
-  const openThreads     = threads.filter(t => t.status !== 'RESOLVED');
-  const resolvedThreads = threads.filter(t => t.status === 'RESOLVED');
+  const openThreads     = threads.filter(th => th.status !== 'RESOLVED');
+  const resolvedThreads = threads.filter(th => th.status === 'RESOLVED');
 
   return (
     <View style={s.container}>
       <ManagerHeader
         size="sm"
-        title="Support"
+        title={t('managerSupport.title')}
         icon={<HeadphonesIcon size={20} color="#fff" strokeWidth={2} />}
         rightSlot={
           <TouchableOpacity
             style={s.newBtn}
             onPress={() => setShowNew(true)}
             accessibilityRole="button"
-            accessibilityLabel="Create new support ticket"
+            accessibilityLabel={t('managerSupport.newTicketA11y')}
             hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
           >
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
-            <Text style={s.newBtnText}>New Ticket</Text>
+            <Text style={s.newBtnText}>{t('managerSupport.newTicket')}</Text>
           </TouchableOpacity>
         }
       />
@@ -416,12 +417,12 @@ export default function SupportScreen() {
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.managerPrimary} size="large" /></View>
       ) : isError ? (
-        <ErrorState message="Failed to load support tickets." onRetry={() => refetch()} />
+        <ErrorState message={t('managerSupport.loadFailed')} onRetry={() => refetch()} />
       ) : threads.length === 0 ? (
         <View style={s.center}>
           <HeadphonesIcon size={52} color={COLORS.border} strokeWidth={1.25} />
-          <Text style={s.emptyTitle}>No support tickets</Text>
-          <Text style={s.emptyText}>Tap "New Ticket" to reach the Lucky Stop support team.</Text>
+          <Text style={s.emptyTitle}>{t('managerSupport.noTickets')}</Text>
+          <Text style={s.emptyText}>{t('managerSupport.noTicketsSub')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -431,7 +432,7 @@ export default function SupportScreen() {
         >
           {openThreads.length > 0 && (
             <>
-              <Text style={s.sectionLabel}>Open</Text>
+              <Text style={s.sectionLabel}>{t('managerSupport.statusOpen')}</Text>
               {openThreads.map((thread, index) => (
                 <FadeSlideIn key={thread.id} delay={Math.min(index * 40, 200)}>
                   <ThreadCard thread={thread} onPress={() => setActiveThread(thread)} />
@@ -441,7 +442,7 @@ export default function SupportScreen() {
           )}
           {resolvedThreads.length > 0 && (
             <>
-              <Text style={[s.sectionLabel, { marginTop: 8 }]}>Resolved</Text>
+              <Text style={[s.sectionLabel, { marginTop: 8 }]}>{t('managerSupport.statusResolved')}</Text>
               {resolvedThreads.map((thread, index) => (
                 <FadeSlideIn key={thread.id} delay={Math.min(index * 40, 200)}>
                   <ThreadCard thread={thread} onPress={() => setActiveThread(thread)} />

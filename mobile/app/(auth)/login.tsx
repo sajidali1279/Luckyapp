@@ -15,10 +15,13 @@ import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import LanguageSwitch from '../../components/LanguageSwitch';
+import { useTranslation } from 'react-i18next';
 
 type Screen = 'quick' | 'login' | 'register' | 'verify-phone';
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const { setAuth, quickLoginPhone, biometricEnabled, setBiometricEnabled, saveBiometricPin, getBiometricPin } = useAuthStore();
 
   // Determine initial screen
@@ -103,16 +106,16 @@ export default function LoginScreen() {
   const triggerBiometric = useCallback(async () => {
     if (!quickLoginPhone) return;
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Unlock Lucky Stop',
-      fallbackLabel: 'Use PIN instead',
-      cancelLabel: 'Cancel',
+      promptMessage: t('auth.unlockPrompt'),
+      fallbackLabel: t('auth.usePinInstead'),
+      cancelLabel: t('auth.cancel'),
       disableDeviceFallback: false,
     });
     if (!result.success) return;
     // Biometric passed — retrieve saved PIN and auto-login
     const savedPin = await getBiometricPin();
     if (!savedPin) {
-      Toast.show({ type: 'error', text1: 'Biometric setup incomplete', text2: 'Please sign in with your PIN once to re-enable' });
+      Toast.show({ type: 'error', text1: t('auth.bioIncomplete'), text2: t('auth.signInWithPinOnce') });
       return;
     }
     setLoading(true);
@@ -120,7 +123,7 @@ export default function LoginScreen() {
       const { data } = await authApi.login(quickLoginPhone, savedPin);
       await setAuth(data.data.user, data.data.token);
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed', text2: 'Please sign in with your PIN' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('auth.loginFailed'), text2: t('auth.signInWithPin') });
     } finally {
       setLoading(false);
     }
@@ -140,7 +143,7 @@ export default function LoginScreen() {
   async function handleQuickLogin() {
     if (!quickLoginPhone) return;
     if (pin.length !== 4) {
-      Toast.show({ type: 'error', text1: 'Enter your 4-digit PIN' });
+      Toast.show({ type: 'error', text1: t('auth.enterPin') });
       return;
     }
     setLoading(true);
@@ -152,7 +155,7 @@ export default function LoginScreen() {
     } catch (err: any) {
       setPin('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('auth.loginFailed') });
     } finally {
       setLoading(false);
     }
@@ -160,11 +163,11 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (rawPhone().length < 10) {
-      Toast.show({ type: 'error', text1: 'Enter a valid 10-digit phone number' });
+      Toast.show({ type: 'error', text1: t('auth.enterValidPhone10') });
       return;
     }
     if (pin.length !== 4) {
-      Toast.show({ type: 'error', text1: 'PIN must be 4 digits' });
+      Toast.show({ type: 'error', text1: t('auth.pinMust4') });
       return;
     }
     setLoading(true);
@@ -178,7 +181,7 @@ export default function LoginScreen() {
     } catch (err: any) {
       setPin('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Login failed' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('auth.loginFailed') });
     } finally {
       setLoading(false);
     }
@@ -186,10 +189,10 @@ export default function LoginScreen() {
 
   // Step 1: validate form then send OTP via Firebase
   async function handleRegister() {
-    if (!name.trim()) { Toast.show({ type: 'error', text1: 'Enter your name' }); return; }
-    if (rawPhone().length < 10) { Toast.show({ type: 'error', text1: 'Enter a valid phone number' }); return; }
-    if (pin.length !== 4) { Toast.show({ type: 'error', text1: 'PIN must be 4 digits' }); return; }
-    if (pin !== confirmPin) { Toast.show({ type: 'error', text1: 'PINs do not match' }); return; }
+    if (!name.trim()) { Toast.show({ type: 'error', text1: t('auth.enterName') }); return; }
+    if (rawPhone().length < 10) { Toast.show({ type: 'error', text1: t('auth.enterValidPhone') }); return; }
+    if (pin.length !== 4) { Toast.show({ type: 'error', text1: t('auth.pinMust4') }); return; }
+    if (pin !== confirmPin) { Toast.show({ type: 'error', text1: t('auth.pinsNoMatch') }); return; }
     setSendingOtp(true);
     try {
       const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
@@ -198,7 +201,7 @@ export default function LoginScreen() {
       setResendCooldown(60);
       setScreen('verify-phone');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Could not send code', text2: err.message || 'Check the phone number and try again' });
+      Toast.show({ type: 'error', text1: t('auth.couldNotSendCode'), text2: err.message || t('auth.checkPhoneTryAgain') });
     } finally {
       setSendingOtp(false);
     }
@@ -206,7 +209,7 @@ export default function LoginScreen() {
 
   // Step 2: verify OTP then create account
   async function handleVerifyAndCreate() {
-    if (otp.length !== 6) { Toast.show({ type: 'error', text1: 'Enter the 6-digit code' }); return; }
+    if (otp.length !== 6) { Toast.show({ type: 'error', text1: t('auth.enterCode6') }); return; }
     setLoading(true);
     try {
       const credential = await confirmation.confirm(otp);
@@ -219,11 +222,11 @@ export default function LoginScreen() {
       setOtp('');
       const code = err.code as string | undefined;
       if (code === 'auth/invalid-verification-code') {
-        Toast.show({ type: 'error', text1: 'Wrong code - try again' });
+        Toast.show({ type: 'error', text1: t('auth.wrongCode') });
       } else if (code === 'auth/code-expired') {
-        Toast.show({ type: 'error', text1: 'Code expired', text2: 'Tap Resend to get a new one' });
+        Toast.show({ type: 'error', text1: t('auth.codeExpired'), text2: t('auth.tapResend') });
       } else {
-        Toast.show({ type: 'error', text1: err.response?.data?.error || 'Verification failed' });
+        Toast.show({ type: 'error', text1: err.response?.data?.error || t('auth.verifyFailed') });
       }
     } finally {
       setLoading(false);
@@ -237,9 +240,9 @@ export default function LoginScreen() {
       setConfirmation(result);
       setOtp('');
       setResendCooldown(60);
-      Toast.show({ type: 'success', text1: 'New code sent!' });
+      Toast.show({ type: 'success', text1: t('auth.newCodeSent') });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to resend - try again' });
+      Toast.show({ type: 'error', text1: t('auth.resendFailed') });
     } finally {
       setResending(false);
     }
@@ -258,20 +261,20 @@ export default function LoginScreen() {
 
   async function enableBiometric() {
     const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Confirm your identity to enable biometric login',
-      cancelLabel: 'Skip',
+      promptMessage: t('auth.confirmIdentityBio'),
+      cancelLabel: t('auth.skip'),
     });
     if (result.success) {
       await saveBiometricPin(pin);
       await setBiometricEnabled(true);
-      Toast.show({ type: 'success', text1: 'Biometric login enabled!' });
+      Toast.show({ type: 'success', text1: t('auth.bioEnabled') });
     }
     setShowBioOffer(false);
   }
 
   // ── Biometric enrollment offer ──
   if (showBioOffer) {
-    const bioType = Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Fingerprint / Face unlock';
+    const bioType = Platform.OS === 'ios' ? t('auth.bioTypeIos') : t('auth.bioTypeAndroid');
     return (
       <View style={styles.bioOfferRoot}>
         <StatusBar barStyle="dark-content" />
@@ -279,15 +282,13 @@ export default function LoginScreen() {
           <View style={styles.bioIconRing}>
             <ShieldIcon size={38} color={COLORS.primary} strokeWidth={1.75} />
           </View>
-          <Text style={styles.bioOfferTitle}>Enable {bioType}?</Text>
-          <Text style={styles.bioOfferDesc}>
-            Skip typing your PIN next time. Use {bioType} to sign in instantly.
-          </Text>
+          <Text style={styles.bioOfferTitle}>{t('auth.enableBioQ', { type: bioType })}</Text>
+          <Text style={styles.bioOfferDesc}>{t('auth.enableBioDesc', { type: bioType })}</Text>
           <TouchableOpacity style={styles.bioOfferBtn} onPress={enableBiometric}>
-            <Text style={styles.bioOfferBtnText}>Enable {bioType}</Text>
+            <Text style={styles.bioOfferBtnText}>{t('auth.enableBio', { type: bioType })}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.bioOfferSkip} onPress={() => setShowBioOffer(false)}>
-            <Text style={styles.bioOfferSkipText}>Not now</Text>
+            <Text style={styles.bioOfferSkipText}>{t('auth.notNow')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -307,7 +308,7 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <Image source={require('../../assets/store-icon-512.png')} style={styles.logoMark} />
             <Text style={styles.logo}>Lucky Stop</Text>
-            <Text style={styles.tagline}>Welcome back</Text>
+            <Text style={styles.tagline}>{t('auth.welcomeBack')}</Text>
           </View>
 
           <View style={styles.quickCard}>
@@ -321,18 +322,18 @@ export default function LoginScreen() {
                 <TouchableOpacity style={styles.bioBtn} onPress={triggerBiometric} disabled={loading}>
                   <ShieldIcon size={16} color={COLORS.secondary} strokeWidth={2.5} />
                   <Text style={styles.bioBtnText}>
-                    {Platform.OS === 'ios' ? 'Use Face ID / Touch ID' : 'Use Fingerprint'}
+                    {Platform.OS === 'ios' ? t('auth.useFaceId') : t('auth.useFingerprint')}
                   </Text>
                 </TouchableOpacity>
                 <View style={styles.orDivider}>
                   <View style={styles.orLine} />
-                  <Text style={styles.orText}>or enter PIN</Text>
+                  <Text style={styles.orText}>{t('auth.orEnterPin')}</Text>
                   <View style={styles.orLine} />
                 </View>
               </>
             ) : null}
 
-            <Text style={styles.label}>4-Digit PIN</Text>
+            <Text style={styles.label}>{t('auth.pinLabel')}</Text>
             <TextInput
               ref={quickPinRef}
               style={[styles.input, styles.pinInput, focusedInput === 'quickPin' && styles.inputFocused]}
@@ -352,7 +353,7 @@ export default function LoginScreen() {
             <TouchableOpacity style={styles.button} onPress={handleQuickLogin} disabled={loading}>
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.buttonText}>Sign In</Text>
+                : <Text style={styles.buttonText}>{t('auth.signIn')}</Text>
               }
             </TouchableOpacity>
 
@@ -360,14 +361,14 @@ export default function LoginScreen() {
               style={styles.switchLink}
               onPress={() => { setScreen('login'); setPin(''); }}
             >
-              <Text style={styles.switchLinkText}>Use a different account</Text>
+              <Text style={styles.switchLinkText}>{t('auth.useDifferentAccount')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.switchLink}
               onPress={() => router.push('/(auth)/forgot-pin')}
             >
-              <Text style={[styles.switchLinkText, { color: COLORS.textMuted, fontSize: 13 }]}>Forgot PIN?</Text>
+              <Text style={[styles.switchLinkText, { color: COLORS.textMuted, fontSize: 13 }]}>{t('auth.forgotPin')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -388,16 +389,16 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <Image source={require('../../assets/store-icon-512.png')} style={styles.logoMark} />
             <Text style={styles.logo}>Lucky Stop</Text>
-            <Text style={styles.tagline}>Verify your number</Text>
+            <Text style={styles.tagline}>{t('auth.verifyNumber')}</Text>
           </View>
 
           <View style={styles.form}>
             <View style={vp.phoneBadge}>
-              <Text style={vp.phoneBadgeLabel}>Code sent to</Text>
+              <Text style={vp.phoneBadgeLabel}>{t('auth.codeSentTo')}</Text>
               <Text style={vp.phoneBadgeNumber}>{displayPhone}</Text>
             </View>
 
-            <Text style={styles.label}>6-Digit Code</Text>
+            <Text style={styles.label}>{t('auth.codeLabel')}</Text>
             <TextInput
               style={[styles.input, vp.otpInput, focusedInput === 'otp' && styles.inputFocused]}
               placeholder="••••••"
@@ -419,7 +420,7 @@ export default function LoginScreen() {
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.buttonText}>Verify & Create Account</Text>
+                : <Text style={styles.buttonText}>{t('auth.verifyCreate')}</Text>
               }
             </TouchableOpacity>
 
@@ -429,7 +430,7 @@ export default function LoginScreen() {
               disabled={resendCooldown > 0 || resending}
             >
               <Text style={[styles.switchLinkText, (resendCooldown > 0) && { color: COLORS.textMuted }]}>
-                {resending ? 'Sending…' : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+                {resending ? t('auth.sending') : resendCooldown > 0 ? t('auth.resendIn', { seconds: resendCooldown }) : t('auth.resendCode')}
               </Text>
             </TouchableOpacity>
 
@@ -437,7 +438,7 @@ export default function LoginScreen() {
               style={styles.switchLink}
               onPress={() => { setScreen('register'); setOtp(''); setConfirmation(null); }}
             >
-              <Text style={[styles.switchLinkText, { color: COLORS.textMuted, fontSize: 13 }]}>← Change number</Text>
+              <Text style={[styles.switchLinkText, { color: COLORS.textMuted, fontSize: 13 }]}>{t('auth.changeNumber')}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -454,7 +455,8 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <Image source={require('../../assets/store-icon-512.png')} style={styles.logoMark} />
           <Text style={styles.logo}>Lucky Stop</Text>
-          <Text style={styles.tagline}>Earn rewards every visit</Text>
+          <Text style={styles.tagline}>{t('auth.tagline')}</Text>
+          <View style={{ marginTop: 14 }}><LanguageSwitch /></View>
         </View>
 
         <View
@@ -471,21 +473,21 @@ export default function LoginScreen() {
             ]} />
           )}
           <TouchableOpacity style={styles.tab} onPress={() => switchTab('login')}>
-            <Text style={[styles.tabText, screen === 'login' && styles.tabTextActive]}>Sign In</Text>
+            <Text style={[styles.tabText, screen === 'login' && styles.tabTextActive]}>{t('auth.signIn')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.tab} onPress={() => switchTab('register')}>
-            <Text style={[styles.tabText, screen === 'register' && styles.tabTextActive]}>Create Account</Text>
+            <Text style={[styles.tabText, screen === 'register' && styles.tabTextActive]}>{t('auth.createAccount')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.form}>
           {screen === 'register' && (
             <>
-              <Text style={styles.label}>Your Name</Text>
+              <Text style={styles.label}>{t('auth.yourName')}</Text>
               <TextInput
                 ref={nameRef}
                 style={[styles.input, focusedInput === 'name' && styles.inputFocused]}
-                placeholder="John Smith"
+                placeholder={t('auth.namePlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 value={name}
                 onChangeText={setName}
@@ -498,7 +500,7 @@ export default function LoginScreen() {
             </>
           )}
 
-          <Text style={styles.label}>Phone Number</Text>
+          <Text style={styles.label}>{t('auth.phoneLabel')}</Text>
           <TextInput
             ref={phoneRef}
             style={[styles.input, focusedInput === 'phone' && styles.inputFocused]}
@@ -513,7 +515,7 @@ export default function LoginScreen() {
             onBlur={() => setFocusedInput(null)}
           />
 
-          <Text style={styles.label}>4-Digit PIN</Text>
+          <Text style={styles.label}>{t('auth.pinLabel')}</Text>
           <TextInput
             ref={mainPinRef}
             style={[styles.input, styles.pinInput, focusedInput === 'pin' && styles.inputFocused]}
@@ -532,7 +534,7 @@ export default function LoginScreen() {
 
           {screen === 'register' && (
             <>
-              <Text style={styles.label}>Confirm PIN</Text>
+              <Text style={styles.label}>{t('auth.confirmPin')}</Text>
               <TextInput
                 ref={confirmPinRef}
                 style={[styles.input, styles.pinInput, focusedInput === 'confirmPin' && styles.inputFocused]}
@@ -547,9 +549,7 @@ export default function LoginScreen() {
                 onFocus={() => setFocusedInput('confirmPin')}
                 onBlur={() => setFocusedInput(null)}
               />
-              <Text style={styles.pinHint}>
-                Remember your PIN - it replaces a password. You'll need it every time you sign in.
-              </Text>
+              <Text style={styles.pinHint}>{t('auth.pinHint')}</Text>
             </>
           )}
 
@@ -560,7 +560,7 @@ export default function LoginScreen() {
           >
             {loading || sendingOtp
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>{screen === 'login' ? 'Sign In' : 'Send Verification Code'}</Text>
+              : <Text style={styles.buttonText}>{screen === 'login' ? t('auth.signIn') : t('auth.sendCode')}</Text>
             }
           </TouchableOpacity>
 
@@ -569,7 +569,7 @@ export default function LoginScreen() {
               style={styles.switchLink}
               onPress={() => router.push('/(auth)/forgot-pin')}
             >
-              <Text style={styles.switchLinkText}>Forgot PIN?</Text>
+              <Text style={styles.switchLinkText}>{t('auth.forgotPin')}</Text>
             </TouchableOpacity>
           )}
 
@@ -578,7 +578,7 @@ export default function LoginScreen() {
               style={styles.switchLink}
               onPress={() => { setScreen('quick'); setPin(''); setPhone(''); }}
             >
-              <Text style={styles.switchLinkText}>← Back to quick login</Text>
+              <Text style={styles.switchLinkText}>{t('auth.backToQuick')}</Text>
             </TouchableOpacity>
           )}
         </View>

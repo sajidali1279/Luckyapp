@@ -12,10 +12,12 @@ import { authApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { ChevronLeftIcon, CheckCircleIcon } from '../../components/Icons';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import { useTranslation } from 'react-i18next';
 
 type Step = 'phone' | 'verify' | 'reset' | 'done';
 
 export default function ForgotPinScreen() {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -65,7 +67,7 @@ export default function ForgotPinScreen() {
 
   async function handleSendOtp() {
     if (rawPhone().length < 10) {
-      Toast.show({ type: 'error', text1: 'Enter a valid 10-digit phone number' });
+      Toast.show({ type: 'error', text1: t('auth.enterValidPhone10') });
       return;
     }
     setSendingOtp(true);
@@ -76,7 +78,7 @@ export default function ForgotPinScreen() {
       setResendCooldown(60);
       setStep('verify');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Could not send code', text2: err.message || 'Check the number and try again' });
+      Toast.show({ type: 'error', text1: t('auth.couldNotSendCode'), text2: err.message || t('forgotPin.checkNumberTryAgain') });
     } finally {
       setSendingOtp(false);
     }
@@ -89,9 +91,9 @@ export default function ForgotPinScreen() {
       setConfirmation(result);
       setOtp('');
       setResendCooldown(60);
-      Toast.show({ type: 'success', text1: 'New code sent!' });
+      Toast.show({ type: 'success', text1: t('auth.newCodeSent') });
     } catch {
-      Toast.show({ type: 'error', text1: 'Failed to resend - try again' });
+      Toast.show({ type: 'error', text1: t('auth.resendFailed') });
     } finally {
       setResending(false);
     }
@@ -99,7 +101,7 @@ export default function ForgotPinScreen() {
 
   async function handleVerifyOtp() {
     if (otp.length !== 6) {
-      Toast.show({ type: 'error', text1: 'Enter the 6-digit code' });
+      Toast.show({ type: 'error', text1: t('auth.enterCode6') });
       return;
     }
     setLoading(true);
@@ -114,11 +116,11 @@ export default function ForgotPinScreen() {
       setOtp('');
       const code = err.code as string | undefined;
       if (code === 'auth/invalid-verification-code') {
-        Toast.show({ type: 'error', text1: 'Wrong code - try again' });
+        Toast.show({ type: 'error', text1: t('auth.wrongCode') });
       } else if (code === 'auth/code-expired') {
-        Toast.show({ type: 'error', text1: 'Code expired', text2: 'Tap Resend to get a new one' });
+        Toast.show({ type: 'error', text1: t('auth.codeExpired'), text2: t('auth.tapResend') });
       } else {
-        Toast.show({ type: 'error', text1: err.response?.data?.error || 'Verification failed' });
+        Toast.show({ type: 'error', text1: err.response?.data?.error || t('auth.verifyFailed') });
       }
     } finally {
       setLoading(false);
@@ -127,11 +129,11 @@ export default function ForgotPinScreen() {
 
   async function handleResetPin() {
     if (newPin.length !== 4) {
-      Toast.show({ type: 'error', text1: 'PIN must be 4 digits' });
+      Toast.show({ type: 'error', text1: t('auth.pinMust4') });
       return;
     }
     if (newPin !== confirmPin) {
-      Toast.show({ type: 'error', text1: 'PINs do not match' });
+      Toast.show({ type: 'error', text1: t('auth.pinsNoMatch') });
       setConfirmPin('');
       return;
     }
@@ -140,7 +142,7 @@ export default function ForgotPinScreen() {
       await authApi.resetPin(resetToken, newPin);
       setStep('done');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to reset PIN' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('forgotPin.resetFailed') });
     } finally {
       setLoading(false);
     }
@@ -157,7 +159,7 @@ export default function ForgotPinScreen() {
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ChevronLeftIcon size={22} color="rgba(255,255,255,0.85)" strokeWidth={2.5} />
         </TouchableOpacity>
-        <Text style={s.headerTitle}>Reset PIN</Text>
+        <Text style={s.headerTitle}>{t('forgotPin.title')}</Text>
         <View style={{ width: 44 }} />
       </SafeAreaView>
 
@@ -186,10 +188,10 @@ export default function ForgotPinScreen() {
           {/* ── Step 1: Phone number ── */}
           {step === 'phone' && (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Verify your number</Text>
-              <Text style={s.cardSub}>We'll send a verification code to your phone via SMS.</Text>
+              <Text style={s.cardTitle}>{t('auth.verifyNumber')}</Text>
+              <Text style={s.cardSub}>{t('forgotPin.weSendCode')}</Text>
 
-              <Text style={s.label}>Phone Number</Text>
+              <Text style={s.label}>{t('auth.phoneLabel')}</Text>
               <TextInput
                 style={s.input}
                 value={phone}
@@ -208,7 +210,7 @@ export default function ForgotPinScreen() {
               >
                 {sendingOtp
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.btnText}>Send Verification Code</Text>
+                  : <Text style={s.btnText}>{t('auth.sendCode')}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -217,14 +219,14 @@ export default function ForgotPinScreen() {
           {/* ── Step 2: Verify SMS code ── */}
           {step === 'verify' && (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Enter the code</Text>
+              <Text style={s.cardTitle}>{t('forgotPin.enterCode')}</Text>
 
               <View style={s.phoneBadge}>
-                <Text style={s.phoneBadgeLabel}>Code sent to</Text>
+                <Text style={s.phoneBadgeLabel}>{t('auth.codeSentTo')}</Text>
                 <Text style={s.phoneBadgeNumber}>{displayPhone}</Text>
               </View>
 
-              <Text style={s.label}>6-Digit Code</Text>
+              <Text style={s.label}>{t('auth.codeLabel')}</Text>
               <TextInput
                 style={[s.input, s.otpInput]}
                 value={otp}
@@ -244,7 +246,7 @@ export default function ForgotPinScreen() {
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.btnText}>Verify Code</Text>
+                  : <Text style={s.btnText}>{t('forgotPin.verifyCode')}</Text>
                 }
               </TouchableOpacity>
 
@@ -254,12 +256,12 @@ export default function ForgotPinScreen() {
                 disabled={resendCooldown > 0 || resending}
               >
                 <Text style={[s.linkBtnText, (resendCooldown > 0) && { color: COLORS.textMuted }]}>
-                  {resending ? 'Sending…' : resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : 'Resend code'}
+                  {resending ? t('auth.sending') : resendCooldown > 0 ? t('auth.resendIn', { seconds: resendCooldown }) : t('auth.resendCode')}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={s.linkBtn} onPress={() => { setStep('phone'); setOtp(''); setConfirmation(null); }}>
-                <Text style={[s.linkBtnText, { color: COLORS.textMuted, fontSize: 13 }]}>← Change number</Text>
+                <Text style={[s.linkBtnText, { color: COLORS.textMuted, fontSize: 13 }]}>{t('auth.changeNumber')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -267,10 +269,10 @@ export default function ForgotPinScreen() {
           {/* ── Step 3: Set new PIN ── */}
           {step === 'reset' && (
             <View style={s.card}>
-              <Text style={s.cardTitle}>Set a new PIN</Text>
-              <Text style={s.cardSub}>Choose a 4-digit PIN you haven't used recently.</Text>
+              <Text style={s.cardTitle}>{t('forgotPin.setNewPin')}</Text>
+              <Text style={s.cardSub}>{t('forgotPin.chooseNewPin')}</Text>
 
-              <Text style={s.label}>New PIN</Text>
+              <Text style={s.label}>{t('forgotPin.newPin')}</Text>
               <TextInput
                 ref={newPinRef}
                 style={[s.input, s.pinInput]}
@@ -286,7 +288,7 @@ export default function ForgotPinScreen() {
                 onSubmitEditing={() => confirmPinRef.current?.focus()}
               />
 
-              <Text style={s.label}>Confirm New PIN</Text>
+              <Text style={s.label}>{t('forgotPin.confirmNewPin')}</Text>
               <TextInput
                 ref={confirmPinRef}
                 style={[s.input, s.pinInput]}
@@ -307,7 +309,7 @@ export default function ForgotPinScreen() {
               >
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.btnText}>Reset PIN</Text>
+                  : <Text style={s.btnText}>{t('forgotPin.title')}</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -319,10 +321,10 @@ export default function ForgotPinScreen() {
               <View style={s.doneIconRing}>
                 <CheckCircleIcon size={36} color="#2DC653" strokeWidth={1.75} />
               </View>
-              <Text style={s.cardTitle}>PIN Reset!</Text>
-              <Text style={s.cardSub}>Your PIN has been updated. You can now sign in with your new PIN.</Text>
+              <Text style={s.cardTitle}>{t('forgotPin.resetDone')}</Text>
+              <Text style={s.cardSub}>{t('forgotPin.resetDoneSub')}</Text>
               <TouchableOpacity style={s.btn} onPress={() => router.replace('/(auth)/login')}>
-                <Text style={s.btnText}>Go to Sign In</Text>
+                <Text style={s.btnText}>{t('forgotPin.goToSignIn')}</Text>
               </TouchableOpacity>
             </View>
           )}

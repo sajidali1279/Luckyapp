@@ -40,20 +40,20 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
       imageUri: promoImageUri || undefined,
     }),
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Request submitted!', text2: "We'll reach out soon." });
+      Toast.show({ type: 'success', text1: t('promoModal.submitted'), text2: t('promoModal.submittedSub') });
       qc.invalidateQueries({ queryKey: ['my-promo-request'] });
       setPromoBusinessName(''); setPromoDesc(''); setPromoWebsite(''); setPromoLocation(''); setPromoImageUri(null);
       onClose();
     },
     onError: (err: any) => {
-      Toast.show({ type: 'error', text1: err.response?.data?.error || 'Failed to submit request' });
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('promoModal.submitFailed') });
     },
   });
 
   async function pickPromoImage() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Toast.show({ type: 'error', text1: 'Permission needed', text2: 'Allow photo access to upload a business image.' });
+      Toast.show({ type: 'error', text1: t('promoModal.permissionNeeded'), text2: t('promoModal.permissionNeededSub') });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({

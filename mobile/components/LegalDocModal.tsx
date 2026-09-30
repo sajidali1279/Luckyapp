@@ -7,6 +7,7 @@ import Markdown from 'react-native-markdown-display';
 import { COLORS } from '../constants';
 import { TERMS_OF_SERVICE } from '../constants/termsOfService';
 import { PRIVACY_POLICY } from '../constants/privacyPolicy';
+import { useTranslation } from 'react-i18next';
 
 type DocType = 'terms' | 'privacy';
 
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export default function LegalDocModal({ visible, doc, onClose }: Props) {
+  const { t, i18n } = useTranslation();
   const slideAnim = useRef(new Animated.Value(800)).current;
   const meta = DOC_META[doc];
 
@@ -51,7 +53,7 @@ export default function LegalDocModal({ visible, doc, onClose }: Props) {
             <View style={[s.header, { backgroundColor: meta.color }]}>
               <View style={s.headerPill} />
               <View style={s.headerRow}>
-                <Text style={s.headerTitle}>{meta.title}</Text>
+                <Text style={s.headerTitle}>{t(doc === 'terms' ? 'legal.termsTitle' : 'legal.privacyTitle', { defaultValue: meta.title })}{i18n.language === 'es' ? ` (${t('legal.englishOnly')})` : ''}</Text>
                 <TouchableOpacity onPress={onClose} style={s.closeBtn} activeOpacity={0.7}>
                   <Text style={s.closeBtnText}>✕</Text>
                 </TouchableOpacity>

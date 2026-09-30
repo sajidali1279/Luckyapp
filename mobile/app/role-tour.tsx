@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useAuthStore, UserRole } from '../store/authStore';
 import { COLORS } from '../constants';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -62,13 +63,13 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
     slides: [
       {
         emoji: '📢',
-        title: 'Create Offers & Banners',
-        subtitle: 'Use the admin web dashboard to post special offers (bonus cashback, deals) and banners that show up directly in your customers\' and employees\' apps.',
+        title: 'Post Deals & Banners',
+        subtitle: 'Post deals and banners for your store from the Offers and Banners screens. They show up in your customers\' app.',
       },
       {
         emoji: '📅',
-        title: 'Manage Your Team Schedule',
-        subtitle: 'Assign Opening, Middle, and Closing shifts to your employees. Approve or reject time-off and shift-swap requests from the Scheduling page.',
+        title: 'Your Team Schedule',
+        subtitle: 'See who is on today and this week, and approve or deny time-off and extra-shift requests from the Schedule screen.',
       },
       {
         emoji: '📊',
@@ -122,9 +123,11 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
 };
 
 export default function RoleTourScreen() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const role = user?.role ?? 'CUSTOMER';
   const tour = TOURS[role] ?? TOURS.CUSTOMER;
+  const tourKey = ({ CUSTOMER: 'customer', EMPLOYEE: 'employee', STORE_MANAGER: 'manager', SUPER_ADMIN: 'hq', DEV_ADMIN: 'dev' } as Record<string, string>)[TOURS[role] ? role : 'CUSTOMER'] ?? 'customer';
   const [currentSlide, setCurrentSlide] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -156,10 +159,10 @@ export default function RoleTourScreen() {
       <SafeAreaView edges={['top']} style={s.topSafe}>
         <View style={s.roleBadgeRow}>
           <View style={s.roleBadge}>
-            <Text style={s.roleBadgeText}>{tour.roleLabel}</Text>
+            <Text style={s.roleBadgeText}>{t(`roleTour.${tourKey}`, { defaultValue: tour.roleLabel })}</Text>
           </View>
           <TouchableOpacity onPress={handleFinish} activeOpacity={0.7}>
-            <Text style={s.skipText}>Skip</Text>
+            <Text style={s.skipText}>{t('roleTour.skip')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -174,13 +177,13 @@ export default function RoleTourScreen() {
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
         style={s.slideList}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <View style={[s.slide, { width }]}>
             <View style={s.emojiRing}>
               <Text style={s.emoji}>{item.emoji}</Text>
             </View>
-            <Text style={s.slideTitle}>{item.title}</Text>
-            <Text style={s.slideSub}>{item.subtitle}</Text>
+            <Text style={s.slideTitle}>{t(`roleTour.${tourKey}${index + 1}Title`, { defaultValue: item.title })}</Text>
+            <Text style={s.slideSub}>{t(`roleTour.${tourKey}${index + 1}Sub`, { defaultValue: item.subtitle })}</Text>
           </View>
         )}
       />
@@ -199,11 +202,11 @@ export default function RoleTourScreen() {
       <SafeAreaView edges={['bottom']} style={s.bottomSafe}>
         <View style={s.bottom}>
           <View style={s.stepLabel}>
-            <Text style={s.stepText}>{currentSlide + 1} of {tour.slides.length}</Text>
+            <Text style={s.stepText}>{t('roleTour.stepOf', { current: currentSlide + 1, total: tour.slides.length })}</Text>
           </View>
           <TouchableOpacity style={s.nextBtn} onPress={handleNext} activeOpacity={0.85}>
             <Text style={s.nextBtnText}>
-              {currentSlide === tour.slides.length - 1 ? "Let's Go! →" : 'Next →'}
+              {currentSlide === tour.slides.length - 1 ? t('roleTour.letsGo') : t('roleTour.next')}
             </Text>
           </TouchableOpacity>
         </View>

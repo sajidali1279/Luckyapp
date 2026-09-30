@@ -136,7 +136,14 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
   useEffect(() => {
     if (!category.trim()) { setCatSuggs([]); return; }
     const q = category.toLowerCase();
-    setCatSuggs(approvedCats.filter(c => c.toLowerCase().includes(q) && c.toLowerCase() !== q).slice(0, 5));
+    // The approved list can hold the same name twice (e.g. "Water" and "water"); one row each, or the list keys clash
+    const seen = new Set<string>();
+    setCatSuggs(approvedCats.filter(c => {
+      const low = c.toLowerCase();
+      if (!low.includes(q) || low === q || seen.has(low)) return false;
+      seen.add(low);
+      return true;
+    }).slice(0, 5));
     setShowCatSugg(true);
   }, [category, approvedCats]);
 

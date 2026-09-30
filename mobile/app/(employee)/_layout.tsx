@@ -52,14 +52,14 @@ export default function EmployeeLayout() {
 
   const groups: NavGroup[] = [
     {
-      title: 'Main',
+      title: t('nav.groupMain'),
       items: [
         { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} />,   label: t('nav.home') },
         { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} />, label: t('nav.scanGrant') },
       ],
     },
     {
-      title: 'Work',
+      title: t('nav.groupWork'),
       items: [
         { route: '/(employee)/schedule',   icon: (p) => <CalendarIcon {...p} />,      label: t('nav.schedule'), badge: vacancyCount },
         { route: '/(employee)/chat',       icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.chat'), badge: chatUnread },
@@ -72,7 +72,7 @@ export default function EmployeeLayout() {
       ],
     },
     {
-      title: 'Account',
+      title: t('nav.groupAccount'),
       items: [
         { route: '/(employee)/notifications', icon: (p) => <BellIcon {...p} />,      label: t('nav.alerts'), badge: unreadCount },
         { route: '/(employee)/leaderboard',   icon: (p) => <TrophyIcon {...p} />,    label: t('nav.staffRankings') },

@@ -80,7 +80,7 @@ export default function ManagerLayout() {
 
   const groups: NavGroup[] = [
     {
-      title: 'Inventory',
+      title: t('nav.groupInventory'),
       items: [
         { route: '/(manager)/home',       icon: (p) => <HomeIcon {...p} />,      label: t('nav.dashboard') },
         { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: t('nav.orderList') },
@@ -91,21 +91,21 @@ export default function ManagerLayout() {
       ],
     },
     {
-      title: 'Promotions',
+      title: t('nav.groupPromotions'),
       items: [
         { route: '/(manager)/offers',  icon: (p) => <TagIcon {...p} />,   label: t('nav.offers') },
         { route: '/(manager)/banners', icon: (p) => <ImageIcon {...p} />, label: t('nav.banners') },
       ],
     },
     {
-      title: 'Team',
+      title: t('nav.groupTeam'),
       items: [
         { route: '/(manager)/schedule', icon: (p) => <CalendarIcon {...p} />,      label: t('nav.teamSchedule'), badge: scheduleReqPending },
         { route: '/(manager)/chat',     icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.teamChat'), badge: chatUnread },
       ],
     },
     {
-      title: 'Account',
+      title: t('nav.groupAccount'),
       items: [
         { route: '/(manager)/notifications', icon: (p) => <BellIcon {...p} />,        label: t('nav.alerts'), badge: unreadCount },
         { route: '/(manager)/leaderboard',   icon: (p) => <TrophyIcon {...p} />,     label: t('nav.staffRankings') },

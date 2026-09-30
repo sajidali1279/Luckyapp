@@ -11,6 +11,7 @@ import { COLORS } from '../constants';
 import ModalCloseButton from './ModalCloseButton';
 import KeyboardSafe from './KeyboardSafe';
 import ModalToastHost from './ModalToastHost';
+import { useTranslation } from 'react-i18next';
 
 const DESC_MIN = 10;
 const DESC_MAX = 500;
@@ -32,6 +33,7 @@ export default function DisputeTransactionModal({
   onClose: () => void;
   transaction: DisputedTransaction | null;
 }) {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [desc, setDesc] = useState('');
 
@@ -47,7 +49,7 @@ export default function DisputeTransactionModal({
       description: desc.trim(),
     }),
     onSuccess: () => {
-      Toast.show({ type: 'success', text1: 'Report submitted', text2: "We'll review this transaction." });
+      Toast.show({ type: 'success', text1: t('disputeModal.txSubmitted'), text2: t('disputeModal.txSubmittedSub') });
       qc.invalidateQueries({ queryKey: ['my-disputes'] });
       setDesc('');
       onClose();
@@ -56,8 +58,8 @@ export default function DisputeTransactionModal({
       const serverMsg = err.response?.data?.error;
       Toast.show({
         type: 'error',
-        text1: typeof serverMsg === 'string' ? serverMsg : 'Submission failed',
-        text2: typeof serverMsg === 'string' ? undefined : 'Please try again.',
+        text1: typeof serverMsg === 'string' ? serverMsg : t('disputeModal.txFailed'),
+        text2: typeof serverMsg === 'string' ? undefined : t('disputeModal.txTryAgain'),
       });
     },
   });
@@ -69,8 +71,8 @@ export default function DisputeTransactionModal({
       <KeyboardSafe style={{ flex: 1 }}>
         <View style={m.root}>
           <View style={m.header}>
-            <Text style={m.title}>Dispute This Transaction</Text>
-            <ModalCloseButton onPress={onClose} label="Close dispute form" color="#fff" style={m.closeBtn} />
+            <Text style={m.title}>{t('disputeModal.txTitle')}</Text>
+            <ModalCloseButton onPress={onClose} label={t('disputeModal.txClose')} color="#fff" style={m.closeBtn} />
           </View>
           <View style={m.summary}>
             <Text style={m.summaryStore}>{transaction.store?.name || 'Lucky Stop'}</Text>
@@ -80,19 +82,19 @@ export default function DisputeTransactionModal({
             </Text>
           </View>
           <View style={m.body}>
-            <Text style={m.label}>What's wrong?</Text>
+            <Text style={m.label}>{t('disputeModal.txWhatsWrong')}</Text>
             <TextInput
               style={[m.input, { minHeight: 100, textAlignVertical: 'top' }]}
               value={desc}
               onChangeText={setDesc}
-              placeholder="e.g. I got fewer points than expected, or the category looks wrong..."
+              placeholder={t('disputeModal.txPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               multiline
               numberOfLines={4}
               maxLength={DESC_MAX}
             />
             <Text style={[m.hint, desc.length > 0 && !descValid && m.hintError]}>
-              {desc.trim().length}/{DESC_MIN} characters minimum
+              {t('disputeModal.txMinChars', { count: desc.trim().length, min: DESC_MIN })}
             </Text>
 
             <TouchableOpacity
@@ -101,11 +103,11 @@ export default function DisputeTransactionModal({
               disabled={!descValid || submitMutation.isPending}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Submit transaction dispute"
+              accessibilityLabel={t('disputeModal.txSubmitA11y')}
             >
               {submitMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={m.submitBtnText}>Submit Report</Text>
+                : <Text style={m.submitBtnText}>{t('disputeModal.submitReport')}</Text>
               }
             </TouchableOpacity>
           </View>

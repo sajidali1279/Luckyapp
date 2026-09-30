@@ -1,6 +1,7 @@
 import { Component, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import i18n from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -35,12 +36,10 @@ export default class ErrorBoundary extends Component<Props, State> {
           <View style={s.iconWrap}>
             <Text style={s.icon}>⚠️</Text>
           </View>
-          <Text style={s.title}>Something went wrong</Text>
-          <Text style={s.body}>
-            The app hit an unexpected error. Your account and points are safe.
-          </Text>
+          <Text style={s.title}>{i18n.t('errorBoundary.title')}</Text>
+          <Text style={s.body}>{i18n.t('errorBoundary.body')}</Text>
           <TouchableOpacity style={s.btn} onPress={this.reset} activeOpacity={0.85}>
-            <Text style={s.btnText}>Try Again</Text>
+            <Text style={s.btnText}>{i18n.t('errorBoundary.tryAgain')}</Text>
           </TouchableOpacity>
           <Text style={s.hint} numberOfLines={3}>{this.state.errorMessage}</Text>
         </View>

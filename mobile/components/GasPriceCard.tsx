@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useEffect, useRef } from 'react';
 import { GasPumpIcon, TruckIcon } from './Icons';
 import { useRecentlyChanged } from '../utils/geo';
+import { useTranslation } from 'react-i18next';
 
 function fmtPrice(n: number | null | undefined) {
   return n != null ? `$${n.toFixed(3)}` : '-';
@@ -10,6 +11,7 @@ function fmtPrice(n: number | null | undefined) {
 function PriceRow({
   icon, label, price, changed,
 }: { icon: React.ReactNode; label: string; price: number | null | undefined; changed: boolean }) {
+  const { t } = useTranslation();
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -33,7 +35,7 @@ function PriceRow({
       <View style={s.rowRight}>
         {changed && (
           <Animated.View style={[s.changeTag, { opacity: pulse }]}>
-            <Text style={s.changeTagText}>Change Needed</Text>
+            <Text style={s.changeTagText}>{t('gasPriceCard.changeNeeded')}</Text>
           </Animated.View>
         )}
         <Text style={[s.price, changed && s.priceChanged]}>{fmtPrice(price)}/gal</Text>

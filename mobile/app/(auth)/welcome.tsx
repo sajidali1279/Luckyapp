@@ -11,6 +11,8 @@ import Svg, { Polygon, Circle, Path, Rect, G, Ellipse } from 'react-native-svg';
 import { COLORS } from '../../constants';
 import { TERMS_OF_SERVICE } from '../../constants/termsOfService';
 import LegalDocModal from '../../components/LegalDocModal';
+import LanguageSwitch from '../../components/LanguageSwitch';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 
@@ -151,6 +153,7 @@ const SLIDES = [
 type Step = 'slides' | 'terms';
 
 export default function WelcomeScreen() {
+  const { t, i18n } = useTranslation();
   const [step, setStep] = useState<Step>('slides');
   const [currentSlide, setCurrentSlide] = useState(0);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
@@ -198,8 +201,8 @@ export default function WelcomeScreen() {
         <SafeAreaView style={ts.safeArea}>
           <View style={ts.termsHeader}>
             <Text style={ts.termsIcon}>📋</Text>
-            <Text style={ts.termsTitle}>Terms & Conditions</Text>
-            <Text style={ts.termsSub}>Please read carefully before continuing</Text>
+            <Text style={ts.termsTitle}>{t('welcome.termsTitle')}</Text>
+            <Text style={ts.termsSub}>{t('welcome.termsSub')}{i18n.language === 'es' ? ` ${t('welcome.termsEnglishNote')}` : ''}</Text>
           </View>
 
           <View style={ts.termsBox}>
@@ -218,7 +221,7 @@ export default function WelcomeScreen() {
             </ScrollView>
             {!scrolledToBottom && (
               <View style={ts.scrollHint}>
-                <Text style={ts.scrollHintText}>↓ Scroll to read all terms</Text>
+                <Text style={ts.scrollHintText}>{t('welcome.scrollHint')}</Text>
               </View>
             )}
           </View>
@@ -226,11 +229,11 @@ export default function WelcomeScreen() {
           {/* Quick view links */}
           <View style={ts.viewLinksRow}>
             <TouchableOpacity onPress={() => setLegalDoc('terms')} activeOpacity={0.7}>
-              <Text style={ts.viewLink}>View Terms</Text>
+              <Text style={ts.viewLink}>{t('welcome.viewTerms')}</Text>
             </TouchableOpacity>
             <Text style={ts.viewLinkSep}>·</Text>
             <TouchableOpacity onPress={() => setLegalDoc('privacy')} activeOpacity={0.7}>
-              <Text style={ts.viewLink}>View Privacy Policy</Text>
+              <Text style={ts.viewLink}>{t('welcome.viewPrivacy')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -244,8 +247,8 @@ export default function WelcomeScreen() {
               {agreed && <Text style={ts.checkmark}>✓</Text>}
             </TouchableOpacity>
             <Text style={[ts.agreeLabel, !scrolledToBottom && { color: '#aaa' }]}>
-              I agree to the{' '}
-              <Text style={ts.agreeLabelLink} onPress={() => setLegalDoc('terms')}>Terms of Service</Text>
+              {t('welcome.agreeTo')}{' '}
+              <Text style={ts.agreeLabelLink} onPress={() => setLegalDoc('terms')}>{t('welcome.termsOfService')}</Text>
             </Text>
           </View>
 
@@ -259,8 +262,8 @@ export default function WelcomeScreen() {
               {privacyAgreed && <Text style={ts.checkmark}>✓</Text>}
             </TouchableOpacity>
             <Text style={ts.agreeLabel}>
-              I agree to the{' '}
-              <Text style={ts.agreeLabelLink} onPress={() => setLegalDoc('privacy')}>Privacy Policy</Text>
+              {t('welcome.agreeTo')}{' '}
+              <Text style={ts.agreeLabelLink} onPress={() => setLegalDoc('privacy')}>{t('welcome.privacyPolicy')}</Text>
             </Text>
           </View>
 
@@ -273,9 +276,7 @@ export default function WelcomeScreen() {
             >
               {ageConfirmed && <Text style={ts.checkmark}>✓</Text>}
             </TouchableOpacity>
-            <Text style={ts.agreeLabel}>
-              I confirm I am 18 years of age or older
-            </Text>
+            <Text style={ts.agreeLabel}>{t('welcome.ageConfirm')}</Text>
           </View>
 
           <TouchableOpacity
@@ -284,11 +285,11 @@ export default function WelcomeScreen() {
             disabled={!agreed || !privacyAgreed || !ageConfirmed}
             activeOpacity={0.85}
           >
-            <Text style={ts.agreeBtnText}>I Agree & Continue →</Text>
+            <Text style={ts.agreeBtnText}>{t('welcome.agreeContinue')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={ts.backBtn} onPress={() => setStep('slides')}>
-            <Text style={ts.backBtnText}>← Back</Text>
+            <Text style={ts.backBtnText}>{t('welcome.back')}</Text>
           </TouchableOpacity>
         </SafeAreaView>
 
@@ -317,11 +318,12 @@ export default function WelcomeScreen() {
         renderItem={({ item }) => (
           <View style={[ss.slide, { width, backgroundColor: item.bg }]}>
             <SafeAreaView style={ss.slideInner}>
+              {item.key === 'welcome' && <View style={{ marginBottom: 24 }}><LanguageSwitch dark /></View>}
               <View style={[ss.illustrationRing, { borderColor: item.accent + '40', backgroundColor: item.accent + '18' }]}>
                 {SLIDE_ILLUSTRATIONS[item.key]?.(item.accent)}
               </View>
-              <Text style={[ss.slideTitle, { color: '#fff' }]}>{item.title}</Text>
-              <Text style={[ss.slideSub, { color: 'rgba(255,255,255,0.75)' }]}>{item.subtitle}</Text>
+              <Text style={[ss.slideTitle, { color: '#fff' }]}>{t(`welcome.${item.key}Title`)}</Text>
+              <Text style={[ss.slideSub, { color: 'rgba(255,255,255,0.75)' }]}>{t(`welcome.${item.key}Sub`)}</Text>
             </SafeAreaView>
           </View>
         )}
@@ -342,7 +344,7 @@ export default function WelcomeScreen() {
         <View style={ss.bottom}>
           <TouchableOpacity style={ss.nextBtn} onPress={handleNext} activeOpacity={0.85}>
             <Text style={ss.nextBtnText}>
-              {currentSlide === SLIDES.length - 1 ? 'Get Started →' : 'Next →'}
+              {currentSlide === SLIDES.length - 1 ? t('welcome.getStarted') : t('welcome.next')}
             </Text>
           </TouchableOpacity>
 
@@ -354,7 +356,7 @@ export default function WelcomeScreen() {
               }}
               activeOpacity={0.7}
             >
-              <Text style={ss.skipText}>Skip</Text>
+              <Text style={ss.skipText}>{t('welcome.skip')}</Text>
             </TouchableOpacity>
           )}
         </View>
