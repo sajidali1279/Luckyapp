@@ -8,7 +8,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { ListChecks, Plus, Pencil, Trash2, Sparkles } from 'lucide-react';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader, Button } from '../components/kit';
+import { PageHeader, Button, Notice } from '../components/kit';
 import Glyph from '../components/Glyph';
 
 type Shift = 'OPENING' | 'MIDDLE' | 'CLOSING';
@@ -59,7 +59,12 @@ export default function DailyTasks() {
     queryFn: () => storesApi.getAccessible(),
     staleTime: 10 * 60_000,
   });
-  const stores: { id: string; name: string }[] = storesData?.data?.data ?? [];
+  const stores: { id: string; name: string; shiftsPerDay?: number }[] = storesData?.data?.data ?? [];
+  // Stores that run 2 shifts have no middle shift: their staff are not shown Middle tasks
+  const twoShiftStores = stores.filter((st) => st.shiftsPerDay === 2);
+  const isTwoShift = (id: string | null | undefined) => !!id && twoShiftStores.some((st) => st.id === id);
+  // The store(s) whose 2-shift note and copy buttons show: the one picked (HQ), or a manager's own
+  const twoShiftInView = isStoreManager ? twoShiftStores.filter((st) => ownStoreIds.includes(st.id)) : twoShiftStores.filter((st) => st.id === scopeFilter);
 
   // A Store Manager always gets chain-wide + their own store's tasks combined
   // (the backend ignores any storeId filter for that role) — the scope
@@ -87,6 +92,16 @@ export default function DailyTasks() {
     mutationFn: (id: string) => dailyTaskApi.delete(id),
     onSuccess: () => { toast.success('Task deleted'); qc.invalidateQueries({ queryKey: ['daily-tasks-admin'] }); setDeleteId(null); },
     onError: (e: any) => toast.error(e?.response?.data?.error || 'Failed to delete task'),
+  });
+
+  const copyMiddleMutation = useMutation({
+    mutationFn: ({ storeId, to }: { storeId: string; to: 'OPENING' | 'CLOSING' }) => dailyTaskApi.copyMiddle(storeId, to),
+    onSuccess: (res) => {
+      const d = res?.data?.data ?? {};
+      toast.success(d.added ? `${d.added} task${d.added === 1 ? '' : 's'} copied to ${d.store}${d.skipped ? ` (${d.skipped} it already had)` : ''}` : `${d.store} already has all of them`);
+      qc.invalidateQueries({ queryKey: ['daily-tasks-admin'] });
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.error || 'Could not copy the tasks'),
   });
 
   const seedMutation = useMutation({
@@ -194,6 +209,20 @@ export default function DailyTasks() {
                   <span style={{ ...s.shiftLabel, color: colors.label }}>{SHIFT_LABELS[shift]}</span>
                   <span style={{ ...s.shiftCount, color: colors.label }}>{shiftTasks.length} task{shiftTasks.length !== 1 ? 's' : ''}</span>
                 </div>
+                {shift === 'MIDDLE' && !isStoreManager && scopeFilter === 'global' && twoShiftStores.length > 0 && (
+                  <Notice tone="neutral" style={{ fontSize: 13, marginBottom: 10 }}>
+                    Not shown at stores that run 2 shifts: {twoShiftStores.map((st) => st.name).join(', ')}. Open one of them above to copy these into its Opening or Closing list.
+                  </Notice>
+                )}
+                {shift === 'MIDDLE' && twoShiftInView.map((st) => (
+                  <Notice key={st.id} tone="warning" style={{ fontSize: 13, marginBottom: 10 }}>
+                    <div>{st.name} runs 2 shifts, so its staff are not shown Middle tasks. Copy the chain's Middle tasks into one of its shifts so those duties still get done:</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                      <Button size="sm" onClick={() => copyMiddleMutation.mutate({ storeId: st.id, to: 'OPENING' })} disabled={copyMiddleMutation.isPending}>Copy to its Opening</Button>
+                      <Button size="sm" onClick={() => copyMiddleMutation.mutate({ storeId: st.id, to: 'CLOSING' })} disabled={copyMiddleMutation.isPending}>Copy to its Closing</Button>
+                    </div>
+                  </Notice>
+                ))}
                 {shiftTasks.length === 0 ? (
                   <div style={s.shiftEmpty}>No tasks for this shift</div>
                 ) : (
@@ -236,7 +265,8 @@ export default function DailyTasks() {
 
             <label style={s.fieldLabel}>Shift</label>
             <select style={s.input} value={form.shift} onChange={e => setForm(f => ({ ...f, shift: e.target.value as Shift }))}>
-              {SHIFT_ORDER.map(s => <option key={s} value={s}>{SHIFT_LABELS[s]}</option>)}
+              {/* A 2-shift store has no Middle shift */}
+              {SHIFT_ORDER.filter(sh => sh !== 'MIDDLE' || !isTwoShift(form.storeId || (isStoreManager && ownStoreIds.length === 1 ? ownStoreIds[0] : ''))).map(s => <option key={s} value={s}>{SHIFT_LABELS[s]}</option>)}
             </select>
 
             <label style={s.fieldLabel}>Title <span style={s.req}>*</span></label>

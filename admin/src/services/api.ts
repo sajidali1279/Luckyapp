@@ -537,6 +537,8 @@ export const dailyTaskApi = {
     api.patch(`/admin/daily-tasks/${id}`, data),
   delete: (id: string) => api.delete(`/admin/daily-tasks/${id}`),
   seedDefaults: () => api.post('/admin/daily-tasks/seed'),
+  /** A 2-shift store: copy the chain's Middle tasks into its own Opening or Closing list (ones it already has are skipped) */
+  copyMiddle: (storeId: string, to: 'OPENING' | 'CLOSING') => api.post('/admin/daily-tasks/copy-middle', { storeId, to }),
 };
 
 export const inventoryAnalyticsApi = {

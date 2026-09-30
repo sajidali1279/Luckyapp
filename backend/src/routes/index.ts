@@ -164,7 +164,7 @@ import {
 } from '../controllers/leaderboard.controller';
 import { getLaunchStats } from '../controllers/launch.controller';
 import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
-import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks } from '../controllers/dailyTask.controller';
+import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks, copyMiddleTasks } from '../controllers/dailyTask.controller';
 import { getAccount, updateEmailAlerts, signOutOthers } from '../controllers/account.controller';
 import { createNotice, getAllNotices, deactivateNotice, updateNotice, deleteNotice, getActiveNotices } from '../controllers/adminNotice.controller';
 import {
@@ -612,6 +612,7 @@ router.get('/daily-reports',        authenticate, requireRole(Role.STORE_MANAGER
 router.get('/daily-tasks',               authenticate, getTasks);
 router.get('/admin/daily-tasks',         authenticate, requireRole(Role.STORE_MANAGER), adminGetTasks);
 router.post('/admin/daily-tasks/seed',   authenticate, requireRole(Role.DEV_ADMIN), seedDefaultTasks);
+router.post('/admin/daily-tasks/copy-middle', authenticate, requireRole(Role.STORE_MANAGER), copyMiddleTasks);   // 2-shift stores
 router.post('/admin/daily-tasks',        authenticate, requireRole(Role.STORE_MANAGER), createTask);
 router.patch('/admin/daily-tasks/:id',   authenticate, requireRole(Role.STORE_MANAGER), updateTask);
 router.delete('/admin/daily-tasks/:id',  authenticate, requireRole(Role.STORE_MANAGER), deleteTask);

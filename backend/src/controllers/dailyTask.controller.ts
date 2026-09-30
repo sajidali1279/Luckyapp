@@ -53,9 +53,15 @@ const DEFAULT_TASKS: { shift: ShiftType; title: string; description: string; sor
 export async function getTasks(req: Request, res: Response) {
   try {
     const { storeId } = req.query;
+    // A store that runs 2 shifts has no middle shift: its staff are not shown Middle tasks (copy the ones it needs into its Opening
+    // or Closing list from the admin Daily Tasks page)
+    const twoShifts = storeId
+      ? (await prisma.store.findUnique({ where: { id: storeId as string }, select: { shiftsPerDay: true } }))?.shiftsPerDay === 2
+      : false;
     const tasks = await prisma.dailyTask.findMany({
       where: {
         isActive: true,
+        ...(twoShifts ? { shift: { not: ShiftType.MIDDLE } } : {}),
         OR: [
           { storeId: null },
           ...(storeId ? [{ storeId: storeId as string }] : []),
@@ -107,6 +113,13 @@ export async function adminGetTasks(req: AuthRequest, res: Response) {
 }
 
 // POST /admin/daily-tasks
+/** The reason a Middle task cannot go on this store's list, or null. */
+async function middleRefusal(storeId: string | null, shift: unknown): Promise<string | null> {
+  if (shift !== ShiftType.MIDDLE || !storeId) return null;
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true, shiftsPerDay: true } });
+  return store?.shiftsPerDay === 2 ? `${store.name} runs 2 shifts, so it has no Middle shift. Pick Opening or Closing.` : null;
+}
+
 export async function createTask(req: AuthRequest, res: Response) {
   try {
     const user = req.user!;
@@ -129,6 +142,9 @@ export async function createTask(req: AuthRequest, res: Response) {
       return res.status(400).json({ success: false, error: 'That store does not exist.' });
     }
 
+    const noMiddle = await middleRefusal(storeId, shift);
+    if (noMiddle) return res.status(400).json({ success: false, error: noMiddle });
+
     const task = await prisma.dailyTask.create({
       data: { shift, title: title.trim(), description: description?.trim() || null, storeId, sortOrder: sortOrder ?? 0 },
       include: { store: { select: { id: true, name: true } } },
@@ -148,7 +164,7 @@ export async function updateTask(req: AuthRequest, res: Response) {
     const problem = taskProblem(req.body, false);
     if (problem) return res.status(400).json({ success: false, error: problem });
 
-    const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true } });
+    const existing = await prisma.dailyTask.findUnique({ where: { id }, select: { storeId: true, shift: true } });
     if (!existing) return res.status(404).json({ success: false, error: 'That task does not exist.' });
     if (isAdmin && req.body.storeId && !(await prisma.store.findUnique({ where: { id: req.body.storeId }, select: { id: true } }))) {
       return res.status(400).json({ success: false, error: 'That store does not exist.' });
@@ -161,6 +177,9 @@ export async function updateTask(req: AuthRequest, res: Response) {
     }
 
     const { shift, title, description, storeId, sortOrder, isActive } = req.body;
+    const nextStore = isAdmin && storeId !== undefined ? (storeId || null) : existing.storeId;
+    const noMiddle = await middleRefusal(nextStore, shift ?? existing.shift);
+    if (noMiddle) return res.status(400).json({ success: false, error: noMiddle });
     const task = await prisma.dailyTask.update({
       where: { id },
       data: {
@@ -177,6 +196,39 @@ export async function updateTask(req: AuthRequest, res: Response) {
     res.json({ data: task });
   } catch (e) {
     res.status(500).json({ error: 'Failed to update task' });
+  }
+}
+
+// POST /admin/daily-tasks/copy-middle  { storeId, to: 'OPENING' | 'CLOSING' }
+// A 2-shift store has no middle shift, so the chain's Middle duties (restrooms, cash drops, ice...) would go undone there. This copies them
+// into the store's own Opening or Closing list in one go, skipping any the store already has (same title on that shift).
+export async function copyMiddleTasks(req: AuthRequest, res: Response) {
+  try {
+    const user = req.user!;
+    const { storeId, to } = req.body ?? {};
+    if (to !== ShiftType.OPENING && to !== ShiftType.CLOSING) return res.status(400).json({ success: false, error: 'Pick Opening or Closing.' });
+    if (typeof storeId !== 'string' || !storeId) return res.status(400).json({ success: false, error: 'Pick the store.' });
+    if (!hasMinRole(user.role, Role.SUPER_ADMIN) && !((user as any).storeIds || []).includes(storeId)) {
+      return res.status(403).json({ success: false, error: "You can only change your own store's tasks" });
+    }
+    const store = await prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true } });
+    if (!store) return res.status(404).json({ success: false, error: 'That store does not exist.' });
+
+    const [middle, already] = await Promise.all([
+      prisma.dailyTask.findMany({ where: { storeId: null, shift: ShiftType.MIDDLE, isActive: true }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] }),
+      prisma.dailyTask.findMany({ where: { storeId, shift: to }, select: { title: true, sortOrder: true } }),
+    ]);
+    const have = new Set(already.map((t) => t.title.trim().toLowerCase()));
+    const start = already.reduce((m, t) => Math.max(m, t.sortOrder), 0);
+    const add = middle.filter((t) => !have.has(t.title.trim().toLowerCase()));
+    if (add.length) {
+      await prisma.dailyTask.createMany({
+        data: add.map((t, i) => ({ shift: to, title: t.title, description: t.description, storeId, sortOrder: Math.min(999, start + i + 1) })),
+      });
+    }
+    res.json({ success: true, data: { added: add.length, skipped: middle.length - add.length, store: store.name } });
+  } catch (e) {
+    res.status(500).json({ success: false, error: 'Could not copy the tasks' });
   }
 }
 
