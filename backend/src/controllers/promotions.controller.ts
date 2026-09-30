@@ -170,7 +170,9 @@ export async function getPendingPromotionCount(req: AuthRequest, res: Response) 
 // POST /promotions/:id/publish — DevAdmin approves and publishes an ad
 /** A push and an inbox entry for the customer who asked for an ad. Only customers: an ad HQ made itself has the Dev Admin as its requester. */
 function tellRequester(requesterId: string, title: string, body: string) {
-  prisma.user.findUnique({ where: { id: requesterId }, select: { role: true, isActive: true } })
+  // Never allowed to fail the publish or decline that caused it
+  Promise.resolve()
+    .then(() => prisma.user.findUnique({ where: { id: requesterId }, select: { role: true, isActive: true } }))
     .then((u) => { if (u?.role === Role.CUSTOMER && u.isActive) return sendPushToUser(requesterId, title, body, 'PROMOTION', '/(customer)/ads'); })
     .catch((e) => console.error('[promotion-push]', e?.message ?? e));
 }
