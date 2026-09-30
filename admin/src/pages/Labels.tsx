@@ -227,7 +227,7 @@ export default function Labels() {
       setQuantities({});
       setPriceOverrides({});
     } else {
-      toast.error('Print window was blocked — allow pop-ups and try again');
+      toast.error('Print window was blocked - allow pop-ups and try again');
     }
   }
 

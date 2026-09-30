@@ -25,7 +25,7 @@ export function startCatalogExpiryCron() {
         sendPushToUser(
           r.customerId,
           '⏰ Redemption Expired',
-          `Your "${r.catalogItem.title}" redemption wasn't scanned in time — ${r.pointsSpent} pts have been refunded.`,
+          `Your "${r.catalogItem.title}" redemption wasn't scanned in time - ${r.pointsSpent} pts have been refunded.`,
           'REDEMPTION',
           redemptionUrl(r.id),
         );

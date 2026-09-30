@@ -379,7 +379,7 @@ export default function StoreLabelsPanel() {
       {editingPrice && (
         <Modal
           title={`Price at ${stores.find(st => st.id === storeId)?.name ?? 'this store'}`}
-          subtitle={<>{editingPrice.productName} — base price {editingPrice.basePriceText != null ? `$${editingPrice.basePriceText}` : 'not set'}</>}
+          subtitle={<>{editingPrice.productName} - base price {editingPrice.basePriceText != null ? `$${editingPrice.basePriceText}` : 'not set'}</>}
           onClose={() => { setEditingPrice(null); setExpiryDraft(''); }}
           busy={priceMutation.isPending}
           maxWidth={400}

@@ -364,7 +364,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     });
     res.json({
       success: true,
-      message: 'Receipt uploaded. This transaction is flagged — a manager must approve it before points are credited.',
+      message: 'Receipt uploaded. This transaction is flagged - a manager must approve it before points are credited.',
       flagged: true,
       data: updatedTransaction,
     });

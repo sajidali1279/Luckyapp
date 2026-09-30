@@ -54,7 +54,7 @@ export async function createOpening(req: AuthRequest, res: Response) {
   if (opening.isActive) {
     broadcastToCustomers(
       '🧑‍💼 New Job Opening!',
-      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'} — check it out!`,
+      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'} - check it out!`,
       'JOB_OPENING',
       undefined,
       careersUrl(),
@@ -84,7 +84,7 @@ export async function updateOpening(req: AuthRequest, res: Response) {
   if (existing && existing.isActive === false && opening.isActive === true) {
     broadcastToCustomers(
       '🧑‍💼 New Job Opening!',
-      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'} — check it out!`,
+      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'} - check it out!`,
       'JOB_OPENING',
       undefined,
       careersUrl(),

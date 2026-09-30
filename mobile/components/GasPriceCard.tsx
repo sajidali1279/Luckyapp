@@ -4,7 +4,7 @@ import { GasPumpIcon, TruckIcon } from './Icons';
 import { useRecentlyChanged } from '../utils/geo';
 
 function fmtPrice(n: number | null | undefined) {
-  return n != null ? `$${n.toFixed(3)}` : '—';
+  return n != null ? `$${n.toFixed(3)}` : '-';
 }
 
 function PriceRow({

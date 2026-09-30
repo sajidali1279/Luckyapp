@@ -380,7 +380,7 @@ export async function restoreItems(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'closedListId and itemIds[] required' }); return;
   }
   const openList = await prisma.orderList.findFirst({ where: { storeId, status: 'OPEN' } });
-  if (!openList) { res.status(400).json({ success: false, error: 'No open list for this store — open one first' }); return; }
+  if (!openList) { res.status(400).json({ success: false, error: 'No open list for this store - open one first' }); return; }
 
   const sourceItems = await prisma.orderListItem.findMany({
     where: { id: { in: itemIds }, listId: closedListId, status: { not: 'REMOVED' } },

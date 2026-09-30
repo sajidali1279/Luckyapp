@@ -340,7 +340,7 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
   if (redemption.expiresAt && redemption.expiresAt < new Date()) {
     // Expired — refund if not already done (the expiry job or a second tap may have got there first: only one of them refunds)
     await prisma.$transaction((tx) => settlePendingRedemption(tx, redemption, 'EXPIRED', { refund: true }));
-    res.status(400).json({ success: false, error: 'Redemption has expired — points have been refunded' }); return;
+    res.status(400).json({ success: false, error: 'Redemption has expired - points have been refunded' }); return;
   }
 
   const completed = await prisma.$transaction((tx) =>

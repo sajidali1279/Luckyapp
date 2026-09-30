@@ -23,7 +23,7 @@ export async function notifyNewApplication(data: {
   storeName?: string | null;
 }): Promise<void> {
   if (!ADMIN_EMAIL) return;
-  const store = data.storeName ? ` — ${data.storeName}` : '';
+  const store = data.storeName ? ` - ${data.storeName}` : '';
   await sendEmail(
     ADMIN_EMAIL,
     `New Job Application: ${data.position}${store}`,
@@ -59,13 +59,13 @@ export async function notifyApplicationStatusChange(data: {
 
   await sendEmail(
     data.applicantEmail,
-    `Your Lucky Stop Application — ${data.position.replace(/_/g, ' ')}`,
+    `Your Lucky Stop Application - ${data.position.replace(/_/g, ' ')}`,
     `
       <h2 style="color:#CC2936;">Application Update</h2>
       <p style="font-family:sans-serif;font-size:15px;">Hi ${data.applicantName},</p>
       <p style="font-family:sans-serif;font-size:15px;">${msg}</p>
       <p style="font-family:sans-serif;font-size:13px;color:#666;">Position applied for: <strong>${data.position.replace(/_/g, ' ')}</strong></p>
-      <p style="font-family:sans-serif;font-size:13px;color:#888;">— Lucky Stop Team</p>
+      <p style="font-family:sans-serif;font-size:13px;color:#888;">- Lucky Stop Team</p>
     `,
   );
 }
@@ -79,7 +79,7 @@ export async function sendBillingInvoiceEmail(to: string, data: {
 }): Promise<void> {
   await sendEmail(
     to,
-    `Lucky Stop Invoice — ${data.period} — ${data.storeName}`,
+    `Lucky Stop Invoice - ${data.period} - ${data.storeName}`,
     `
       <h2 style="color:#CC2936;">Monthly Invoice</h2>
       <p style="font-family:sans-serif;font-size:15px;">Your billing statement for <strong>${data.period}</strong> is ready.</p>

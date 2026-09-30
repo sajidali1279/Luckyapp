@@ -1267,7 +1267,7 @@ export async function sendBillingReport(req: AuthRequest, res: Response) {
   const totalPaid = records.filter((r: any) => r.isPaid).reduce((s: number, r: any) => s + r.amount, 0);
   const unpaid = records.filter((r: any) => !r.isPaid).length;
 
-  const title = `📋 Billing Report — ${period}`;
+  const title = `📋 Billing Report - ${period}`;
   const body  = `${records.length} stores · Total owed: $${totalOwed.toFixed(2)} · Collected: $${totalPaid.toFixed(2)} · ${unpaid} unpaid`;
 
   let sent = 0;
@@ -1571,7 +1571,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
         id: `invoice-paid-${period}`,
         type: 'BILLING',
         category: 'billing',
-        title: `Invoice Paid — ${monthName}`,
+        title: `Invoice Paid - ${monthName}`,
         message: `$${total.toFixed(2)} platform fee has been settled. Download your invoice for records.`,
         createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
         isRead: true,
@@ -1587,7 +1587,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
         id: `invoice-due-${period}`,
         type: 'BILLING',
         category: 'billing',
-        title: `Invoice Due — ${monthName}`,
+        title: `Invoice Due - ${monthName}`,
         message: `$${total.toFixed(2)} in platform fees outstanding across ${storeCount} store${storeCount !== 1 ? 's' : ''}.`,
         createdAt: new Date(y, m, 1).toISOString(),
         isRead: false,
@@ -1648,8 +1648,8 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       type: 'SCHEDULE',
       category: 'scheduling',
       title: isTimeOff
-        ? `Time Off Request — ${req.employee.name}`
-        : `Extra Shift Request — ${req.employee.name}`,
+        ? `Time Off Request - ${req.employee.name}`
+        : `Extra Shift Request - ${req.employee.name}`,
       message: isTimeOff
         ? `${req.employee.name} requested time off on ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: "${req.notes}"` : ''}`
         : `${req.employee.name} wants to fill in on ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: "${req.notes}"` : ''}`,
@@ -1669,7 +1669,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       id: `dispute-${d.id}`,
       type: 'DISPUTE',
       category: 'disputes',
-      title: `Missing-Points Report — ${d.customer?.name || d.customer?.phone}`,
+      title: `Missing-Points Report - ${d.customer?.name || d.customer?.phone}`,
       message: `${d.description} (${d.store?.name || 'Unknown store'})`,
       createdAt: d.createdAt.toISOString(),
       isRead: false,
@@ -1684,7 +1684,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       id: `emp-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Store Alert — ${r.submitterName || 'Employee'}`,
+      title: `Store Alert - ${r.submitterName || 'Employee'}`,
       message: `${r.notes || r.type} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -1699,7 +1699,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       id: `product-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Product Request — "${r.productName}"`,
+      title: `Product Request - "${r.productName}"`,
       message: `${r.customer?.name || r.customer?.phone} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -1714,7 +1714,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       id: `stock-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Stock Request — ${r.submittedBy?.name || 'Employee'}`,
+      title: `Stock Request - ${r.submittedBy?.name || 'Employee'}`,
       message: `${r.lines.length} item${r.lines.length !== 1 ? 's' : ''} requested at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -1836,7 +1836,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
         id: `dev-paid-${period}`,
         type: 'REVENUE',
         category: 'billing',
-        title: `Payment Received — ${monthName}`,
+        title: `Payment Received - ${monthName}`,
         message: `$${total.toFixed(2)} in platform fees collected across ${info.stores.size} store${info.stores.size !== 1 ? 's' : ''}.`,
         createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
         isRead: true,
@@ -1852,7 +1852,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
         id: `dev-due-${period}`,
         type: 'REVENUE',
         category: 'billing',
-        title: `Payment Pending — ${monthName}`,
+        title: `Payment Pending - ${monthName}`,
         message: `$${total.toFixed(2)} outstanding from ${info.unpaidStores.size} store${info.unpaidStores.size !== 1 ? 's' : ''}. Mark as paid once received.`,
         createdAt: new Date(y, m, 1).toISOString(),
         isRead: false,
@@ -1907,7 +1907,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `shift-request-${req.id}`,
       type: 'SCHEDULE',
       category: 'scheduling',
-      title: isTimeOff ? `Time Off Request — ${req.employee.name}` : `Extra Shift Request — ${req.employee.name}`,
+      title: isTimeOff ? `Time Off Request - ${req.employee.name}` : `Extra Shift Request - ${req.employee.name}`,
       message: isTimeOff
         ? `${req.employee.name} requested time off for ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: ${req.notes}` : ''}`
         : `${req.employee.name} wants to pick up the ${shiftLabel} shift on ${dateStr} at ${req.store.name}.${req.notes ? ` Note: ${req.notes}` : ''}`,
@@ -1927,7 +1927,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `dispute-${d.id}`,
       type: 'DISPUTE',
       category: 'disputes',
-      title: `Missing-Points Report — ${d.customer?.name || d.customer?.phone}`,
+      title: `Missing-Points Report - ${d.customer?.name || d.customer?.phone}`,
       message: `${d.description} (${d.store?.name || 'Unknown store'})`,
       createdAt: d.createdAt.toISOString(),
       isRead: false,
@@ -1942,7 +1942,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `emp-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Store Alert — ${r.submitterName || 'Employee'}`,
+      title: `Store Alert - ${r.submitterName || 'Employee'}`,
       message: `${r.notes || r.type} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -1957,7 +1957,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `product-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Product Request — "${r.productName}"`,
+      title: `Product Request - "${r.productName}"`,
       message: `${r.customer?.name || r.customer?.phone} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -1972,7 +1972,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `stock-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Stock Request — ${r.submittedBy?.name || 'Employee'}`,
+      title: `Stock Request - ${r.submittedBy?.name || 'Employee'}`,
       message: `${r.lines.length} item${r.lines.length !== 1 ? 's' : ''} requested at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -2396,8 +2396,8 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
   // Push + in-app → employees only (they update pump displays; managers don't need push)
   sendPushToStoreEmployees(
     storeId,
-    `⛽ Gas Prices Updated — ${store.name}`,
-    `${priceText} — update pump display now`,
+    `⛽ Gas Prices Updated - ${store.name}`,
+    `${priceText} - update pump display now`,
     'GAS_PRICE_UPDATE',
     gasPriceUrlEmployee(),
   );

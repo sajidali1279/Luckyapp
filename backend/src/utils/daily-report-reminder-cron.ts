@@ -82,7 +82,7 @@ export async function runDailyReportReminder() {
     }
     remindedStores++;
     remindedEmployees += targetIds.length;
-    console.log(`[daily-report-reminder]   ⏰ ${store.name} — reminded ${targetIds.length} employee(s)`);
+    console.log(`[daily-report-reminder]   ⏰ ${store.name} - reminded ${targetIds.length} employee(s)`);
   }
 
   console.log(`[daily-report-reminder] Done. Stores reminded: ${remindedStores}, employees reminded: ${remindedEmployees}`);

@@ -60,7 +60,7 @@ export async function runExpiryCheck() {
       sendPushToUser(managerId, title, body, 'OFFER');
     }
 
-    console.log(`[expiry-cron]   ✅ "${offer.title}" — notified ${managerIds.length} manager(s)`);
+    console.log(`[expiry-cron]   ✅ "${offer.title}" - notified ${managerIds.length} manager(s)`);
   }
 }
 

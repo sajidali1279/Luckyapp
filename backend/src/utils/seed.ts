@@ -37,7 +37,7 @@ async function seed() {
 
   let devAdmin;
   if (existingAdmin) {
-    console.log(`⚠️  DevAdmin (${DEV_ADMIN_PHONE}) already exists — skipping`);
+    console.log(`⚠️  DevAdmin (${DEV_ADMIN_PHONE}) already exists - skipping`);
     devAdmin = existingAdmin;
   } else {
     const pinHash = await bcrypt.hash(DEV_ADMIN_PIN, 12);
@@ -63,7 +63,7 @@ async function seed() {
   for (const store of STORES) {
     const existing = await prisma.store.findFirst({ where: { name: store.name } });
     if (existing) {
-      console.log(`  ⚠️  ${store.name} already exists — skipping`);
+      console.log(`  ⚠️  ${store.name} already exists - skipping`);
       createdStores.push(existing);
     } else {
       const created = await prisma.store.create({
@@ -75,7 +75,7 @@ async function seed() {
           enabledCategories: [],
         },
       });
-      console.log(`  ✅ ${created.name} — ${created.city}, ${created.state}`);
+      console.log(`  ✅ ${created.name} - ${created.city}, ${created.state}`);
       createdStores.push(created);
     }
   }

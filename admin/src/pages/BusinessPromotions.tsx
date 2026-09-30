@@ -238,7 +238,7 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
         <div style={m.modalHeader}>
           <div>
             <div style={m.modalTitle}>Add Promotion</div>
-            <div style={m.modalSub}>Published immediately — no customer request needed</div>
+            <div style={m.modalSub}>Published immediately - no customer request needed</div>
           </div>
           <button style={m.closeBtn} onClick={onClose}>✕</button>
         </div>

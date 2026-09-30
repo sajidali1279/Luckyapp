@@ -22,7 +22,7 @@ const DEFAULT_TASKS: { shift: ShiftType; title: string; description: string; sor
   // ── Opening (Morning Shift) ──
   { shift: 'OPENING', title: 'Open Store', description: 'Unlock doors, turn on lights, check signage, verify lottery machines are on, and turn on POS systems.', sortOrder: 1 },
   { shift: 'OPENING', title: 'Refrigeration & Bathrooms', description: 'Verify refrigeration temperatures, inspect bathrooms, and sweep the entrance to maintain cleanliness.', sortOrder: 2 },
-  { shift: 'OPENING', title: 'Exterior', description: 'Sweep the parking lot, check fuel dispensers for hazards, refill windshield washer fluids, and make sure the squeegee is in great shape — replace it if not.', sortOrder: 3 },
+  { shift: 'OPENING', title: 'Exterior', description: 'Sweep the parking lot, check fuel dispensers for hazards, refill windshield washer fluids, and make sure the squeegee is in great shape - replace it if not.', sortOrder: 3 },
   { shift: 'OPENING', title: 'Perimeter', description: 'Clear trash from exterior bins and sweep the entryway.', sortOrder: 4 },
   { shift: 'OPENING', title: 'Coffee & Fountain', description: 'Brew fresh coffee, wipe down condiment stations, restock cups/lids/straws, and check for expired products.', sortOrder: 5 },
   { shift: 'OPENING', title: 'Food Service', description: 'Turn on hot dog rollers, warmers, and breakfast ovens. Wash utensils and lay out fresh foil liners.', sortOrder: 6 },

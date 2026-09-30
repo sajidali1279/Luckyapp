@@ -101,7 +101,7 @@ async function seed() {
           isProfileComplete: true, pointsBalance: 0,
         },
       });
-      console.log(`  ✅ ${c.name} — QR: ${qrCode}`);
+      console.log(`  ✅ ${c.name} - QR: ${qrCode}`);
       customers.push(created);
     }
   }

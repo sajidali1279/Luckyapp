@@ -155,7 +155,7 @@ export default function CoverageView() {
     }
     const queue = [...groups.values()];
     if (queue.length === 0) {
-      toast('Nothing to print — every selected item is already up to date everywhere', { icon: 'ℹ️' });
+      toast('Nothing to print - every selected item is already up to date everywhere', { icon: 'ℹ️' });
       return;
     }
     setBulkPrintQueue(queue);
@@ -215,7 +215,7 @@ export default function CoverageView() {
             <>
               <span style={s.summaryIcon}><Glyph e="🏷️" size={18} color="#1D3557" /></span>
               <span style={s.summaryText}>
-                <strong>{gapLabels.length}</strong> product{gapLabels.length === 1 ? '' : 's'} {gapLabels.length === 1 ? 'has' : 'have'} gaps — missing from{' '}
+                <strong>{gapLabels.length}</strong> product{gapLabels.length === 1 ? '' : 's'} {gapLabels.length === 1 ? 'has' : 'have'} gaps - missing from{' '}
                 <strong>{totalGapSlots}</strong> store-slot{totalGapSlots === 1 ? '' : 's'} across the chain.
               </span>
             </>

@@ -22,7 +22,7 @@ async function seed() {
   for (const d of DEALS) {
     const existing = await prisma.offer.findFirst({ where: { title: d.title } });
     if (existing) {
-      console.log(`  ⚠️  ${d.title} already exists — skipping`);
+      console.log(`  ⚠️  ${d.title} already exists - skipping`);
       continue;
     }
     await prisma.offer.create({
@@ -36,7 +36,7 @@ async function seed() {
         isActive: true,
       },
     });
-    console.log(`  ✅ ${d.title} — ${d.dealText}`);
+    console.log(`  ✅ ${d.title} - ${d.dealText}`);
   }
   console.log('\n✅ Done.');
 }

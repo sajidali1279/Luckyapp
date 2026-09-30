@@ -7,7 +7,7 @@ let _client: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!_client) {
     if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY is not configured — add it in Render Environment Variables');
+      throw new Error('ANTHROPIC_API_KEY is not configured - add it in Render Environment Variables');
     }
     _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
@@ -19,10 +19,10 @@ Extract every product visible on this page.
 
 For each product return:
 - name: the full product name exactly as printed (e.g. "FIJI WATER LITER", "SAN PELLEGRINO 500ML PET", "PATHWATER ALKALINE PH9.5+")
-- barcode: the numeric code printed beside or beneath the barcode lines — digits only (e.g. "35121770"). Use null if not visible or not present.
+- barcode: the numeric code printed beside or beneath the barcode lines - digits only (e.g. "35121770"). Use null if not visible or not present.
 - category: infer from the product type (e.g. "Water", "Snacks", "Dairy", "Beverages", "Frozen Foods", "Hot Foods", "Tobacco / Vapes")
 
-The page may have rotated text — read it regardless of orientation.
+The page may have rotated text - read it regardless of orientation.
 Return ONLY a valid JSON array, no explanation, no markdown fences:
 [{"name":"...","barcode":"...","category":"..."},...]`;
 
@@ -80,7 +80,7 @@ export async function extractFromPhoto(req: AuthRequest, res: Response) {
 
   } catch (err: any) {
     if (err?.status === 401 || err?.status === 403) {
-      res.status(500).json({ success: false, error: 'ANTHROPIC_API_KEY not set on server — add it in Render environment variables' });
+      res.status(500).json({ success: false, error: 'ANTHROPIC_API_KEY not set on server - add it in Render environment variables' });
     } else {
       console.error('[catalogImport]', err?.message || err);
       res.status(500).json({ success: false, error: err?.message || 'Image processing failed' });

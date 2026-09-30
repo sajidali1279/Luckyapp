@@ -653,7 +653,7 @@ export default function Customers() {
 
       {/* ── Customer detail panel: their sales, redemptions and reports, plus a goodwill credit ── */}
       {detailTarget && (
-        <Modal title={`${detailTarget.name} — Details`} onClose={closeDetail} maxWidth={640}>
+        <Modal title={`${detailTarget.name} - Details`} onClose={closeDetail} maxWidth={640}>
           {detailQuery.isLoading ? (
             <div style={s.modalText} role="status">Loading…</div>
           ) : detailQuery.isError ? (
@@ -672,7 +672,7 @@ export default function Customers() {
               {!detail.customer.isActive && <div style={s.fraudBadge}>Restricted{detail.customer.fraudNote ? `: ${detail.customer.fraudNote}` : ''}</div>}
 
               <div>
-                <div style={s.detailSectionTitle}>Recent Sales {detail.sales.length === 0 && <span style={s.detailEmpty}>— none yet</span>}</div>
+                <div style={s.detailSectionTitle}>Recent Sales {detail.sales.length === 0 && <span style={s.detailEmpty}>- none yet</span>}</div>
                 {detail.sales.map((t: any) => (
                   <div key={t.id} style={s.detailRow}>
                     <span>{storeDayTime(t.createdAt)} · {t.store?.name || 'Unknown store'}</span>
@@ -682,7 +682,7 @@ export default function Customers() {
               </div>
 
               <div>
-                <div style={s.detailSectionTitle}>Recent Redemptions {detail.redemptions.length === 0 && <span style={s.detailEmpty}>— none yet</span>}</div>
+                <div style={s.detailSectionTitle}>Recent Redemptions {detail.redemptions.length === 0 && <span style={s.detailEmpty}>- none yet</span>}</div>
                 {detail.redemptions.map((r: any) => (
                   <div key={r.id} style={s.detailRow}>
                     <span>{storeDayTime(r.createdAt)} · {r.store?.name || 'Unknown store'}</span>
@@ -692,7 +692,7 @@ export default function Customers() {
               </div>
 
               <div>
-                <div style={s.detailSectionTitle}>Missing-Points Reports {detail.disputes.length === 0 && <span style={s.detailEmpty}>— none yet</span>}</div>
+                <div style={s.detailSectionTitle}>Missing-Points Reports {detail.disputes.length === 0 && <span style={s.detailEmpty}>- none yet</span>}</div>
                 {detail.disputes.map((d: any) => (
                   <div key={d.id} style={s.detailRow}>
                     <span>{storeDayLong(d.createdAt)} · {d.description}</span>
@@ -703,7 +703,7 @@ export default function Customers() {
 
               <div style={s.goodwillBox}>
                 <div style={s.detailSectionTitle}>Goodwill Credit</div>
-                <div style={{ fontSize: 14, color: TEXT_MUTED, marginBottom: 10 }}>For a case that is not a missing-points report — an apology, a one-off gesture. Up to $25, with a reason.</div>
+                <div style={{ fontSize: 14, color: TEXT_MUTED, marginBottom: 10 }}>For a case that is not a missing-points report - an apology, a one-off gesture. Up to $25, with a reason.</div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                   <div style={{ flex: '0 0 120px' }}>
                     <input
