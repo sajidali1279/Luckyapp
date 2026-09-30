@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest as Request } from '../types';
 import { storeDateKey, storeDaysBetween } from '../utils/storeTime';
 import { canUseStore } from '../utils/storeAccess';
+import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 
 const VALID_REWARD_TYPES = ['FOUNTAIN_DRINK', 'COFFEE', 'SODA_12OZ', 'HOT_SNACK'];
 
@@ -136,9 +137,10 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
     const { qrCode } = req.params;
     const customer = await prisma.user.findUnique({
       where: { qrCode },
-      select: { id: true, name: true, createdAt: true },
+      select: { id: true, name: true, createdAt: true, role: true },
     });
     if (!customer) return res.status(404).json({ success: false, error: 'Customer not found' });
+    if (!isCustomerAccount(customer)) return res.status(403).json({ success: false, error: NOT_A_CUSTOMER });
 
     const dayNumber = getDayNumber(customer.createdAt);
     if (dayNumber < 1 || dayNumber > 7) {

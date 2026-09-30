@@ -22,6 +22,7 @@ import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../util
 import { classifyCashbackRatio } from './billing.controller';
 import { transactionSearchWhere } from '../utils/transactionSearch';
 import { lockCustomer, REPEAT_WINDOW_MS } from '../utils/moneyGuards';
+import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -52,6 +53,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Customer QR code not found' });
     return;
   }
+  if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
   if (customer.id === employee.id) {
     res.status(403).json({ success: false, error: 'Cannot grant points to yourself' });
     return;
@@ -438,6 +440,7 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Customer QR code not found' });
     return;
   }
+  if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
   // Dev cut is taken at grant time — no cut applied on redemption.
   // One customer at a time, the balance read inside the lock, and the same redemption a moment ago refused: a double tap used to pass
   // the balance check twice and deduct twice, even below zero.
@@ -1036,6 +1039,7 @@ export async function getCustomerInfo(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Customer QR not found' });
     return;
   }
+  if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
 
   // The tier and progress as they stand now: after a half-year turns, one tier down and no progress (utils/tier.ts effectiveTier)
   const { tier, periodPoints, period } = effectiveTier(customer);
@@ -1128,6 +1132,7 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: 'Customer not found' });
     return;
   }
+  if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
 
   const { tier, period } = effectiveTier(customer);
 
@@ -1181,6 +1186,7 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
   ]);
 
   if (!customer) { res.status(404).json({ success: false, error: 'Customer not found' }); return; }
+  if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
   if (!item || !item.isActive) { res.status(404).json({ success: false, error: 'Catalog item not found or inactive' }); return; }
 
   // pointsCost is in points; convert to dollars for balance deduction

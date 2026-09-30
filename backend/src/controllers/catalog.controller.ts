@@ -10,6 +10,7 @@ import { sendPushToUser } from '../utils/push';
 import { redemptionUrl } from '../utils/notificationRoutes';
 import { audit } from '../utils/audit';
 import { lockCustomer, settlePendingRedemption } from '../utils/moneyGuards';
+import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 
 const HOLD_MINUTES = 30;
 
@@ -241,6 +242,7 @@ export async function getPendingRedemptionsForCustomer(req: AuthRequest, res: Re
   const { qrCode } = req.params;
   const customer = await prisma.user.findUnique({ where: { qrCode } });
   if (!customer) { res.status(404).json({ success: false, error: 'Customer not found' }); return; }
+  if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
 
   const now = new Date();
   const redemptions = await prisma.catalogRedemption.findMany({
