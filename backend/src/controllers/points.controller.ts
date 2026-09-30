@@ -1188,6 +1188,11 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
   if (!customer) { res.status(404).json({ success: false, error: 'Customer not found' }); return; }
   if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
   if (!item || !item.isActive) { res.status(404).json({ success: false, error: 'Catalog item not found or inactive' }); return; }
+  if (item.storeId && item.storeId !== storeId) {
+    const only = await prisma.store.findUnique({ where: { id: item.storeId }, select: { name: true } });
+    res.status(409).json({ success: false, error: `"${item.title}" is a reward of ${only?.name ?? 'another store'} only, so it cannot be redeemed here.` });
+    return;
+  }
 
   // pointsCost is in points; convert to dollars for balance deduction
   const costInDollars = item.pointsCost / 100;

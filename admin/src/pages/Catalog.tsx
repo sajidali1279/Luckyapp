@@ -1,14 +1,16 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { catalogApi } from '../services/api';
+import { catalogApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader, Button, HeaderStat } from '../components/kit';
+import { PageHeader, Button, HeaderStat, Badge, Chip, Field, Notice } from '../components/kit';
+import Modal from '../components/Modal';
+import { INPUT } from '../lib/theme';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -23,7 +25,15 @@ interface CatalogItem {
   sortOrder: number;
   isActive: boolean;
   createdAt: string;
+  /** One store's own reward; null = every store (HQ's) */
+  storeId?: string | null;
+  store?: { id: string; name: string } | null;
+  /** false = HQ's reward, shown to a manager read-only */
+  canManage?: boolean;
+  redeemedTotal?: number;
+  redeemed30d?: number;
 }
+type StoreOption = { id: string; name: string; city?: string };
 
 const CATEGORY_OPTIONS = [
   { value: 'IN_STORE',     label: 'In-Store',     desc: 'General in-store items' },
@@ -39,13 +49,19 @@ const KNOWN_CHAINS = ['Lucky Stop'];
 function CatalogModal({
   item,
   isDevAdmin,
+  isHQ,
+  stores,
   onClose,
   onSave,
+  saving,
 }: {
   item?: CatalogItem | null;
   isDevAdmin: boolean;
+  isHQ: boolean;
+  stores: StoreOption[];
   onClose: () => void;
   onSave: (data: Partial<CatalogItem>) => void;
+  saving: boolean;
 }) {
   const [chain, setChain]           = useState(item?.chain || 'Lucky Stop');
   const [customChain, setCustomChain] = useState('');
@@ -56,6 +72,8 @@ function CatalogModal({
   const [pointsCost, setPointsCost] = useState(item ? String(item.pointsCost) : '');
   const [sortOrder, setSortOrder]   = useState(item ? String(item.sortOrder) : '0');
   const [isActive, setIsActive]     = useState(item?.isActive ?? true);
+  // Where it can be redeemed: every store (HQ only) or one store. A manager's reward is always one of their stores.
+  const [storeId, setStoreId]       = useState<string>(item ? (item.storeId ?? '') : isHQ ? '' : (stores[0]?.id ?? ''));
 
   const showCustomChain = isDevAdmin && chain === '__custom__';
   const finalChain = chain === '__custom__' ? customChain.trim() : chain;
@@ -66,6 +84,7 @@ function CatalogModal({
     if (!title.trim()) { toast.error('Title is required'); return; }
     if (isNaN(pts) || pts <= 0) { toast.error('Enter a valid points cost'); return; }
     if (!finalChain) { toast.error('Company name is required'); return; }
+    if (!isHQ && !storeId) { toast.error('Pick which of your stores this reward is for'); return; }
     onSave({
       chain: finalChain,
       category,
@@ -75,141 +94,92 @@ function CatalogModal({
       pointsCost: pts,
       sortOrder: parseInt(sortOrder) || 0,
       isActive,
+      storeId: storeId || null,
     });
   }
 
   return (
-    <div style={m.overlay} onClick={onClose}>
-      <div style={m.modal} onClick={e => e.stopPropagation()}>
-        <div style={m.header}>
-          <h2 style={m.title}>{item ? 'Edit Catalog Item' : 'New Catalog Item'}</h2>
-          <button style={m.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        <form onSubmit={handleSubmit} style={m.form}>
-
-          {/* Company selector - DevAdmin sees all options; SuperAdmin locked to Lucky Stop */}
-          <label style={m.label}>Company / Store Chain *</label>
+    <Modal title={item ? 'Edit reward' : 'New reward'} subtitle="Customers redeem rewards with their points." onClose={onClose} busy={saving} maxWidth={620}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Company selector - DevAdmin sees all options; SuperAdmin locked to Lucky Stop */}
+        <Field label="Company / store chain" htmlFor="reward-chain">
           {isDevAdmin ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <select
-                style={m.input}
-                value={chain}
-                onChange={e => setChain(e.target.value)}
-              >
+              <select id="reward-chain" className="ui-input" style={INPUT} value={chain} onChange={e => setChain(e.target.value)}>
                 {KNOWN_CHAINS.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
                 <option value="__custom__">+ Add new company…</option>
               </select>
               {showCustomChain && (
-                <input
-                  style={m.input}
-                  value={customChain}
-                  onChange={e => setCustomChain(e.target.value)}
-                  placeholder="e.g. Shell Express"
-                  autoFocus
-                />
+                <input className="ui-input" style={INPUT} aria-label="New company name" value={customChain}
+                  onChange={e => setCustomChain(e.target.value)} placeholder="e.g. Shell Express" autoFocus />
               )}
             </div>
           ) : (
-            <div style={{ ...m.input, background: '#f7f8fa', color: '#5a6472', cursor: 'default' }}>
-              Lucky Stop
-            </div>
+            <div id="reward-chain" style={{ ...INPUT, background: '#f7f8fa', color: '#5a6472' }}>Lucky Stop</div>
           )}
+        </Field>
 
-          <label style={m.label}>Category *</label>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <Field label="Where it can be redeemed" htmlFor="reward-store"
+          hint={storeId ? 'Only at this store. Other stores refuse it and say where it can be used.' : 'At every store.'}>
+          <select id="reward-store" className="ui-input" style={INPUT} value={storeId} onChange={e => setStoreId(e.target.value)}>
+            {isHQ && <option value="">Every store</option>}
+            {!isHQ && stores.length > 1 && !storeId && <option value="">Pick one of your stores</option>}
+            {stores.map(st => <option key={st.id} value={st.id}>{st.name}{st.city ? ` - ${st.city}` : ''}</option>)}
+          </select>
+        </Field>
+
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>Category</div>
+          <div role="radiogroup" aria-label="Category" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {CATEGORY_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setCategory(opt.value)}
-                style={{
-                  flex: 1, padding: '10px 8px', borderRadius: 10, cursor: 'pointer',
-                  border: `2px solid ${category === opt.value ? PRIMARY : '#d5dae1'}`,
-                  background: category === opt.value ? PRIMARY : '#fff',
-                  color: category === opt.value ? '#fff' : '#374151',
-                  fontWeight: 700, fontSize: 14, textAlign: 'center' as const,
-                  lineHeight: 1.4,
-                }}
-              >
+              <Chip key={opt.value} role="radio" selected={category === opt.value} onClick={() => setCategory(opt.value)} title={opt.desc}>
                 {opt.label}
-              </button>
+              </Chip>
             ))}
           </div>
+        </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={m.label}>Emoji</label>
-              <input
-                style={{ ...m.input, width: 72, textAlign: 'center', fontSize: 22 }}
-                value={emoji}
-                onChange={e => setEmoji(e.target.value)}
-                maxLength={4}
-              />
-            </div>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={m.label}>Sort Order</label>
-              <input
-                style={m.input}
-                value={sortOrder}
-                onChange={e => setSortOrder(e.target.value)}
-                type="number"
-                min={0}
-                placeholder="0"
-              />
-            </div>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: 12 }}>
+          <Field label="Emoji" htmlFor="reward-emoji" hint="Shown to customers">
+            <input id="reward-emoji" className="ui-input" style={{ ...INPUT, textAlign: 'center', fontSize: 20 }} value={emoji}
+              onChange={e => setEmoji(e.target.value)} maxLength={4} />
+          </Field>
+          <Field label="Item title" htmlFor="reward-title" required>
+            <input id="reward-title" className="ui-input" style={INPUT} value={title} onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. Free Fountain Drink" autoFocus={!isDevAdmin} maxLength={60} />
+          </Field>
+        </div>
 
-          <label style={m.label}>Item Title *</label>
-          <input
-            style={m.input}
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="e.g. Free Fountain Drink"
-            autoFocus={!isDevAdmin}
-          />
+        <Field label="Description (optional)" htmlFor="reward-desc">
+          <input id="reward-desc" className="ui-input" style={INPUT} value={description} onChange={e => setDescription(e.target.value)}
+            placeholder="e.g. Any size fountain drink" maxLength={200} />
+        </Field>
 
-          <label style={m.label}>Description (optional)</label>
-          <input
-            style={m.input}
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            placeholder="e.g. Any size fountain drink"
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+          <Field label="Points cost" htmlFor="reward-points" required hint={`= $${(parseInt(pointsCost || '0') / 100).toFixed(2)} value`}>
+            <input id="reward-points" className="ui-input" style={INPUT} value={pointsCost} onChange={e => setPointsCost(e.target.value)}
+              placeholder="e.g. 400" type="number" min={1} />
+          </Field>
+          <Field label="Sort order" htmlFor="reward-sort" hint="Lower numbers show first">
+            <input id="reward-sort" className="ui-input" style={INPUT} value={sortOrder} onChange={e => setSortOrder(e.target.value)} type="number" min={0} placeholder="0" />
+          </Field>
+        </div>
 
-          <label style={m.label}>Points Cost *</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <input
-              style={{ ...m.input, flex: 1 }}
-              value={pointsCost}
-              onChange={e => setPointsCost(e.target.value)}
-              placeholder="e.g. 400"
-              type="number"
-              min={1}
-            />
-            <span style={m.hint}>
-              = ${(parseInt(pointsCost || '0') / 100).toFixed(2)} value
-            </span>
-          </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, color: '#111827' }}>
+          <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} style={{ width: 16, height: 16, accentColor: PRIMARY }} />
+          Active (visible to customers)
+        </label>
 
-          <label style={m.checkRow}>
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={e => setIsActive(e.target.checked)}
-              style={{ width: 16, height: 16, marginRight: 8, cursor: 'pointer' }}
-            />
-            <span style={{ fontSize: 14, color: '#111827' }}>Active (visible to customers)</span>
-          </label>
+        {!isHQ && <Notice tone="info" style={{ fontSize: 13 }}>HQ is told about rewards you add or change.</Notice>}
 
-          <div style={m.actions}>
-            <button type="button" style={m.cancelBtn} onClick={onClose}>Cancel</button>
-            <button type="submit" style={m.saveBtn}>{item ? 'Save Changes' : 'Create Item'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 4 }}>
+          <Button onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={saving}>{saving ? 'Saving…' : item ? 'Save changes' : 'Create reward'}</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -249,7 +219,7 @@ function ChainSection({
           <Table style={cs.table}>
             <TableHeader>
               <TableRow>
-                {['', 'Title', 'Category', 'Description', 'Points Cost', 'Value', 'Status', 'Actions'].map(h => (
+                {['', 'Title', 'Where', 'Category', 'Description', 'Points Cost', 'Value', 'Redeemed', 'Status', 'Actions'].map(h => (
                   <TableHead key={h} style={cs.th}>{h}</TableHead>
                 ))}
               </TableRow>
@@ -260,8 +230,11 @@ function ChainSection({
                   <TableCell style={{ ...cs.td, fontSize: 22, width: 40, textAlign: 'center' }}>{item.emoji}</TableCell>
                   <TableCell style={cs.td}><span style={cs.itemTitle}>{item.title}</span></TableCell>
                   <TableCell style={cs.td}>
+                    {item.store ? <Badge tone="info">Only {item.store.name}</Badge> : <Badge>Every store</Badge>}
+                  </TableCell>
+                  <TableCell style={cs.td}>
                     <span style={cs.catBadge}>
-                      {{ IN_STORE: 'In-Store', GAS: 'Gas', HOT_FOODS: 'Hot Foods' }[item.category as string] || item.category}
+                      {CATEGORY_OPTIONS.find((c) => c.value === item.category)?.label || item.category}
                     </span>
                   </TableCell>
                   <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description || ' - '}</span></TableCell>
@@ -272,21 +245,29 @@ function ChainSection({
                     <span style={cs.valueBadge}>${(item.pointsCost / 100).toFixed(2)}</span>
                   </TableCell>
                   <TableCell style={cs.td}>
+                    <span style={{ fontWeight: 600, color: '#111827' }}>{(item.redeemedTotal ?? 0).toLocaleString()}</span>
+                    <span style={{ display: 'block', fontSize: 12, color: TEXT_MUTED }}>{(item.redeemed30d ?? 0).toLocaleString()} in 30 days</span>
+                  </TableCell>
+                  <TableCell style={cs.td}>
                     <span style={{ ...cs.statusBadge, ...(item.isActive ? cs.statusActive : cs.statusInactive) }}>
                       {item.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </TableCell>
                   <TableCell style={cs.td}>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button style={cs.editBtn} onClick={() => onEdit(item)}>Edit</button>
-                      <button
-                        style={cs.deleteBtn}
-                        onClick={() => onDelete(item)}
-                        disabled={deletingId === item.id}
-                      >
-                        {deletingId === item.id ? '…' : 'Deactivate'}
-                      </button>
-                    </div>
+                    {item.canManage === false ? (
+                      <span style={{ fontSize: 12, color: TEXT_MUTED }} title="Chain-wide rewards are set by HQ">HQ only</span>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button style={cs.editBtn} onClick={() => onEdit(item)}>Edit</button>
+                        <button
+                          style={cs.deleteBtn}
+                          onClick={() => onDelete(item)}
+                          disabled={deletingId === item.id}
+                        >
+                          {deletingId === item.id ? '…' : 'Deactivate'}
+                        </button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -303,7 +284,11 @@ function ChainSection({
 export default function CatalogPage() {
   const { user } = useAuthStore();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
+  const isHQ = isDevAdmin || user?.role === 'SUPER_ADMIN';
   const qc = useQueryClient();
+  // The stores a reward can be tied to: every store for HQ, a manager's own for a manager
+  const { data: storesData } = useQuery({ queryKey: ['accessible-stores'], queryFn: () => storesApi.getAccessible() });
+  const stores: StoreOption[] = storesData?.data?.data || [];
   const [modalItem, setModalItem] = useState<CatalogItem | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -437,6 +422,9 @@ export default function CatalogPage() {
         <CatalogModal
           item={modalItem}
           isDevAdmin={isDevAdmin}
+          isHQ={isHQ}
+          stores={stores}
+          saving={isMutating}
           onClose={() => !isMutating && setShowModal(false)}
           onSave={handleSave}
         />

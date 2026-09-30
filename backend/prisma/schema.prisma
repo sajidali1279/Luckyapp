@@ -351,6 +351,7 @@ model Store {
   dailyReports          DailyReport[]
   dailyTasks            DailyTask[]
   adminNotices          AdminNotice[]
+  rewardItems           RedemptionCatalogItem[]
   // Store hours: regular weekly schedule (StoreHours) plus date-specific
   // overrides for holidays etc. (StoreHoliday), see both models below.
   storeHours            StoreHours[]
@@ -905,10 +906,14 @@ model RedemptionCatalogItem {
   pointsCost  Int      // cost in points (e.g. 400 = 400 pts = $4 redeemable value)
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
+  storeId     String?  // one store's own reward (its manager may change it); null = chain-wide, HQ only
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  store       Store?   @relation(fields: [storeId], references: [id])
   redemptions CatalogRedemption[]
+
+  @@index([storeId])
 
   @@map("redemption_catalog_items")
 }

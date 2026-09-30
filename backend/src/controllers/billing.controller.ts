@@ -1441,6 +1441,31 @@ export async function getStorePlanHistory(req: AuthRequest, res: Response) {
 }
 
 // SuperAdmin — derived notification feed (no DB table needed)
+/** Rewards a store manager added, changed or switched off in the last 14 days. The chain's catalog is HQ's, so HQ is told. */
+export async function rewardChangeNotifications(now: Date) {
+  const rows = await prisma.auditLog.findMany({
+    where: { action: { in: ['CATALOG_ITEM_CREATE', 'CATALOG_ITEM_UPDATE'] }, actorRole: 'STORE_MANAGER', createdAt: { gte: new Date(now.getTime() - 14 * 86_400_000) } },
+    orderBy: { createdAt: 'desc' },
+    take: 30,
+  }).catch(() => [] as { id: string; actorName: string | null; details: string | null; storeName: string | null; createdAt: Date }[]);
+  return rows.map((r) => {
+    let summary = 'A reward was changed';
+    try { summary = JSON.parse(r.details ?? '{}').summary ?? summary; } catch { /* keep the plain words */ }
+    return {
+      id: `reward-change-${r.id}`,
+      type: 'PLATFORM',
+      category: 'requests',
+      title: `Reward changed by ${r.actorName || 'a store manager'}`,
+      message: `${summary}${r.storeName && !summary.includes(r.storeName) ? ` (${r.storeName})` : ''}`,
+      createdAt: r.createdAt.toISOString(),
+      isRead: false,
+      severity: 'info',
+      actionUrl: '/catalog',
+      actionLabel: 'Open the Catalog',
+    };
+  });
+}
+
 export async function getSuperAdminNotifications(_req: AuthRequest, res: Response) {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -1701,6 +1726,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
 
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+  notifications.push(...await rewardChangeNotifications(now));
   res.json({ success: true, data: notifications });
 }
 
@@ -1957,6 +1983,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
   }
 
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  notifications.push(...await rewardChangeNotifications(now));
   res.json({ success: true, data: notifications });
 }
 

@@ -11,6 +11,7 @@ import { redemptionUrl } from '../utils/notificationRoutes';
 import { audit } from '../utils/audit';
 import { lockCustomer, settlePendingRedemption } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
+import { usableStoreIds } from '../utils/storeAccess';
 
 const HOLD_MINUTES = 30;
 
@@ -22,17 +23,44 @@ function generateCode(): string {
 export async function getCatalog(req: AuthRequest, res: Response) {
   const items = await prisma.redemptionCatalogItem.findMany({
     where: { isActive: true },
+    include: { store: { select: { id: true, name: true } } },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
   res.json({ success: true, data: items });
 }
 
+// Chain-wide rewards are HQ's. A store manager may add and change rewards for their own stores only, and HQ is told (the Activity Log
+// entries below show on the HQ Notifications list).
+async function managerStores(req: AuthRequest): Promise<string[] | null> {
+  if (hasMinRole(req.user!.role, Role.SUPER_ADMIN)) return null;      // null = every store, chain-wide included
+  return usableStoreIds(req.user!.id, req.user!.role);
+}
+function mayChange(mine: string[] | null, storeId: string | null): boolean {
+  return mine === null || (storeId !== null && mine.includes(storeId));
+}
+const CHAIN_WIDE_IS_HQ = 'Chain-wide rewards are set by HQ. You can add or change rewards for your own store.';
+
 // GET /catalog/all — all items including inactive (SuperAdmin+)
 export async function getAllCatalog(req: AuthRequest, res: Response) {
+  const mine = await managerStores(req);
   const items = await prisma.redemptionCatalogItem.findMany({
+    // A manager sees the chain's rewards and their own stores' (not another store's)
+    where: mine === null ? {} : { OR: [{ storeId: null }, { storeId: { in: mine } }] },
+    include: { store: { select: { id: true, name: true } } },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
-  res.json({ success: true, data: items });
+  // How often each reward is actually taken: all time and the last 30 days (handed out only, not held, cancelled or expired)
+  const since = new Date(Date.now() - 30 * 86_400_000);
+  const [allTime, recent] = await Promise.all([
+    prisma.catalogRedemption.groupBy({ by: ['catalogItemId'], where: { status: 'COMPLETED' }, _count: { _all: true } }),
+    prisma.catalogRedemption.groupBy({ by: ['catalogItemId'], where: { status: 'COMPLETED', createdAt: { gte: since } }, _count: { _all: true } }),
+  ]);
+  const total = new Map(allTime.map((g) => [g.catalogItemId, g._count._all]));
+  const last30 = new Map(recent.map((g) => [g.catalogItemId, g._count._all]));
+  res.json({
+    success: true,
+    data: items.map((it) => ({ ...it, canManage: mayChange(mine, it.storeId), redeemedTotal: total.get(it.id) ?? 0, redeemed30d: last30.get(it.id) ?? 0 })),
+  });
 }
 
 // A reward's fields, checked: a reward priced at 0 points was a free reward, and text for the price or order crashed the save
@@ -44,10 +72,17 @@ const rewardFields = {
   sortOrder: z.coerce.number({ message: 'The order must be a number.' }).int('The order must be a whole number.').min(0).max(9999),
   isActive: z.boolean({ message: 'Active must be true or false.' }),
   chain: z.string().trim().min(1, 'Enter the company name.').max(40, 'The company name is too long (40 characters at most).'),
-  category: z.enum(['IN_STORE', 'GAS', 'HOT_FOODS'], { message: 'Pick In-Store, Gas or Hot Foods.' }),
+  // The admin form offers six; only the first three were accepted, so Groceries, Frozen Foods and Fresh Foods could never be saved
+  category: z.enum(['IN_STORE', 'GAS', 'HOT_FOODS', 'GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS'], { message: 'Pick a category from the list.' }),
+  // null (or empty) = every store
+  storeId: z.string().trim().nullable().transform((v) => v || null),
 };
-const createRewardSchema = z.object({ ...rewardFields, description: rewardFields.description.optional(), emoji: rewardFields.emoji.optional(), sortOrder: rewardFields.sortOrder.optional(), isActive: rewardFields.isActive.optional(), chain: rewardFields.chain.optional(), category: rewardFields.category.optional() });
+const createRewardSchema = z.object({ ...rewardFields, description: rewardFields.description.optional(), emoji: rewardFields.emoji.optional(), sortOrder: rewardFields.sortOrder.optional(), isActive: rewardFields.isActive.optional(), chain: rewardFields.chain.optional(), category: rewardFields.category.optional(), storeId: rewardFields.storeId.optional() });
 const updateRewardSchema = createRewardSchema.partial();
+
+async function storeName(id: string): Promise<string> {
+  return (await prisma.store.findUnique({ where: { id }, select: { name: true } }))?.name ?? 'a store';
+}
 
 const rewardWords = (r: { title: string; pointsCost: number; isActive: boolean }) => `${r.title} (${r.pointsCost.toLocaleString('en-US')} pts${r.isActive ? '' : ', off'})`;
 
@@ -56,8 +91,17 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
   const parsed = createRewardSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
   const d = parsed.data;
+  const mine = await managerStores(req);
+  // A manager's reward is for their store: the one they picked, or their only store
+  let storeId: string | null = d.storeId ?? null;
+  if (mine !== null && storeId === null && mine.length === 1) storeId = mine[0];
+  if (!mayChange(mine, storeId)) { res.status(403).json({ success: false, error: CHAIN_WIDE_IS_HQ }); return; }
+  if (storeId && !(await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } }))) {
+    res.status(400).json({ success: false, error: 'That store does not exist.' }); return;
+  }
   const item = await prisma.redemptionCatalogItem.create({
     data: {
+      storeId,
       title: d.title,
       description: d.description ?? '',
       emoji: d.emoji || '🎁',
@@ -71,7 +115,8 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CATALOG_ITEM_CREATE', entity: 'catalog_item', entityId: item.id,
-    details: { summary: `Reward added: ${rewardWords(item)}` }, storeId: null,
+    details: { summary: `Reward added${item.storeId ? ` for ${(await storeName(item.storeId))}` : ' for every store'}: ${rewardWords(item)}` },
+    storeId: item.storeId, storeName: item.storeId ? await storeName(item.storeId) : undefined,
   });
   res.status(201).json({ success: true, data: item });
 }
@@ -83,17 +128,26 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   if (!parsed.success) { refuse(res, parsed.error); return; }
   const before = await prisma.redemptionCatalogItem.findUnique({ where: { id } });
   if (!before) { res.status(404).json({ success: false, error: 'That reward does not exist.' }); return; }
+  const mine = await managerStores(req);
+  const nextStore = parsed.data.storeId === undefined ? before.storeId : parsed.data.storeId;
+  // A manager may change only their own stores' rewards, and cannot move one to another store or make it chain-wide
+  if (!mayChange(mine, before.storeId) || !mayChange(mine, nextStore)) { res.status(403).json({ success: false, error: CHAIN_WIDE_IS_HQ }); return; }
+  if (nextStore && nextStore !== before.storeId && !(await prisma.store.findUnique({ where: { id: nextStore }, select: { id: true } }))) {
+    res.status(400).json({ success: false, error: 'That store does not exist.' }); return;
+  }
   const item = await prisma.redemptionCatalogItem.update({ where: { id }, data: parsed.data });
   const changes: string[] = [];
   if (before.title !== item.title) changes.push(`name "${before.title}" to "${item.title}"`);
   if (before.pointsCost !== item.pointsCost) changes.push(`${before.pointsCost.toLocaleString('en-US')} to ${item.pointsCost.toLocaleString('en-US')} pts`);
   if (before.isActive !== item.isActive) changes.push(item.isActive ? 'turned on' : 'turned off');
   if (before.category !== item.category) changes.push(`category ${before.category} to ${item.category}`);
+  if (before.storeId !== item.storeId) changes.push(item.storeId ? `now only at ${await storeName(item.storeId)}` : 'now at every store');
   if (changes.length) {
     audit({
       actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
       action: 'CATALOG_ITEM_UPDATE', entity: 'catalog_item', entityId: id,
-      details: { summary: `Reward ${before.title}: ${changes.join(', ')}` }, storeId: null,
+      details: { summary: `Reward ${before.title}: ${changes.join(', ')}` },
+      storeId: item.storeId, storeName: item.storeId ? await storeName(item.storeId) : undefined,
     });
   }
   res.json({ success: true, data: item });
@@ -104,12 +158,14 @@ export async function deleteCatalogItem(req: AuthRequest, res: Response) {
   const { id } = req.params;
   const before = await prisma.redemptionCatalogItem.findUnique({ where: { id } });
   if (!before) { res.status(404).json({ success: false, error: 'That reward does not exist.' }); return; }
+  if (!mayChange(await managerStores(req), before.storeId)) { res.status(403).json({ success: false, error: CHAIN_WIDE_IS_HQ }); return; }
   await prisma.redemptionCatalogItem.update({ where: { id }, data: { isActive: false } });
   if (before.isActive) {
     audit({
       actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
       action: 'CATALOG_ITEM_UPDATE', entity: 'catalog_item', entityId: id,
-      details: { summary: `Reward ${before.title}: turned off` }, storeId: null,
+      details: { summary: `Reward ${before.title}: turned off` },
+      storeId: before.storeId, storeName: before.storeId ? await storeName(before.storeId) : undefined,
     });
   }
   res.json({ success: true });
@@ -275,6 +331,11 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
   if (!redemption) { res.status(404).json({ success: false, error: 'Redemption not found' }); return; }
   if (redemption.status !== 'PENDING') {
     res.status(400).json({ success: false, error: `Redemption is ${redemption.status}` }); return;
+  }
+  if (redemption.catalogItem.storeId && redemption.catalogItem.storeId !== storeId) {
+    // Still held: the customer can use it at that store, or cancel it in the app to get the points back
+    res.status(409).json({ success: false, error: `"${redemption.catalogItem.title}" is a reward of ${await storeName(redemption.catalogItem.storeId)} only, so it cannot be handed out here.` });
+    return;
   }
   if (redemption.expiresAt && redemption.expiresAt < new Date()) {
     // Expired — refund if not already done (the expiry job or a second tap may have got there first: only one of them refunds)
