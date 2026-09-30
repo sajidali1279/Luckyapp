@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { canUseStore as canAccessStore, usableStoreIds } from '../utils/storeAccess';
 import { audit } from '../utils/audit';
+import { pushChatMessage } from '../utils/chatPush';
 
 const MAX_MESSAGE = 2000;
 const asDate = (v?: string) => { const d = v ? new Date(v) : null; return d && !isNaN(d.getTime()) ? d : null; };
@@ -158,6 +159,8 @@ export async function sendMessage(req: AuthRequest, res: Response) {
       text: text.trim(),
     },
   });
+  // The store's staff hear about it (at most once every few minutes per store); a push problem never fails the message
+  pushChatMessage(storeId, user.id, user.name || 'Someone', message.text).catch((e) => console.error('[chat-push]', e?.message ?? e));
 
   res.status(201).json({ success: true, data: message });
 }

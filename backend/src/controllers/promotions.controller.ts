@@ -4,6 +4,8 @@ import { AuthRequest } from '../types';
 import cloudinary from '../config/cloudinary';
 import { audit } from '../utils/audit';
 import { endOfStoreDate, isRealDateKey, storeDateKey } from '../utils/storeTime';
+import { sendPushToUser } from '../utils/push';
+import { Role } from '@prisma/client';
 
 // ─── Checks ───────────────────────────────────────────────────────────────────
 
@@ -166,6 +168,13 @@ export async function getPendingPromotionCount(req: AuthRequest, res: Response) 
 }
 
 // POST /promotions/:id/publish — DevAdmin approves and publishes an ad
+/** A push and an inbox entry for the customer who asked for an ad. Only customers: an ad HQ made itself has the Dev Admin as its requester. */
+function tellRequester(requesterId: string, title: string, body: string) {
+  prisma.user.findUnique({ where: { id: requesterId }, select: { role: true, isActive: true } })
+    .then((u) => { if (u?.role === Role.CUSTOMER && u.isActive) return sendPushToUser(requesterId, title, body, 'PROMOTION', '/(customer)/ads'); })
+    .catch((e) => console.error('[promotion-push]', e?.message ?? e));
+}
+
 export async function publishPromotion(req: AuthRequest, res: Response) {
   const { id } = req.params;
   let ad;
@@ -179,7 +188,7 @@ export async function publishPromotion(req: AuthRequest, res: Response) {
     };
   } catch (e) { if (refused(res, e)) return; throw e; }
 
-  const current = await prisma.businessPromotion.findUnique({ where: { id }, select: { adImageUrl: true, businessName: true } });
+  const current = await prisma.businessPromotion.findUnique({ where: { id }, select: { adImageUrl: true, businessName: true, requesterId: true, status: true } });
   if (!current) { res.status(404).json({ success: false, error: 'That promotion request does not exist.' }); return; }
 
   // Upload new banner image if provided, otherwise keep existing (undefined = no change)
@@ -205,6 +214,11 @@ export async function publishPromotion(req: AuthRequest, res: Response) {
     action: 'PROMOTION_PUBLISH', entity: 'business_promotion', entityId: id,
     details: { summary: `Local business ad published: ${current.businessName}, "${ad.adTitle}"${ad.adExpiresAt ? `, until ${storeDateKey(ad.adExpiresAt)}` : ''}` }, storeId: null,
   });
+  // The customer who asked for the ad is told it is live (once: not again when an already published ad is edited)
+  if (current.status !== 'APPROVED') {
+    tellRequester(current.requesterId, 'Your ad is live',
+      `"${ad.adTitle}" for ${current.businessName} now shows in the Lucky Stop app${ad.adExpiresAt ? ` until ${storeDateKey(ad.adExpiresAt)}` : ''}.`);
+  }
   res.json({ success: true, data: promo });
 }
 
@@ -259,13 +273,17 @@ export async function rejectPromotion(req: AuthRequest, res: Response) {
   const { id } = req.params;
   let note: string | null;
   try { note = text(req.body.devAdminNote, 'note', 500); } catch (e) { if (refused(res, e)) return; throw e; }
-  const current = await prisma.businessPromotion.findUnique({ where: { id }, select: { businessName: true } });
+  const current = await prisma.businessPromotion.findUnique({ where: { id }, select: { businessName: true, requesterId: true, status: true } });
   if (!current) { res.status(404).json({ success: false, error: 'That promotion request does not exist.' }); return; }
 
   const promo = await prisma.businessPromotion.update({
     where: { id },
     data: { status: 'REJECTED', devAdminNote: note },
   });
+  if (current.status !== 'REJECTED') {
+    tellRequester(current.requesterId, 'About your ad request',
+      `Your ad request for ${current.businessName} was not approved.${note ? ` ${note}` : ''} You can send a new request from Ads & Promotions in the app.`);
+  }
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'PROMOTION_REJECT', entity: 'business_promotion', entityId: id,
