@@ -8,7 +8,8 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { C, FONT, RADIUS, INPUT } from '../lib/theme';
 import { Page, PageHeader, SectionTitle, Tabs, Button, Chip, Card, Badge, Notice, EmptyState, Field } from '../components/kit';
-import { LayoutTemplate, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2 } from 'lucide-react';
+import { LayoutTemplate, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2, Pencil, Square } from 'lucide-react';
+import Modal from '../components/Modal';
 import { serverMessage } from '../lib/apiError';
 import OfferResultsModal from '../components/OfferResultsModal';
 import { storeToday, addDays, monthEnd, dayLabel, startOfStoreDay, endOfStoreDay, storeDayLong, storeDayTime } from '../lib/storeDates';
@@ -167,6 +168,9 @@ export default function Offers() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [resultsFor, setResultsFor] = useState<{ id: string; title: string } | null>(null);
+  // Change a live or scheduled offer's words and dates, or end it now (it then shows under Past as Ended, with its results)
+  const [editing, setEditing] = useState<any | null>(null);
+  const [endingNow, setEndingNow] = useState<any | null>(null);
   // The post waiting for "Post now", and a lock so a fast double click can never send it twice
   const [pending, setPending] = useState<Pending | null>(null);
   const sending = useRef(false);
@@ -201,6 +205,16 @@ export default function Offers() {
     onError: (err) => toast.error(serverMessage(err, 'Could not post it. Please try again.')),
     // Whatever the answer, the box closes and a new post can be sent; the form keeps what was typed unless it worked
     onSettled: () => { sending.current = false; setPending(null); },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: object }) => offersApi.update(id, data),
+    onSuccess: (_r, v) => {
+      toast.success((v.data as any).ending ? 'Offer ended' : 'Offer saved');
+      qc.invalidateQueries({ queryKey: ['offers'] }); qc.invalidateQueries({ queryKey: ['offers-history'] });
+      setEditing(null);
+    },
+    onError: (err) => toast.error(serverMessage(err, 'Could not save the offer')),
   });
 
   const deleteMutation = useMutation({
@@ -470,6 +484,23 @@ export default function Offers() {
   return (
     <Page>
       {resultsFor && <OfferResultsModal offer={resultsFor} onClose={() => setResultsFor(null)} />}
+      {editing && (
+        <OfferEditModal
+          offer={editing}
+          saving={editMutation.isPending}
+          onClose={() => setEditing(null)}
+          onSave={(data) => editMutation.mutate({ id: editing.id, data })}
+        />
+      )}
+      <ConfirmModal
+        open={!!endingNow}
+        title="End this offer now?"
+        message="Customers stop seeing it right away. It moves to Past as Ended, with its results kept, and you can Reuse it later."
+        confirmLabel="End now"
+        danger
+        onConfirm={() => { if (endingNow) editMutation.mutate({ id: endingNow.id, data: { endDate: new Date().toISOString(), ending: true } }); setEndingNow(null); }}
+        onCancel={() => setEndingNow(null)}
+      />
       <ConfirmModal
         open={!!confirmDeleteId}
         title="Remove this offer?"
@@ -842,7 +873,7 @@ export default function Offers() {
                   <SectionTitle>Live Now ({livePromotions.length})</SectionTitle>
                   <div style={s.grid}>
                     {livePromotions.map((offer: any) => (
-                      <OfferCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} onResults={() => setResultsFor(offer)} />
+                      <OfferCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} onResults={() => setResultsFor(offer)} onEdit={() => setEditing(offer)} onEndNow={() => setEndingNow(offer)} />
                     ))}
                   </div>
                 </>
@@ -854,7 +885,7 @@ export default function Offers() {
                   <SectionTitle style={{ marginTop: 28 }}>Scheduled ({scheduledPromotions.length})</SectionTitle>
                   <div style={s.grid}>
                     {scheduledPromotions.map((offer: any) => (
-                      <OfferCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} />
+                      <OfferCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} onEdit={() => setEditing(offer)} />
                     ))}
                   </div>
                 </>
@@ -961,7 +992,7 @@ export default function Offers() {
                   <SectionTitle>Live Now ({liveDeals.length})</SectionTitle>
                   <div style={s.grid}>
                     {liveDeals.map((offer: any) => (
-                      <DealCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} />
+                      <DealCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onEdit={() => setEditing(offer)} onEndNow={() => setEndingNow(offer)} />
                     ))}
                   </div>
                 </>
@@ -973,7 +1004,7 @@ export default function Offers() {
                   <SectionTitle style={{ marginTop: 28 }}>Scheduled ({scheduledDeals.length})</SectionTitle>
                   <div style={s.grid}>
                     {scheduledDeals.map((offer: any) => (
-                      <DealCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} />
+                      <DealCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} onEdit={() => setEditing(offer)} />
                     ))}
                   </div>
                 </>
@@ -1044,8 +1075,8 @@ function bonusText(offer: any): string | null {
   return null;
 }
 
-function OfferCard({ offer, onDelete, onReuse, onResults, isPast, isScheduled }: {
-  offer: any; onDelete?: () => void; onReuse: () => void; onResults?: () => void; isPast?: boolean; isScheduled?: boolean;
+function OfferCard({ offer, onDelete, onReuse, onResults, onEdit, onEndNow, isPast, isScheduled }: {
+  offer: any; onDelete?: () => void; onReuse: () => void; onResults?: () => void; onEdit?: () => void; onEndNow?: () => void; isPast?: boolean; isScheduled?: boolean;
 }) {
   const bonus = bonusText(offer);
   return (
@@ -1061,13 +1092,17 @@ function OfferCard({ offer, onDelete, onReuse, onResults, isPast, isScheduled }:
       <div style={s.cardActions}>
         {onResults && !isScheduled && <Button size="sm" icon={<BarChart3 />} onClick={onResults} aria-label={`Results of ${offer.title}`}>Results</Button>}
         <Button size="sm" icon={<RotateCcw />} onClick={onReuse}>Reuse</Button>
-        {!isPast && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} style={{ marginLeft: 'auto' }}>Delete</Button>}
+        {!isPast && onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="ghost" icon={<Square />} onClick={onEndNow}>End now</Button>}
+          {!isPast && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete}>Delete</Button>}
+        </span>
       </div>
     </Card>
   );
 }
 
-function DealCard({ offer, onDelete, isPast, isScheduled }: { offer: any; onDelete?: () => void; isPast?: boolean; isScheduled?: boolean }) {
+function DealCard({ offer, onDelete, onEdit, onEndNow, isPast, isScheduled }: { offer: any; onDelete?: () => void; onEdit?: () => void; onEndNow?: () => void; isPast?: boolean; isScheduled?: boolean }) {
   return (
     <Card padding={0} style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} />}
@@ -1080,10 +1115,58 @@ function DealCard({ offer, onDelete, isPast, isScheduled }: { offer: any; onDele
       </div>
       {!isPast && onDelete && (
         <div style={s.cardActions}>
-          <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} style={{ marginLeft: 'auto' }}>Delete</Button>
+          {onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            {!isScheduled && onEndNow && <Button size="sm" variant="ghost" icon={<Square />} onClick={onEndNow}>End now</Button>}
+            <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete}>Delete</Button>
+          </span>
         </div>
       )}
     </Card>
+  );
+}
+
+function OfferEditModal({ offer, saving, onClose, onSave }: { offer: any; saving: boolean; onClose: () => void; onSave: (data: object) => void }) {
+  const started = new Date(offer.startDate).getTime() <= Date.now();
+  const [title, setTitle] = useState<string>(offer.title ?? '');
+  const [description, setDescription] = useState<string>(offer.description ?? '');
+  const [start, setStart] = useState<string>(storeToday(new Date(offer.startDate)));
+  const [end, setEnd] = useState<string>(storeToday(new Date(offer.endDate)));
+  const today = storeToday();
+  const problem = !title.trim() ? 'Add a title.' : end < today ? 'The last day has already passed.' : end < start ? 'The last day is before the first day.' : null;
+  return (
+    <Modal title={offer.dealText ? 'Edit deal' : 'Edit promotion'} subtitle="Change the words and the dates. What a promotion pays stays as it was posted; to change that, End it and post a new one." onClose={onClose} busy={saving} maxWidth={560}>
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        if (problem) return;
+        onSave({
+          title: title.trim(),
+          ...(description.trim() ? { description: description.trim() } : {}),
+          ...(!started ? { startDate: startOfStoreDay(start).toISOString() } : {}),
+          endDate: endOfStoreDay(end).toISOString(),
+        });
+      }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Field label="Title" htmlFor="edit-offer-title" required>
+          <input id="edit-offer-title" className="ui-input" style={INPUT} value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
+        </Field>
+        <Field label="Description" htmlFor="edit-offer-desc">
+          <textarea id="edit-offer-desc" className="ui-input" style={{ ...INPUT, minHeight: 72, resize: 'vertical' }} value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
+        </Field>
+        <div style={s.twoCol}>
+          <Field label="First day" htmlFor="edit-offer-start" hint={started ? 'Already running.' : undefined}>
+            <input id="edit-offer-start" className="ui-input" style={INPUT} type="date" value={start} disabled={started} min={today} onChange={(e) => setStart(e.target.value)} />
+          </Field>
+          <Field label="Last day" htmlFor="edit-offer-end" hint="Runs to 11:59 pm at the store.">
+            <input id="edit-offer-end" className="ui-input" style={INPUT} type="date" value={end} min={start > today ? start : today} onChange={(e) => setEnd(e.target.value)} />
+          </Field>
+        </div>
+        {problem && <Notice tone="warning" style={{ fontSize: FONT.small }}>{problem}</Notice>}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={saving || !!problem}>{saving ? 'Saving…' : 'Save changes'}</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

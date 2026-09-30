@@ -10,6 +10,7 @@ import { hasMinRole } from '../middleware/auth';
 import { CASHBACK_RATE_CAP } from '../config/constants';
 import { refuse } from '../utils/refusal';
 import { startOfStoreDate } from '../utils/storeTime';
+import { storeDateKey } from '../utils/storeTime';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
@@ -264,6 +265,14 @@ export async function updateOffer(req: AuthRequest, res: Response) {
   }
 
   const { startDate, endDate, ...rest } = parsed.data;
+  const before = await prisma.offer.findUnique({ where: { id: offerId }, select: { title: true, startDate: true, endDate: true, isActive: true } });
+  if (!before) { res.status(404).json({ success: false, error: 'That offer does not exist.' }); return; }
+  // The dates it would have after this edit: the last day on or after the first, and not already over ("End now" sends now)
+  const nextStart = startDate ? new Date(startDate) : before.startDate;
+  const nextEnd = endDate ? new Date(endDate) : before.endDate;
+  if (isNaN(nextStart.getTime()) || isNaN(nextEnd.getTime())) { res.status(400).json({ success: false, error: 'Pick real dates.' }); return; }
+  if (endDate && nextEnd.getTime() < Date.now() - 5 * 60_000) { res.status(400).json({ success: false, error: 'The last day has already passed. To stop the offer now, use End now.' }); return; }
+  if (nextEnd.getTime() < nextStart.getTime()) { res.status(400).json({ success: false, error: 'The last day is before the first day.' }); return; }
   const offer = await prisma.offer.update({
     where: { id: offerId },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -277,7 +286,16 @@ export async function updateOffer(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'UPDATE_OFFER', entity: 'offer', entityId: offer.id,
-    details: { title: offer.title, isActive: offer.isActive },
+    details: {
+      title: offer.title, isActive: offer.isActive,
+      summary: (() => {
+        const changes: string[] = [];
+        if (before.title !== offer.title) changes.push(`renamed from "${before.title}"`);
+        if (+before.startDate !== +offer.startDate) changes.push(`now starts ${storeDateKey(offer.startDate)}`);
+        if (+before.endDate !== +offer.endDate) changes.push(offer.endDate.getTime() <= Date.now() + 60_000 ? 'ended early' : `now ends ${storeDateKey(offer.endDate)}`);
+        return `Offer "${offer.title}" ${changes.length ? changes.join(', ') : 'edited'}`;
+      })(),
+    },
     storeId: offer.storeId,
   });
 
