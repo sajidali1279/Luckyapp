@@ -387,7 +387,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 
 function OrderCard({
   order, onUpdateStatus, updating,
-}: { order: FoodOrder; onUpdateStatus: (id: string, status: OrderStatus) => void; updating: boolean }) {
+}: { order: FoodOrder; onUpdateStatus: (id: string, status: OrderStatus, reason?: string) => void; updating: boolean }) {
   const { t } = useTranslation();
   const cfg      = STATUS_CONFIG[order.status];
   const total    = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -482,6 +482,8 @@ function OrderCard({
             onPress={() => {
               Alert.alert(t('employeeHotFood.cancelOrderTitle'), t('employeeHotFood.cancelOrderBody'), [
                 { text: t('employeeHotFood.no') },
+                // The customer is told the reason (at most three buttons fit on Android)
+                { text: t('employeeHotFood.declineOutOfStock'), onPress: () => onUpdateStatus(order.id, 'CANCELLED', t('employeeHotFood.reasonOutOfStock')) },
                 { text: t('employeeHotFood.cancelOrderBtn'), style: 'destructive', onPress: () => onUpdateStatus(order.id, 'CANCELLED') },
               ]);
             }}
@@ -664,10 +666,10 @@ export default function HotFoodOrders() {
     return allOrders.filter(o => o.status === activeTab);
   }, [allOrders, activeTab]);
 
-  async function doUpdateStatus(orderId: string, status: OrderStatus, estimatedMinutes?: number) {
+  async function doUpdateStatus(orderId: string, status: OrderStatus, estimatedMinutes?: number, reason?: string) {
     setUpdatingId(orderId);
     try {
-      await hotFoodApi.updateStatus(orderId, status, estimatedMinutes);
+      await hotFoodApi.updateStatus(orderId, status, estimatedMinutes, reason);
       queryClient.invalidateQueries({ queryKey: ['hot-food-orders'] });
       queryClient.invalidateQueries({ queryKey: ['hot-food-pending-count'] });
     } catch {
@@ -677,7 +679,7 @@ export default function HotFoodOrders() {
     }
   }
 
-  function handleUpdateStatus(orderId: string, status: OrderStatus) {
+  function handleUpdateStatus(orderId: string, status: OrderStatus, reason?: string) {
     if (updatingId) return;
     if (status === 'ACCEPTED') {
       Alert.alert(
@@ -693,7 +695,7 @@ export default function HotFoodOrders() {
         ],
       );
     } else {
-      doUpdateStatus(orderId, status);
+      doUpdateStatus(orderId, status, undefined, reason);
     }
   }
 

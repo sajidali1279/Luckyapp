@@ -5,7 +5,7 @@ import { AuthRequest } from '../types';
 import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreEmployees, sendPushToUser } from '../utils/push';
-import { hotFoodOrderUrl } from '../utils/notificationRoutes';
+import { hotFoodOrderUrl, customerHotFoodUrl } from '../utils/notificationRoutes';
 import { hotFoodState, opensSentence, HotFoodSchedules, HotFoodState } from '../utils/hotFoodHours';
 import { updateHoursSchema, dayProblem, dayWords, DAY_NAMES } from './storeHours.controller';
 import { refuse } from '../utils/refusal';
@@ -286,10 +286,16 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     return;
   }
 
-  const updateData: { status: OrderStatus; estimatedMinutes?: number } = { status: next };
+  const updateData: { status: OrderStatus; estimatedMinutes?: number; cancelledBy?: string; cancelReason?: string | null; cancelledAt?: Date } = { status: next };
   if (next === 'ACCEPTED' && estimatedMinutes != null) {
     const mins = parseInt(estimatedMinutes);
     if (!isNaN(mins) && mins > 0 && mins <= 240) updateData.estimatedMinutes = mins;
+  }
+  if (next === 'CANCELLED') {
+    // Declined by the store, with the reason the customer is told (optional)
+    const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+    if (reason.length > 200) { res.status(400).json({ success: false, error: 'Keep the reason under 200 characters.' }); return; }
+    Object.assign(updateData, { cancelledBy: 'STORE', cancelReason: reason || null, cancelledAt: new Date() });
   }
 
   // Only moves the order if nobody else moved it first
@@ -302,6 +308,17 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
   }
   const updated = await prisma.hotFoodOrder.findUnique({ where: { id }, include });
 
+  // The customer hears when it is accepted (with the time the store gave) and when it is declined (with the reason)
+  if (next === 'ACCEPTED') {
+    const mins = updateData.estimatedMinutes;
+    sendPushToUser(order.customerId, `Order #${order.orderNumber} accepted`,
+      `${order.store.name} is making it${mins ? `, ready in about ${mins} minute${mins === 1 ? '' : 's'}` : ''}.`, 'HOT_FOOD_ORDER', customerHotFoodUrl());
+  }
+  if (next === 'CANCELLED') {
+    sendPushToUser(order.customerId, `Order #${order.orderNumber} was declined`,
+      `${order.store.name} could not make your order${updateData.cancelReason ? `: ${updateData.cancelReason}${/[.!?]$/.test(updateData.cancelReason) ? '' : '.'}` : '.'} You were not charged.`, 'HOT_FOOD_ORDER', customerHotFoodUrl());
+  }
+
   // Push to customer when their order is ready for pickup
   if (next === 'READY') {
     sendPushToUser(
@@ -313,6 +330,25 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
   }
 
   res.json({ success: true, data: updated, changed: true });
+}
+
+// POST /hot-food/orders/:id/cancel (the customer) — only while it is still waiting: once the store has accepted it, it is being made
+export async function customerCancelOrder(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const order = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { id: true, customerId: true, status: true, orderNumber: true, storeId: true } });
+  if (!order || order.customerId !== req.user!.id) { res.status(404).json({ success: false, error: 'Order not found' }); return; }
+  if (order.status === 'CANCELLED') { res.json({ success: true, changed: false }); return; }
+  const moved = await prisma.hotFoodOrder.updateMany({
+    where: { id, status: 'PENDING' },
+    data: { status: 'CANCELLED', cancelledBy: 'CUSTOMER', cancelReason: 'Cancelled by you', cancelledAt: new Date() },
+  });
+  if (moved.count === 0) {
+    res.status(409).json({ success: false, error: 'The store has already started your order, so it cannot be cancelled in the app. Ask at the counter.' });
+    return;
+  }
+  // The staff board refreshes on its own; a push tells whoever is on shift not to start it
+  sendPushToStoreEmployees(order.storeId, 'Order cancelled', `The customer cancelled order #${order.orderNumber}. Do not make it.`, 'HOT_FOOD_ORDER', hotFoodOrderUrl(order.id));
+  res.json({ success: true, changed: true });
 }
 
 // ─── Menu (customer / mobile) ─────────────────────────────────────────────────
@@ -554,7 +590,7 @@ export async function getMyOrders(req: AuthRequest, res: Response) {
     where: { customerId },
     select: {
       id: true, orderNumber: true, status: true, totalAmount: true,
-      note: true, estimatedMinutes: true,
+      note: true, estimatedMinutes: true, cancelledBy: true, cancelReason: true,
       createdAt: true, updatedAt: true,
       store: { select: { id: true, name: true } },
       items: { select: { name: true, quantity: true, price: true } },

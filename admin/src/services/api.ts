@@ -488,8 +488,8 @@ export const hotFoodApi = {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
     return api.get(`/hot-food/orders/admin${q ? `?${q}` : ''}`);
   },
-  updateStatus:  (orderId: string, status: string, estimatedMinutes?: number) =>
-    api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
+  updateStatus:  (orderId: string, status: string, estimatedMinutes?: number, reason?: string) =>
+    api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }), ...(reason ? { reason } : {}) }),
   getAdminPendingCount: () => api.get('/hot-food/orders/admin/pending-count'),
   getStoresStatus: () => api.get('/hot-food/stores-status'),
 };

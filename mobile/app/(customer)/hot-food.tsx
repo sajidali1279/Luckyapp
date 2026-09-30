@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   Modal, ActivityIndicator,
   RefreshControl, ScrollView, TextInput,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,6 +46,9 @@ interface FoodOrder {
   updatedAt: string;
   store: { name: string };
   items: { name: string; quantity: number; price: number }[];
+  /** STORE (declined), CUSTOMER or AUTO (nobody accepted it in time) */
+  cancelledBy?: string | null;
+  cancelReason?: string | null;
 }
 
 type Tab = 'menu' | 'orders';
@@ -213,7 +217,7 @@ function useEtaCountdown(order: FoodOrder): string | null {
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
-function OrderCard({ order }: { order: FoodOrder }) {
+function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel?: (order: FoodOrder) => void; cancelling?: boolean }) {
   const { t } = useTranslation();
   const cfg = STATUS[order.status];
   const etaLabel = useEtaCountdown(order);
@@ -246,6 +250,24 @@ function OrderCard({ order }: { order: FoodOrder }) {
       </View>
 
       <Text style={oc.detail}>{t(cfg.detailKey)}</Text>
+      {order.status === 'CANCELLED' && order.cancelledBy && order.cancelledBy !== 'CUSTOMER' && (
+        <Text style={oc.cancelReason}>
+          {order.cancelledBy === 'AUTO'
+            ? t('customerHotFood.cancelledAuto')
+            : order.cancelReason ? t('customerHotFood.declinedReason', { reason: order.cancelReason }) : t('customerHotFood.declinedNoReason')}
+        </Text>
+      )}
+      {order.status === 'PENDING' && onCancel && (
+        <TouchableOpacity
+          style={[oc.cancelBtn, cancelling && { opacity: 0.5 }]}
+          onPress={() => onCancel(order)}
+          disabled={cancelling}
+          accessibilityRole="button"
+          accessibilityLabel={t('customerHotFood.cancelOrderA11y', { number: order.orderNumber })}
+        >
+          <Text style={oc.cancelBtnText}>{cancelling ? t('customerHotFood.cancelling') : t('customerHotFood.cancelOrder')}</Text>
+        </TouchableOpacity>
+      )}
 
       {etaLabel ? (
         <View style={oc.etaBadge}>
@@ -501,6 +523,25 @@ export default function CustomerHotFoodScreen() {
     queryFn: hotFoodApi.getMyOrders,
     refetchInterval: tab === 'orders' ? 15_000 : false,
   });
+
+  // Cancel an order the store has not started (the store is told not to make it)
+  const cancelMutation = useMutation({
+    mutationFn: (orderId: string) => hotFoodApi.cancelMyOrder(orderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-hot-food-orders'] });
+      Toast.show({ type: 'success', text1: t('customerHotFood.cancelledToast') });
+    },
+    onError: (e: any) => {
+      Toast.show({ type: 'error', text1: e?.response?.data?.error || t('customerHotFood.cancelFailed') });
+      qc.invalidateQueries({ queryKey: ['my-hot-food-orders'] });
+    },
+  });
+  function askCancel(order: FoodOrder) {
+    Alert.alert(t('customerHotFood.cancelConfirmTitle'), t('customerHotFood.cancelConfirmBody', { number: order.orderNumber }), [
+      { text: t('customerHotFood.keepOrder'), style: 'cancel' },
+      { text: t('customerHotFood.cancelOrder'), style: 'destructive', onPress: () => cancelMutation.mutate(order.id) },
+    ]);
+  }
   const orders: FoodOrder[] = ordersData?.data?.data || [];
   const activeOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'ACCEPTED' || o.status === 'READY');
   const pastOrders = orders.filter(o => o.status === 'COMPLETED' || o.status === 'CANCELLED');
@@ -732,7 +773,7 @@ export default function CustomerHotFoodScreen() {
                 {index === activeOrders.length && pastOrders.length > 0 && (
                   <Text style={[s.sectionLabel, { marginTop: 20 }]}>{t('customerHotFood.pastOrdersSection')}</Text>
                 )}
-                <OrderCard order={item} />
+                <OrderCard order={item} onCancel={askCancel} cancelling={cancelMutation.isPending && cancelMutation.variables === item.id} />
               </>
             )}
           />
@@ -895,6 +936,12 @@ const mc = StyleSheet.create({
 
 // ─── Order card styles ────────────────────────────────────────────────────────
 const oc = StyleSheet.create({
+  cancelReason: { fontSize: 13, color: '#a51b28', marginTop: 4, lineHeight: 18 },
+  cancelBtn: {
+    alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
+    borderWidth: 1, borderColor: '#f3cdd1', backgroundColor: '#fdf2f2',
+  },
+  cancelBtnText: { fontSize: 13, fontWeight: '700', color: '#a51b28' },
   card: {
     backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 10,
     borderLeftWidth: 4, borderWidth: 1, borderColor: '#F0F1F2',

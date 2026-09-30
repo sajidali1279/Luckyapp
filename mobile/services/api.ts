@@ -411,8 +411,10 @@ export const hotFoodApi = {
     api.post('/hot-food/orders', data),
   getMyOrders:    () => api.get('/hot-food/orders/mine'),
   getStoreOrders: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}`),
-  updateStatus:   (orderId: string, status: string, estimatedMinutes?: number) =>
-    api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }) }),
+  updateStatus:   (orderId: string, status: string, estimatedMinutes?: number, reason?: string) =>
+    api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }), ...(reason ? { reason } : {}) }),
+  // The customer, while the store has not started it
+  cancelMyOrder:  (orderId: string) => api.post(`/hot-food/orders/${orderId}/cancel`),
   getPendingCount: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}/pending-count`),
   getMyStoresPendingCount: () => api.get('/hot-food/orders/my-stores/pending-count'),
   // Toggle legacy menu item availability

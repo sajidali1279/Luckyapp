@@ -431,7 +431,18 @@
     "closedBtn": "Cerrado",
     "closedAddA11y": "{{name}}: la comida caliente está cerrada ahora",
     "orderingClosedBtn": "Pedidos cerrados",
-    "closedToast": "La comida caliente está cerrada ahora"
+    "closedToast": "La comida caliente está cerrada ahora",
+    "cancelOrder": "Cancelar pedido",
+    "cancelling": "Cancelando...",
+    "cancelOrderA11y": "Cancelar pedido #{{number}}",
+    "cancelConfirmTitle": "¿Cancelar este pedido?",
+    "cancelConfirmBody": "La tienda aún no ha empezado el pedido #{{number}}.",
+    "keepOrder": "Mantenerlo",
+    "cancelledToast": "Pedido cancelado",
+    "cancelFailed": "No se pudo cancelar el pedido",
+    "declinedReason": "La tienda no pudo prepararlo: {{reason}}. No se le cobró.",
+    "declinedNoReason": "La tienda no pudo prepararlo. No se le cobró.",
+    "cancelledAuto": "Nadie en la tienda lo aceptó a tiempo, así que se canceló. No se le cobró."
   },
   "customerLeaderboard": {
     "pointsValue": "{{points}} pts",
@@ -811,7 +822,9 @@
     "editItemA11y": "Editar {{name}}",
     "markSoldOutA11y": "Marcar {{name}} como agotado",
     "markAvailableA11y": "Marcar {{name}} como disponible",
-    "addItemA11y": "Agregar artículo al menú"
+    "addItemA11y": "Agregar artículo al menú",
+    "declineOutOfStock": "Agotado",
+    "reasonOutOfStock": "Un producto está agotado"
   },
   "employeeLeaderboard": {
     "avgReviews_one": "{{avg}} prom · {{count}} reseña",

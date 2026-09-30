@@ -1336,6 +1336,9 @@ model HotFoodOrder {
   note             String?
   estimatedMinutes Int?
   totalAmount      Float
+  cancelledBy      String?            // STORE (declined), CUSTOMER (cancelled in the app) or AUTO (nobody accepted it in time)
+  cancelReason     String?            // what the customer is told
+  cancelledAt      DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 

@@ -431,7 +431,18 @@
     "closedBtn": "Closed",
     "closedAddA11y": "{{name}}: hot food is closed right now",
     "orderingClosedBtn": "Ordering is closed",
-    "closedToast": "Hot food is closed right now"
+    "closedToast": "Hot food is closed right now",
+    "cancelOrder": "Cancel order",
+    "cancelling": "Cancelling...",
+    "cancelOrderA11y": "Cancel order #{{number}}",
+    "cancelConfirmTitle": "Cancel this order?",
+    "cancelConfirmBody": "The store has not started order #{{number}} yet.",
+    "keepOrder": "Keep it",
+    "cancelledToast": "Order cancelled",
+    "cancelFailed": "Could not cancel the order",
+    "declinedReason": "The store could not make it: {{reason}}. You were not charged.",
+    "declinedNoReason": "The store could not make it. You were not charged.",
+    "cancelledAuto": "Nobody at the store accepted it in time, so it was cancelled. You were not charged."
   },
   "customerLeaderboard": {
     "nameYou": " (You)",
@@ -811,7 +822,9 @@
     "editItemA11y": "Edit {{name}}",
     "markSoldOutA11y": "Mark {{name}} as sold out",
     "markAvailableA11y": "Mark {{name}} as available",
-    "addItemA11y": "Add menu item"
+    "addItemA11y": "Add menu item",
+    "declineOutOfStock": "Out of stock",
+    "reasonOutOfStock": "An item is out of stock"
   },
   "employeeLeaderboard": {
     "headerTitle": "Staff Rankings",

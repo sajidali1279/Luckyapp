@@ -448,6 +448,8 @@ export default function HotFood() {
   const [orderTab,    setOrderTab]    = useState<OrderTab>('PENDING');
   const [filterStore, setFilterStore] = useState('');
   const [updatingId,  setUpdatingId]  = useState<string | null>(null);
+  // Declining asks for the reason the customer is told (optional)
+  const [declineId,   setDeclineId]   = useState<string | null>(null);
 
   // Catalog state
   const [search,       setSearch]       = useState('');
@@ -510,11 +512,12 @@ export default function HotFood() {
     return allOrders.filter(o => o.status === orderTab);
   }, [allOrders, orderTab]);
 
-  async function handleUpdateOrder(orderId: string, status: OrderStatus) {
+  async function handleUpdateOrder(orderId: string, status: OrderStatus, reason?: string) {
     if (updatingId) return;
+    if (status === 'CANCELLED' && reason === undefined) { setDeclineId(orderId); return; }
     setUpdatingId(orderId);
     try {
-      await hotFoodApi.updateStatus(orderId, status);
+      await hotFoodApi.updateStatus(orderId, status, undefined, reason);
       qc.invalidateQueries({ queryKey: ['hot-food-orders-admin'] });
       toast.success(`Order ${STATUS_CFG[status].label.toLowerCase()}`);
     } catch {
@@ -545,6 +548,19 @@ export default function HotFood() {
   return (
     <div style={pg.container}>
       {/* ── Page header ─────────────────────────────────────────────────── */}
+      <ConfirmModal
+        open={!!declineId}
+        title="Decline this order?"
+        message="The customer is told right away that the store could not make it, and that they were not charged."
+        confirmLabel="Decline order"
+        danger
+        headingLevel="h2"
+        withInput
+        inputLabel="Reason the customer sees (optional)"
+        inputPlaceholder="e.g. Out of chicken tenders"
+        onConfirm={(reason) => { const id = declineId; setDeclineId(null); if (id) handleUpdateOrder(id, 'CANCELLED', (reason ?? '').trim()); }}
+        onCancel={() => setDeclineId(null)}
+      />
       <PageHeader
         title="Hot Food"
         description={view === 'orders'

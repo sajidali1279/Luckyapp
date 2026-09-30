@@ -133,6 +133,7 @@ import {
   getMenuCategories as getHotFoodMenuCategories,
   getAllOrders as getHotFoodOrders,
   updateOrderStatus,
+  customerCancelOrder as cancelMyHotFoodOrder,
   getStoreMenu,
   getStoreAllItems,
   updateCatalogStoreAvailability,
@@ -583,6 +584,7 @@ router.get('/hot-food/stores-status', authenticate, requireRole(Role.SUPER_ADMIN
 router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGER), getHotFoodOrders);
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);
+router.post('/hot-food/orders/:id/cancel', authenticate, requireRole(Role.CUSTOMER), cancelMyHotFoodOrder);   // the customer, while it is still waiting
 // Orders — employee per-store board
 router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStorePendingCount);
 router.get('/hot-food/orders/my-stores/pending-count',       authenticate, requireRole(Role.EMPLOYEE), getMyStoresPendingCount);

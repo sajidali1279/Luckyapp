@@ -87,3 +87,8 @@ export function noticeUrl(recipientRole?: string, noticeId?: string): string {
   const base = recipientRole === 'STORE_MANAGER' ? '/(manager)/home' : '/(employee)/home';
   return noticeId ? `${base}?noticeId=${noticeId}` : base;
 }
+
+// ─── Mobile: Customer hot food orders ──────────────────────────────────────
+export function customerHotFoodUrl(): string {
+  return '/(customer)/hot-food';
+}
