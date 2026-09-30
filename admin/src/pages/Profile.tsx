@@ -38,7 +38,15 @@ export default function Profile() {
   const qc = useQueryClient();
   const { user, setAuth, logout } = useAuthStore();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['my-account'], queryFn: () => authApi.getAccount() });
-  const account: Account | undefined = data?.data?.data;
+  // Safe defaults for anything the server did not send (an older server, or a partial answer), so no section can crash the page
+  const raw = data?.data?.data;
+  const account: Account | undefined = raw ? {
+    ...raw,
+    emailAlertsOff: raw.emailAlertsOff ?? [],
+    emailKinds: raw.emailKinds ?? [],
+    activity: raw.activity ?? [],
+    stores: raw.stores ?? { all: false, list: [] },
+  } : undefined;
 
   const [name, setName] = useState(user?.name || '');
   const [nameBusy, setNameBusy] = useState(false);
@@ -263,7 +271,7 @@ export default function Profile() {
             <div style={{ ...s.row, alignItems: 'flex-start' }}>
               <span style={s.key}>Stores</span>
               <span style={{ ...s.val, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' }}>
-                {!account ? '…' : account.stores.all
+                {!account?.stores ? '…' : account.stores.all
                   ? <Badge>All {account.stores.count} stores</Badge>
                   : account.stores.list.length === 0 ? 'None assigned' : account.stores.list.map((st) => <Badge key={st.id}>{st.name}</Badge>)}
               </span>

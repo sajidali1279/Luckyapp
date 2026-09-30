@@ -1443,11 +1443,14 @@ export async function getStorePlanHistory(req: AuthRequest, res: Response) {
 // SuperAdmin — derived notification feed (no DB table needed)
 /** Rewards a store manager added, changed or switched off in the last 14 days. The chain's catalog is HQ's, so HQ is told. */
 export async function rewardChangeNotifications(now: Date) {
-  const rows = await prisma.auditLog.findMany({
-    where: { action: { in: ['CATALOG_ITEM_CREATE', 'CATALOG_ITEM_UPDATE'] }, actorRole: 'STORE_MANAGER', createdAt: { gte: new Date(now.getTime() - 14 * 86_400_000) } },
-    orderBy: { createdAt: 'desc' },
-    take: 30,
-  }).catch(() => [] as { id: string; actorName: string | null; details: string | null; storeName: string | null; createdAt: Date }[]);
+  // Never allowed to take the whole list down: any problem reading the log just leaves these lines out
+  const rows = await Promise.resolve()
+    .then(() => prisma.auditLog.findMany({
+      where: { action: { in: ['CATALOG_ITEM_CREATE', 'CATALOG_ITEM_UPDATE'] }, actorRole: 'STORE_MANAGER', createdAt: { gte: new Date(now.getTime() - 14 * 86_400_000) } },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    }))
+    .catch(() => [] as { id: string; actorName: string | null; details: string | null; storeName: string | null; createdAt: Date }[]);
   return rows.map((r) => {
     let summary = 'A reward was changed';
     try { summary = JSON.parse(r.details ?? '{}').summary ?? summary; } catch { /* keep the plain words */ }
