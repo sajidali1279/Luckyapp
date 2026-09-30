@@ -137,6 +137,32 @@ jobs:
         env:
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
 
+      # The runner image does not ship the NDK that React Native asks for, so it is downloaded on every build. Left to Gradle, one bad
+      # download fails the build outright (2026-09-30: "Archive is not a ZIP archive" for ndk;27.1.12297006). Install it here first,
+      # check the install is complete, and try again up to three times. The version is read from the generated project, so a future
+      # React Native upgrade that asks for another NDK is followed automatically.
+      - name: Install Android NDK (with retries)
+        working-directory: ./mobile/android
+        run: |
+          # Expo's root project plugin takes the NDK from React Native's version catalog
+          NDK=$(grep -hoE '^ndkVersion *= *"[0-9.]+"' ../node_modules/react-native/gradle/libs.versions.toml 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || true)
+          NDK=${NDK:-27.1.12297006}
+          DIR="$ANDROID_HOME/ndk/$NDK"
+          if [ -f "$DIR/source.properties" ]; then echo "NDK $NDK already installed"; exit 0; fi
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          for attempt in 1 2 3; do
+            rm -rf "$DIR" "$ANDROID_HOME/temp" "$ANDROID_HOME/.temp"
+            if yes | "$SDKMANAGER" --install "ndk;$NDK" > /tmp/ndk-install.log 2>&1 && [ -f "$DIR/source.properties" ]; then
+              echo "NDK $NDK installed on attempt $attempt"
+              exit 0
+            fi
+            echo "NDK install attempt $attempt failed:"
+            tail -n 5 /tmp/ndk-install.log
+            sleep 30
+          done
+          echo "Could not install NDK $NDK after 3 attempts"
+          exit 1
+
       - name: Make gradlew executable
         working-directory: ./mobile/android
         run: chmod +x gradlew
