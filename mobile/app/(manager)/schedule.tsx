@@ -32,7 +32,7 @@ const SHIFT_TIMES: Record<string, string> = {
 };
 
 type Tab = 'roster' | 'week' | 'requests';
-interface Store { id: string; name: string }
+interface Store { id: string; name: string; shiftsPerDay?: number }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
@@ -53,6 +53,9 @@ export default function ManagerScheduleScreen() {
     if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
   }, [stores]);
   const storeId = selectedStoreId || user?.storeIds?.[0];
+  // A store that runs 2 shifts has no Middle: anyone still booked on it is shown as "not in use", as on the admin, so the manager moves them
+  const twoShift = stores.find((st) => st.id === storeId)?.shiftsPerDay === 2;
+  const shiftName = (shift: string) => (shift === 'MIDDLE' && twoShift ? t('managerSchedule.middleNotInUse') : SHIFT_LABELS[shift]);
 
   const [tab, setTab] = useState<Tab>('roster');
   const [selectedWeekDay, setSelectedWeekDay] = useState(todayKey);
@@ -242,7 +245,7 @@ export default function ManagerScheduleScreen() {
                       <View style={s.shiftHeader}>
                         <View style={[s.shiftHeaderDot, { backgroundColor: color }]} />
                         <View style={{ flex: 1 }}>
-                          <Text style={[s.shiftHeaderLabel, { color }]}>{SHIFT_LABELS[shift]}</Text>
+                          <Text style={[s.shiftHeaderLabel, { color }]}>{shiftName(shift)}</Text>
                           <Text style={s.shiftHeaderTime}>{SHIFT_TIMES[shift]}</Text>
                         </View>
                         <View style={[s.shiftCountBadge, { backgroundColor: color + '18', borderColor: color + '40' }]}>
@@ -337,7 +340,7 @@ export default function ManagerScheduleScreen() {
                           <View style={[s.weekShiftDot, { backgroundColor: color }]} />
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={[s.weekShiftLabel, { color }]}>{SHIFT_LABELS[shift]}</Text>
+                          <Text style={[s.weekShiftLabel, { color }]}>{shiftName(shift)}</Text>
                           <Text style={s.weekShiftNames}>
                             {onShift.map((t: any) => t.employee?.name || t.employee?.phone || '?').join(', ')}
                           </Text>

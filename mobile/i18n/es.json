@@ -1211,7 +1211,8 @@
     "cancelDialogLabel": "Cancelar y cerrar diálogo",
     "cancel": "Cancelar",
     "approve": "Aprobar",
-    "deny": "Denegar"
+    "deny": "Denegar",
+    "middleNotInUse": "Intermedio (no se usa en esta tienda)"
   },
   "managerSupport": {
     "ticketSubmitted": "Ticket enviado",

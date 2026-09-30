@@ -1211,7 +1211,8 @@
     "yesApprove": "Yes, Approve",
     "yesDeny": "Yes, Deny",
     "peopleCount_one": "{{count}} person",
-    "peopleCount_other": "{{count}} people"
+    "peopleCount_other": "{{count}} people",
+    "middleNotInUse": "Middle (not in use at this store)"
   },
   "managerSupport": {
     "justNow": "just now",
