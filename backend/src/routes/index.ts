@@ -331,7 +331,7 @@ router.get('/stores/:storeId', authenticate, requireRole(Role.STORE_MANAGER), re
 router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateGasPrices); // Manager+ per store
 router.patch('/stores/:storeId/order-instructions', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateOrderInstructions); // Manager+ per store — standing note
 router.get('/stores/:storeId/label-printer', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getLabelPrinter);        // Anyone at the store: the printer fine-tune the app applies
-router.put('/stores/:storeId/label-printer', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateLabelPrinter); // A manager of the store, or HQ, sets it
+router.put('/stores/:storeId/label-printer', authenticate, requireRole(Role.SUPER_ADMIN), updateLabelPrinter);                     // HQ only sets it (admin Stores page)
 
 // ─── Store Hours (weekly schedule + holiday overrides) ────────────────────────
 router.get('/stores/:storeId/hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreHours);

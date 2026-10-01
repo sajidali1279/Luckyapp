@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import Modal from '../components/Modal';
+import LabelPrinterModal from '../components/LabelPrinterModal';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { showPhone, phoneDigits } from '../lib/phoneText';
@@ -207,6 +208,7 @@ export default function Stores() {
   // stored server-side now, so an existing key can't be "revealed", only
   // regenerated). undefined = not checked yet.
   const [apiKeyStatus, setApiKeyStatus] = useState<Record<string, boolean>>({});
+  const [printerStore, setPrinterStore] = useState<{ id: string; name: string } | null>(null);
   const [kwStoreId, setKwStoreId] = useState<string | null>(null);
   const [kwMappings, setKwMappings] = useState<{ id: string; keyword: string; category: string }[]>([]);
   const [kwLoading, setKwLoading] = useState(false);
@@ -896,6 +898,9 @@ export default function Stores() {
                   <button style={s.kwBtn} onClick={() => openHoursModal(store.id)}>
                     Store Hours
                   </button>
+                  <button style={s.kwBtn} onClick={() => setPrinterStore({ id: store.id, name: store.name })}>
+                    Label Printer
+                  </button>
                 </div>
                 <div style={{ ...s.cardBtns, marginTop: 8 }}>
                   <button style={{ ...s.editBtn, borderColor: color, color: PRIMARY }} onClick={() => openEdit(store)}>
@@ -907,6 +912,9 @@ export default function Stores() {
           })}
         </div>
       )}
+
+      {/* The store's label printer fine-tune (HQ only): every phone printing for the store uses it */}
+      {printerStore && <LabelPrinterModal store={printerStore} onClose={() => setPrinterStore(null)} />}
 
       {/* POS Keyword Mappings */}
       {kwStoreId && (

@@ -2423,7 +2423,7 @@
     "nudgeReset": "Back to 0 (no move)",
     "testPageLetterSub": "Outlines only. Print it on plain paper and hold it over a label sheet to check where the labels land.",
     "printHintLetter": "In the print screen choose Letter paper and 100% scale (actual size, not \"fit\").",
-    "nudgeHintStaff": "Your manager sets this once for {{store}}'s printer, and every phone printing there uses it. If labels land off the stickers, tell your manager.",
+    "nudgeHintStaff": "HQ sets this once for {{store}}'s printer, and every phone printing there uses it. If labels land off the stickers, print the test page, hold it over a label sheet against a light, and tell HQ how far off the boxes are (for example: 1.5 mm too high).",
     "printerSetBy": "Set by {{name}} for {{store}}.",
     "printerNotSet": "Not set yet for {{store}} (no move).",
     "printerSave": "Save for {{store}}",

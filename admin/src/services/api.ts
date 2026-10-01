@@ -258,6 +258,9 @@ export const storesApi = {
     api.delete(`/stores/${storeId}/keyword-mappings/${id}`),
   updateOrderInstructions: (storeId: string, instructions: string | null) =>
     api.patch(`/stores/${storeId}/order-instructions`, { instructions }),
+  // The store's label printer fine-tune (mm) that every phone printing for the store uses; HQ sets it
+  getLabelPrinter: (storeId: string) => api.get(`/stores/${storeId}/label-printer`),
+  setLabelPrinter: (storeId: string, nudge: { down: number; right: number }) => api.put(`/stores/${storeId}/label-printer`, nudge),
   getHours: (storeId: string) => api.get(`/stores/${storeId}/hours`),
   updateHours: (storeId: string, days: object[]) => api.put(`/stores/${storeId}/hours`, { days }),
   // When hot food can be ordered (none set = the store's own hours)

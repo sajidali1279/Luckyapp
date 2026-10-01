@@ -1485,7 +1485,9 @@ export default function LabelsScreen() {
       )}
 
       <LabelPaperModal visible={showPaper} sheet={printSheet} startAt={startAt} accentColor={accentColor} onChange={changeSheet} onStartAt={setStartAt} onClose={() => setShowPaper(false)}
-        printer={storePrinter} storeName={currentStoreName} canSetPrinter={isManagerPlus} onSavePrinter={savePrinter} />
+        printer={storePrinter} storeName={currentStoreName}
+        // HQ only sets it (admin Stores page); the app shows it and prints the test page to measure
+        canSetPrinter={user?.role === 'SUPER_ADMIN' || user?.role === 'DEV_ADMIN'} onSavePrinter={savePrinter} />
 
       <View style={s.footer}>
         <TouchableOpacity

@@ -2423,7 +2423,7 @@
     "nudgeReset": "Volver a 0 (sin mover)",
     "testPageLetterSub": "Solo contornos. Imprímala en papel normal y póngala sobre una hoja de etiquetas para ver dónde quedan.",
     "printHintLetter": "En la pantalla de impresión elija papel Carta y escala 100% (tamaño real, no \"ajustar\").",
-    "nudgeHintStaff": "Su gerente lo ajusta una vez para la impresora de {{store}}, y todos los teléfonos que imprimen ahí lo usan. Si las etiquetas no caen en su lugar, avise a su gerente.",
+    "nudgeHintStaff": "La oficina central lo ajusta una vez para la impresora de {{store}}, y todos los teléfonos que imprimen ahí lo usan. Si las etiquetas no caen en su lugar, imprima la página de prueba, póngala sobre una hoja de etiquetas a contraluz y diga a la oficina central qué tan desviados quedan los recuadros (por ejemplo: 1.5 mm muy arriba).",
     "printerSetBy": "Ajustado por {{name}} para {{store}}.",
     "printerNotSet": "Aún sin ajustar para {{store}} (sin mover).",
     "printerSave": "Guardar para {{store}}",

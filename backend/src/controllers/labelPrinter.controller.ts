@@ -1,7 +1,7 @@
 // The label printer's fine-tune for a store: how far that store's printer places a US Letter (Avery 5160) sheet off, in mm.
 // Saved per store, not per phone, because the offset belongs to the printer: staff print from their own phones, and someone working
-// at two stores must get each store's correction. Anyone at the store reads it (the app applies it when printing); a manager of the
-// store, or HQ, sets it from the test page.
+// at two stores must get each store's correction. Anyone at the store reads it (the app applies it when printing); HQ sets it on the
+// admin Stores page, from what someone at the store measured with the test page.
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
@@ -29,7 +29,7 @@ export async function getLabelPrinter(req: AuthRequest, res: Response) {
   res.json({ success: true, data: shape(store) });
 }
 
-/** PUT /stores/:storeId/label-printer — a manager of the store, or HQ */
+/** PUT /stores/:storeId/label-printer — HQ only */
 export async function updateLabelPrinter(req: AuthRequest, res: Response) {
   const parsed = nudgeSchema.safeParse(req.body);
   if (!parsed.success) {
