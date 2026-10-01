@@ -24,8 +24,15 @@ export function paperSummary(t: (k: string, o?: any) => string, sheet: SheetSett
   return startAt > 1 ? `${paper}${t('labelPaper.rowStarts', { n: startAt })}` : paper;
 }
 
-export default function LabelPaperModal({ visible, sheet, startAt, accentColor, onChange, onStartAt, onClose }: {
+// The store's printer fine-tune as the server keeps it
+export interface StorePrinter { storeId: string; storeName: string; down: number; right: number; updatedAt: string | null; updatedBy: string | null }
+
+export default function LabelPaperModal({ visible, sheet, startAt, accentColor, onChange, onStartAt, onClose, printer, storeName, canSetPrinter, onSavePrinter }: {
   visible: boolean;
+  printer?: StorePrinter | null;
+  storeName?: string;
+  canSetPrinter?: boolean;
+  onSavePrinter?: (nudge: LetterNudge) => Promise<void>;
   sheet: SheetSettings;
   startAt: number;
   accentColor: string;
@@ -40,6 +47,11 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
   const [editing, setEditing] = useState<keyof A4Sizes | null>(null);
   const [printingTest, setPrintingTest] = useState(false);
   const [showNudge, setShowNudge] = useState(false);
+  // The fine-tune being tried: starts from the store's numbers; a manager can test it and then save it for the store
+  const [draft, setDraft] = useState<LetterNudge>(sheet.letter);
+  const [savingPrinter, setSavingPrinter] = useState(false);
+  useEffect(() => { if (visible) setDraft(sheet.letter); }, [visible, sheet.letter.down, sheet.letter.right]);
+  const draftChanged = draft.down !== sheet.letter.down || draft.right !== sheet.letter.right;
 
   // The boxes show the kept numbers, except the one being typed in (so "31." is not rewritten while typing)
   useEffect(() => {
@@ -52,7 +64,19 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
 
   const set = (next: Partial<SheetSettings>) => onChange(cleanSheet({ ...sheet, ...next }));
   const setSize = (k: keyof A4Sizes, v: number) => set({ a4: { ...sheet.a4, [k]: Math.round(v * 10) / 10 } });
-  const setNudge = (k: keyof LetterNudge, v: number) => set({ letter: { ...sheet.letter, [k]: Math.round(v * 10) / 10 } });
+  const setNudge = (k: keyof LetterNudge, v: number) => setDraft(d => ({ ...d, [k]: Math.min(NUDGE_LIMITS[k][1], Math.max(NUDGE_LIMITS[k][0], Math.round(v * 10) / 10)) }));
+  async function savePrinter() {
+    if (!onSavePrinter || savingPrinter) return;
+    setSavingPrinter(true);
+    try {
+      await onSavePrinter(draft);
+      Toast.show({ type: 'success', text1: t('labelPaper.printerSaved', { store: storeName ?? '' }) });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: t('labelPaper.printerSaveFailed'), text2: err?.response?.data?.error ?? err?.message });
+    } finally {
+      setSavingPrinter(false);
+    }
+  }
   const tall = sheet.format === 'a4x18';
   const per = perSheet(sheet);
   const issue = tall ? fitIssue(sheet.a4) : null;
@@ -63,7 +87,7 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
     if (issue) { Toast.show({ type: 'error', text1: t('labelPaper.fixSizesFirst') }); return; }
     setPrintingTest(true);
     try {
-      await printTestSheet(sheet);
+      await printTestSheet({ ...sheet, letter: draft });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: t('labelPaper.testFailed'), text2: err?.message });
     } finally {
@@ -266,31 +290,51 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
 
                 {showNudge && (
                   <View style={st.sizesBox}>
-                    <Text style={st.hint}>{t('labelPaper.nudgeHint')}</Text>
+                    <Text style={st.hint}>{t(canSetPrinter ? 'labelPaper.nudgeHint' : 'labelPaper.nudgeHintStaff', { store: storeName ?? '' })}</Text>
+                    <Text style={[st.hint, { fontWeight: '700' }]}>
+                      {printer?.updatedBy
+                        ? t('labelPaper.printerSetBy', { name: printer.updatedBy.split(' ')[0], store: storeName ?? printer.storeName })
+                        : t('labelPaper.printerNotSet', { store: storeName ?? printer?.storeName ?? '' })}
+                    </Text>
                     {(['down', 'right'] as (keyof LetterNudge)[]).map(k => {
                       const name = t(k === 'down' ? 'labelPaper.moveDown' : 'labelPaper.moveRight');
-                      const v = sheet.letter[k];
+                      const v = draft[k];
                       return (
                         <View key={k} style={st.sizeRow}>
                           <Text style={st.sizeLabel}>{name}</Text>
                           <View style={st.stepper}>
-                            <TouchableOpacity style={st.stepBtnSm} onPress={() => setNudge(k, v - STEP_MM)} disabled={v <= NUDGE_LIMITS[k][0]}
+                            {canSetPrinter && <TouchableOpacity style={st.stepBtnSm} onPress={() => setNudge(k, v - STEP_MM)} disabled={v <= NUDGE_LIMITS[k][0]}
                               accessibilityRole="button" accessibilityLabel={t('labelPaper.less', { field: name })}>
                               <Text style={st.stepBtnText}>−</Text>
-                            </TouchableOpacity>
+                            </TouchableOpacity>}
                             <Text style={[st.sizeInput, { textAlignVertical: 'center' }]} accessibilityLabel={`${name}: ${v} mm`}>{v}</Text>
-                            <TouchableOpacity style={st.stepBtnSm} onPress={() => setNudge(k, v + STEP_MM)} disabled={v >= NUDGE_LIMITS[k][1]}
+                            {canSetPrinter && <TouchableOpacity style={st.stepBtnSm} onPress={() => setNudge(k, v + STEP_MM)} disabled={v >= NUDGE_LIMITS[k][1]}
                               accessibilityRole="button" accessibilityLabel={t('labelPaper.more', { field: name })}>
                               <Text style={st.stepBtnText}>+</Text>
-                            </TouchableOpacity>
+                            </TouchableOpacity>}
                           </View>
                           <Text style={st.sizeUnit}>mm</Text>
                         </View>
                       );
                     })}
-                    <TouchableOpacity onPress={() => set({ letter: { ...LETTER_NUDGE_DEFAULTS } })} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 4 }}>
-                      <Text style={[st.link, { color: accentColor }]}>{t('labelPaper.nudgeReset')}</Text>
-                    </TouchableOpacity>
+                    {canSetPrinter && (
+                      <>
+                        <TouchableOpacity onPress={() => setDraft({ ...LETTER_NUDGE_DEFAULTS })} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 4 }}>
+                          <Text style={[st.link, { color: accentColor }]}>{t('labelPaper.nudgeReset')}</Text>
+                        </TouchableOpacity>
+                        {draftChanged && (
+                          <TouchableOpacity
+                            style={[st.doneBtn, { backgroundColor: accentColor, marginTop: 10 }, savingPrinter && { opacity: 0.6 }]}
+                            onPress={savePrinter}
+                            disabled={savingPrinter}
+                            accessibilityRole="button"
+                          >
+                            <Text style={st.doneBtnText}>{t('labelPaper.printerSave', { store: storeName ?? '' })}</Text>
+                          </TouchableOpacity>
+                        )}
+                        {draftChanged && <Text style={st.hint}>{t('labelPaper.printerTryFirst')}</Text>}
+                      </>
+                    )}
                   </View>
                 )}
 

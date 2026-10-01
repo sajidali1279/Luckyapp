@@ -307,6 +307,13 @@ model Store {
   // (admin web or mobile), persists across list close/auto-reopen cycles
   orderInstructions String?
 
+  // The label printer's fine-tune for US Letter sheets, in mm (minus = up / left). Per store because the offset belongs to the
+  // store's printer, and staff print from their own phones.
+  labelNudgeDown      Float     @default(0)
+  labelNudgeRight     Float     @default(0)
+  labelNudgeUpdatedAt DateTime?
+  labelNudgeUpdatedBy String?
+
   // Gas prices (updated daily by admins). Each commodity tracks its own
   // updatedAt so mobile can show a "change needed" indicator independently
   // for gas vs diesel — a diesel-only price edit shouldn't flag gas as changed.

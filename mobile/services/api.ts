@@ -197,6 +197,9 @@ export const storesApi = {
   accessible:     () => api.get('/stores/accessible'),  // STORE_MANAGER+: own stores or all if allStoresAccess
   updateOrderInstructions: (storeId: string, instructions: string | null) =>
     api.patch(`/stores/${storeId}/order-instructions`, { instructions }),
+  // The store's label printer fine-tune (mm): read by everyone at the store, set by its manager or HQ
+  getLabelPrinter: (storeId: string) => api.get(`/stores/${storeId}/label-printer`),
+  setLabelPrinter: (storeId: string, nudge: { down: number; right: number }) => api.put(`/stores/${storeId}/label-printer`, nudge),
 };
 
 export const welcomeBonusApi = {

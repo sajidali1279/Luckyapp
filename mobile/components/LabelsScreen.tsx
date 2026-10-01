@@ -23,7 +23,7 @@ import { Cart, CartRow, cartKey, printPriceFor, resolveCartRows, summarizeCart, 
 import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
 import KeyboardSafe from './KeyboardSafe';
-import LabelPaperModal, { paperSummary } from './LabelPaperModal';
+import LabelPaperModal, { paperSummary, StorePrinter } from './LabelPaperModal';
 import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue, perSheet } from '../utils/labelSheet';
 
 interface Label {
@@ -280,6 +280,24 @@ export default function LabelsScreen() {
   // My Prints is a personal cart kept on this phone (see utils/labelCart.ts),
   // one per user and store.
   const cartId = cartKey(user?.id, storeId);
+
+  // The store's printer fine-tune (Letter sheets): set once per store by a manager, used by every phone printing for that store
+  const { data: printerData } = useQuery({
+    queryKey: ['label-printer', storeId],
+    queryFn: () => storesApi.getLabelPrinter(storeId!),
+    enabled: !!storeId,
+    staleTime: 60 * 1000,
+  });
+  const storePrinter: StorePrinter | null = printerData?.data?.data ?? null;
+  const printSheet: SheetSettings = useMemo(
+    () => ({ ...sheet, letter: { down: storePrinter?.down ?? 0, right: storePrinter?.right ?? 0 } }),
+    [sheet, storePrinter?.down, storePrinter?.right],
+  );
+  async function savePrinter(nudge: { down: number; right: number }) {
+    if (!storeId) return;
+    const res = await storesApi.setLabelPrinter(storeId, nudge);
+    qc.setQueryData(['label-printer', storeId], res);
+  }
   const cart = useLabelCart(s => (cartId ? s.carts[cartId] : undefined)) ?? EMPTY_CART;
   const cartRows = useMemo(() => resolveCartRows(cart, labelsById), [cart, labelsById]);
   const { copyCount, unpricedCount } = summarizeCart(cartRows);
@@ -762,7 +780,7 @@ export default function LabelsScreen() {
         },
         quantity: r.entry.quantity,
       }));
-      await printLabels({ entries, shareAsPdf, sheet, skip: startAt - 1 });
+      await printLabels({ entries, shareAsPdf, sheet: printSheet, skip: startAt - 1 });
       setStartAt(1);
 
       const outcomes = await runPool(rows, STORE_ROW_CONCURRENCY, ensureStoreRow);
@@ -1466,7 +1484,8 @@ export default function LabelsScreen() {
         />
       )}
 
-      <LabelPaperModal visible={showPaper} sheet={sheet} startAt={startAt} accentColor={accentColor} onChange={changeSheet} onStartAt={setStartAt} onClose={() => setShowPaper(false)} />
+      <LabelPaperModal visible={showPaper} sheet={printSheet} startAt={startAt} accentColor={accentColor} onChange={changeSheet} onStartAt={setStartAt} onClose={() => setShowPaper(false)}
+        printer={storePrinter} storeName={currentStoreName} canSetPrinter={isManagerPlus} onSavePrinter={savePrinter} />
 
       <View style={s.footer}>
         <TouchableOpacity

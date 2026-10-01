@@ -2417,12 +2417,19 @@
     "more": "More: {{field}}",
     "rowStarts": " · starts at {{n}}",
     "nudge": "Fine-tune for your printer (mm)",
-    "nudgeHint": "Most printers place the page a millimetre or two off. Print the test page on plain paper, hold it over a label sheet against a light, and see how far the boxes are from the stickers. Boxes too high: move down. Too far right: move right with a minus number.",
+    "nudgeHint": "Most printers place the page a millimetre or two off. Print the test page on plain paper, hold it over a label sheet against a light, and see how far the boxes are from the stickers. Boxes too high: move down. Too far right: move right with a minus number. Saved for {{store}}, so every phone printing there uses it.",
     "moveDown": "Move down",
     "moveRight": "Move right",
     "nudgeReset": "Back to 0 (no move)",
     "testPageLetterSub": "Outlines only. Print it on plain paper and hold it over a label sheet to check where the labels land.",
-    "printHintLetter": "In the print screen choose Letter paper and 100% scale (actual size, not \"fit\")."
+    "printHintLetter": "In the print screen choose Letter paper and 100% scale (actual size, not \"fit\").",
+    "nudgeHintStaff": "Your manager sets this once for {{store}}'s printer, and every phone printing there uses it. If labels land off the stickers, tell your manager.",
+    "printerSetBy": "Set by {{name}} for {{store}}.",
+    "printerNotSet": "Not set yet for {{store}} (no move).",
+    "printerSave": "Save for {{store}}",
+    "printerTryFirst": "Print the test page again to check before saving.",
+    "printerSaved": "Saved for {{store}}",
+    "printerSaveFailed": "Could not save the printer setting"
   },
   "notices": {
     "urgent": "Urgent",

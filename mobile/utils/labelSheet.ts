@@ -8,6 +8,8 @@
 //
 // letter.down / letter.right: the Letter sheet's layout is the sheet's real die-cut positions, but most printers place the whole page
 //           a millimetre or two off (an HP DeskJet 2700 did, 2026-10-01). These move everything by that much (minus = up / left).
+//           In the app they come from the STORE (GET /stores/:id/label-printer), since the offset belongs to the store's printer
+//           and staff print from their own phones; whatever this phone saved under `letter` is not used.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type SheetFormat = 'letter30' | 'a4x18';

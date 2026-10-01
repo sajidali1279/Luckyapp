@@ -2417,12 +2417,19 @@
     "more": "Más: {{field}}",
     "rowStarts": " · empieza en la {{n}}",
     "nudge": "Ajuste fino para su impresora (mm)",
-    "nudgeHint": "Casi todas las impresoras colocan la página uno o dos milímetros fuera de lugar. Imprima la página de prueba en papel normal, póngala sobre una hoja de etiquetas a contraluz y vea qué tan lejos quedan los recuadros de las etiquetas. Recuadros muy arriba: mueva hacia abajo. Muy a la derecha: mueva a la derecha con un número negativo.",
+    "nudgeHint": "Casi todas las impresoras colocan la página uno o dos milímetros fuera de lugar. Imprima la página de prueba en papel normal, póngala sobre una hoja de etiquetas a contraluz y vea qué tan lejos quedan los recuadros de las etiquetas. Recuadros muy arriba: mueva hacia abajo. Muy a la derecha: mueva a la derecha con un número negativo. Se guarda para {{store}}, así todos los teléfonos que imprimen ahí lo usan.",
     "moveDown": "Mover abajo",
     "moveRight": "Mover a la derecha",
     "nudgeReset": "Volver a 0 (sin mover)",
     "testPageLetterSub": "Solo contornos. Imprímala en papel normal y póngala sobre una hoja de etiquetas para ver dónde quedan.",
-    "printHintLetter": "En la pantalla de impresión elija papel Carta y escala 100% (tamaño real, no \"ajustar\")."
+    "printHintLetter": "En la pantalla de impresión elija papel Carta y escala 100% (tamaño real, no \"ajustar\").",
+    "nudgeHintStaff": "Su gerente lo ajusta una vez para la impresora de {{store}}, y todos los teléfonos que imprimen ahí lo usan. Si las etiquetas no caen en su lugar, avise a su gerente.",
+    "printerSetBy": "Ajustado por {{name}} para {{store}}.",
+    "printerNotSet": "Aún sin ajustar para {{store}} (sin mover).",
+    "printerSave": "Guardar para {{store}}",
+    "printerTryFirst": "Imprima otra vez la página de prueba para revisar antes de guardar.",
+    "printerSaved": "Guardado para {{store}}",
+    "printerSaveFailed": "No se pudo guardar el ajuste de la impresora"
   },
   "notices": {
     "urgent": "Urgente",
