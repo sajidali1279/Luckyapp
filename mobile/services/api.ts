@@ -199,7 +199,8 @@ export const storesApi = {
     api.patch(`/stores/${storeId}/order-instructions`, { instructions }),
   // The store's label printer fine-tune (mm): read by everyone at the store, set by its manager or HQ
   getLabelPrinter: (storeId: string) => api.get(`/stores/${storeId}/label-printer`),
-  setLabelPrinter: (storeId: string, nudge: { down: number; right: number }) => api.put(`/stores/${storeId}/label-printer`, nudge),
+  setLabelPrinter: (storeId: string, layout: { down: number; right: number; width: number; height: number; gapX: number; gapY: number }) =>
+    api.put(`/stores/${storeId}/label-printer`, layout),
 };
 
 export const welcomeBonusApi = {

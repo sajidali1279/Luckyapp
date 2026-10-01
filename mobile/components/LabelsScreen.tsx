@@ -24,7 +24,7 @@ import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
 import KeyboardSafe from './KeyboardSafe';
 import LabelPaperModal, { paperSummary, StorePrinter } from './LabelPaperModal';
-import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue, perSheet } from '../utils/labelSheet';
+import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue, perSheet, LetterLayout, LETTER_DEFAULTS } from '../utils/labelSheet';
 
 interface Label {
   id: string;
@@ -290,12 +290,14 @@ export default function LabelsScreen() {
   });
   const storePrinter: StorePrinter | null = printerData?.data?.data ?? null;
   const printSheet: SheetSettings = useMemo(
-    () => ({ ...sheet, letter: { down: storePrinter?.down ?? 0, right: storePrinter?.right ?? 0 } }),
-    [sheet, storePrinter?.down, storePrinter?.right],
+    () => ({ ...sheet, letter: storePrinter
+      ? { down: storePrinter.down, right: storePrinter.right, labelW: storePrinter.width, labelH: storePrinter.height, gapX: storePrinter.gapX, gapY: storePrinter.gapY }
+      : { ...LETTER_DEFAULTS } }),
+    [sheet, storePrinter],
   );
-  async function savePrinter(nudge: { down: number; right: number }) {
+  async function savePrinter(l: LetterLayout) {
     if (!storeId) return;
-    const res = await storesApi.setLabelPrinter(storeId, nudge);
+    const res = await storesApi.setLabelPrinter(storeId, { down: l.down, right: l.right, width: l.labelW, height: l.labelH, gapX: l.gapX, gapY: l.gapY });
     qc.setQueryData(['label-printer', storeId], res);
   }
   const cart = useLabelCart(s => (cartId ? s.carts[cartId] : undefined)) ?? EMPTY_CART;

@@ -260,7 +260,7 @@ export const storesApi = {
     api.patch(`/stores/${storeId}/order-instructions`, { instructions }),
   // The store's label printer fine-tune (mm) that every phone printing for the store uses; HQ sets it
   getLabelPrinter: (storeId: string) => api.get(`/stores/${storeId}/label-printer`),
-  setLabelPrinter: (storeId: string, nudge: { down: number; right: number }) => api.put(`/stores/${storeId}/label-printer`, nudge),
+  setLabelPrinter: (storeId: string, layout: { down: number; right: number; width: number; height: number; gapX: number; gapY: number }) => api.put(`/stores/${storeId}/label-printer`, layout),
   getHours: (storeId: string) => api.get(`/stores/${storeId}/hours`),
   updateHours: (storeId: string, days: object[]) => api.put(`/stores/${storeId}/hours`, { days }),
   // When hot food can be ordered (none set = the store's own hours)

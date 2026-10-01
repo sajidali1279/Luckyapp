@@ -2423,13 +2423,19 @@
     "nudgeReset": "Back to 0 (no move)",
     "testPageLetterSub": "Outlines only. Print it on plain paper and hold it over a label sheet to check where the labels land.",
     "printHintLetter": "In the print screen choose Letter paper and 100% scale (actual size, not \"fit\").",
-    "nudgeHintStaff": "HQ sets this once for {{store}}'s printer, and every phone printing there uses it. If labels land off the stickers, print the test page, hold it over a label sheet against a light, and tell HQ how far off the boxes are (for example: 1.5 mm too high).",
+    "nudgeHintStaff": "HQ sets this once for {{store}}'s printer, and every phone printing there uses it. If labels land off the stickers, print the test page, hold it over a label sheet against a light, and tell HQ how far off the boxes are (for example: 1.5 mm too high, or the top row is right but the bottom row is 2 mm too low).",
     "printerSetBy": "Set by {{name}} for {{store}}.",
     "printerNotSet": "Not set yet for {{store}} (no move).",
     "printerSave": "Save for {{store}}",
     "printerTryFirst": "Print the test page again to check before saving.",
     "printerSaved": "Saved for {{store}}",
-    "printerSaveFailed": "Could not save the printer setting"
+    "printerSaveFailed": "Could not save the printer setting",
+    "gapRows": "Space between rows",
+    "gapCols": "Space between columns",
+    "letterLabelH": "Label height",
+    "letterLabelW": "Label width",
+    "letterFitRight": "The labels would run {{mm}} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.",
+    "letterFitBottom": "The labels would run {{mm}} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up."
   },
   "notices": {
     "urgent": "Urgent",

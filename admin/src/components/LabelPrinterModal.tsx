@@ -9,8 +9,16 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 // HQ only sets it. Staff print from their own phones, and every phone printing for the store uses these numbers. Someone at the
 // store measures it with the test page in the app (Labels, Paper) and tells HQ, for example "the boxes are 1.5 mm too high".
 
-const LIMITS = { down: [-10, 10], right: [-4.5, 4.5] } as const;
-type Nudge = { down: number; right: number };
+const LIMITS = { down: [-10, 10], right: [-4.5, 4.5], width: [55, 75], height: [20, 30], gapX: [0, 10], gapY: [0, 8] } as const;
+type Nudge = { down: number; right: number; width: number; height: number; gapX: number; gapY: number };
+const KEYS: (keyof Nudge)[] = ['down', 'right', 'gapY', 'gapX', 'height', 'width'];
+// Avery 5160: 2-5/8 x 1 in labels, 1/8 in between columns, none between rows
+const AVERY: Nudge = { down: 0, right: 0, width: 66.675, height: 25.4, gapX: 3.175, gapY: 0 };
+const NAMES: Record<keyof Nudge, string> = { down: 'Move down', right: 'Move right', width: 'Label width', height: 'Label height', gapX: 'Space between columns', gapY: 'Space between rows' };
+const PAGE = { w: 215.9, h: 279.4 };
+const stepOf = (k: keyof Nudge) => (k === 'down' || k === 'right' ? 0.5 : 0.1);
+const toText = (n: Nudge) => Object.fromEntries(KEYS.map(k => [k, String(n[k])])) as Record<keyof Nudge, string>;
+const pick = (d: any): Nudge => ({ down: d.down, right: d.right, width: d.width, height: d.height, gapX: d.gapX, gapY: d.gapY });
 
 function when(iso: string | null): string {
   if (!iso) return '';
@@ -20,9 +28,9 @@ function when(iso: string | null): string {
 export default function LabelPrinterModal({ store, onClose }: { store: { id: string; name: string }; onClose: () => void }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [saved, setSaved] = useState<Nudge>({ down: 0, right: 0 });
+  const [saved, setSaved] = useState<Nudge>(AVERY);
   const [by, setBy] = useState<{ name: string | null; at: string | null }>({ name: null, at: null });
-  const [text, setText] = useState({ down: '0', right: '0' });
+  const [text, setText] = useState<Record<keyof Nudge, string>>(toText(AVERY));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,8 +40,8 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
     try {
       const r = await storesApi.getLabelPrinter(store.id);
       const d = r.data.data;
-      setSaved({ down: d.down, right: d.right });
-      setText({ down: String(d.down), right: String(d.right) });
+      setSaved(pick(d));
+      setText(toText(pick(d)));
       setBy({ name: d.updatedBy, at: d.updatedAt });
     } catch (err) {
       setLoadError(failureMessage(err, 'Could not load the printer setting.'));
@@ -44,23 +52,28 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
   useEffect(() => { load(); }, [store.id]);
 
   const num = (k: keyof Nudge) => parseFloat(text[k].replace(',', '.'));
-  const changed = num('down') !== saved.down || num('right') !== saved.right;
+  const changed = KEYS.some(k => num(k) !== saved[k]);
 
   async function save() {
     if (saving) return;
     setError('');
-    for (const k of ['down', 'right'] as (keyof Nudge)[]) {
+    for (const k of KEYS) {
       const v = num(k);
-      const name = k === 'down' ? 'Move down' : 'Move right';
+      const name = NAMES[k];
       if (!Number.isFinite(v)) { setError(`${name}: type a number of millimetres (0 for no move).`); return; }
       if (v < LIMITS[k][0] || v > LIMITS[k][1]) { setError(`${name} can be from ${LIMITS[k][0]} to ${LIMITS[k][1]} mm.`); return; }
     }
     setSaving(true);
     try {
-      const r = await storesApi.setLabelPrinter(store.id, { down: num('down'), right: num('right') });
+      const next = Object.fromEntries(KEYS.map(k => [k, num(k)])) as Nudge;
+      // 3 labels across and 10 down must still fit on the page (the server checks this too)
+      const across = 4.7625 + next.right + 3 * next.width + 2 * next.gapX, down = 12.7 + next.down + 10 * next.height + 9 * next.gapY;
+      if (across > PAGE.w + 0.05) { setError(`The labels would run ${Math.round((across - PAGE.w) * 10) / 10} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.`); return; }
+      if (down > PAGE.h + 0.05) { setError(`The labels would run ${Math.round((down - PAGE.h) * 10) / 10} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.`); return; }
+      const r = await storesApi.setLabelPrinter(store.id, next);
       const d = r.data.data;
-      setSaved({ down: d.down, right: d.right });
-      setText({ down: String(d.down), right: String(d.right) });
+      setSaved(pick(d));
+      setText(toText(pick(d)));
       setBy({ name: d.updatedBy, at: d.updatedAt });
       toast.success(`Saved for ${store.name}. Every phone printing there uses it from the next print.`);
       onClose();
@@ -75,9 +88,9 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
     <label style={p.field}>
       <span style={p.fieldName}>{label}</span>
       <span style={p.inputWrap}>
-        <button type="button" style={p.step} aria-label={`${label}: 0.5 mm less`} onClick={() => { setError(''); setText(t => ({ ...t, [k]: String(Math.round(((parseFloat(t[k]) || 0) - 0.5) * 10) / 10) })); }}>−</button>
+        <button type="button" style={p.step} aria-label={`${label}: ${stepOf(k)} mm less`} onClick={() => { setError(''); setText(t => ({ ...t, [k]: String(Math.round(((parseFloat(t[k]) || 0) - stepOf(k)) * 1000) / 1000) })); }}>−</button>
         <input style={p.input} inputMode="decimal" value={text[k]} aria-label={`${label} (mm)`} onChange={e => { setError(''); setText(t => ({ ...t, [k]: e.target.value })); }} />
-        <button type="button" style={p.step} aria-label={`${label}: 0.5 mm more`} onClick={() => { setError(''); setText(t => ({ ...t, [k]: String(Math.round(((parseFloat(t[k]) || 0) + 0.5) * 10) / 10) })); }}>+</button>
+        <button type="button" style={p.step} aria-label={`${label}: ${stepOf(k)} mm more`} onClick={() => { setError(''); setText(t => ({ ...t, [k]: String(Math.round(((parseFloat(t[k]) || 0) + stepOf(k)) * 1000) / 1000) })); }}>+</button>
         <em style={p.unit}>mm</em>
       </span>
       <small style={p.help}>{help}</small>
@@ -97,16 +110,23 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
             holds it over a label sheet against a light, and tells you how far the boxes are from the stickers. Every phone printing for this store uses these numbers.
           </p>
           <div style={p.current}>
-            {by.name ? <>Now: down {saved.down} mm, right {saved.right} mm · set by {by.name}{by.at ? `, ${when(by.at)}` : ''}</> : <>Not set yet (no move).</>}
+            {by.name ? <>Set by {by.name}{by.at ? `, ${when(by.at)}` : ''}: down {saved.down}, right {saved.right}, rows +{saved.gapY}, columns {saved.gapX}, labels {saved.width} x {saved.height} mm</> : <>Not set yet: the Avery 5160 numbers, no move.</>}
           </div>
           <div style={p.fields}>
             {field('down', 'Move down', 'Boxes too high: a plus number. Too low: minus.')}
             {field('right', 'Move right', 'Boxes too far left: plus. Too far right: minus.')}
           </div>
+          <p style={p.note}>Top row right but the bottom row off? Change the space between rows. Left column right but the right column off? The space between columns. These start at the Avery 5160 numbers.</p>
+          <div style={p.fields}>
+            {field('gapY', 'Space between rows', 'Bottom row too low: smaller (already 0? make the label height a little smaller). Too high: bigger.')}
+            {field('gapX', 'Space between columns', 'Right column too far right: smaller. Too far left: bigger.')}
+            {field('height', 'Label height', 'One sticker, top to bottom.')}
+            {field('width', 'Label width', 'One sticker, left to right.')}
+          </div>
           <p style={p.note}>After saving, ask the store to print the test page again to check before printing real labels.</p>
           {error && <div role="alert" style={p.error}>{error}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
-            <button type="button" style={p.link} onClick={() => { setError(''); setText({ down: '0', right: '0' }); }}>Back to 0 (no move)</button>
+            <button type="button" style={p.link} onClick={() => { setError(''); setText(toText(AVERY)); }}>Back to the Avery 5160 numbers</button>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" style={p.cancel} onClick={onClose} disabled={saving}>Cancel</button>
               <button type="button" style={{ ...p.save, ...(!changed ? { opacity: 0.5, cursor: 'default' } : {}) }} onClick={save} disabled={saving || !changed}>{saving ? 'Saving…' : 'Save'}</button>

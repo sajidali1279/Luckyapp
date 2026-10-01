@@ -2423,13 +2423,19 @@
     "nudgeReset": "Volver a 0 (sin mover)",
     "testPageLetterSub": "Solo contornos. Imprímala en papel normal y póngala sobre una hoja de etiquetas para ver dónde quedan.",
     "printHintLetter": "En la pantalla de impresión elija papel Carta y escala 100% (tamaño real, no \"ajustar\").",
-    "nudgeHintStaff": "La oficina central lo ajusta una vez para la impresora de {{store}}, y todos los teléfonos que imprimen ahí lo usan. Si las etiquetas no caen en su lugar, imprima la página de prueba, póngala sobre una hoja de etiquetas a contraluz y diga a la oficina central qué tan desviados quedan los recuadros (por ejemplo: 1.5 mm muy arriba).",
+    "nudgeHintStaff": "La oficina central lo ajusta una vez para la impresora de {{store}}, y todos los teléfonos que imprimen ahí lo usan. Si las etiquetas no caen en su lugar, imprima la página de prueba, póngala sobre una hoja de etiquetas a contraluz y diga a la oficina central qué tan desviados quedan los recuadros (por ejemplo: 1.5 mm muy arriba, o la fila de arriba está bien pero la de abajo queda 2 mm muy abajo).",
     "printerSetBy": "Ajustado por {{name}} para {{store}}.",
     "printerNotSet": "Aún sin ajustar para {{store}} (sin mover).",
     "printerSave": "Guardar para {{store}}",
     "printerTryFirst": "Imprima otra vez la página de prueba para revisar antes de guardar.",
     "printerSaved": "Guardado para {{store}}",
-    "printerSaveFailed": "No se pudo guardar el ajuste de la impresora"
+    "printerSaveFailed": "No se pudo guardar el ajuste de la impresora",
+    "gapRows": "Espacio entre filas",
+    "gapCols": "Espacio entre columnas",
+    "letterLabelH": "Alto de la etiqueta",
+    "letterLabelW": "Ancho de la etiqueta",
+    "letterFitRight": "Las etiquetas se saldrían {{mm}} mm del borde derecho de la página. Hágalas más angostas, reduzca el espacio entre columnas o muévalas a la izquierda.",
+    "letterFitBottom": "Las etiquetas se saldrían {{mm}} mm del borde inferior de la página. Hágalas más bajas, reduzca el espacio entre filas o muévalas hacia arriba."
   },
   "notices": {
     "urgent": "Urgente",

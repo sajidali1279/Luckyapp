@@ -11,21 +11,27 @@
 export type SheetFormat = 'letter30' | 'a4x18';
 export type TallDesign = 'sideways' | 'upright';
 export interface A4Sizes { labelW: number; labelH: number; top: number; left: number; gapX: number; gapY: number }
-export interface LetterNudge { down: number; right: number }
-export interface SheetSettings { format: SheetFormat; design: TallDesign; a4: A4Sizes; letter: LetterNudge }
+// down/right move the whole page; labelW/labelH are one label, gapX/gapY the space between columns and between rows (all mm)
+export interface LetterLayout { down: number; right: number; labelW: number; labelH: number; gapX: number; gapY: number }
+export interface SheetSettings { format: SheetFormat; design: TallDesign; a4: A4Sizes; letter: LetterLayout }
 
 export const A4_PAGE = { w: 210, h: 297 };
 export const A4_COLS = 6;
 export const A4_ROWS = 3;
 export const A4_PER_SHEET = A4_COLS * A4_ROWS;
 export const A4_DEFAULTS: A4Sizes = { labelW: 31.3, labelH: 92.3, top: 8, left: 6, gapX: 2, gapY: 2 };
-export const LETTER_NUDGE_DEFAULTS: LetterNudge = { down: 0, right: 0 };
-export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS }, letter: { ...LETTER_NUDGE_DEFAULTS } };
+// Avery 5160: 2-5/8 x 1 in labels, 1/8 in between columns, none between rows
+export const LETTER_DEFAULTS: LetterLayout = { down: 0, right: 0, labelW: 66.675, labelH: 25.4, gapX: 3.175, gapY: 0 };
+export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS }, letter: { ...LETTER_DEFAULTS } };
 
-// The Letter page margins are 1/2 in top and bottom, 3/16 in left and right; a move takes from one side what it gives the other, so the
-// 10 rows still fill exactly one page. Kept inside those margins.
+// Where an Avery 5160 sheet's first label sits: 1/2 in from the top, 3/16 in from the left. Move down / right shift from there.
+export const LETTER_PAGE = { w: 215.9, h: 279.4 };
+export const LETTER_COLS = 3;
+export const LETTER_ROWS = 10;
 export const LETTER_MARGIN_MM = { topBottom: 12.7, side: 4.7625 };
-export const NUDGE_LIMITS: Record<keyof LetterNudge, [number, number]> = { down: [-10, 10], right: [-4.5, 4.5] };
+export const LETTER_LIMITS: Record<keyof LetterLayout, [number, number]> = {
+  down: [-10, 10], right: [-4.5, 4.5], labelW: [55, 75], labelH: [20, 30], gapX: [0, 10], gapY: [0, 8],
+};
 
 export const SIZE_LIMITS: Record<keyof A4Sizes, [number, number]> = {
   labelW: [15, 60], labelH: [40, 140], top: [0, 40], left: [0, 40], gapX: [0, 15], gapY: [0, 20],
@@ -42,11 +48,12 @@ export function cleanSheet(raw: unknown): SheetSettings {
     const v = Number(a[k]);
     if (Number.isFinite(v)) a4[k] = round1(Math.min(SIZE_LIMITS[k][1], Math.max(SIZE_LIMITS[k][0], v)));
   });
-  const l = (r.letter && typeof r.letter === 'object' ? r.letter : {}) as Partial<LetterNudge>;
-  const letter = { ...LETTER_NUDGE_DEFAULTS };
-  (Object.keys(NUDGE_LIMITS) as (keyof LetterNudge)[]).forEach((k) => {
+  const l = (r.letter && typeof r.letter === 'object' ? r.letter : {}) as Partial<LetterLayout>;
+  const letter = { ...LETTER_DEFAULTS };
+  (Object.keys(LETTER_LIMITS) as (keyof LetterLayout)[]).forEach((k) => {
     const v = Number(l[k]);
-    if (Number.isFinite(v)) letter[k] = round1(Math.min(NUDGE_LIMITS[k][1], Math.max(NUDGE_LIMITS[k][0], v)));
+    // to 0.001 mm, so the 5160 numbers (66.675, 3.175) are kept exactly
+    if (Number.isFinite(v)) letter[k] = Math.round(Math.min(LETTER_LIMITS[k][1], Math.max(LETTER_LIMITS[k][0], v)) * 1000) / 1000;
   });
   return {
     format: r.format === 'a4x18' ? 'a4x18' : 'letter30',
@@ -62,6 +69,15 @@ export function fitProblem(a: A4Sizes): string | null {
   const height = a.top + A4_ROWS * a.labelH + (A4_ROWS - 1) * a.gapY;
   if (width > A4_PAGE.w + 0.05) return `The labels run ${round1(width - A4_PAGE.w)} mm past the right edge of the page. Make them narrower or the gaps smaller.`;
   if (height > A4_PAGE.h + 0.05) return `The labels run ${round1(height - A4_PAGE.h)} mm past the bottom of the page. Make them shorter or the gaps smaller.`;
+  return null;
+}
+
+// Said in words when the Letter labels as set would run off the page
+export function letterFitProblem(l: LetterLayout): string | null {
+  const width = LETTER_MARGIN_MM.side + l.right + LETTER_COLS * l.labelW + (LETTER_COLS - 1) * l.gapX;
+  const height = LETTER_MARGIN_MM.topBottom + l.down + LETTER_ROWS * l.labelH + (LETTER_ROWS - 1) * l.gapY;
+  if (width > LETTER_PAGE.w + 0.05) return `The labels run ${round1(width - LETTER_PAGE.w)} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.`;
+  if (height > LETTER_PAGE.h + 0.05) return `The labels run ${round1(height - LETTER_PAGE.h)} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.`;
   return null;
 }
 

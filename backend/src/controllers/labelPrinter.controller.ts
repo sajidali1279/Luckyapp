@@ -1,25 +1,45 @@
-// The label printer's fine-tune for a store: how far that store's printer places a US Letter (Avery 5160) sheet off, in mm.
-// Saved per store, not per phone, because the offset belongs to the printer: staff print from their own phones, and someone working
-// at two stores must get each store's correction. Anyone at the store reads it (the app applies it when printing); HQ sets it on the
-// admin Stores page, from what someone at the store measured with the test page.
+// The label printer's fine-tune for a store: how that store's printer lays out a US Letter (Avery 5160) sheet, in mm.
+// Saved per store, not per phone, because it belongs to the printer: staff print from their own phones, and someone working at two
+// stores must get each store's numbers. Anyone at the store reads it (the app applies it when printing); HQ sets it on the admin
+// Stores page, from what someone at the store measured with the test page.
+//   down / right:   move the whole page (minus = up / left)
+//   width / height: one label
+//   gapX / gapY:    the space between columns and between rows (fixes labels drifting further off across or down the sheet)
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { audit } from '../utils/audit';
 
-// Kept inside the sheet's margins (1/2 in top and bottom, 3/16 in sides), the same limits the app and the admin print page use
-const nudgeSchema = z.object({
-  down: z.number().finite().min(-10, 'Move down can be at most 10 mm up (-10).').max(10, 'Move down can be at most 10 mm.'),
-  right: z.number().finite().min(-4.5, 'Move right can be at most 4.5 mm left (-4.5).').max(4.5, 'Move right can be at most 4.5 mm.'),
+// The same limits the app and the admin print page use. The sheet's first label sits 12.7 mm down and 4.7625 mm in.
+const PAGE = { w: 215.9, h: 279.4 };
+const FIRST = { top: 12.7, left: 4.7625 };
+const num = (name: string, min: number, max: number) =>
+  z.number({ invalid_type_error: `${name} must be a number of millimetres.`, required_error: `${name} is missing.` }).finite()
+    .min(min, `${name} can be from ${min} to ${max} mm.`).max(max, `${name} can be from ${min} to ${max} mm.`);
+const layoutSchema = z.object({
+  down: num('Move down', -10, 10),
+  right: num('Move right', -4.5, 4.5),
+  width: num('Label width', 55, 75),
+  height: num('Label height', 20, 30),
+  gapX: num('Space between columns', 0, 10),
+  gapY: num('Space between rows', 0, 8),
 }).strict();
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
-const SELECT = { id: true, name: true, labelNudgeDown: true, labelNudgeRight: true, labelNudgeUpdatedAt: true, labelNudgeUpdatedBy: true } as const;
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
+const SELECT = {
+  id: true, name: true, labelNudgeDown: true, labelNudgeRight: true, labelWidth: true, labelHeight: true, labelGapX: true, labelGapY: true,
+  labelNudgeUpdatedAt: true, labelNudgeUpdatedBy: true,
+} as const;
 
-type Row = { id: string; name: string; labelNudgeDown: number; labelNudgeRight: number; labelNudgeUpdatedAt: Date | null; labelNudgeUpdatedBy: string | null };
+type Row = {
+  id: string; name: string; labelNudgeDown: number; labelNudgeRight: number; labelWidth: number; labelHeight: number; labelGapX: number; labelGapY: number;
+  labelNudgeUpdatedAt: Date | null; labelNudgeUpdatedBy: string | null;
+};
 const shape = (s: Row) => ({
-  storeId: s.id, storeName: s.name, down: s.labelNudgeDown, right: s.labelNudgeRight, updatedAt: s.labelNudgeUpdatedAt, updatedBy: s.labelNudgeUpdatedBy,
+  storeId: s.id, storeName: s.name,
+  down: s.labelNudgeDown, right: s.labelNudgeRight, width: s.labelWidth, height: s.labelHeight, gapX: s.labelGapX, gapY: s.labelGapY,
+  updatedAt: s.labelNudgeUpdatedAt, updatedBy: s.labelNudgeUpdatedBy,
 });
 
 /** GET /stores/:storeId/label-printer — anyone with access to the store */
@@ -31,25 +51,38 @@ export async function getLabelPrinter(req: AuthRequest, res: Response) {
 
 /** PUT /stores/:storeId/label-printer — HQ only */
 export async function updateLabelPrinter(req: AuthRequest, res: Response) {
-  const parsed = nudgeSchema.safeParse(req.body);
+  const parsed = layoutSchema.safeParse(req.body);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
-    res.status(400).json({ success: false, error: first?.code === 'invalid_type' || first?.code === 'unrecognized_keys' ? 'Send the move as two numbers in mm: down and right.' : first?.message });
+    res.status(400).json({ success: false, error: first?.code === 'unrecognized_keys' ? 'Send only: down, right, width, height, gapX, gapY (mm).' : first?.message });
     return;
   }
+  const v = Object.fromEntries(Object.entries(parsed.data).map(([k, x]) => [k, round3(x)])) as typeof parsed.data;
+  // 3 labels across and 10 down must still fit on the page
+  const across = FIRST.left + v.right + 3 * v.width + 2 * v.gapX;
+  const down = FIRST.top + v.down + 10 * v.height + 9 * v.gapY;
+  if (across > PAGE.w + 0.05) { res.status(400).json({ success: false, error: `The labels would run ${Math.round((across - PAGE.w) * 10) / 10} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.` }); return; }
+  if (down > PAGE.h + 0.05) { res.status(400).json({ success: false, error: `The labels would run ${Math.round((down - PAGE.h) * 10) / 10} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.` }); return; }
+
   const before = await prisma.store.findUnique({ where: { id: req.params.storeId }, select: SELECT });
   if (!before) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
 
-  const down = round1(parsed.data.down), right = round1(parsed.data.right);
   const store = await prisma.store.update({
     where: { id: before.id },
-    data: { labelNudgeDown: down, labelNudgeRight: right, labelNudgeUpdatedAt: new Date(), labelNudgeUpdatedBy: req.user!.name || null },
+    data: {
+      labelNudgeDown: v.down, labelNudgeRight: v.right, labelWidth: v.width, labelHeight: v.height, labelGapX: v.gapX, labelGapY: v.gapY,
+      labelNudgeUpdatedAt: new Date(), labelNudgeUpdatedBy: req.user!.name || null,
+    },
     select: SELECT,
   });
+  const was = shape(before);
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'LABEL_PRINTER_FINE_TUNE', entity: 'store', entityId: store.id,
-    details: { from: { down: before.labelNudgeDown, right: before.labelNudgeRight }, to: { down, right } },
+    details: {
+      from: { down: was.down, right: was.right, width: was.width, height: was.height, gapX: was.gapX, gapY: was.gapY },
+      to: v,
+    },
     storeId: store.id, storeName: store.name,
   });
   res.json({ success: true, data: shape(store) });

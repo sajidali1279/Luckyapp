@@ -311,6 +311,11 @@ model Store {
   // store's printer, and staff print from their own phones.
   labelNudgeDown      Float     @default(0)
   labelNudgeRight     Float     @default(0)
+  // The label size and the space between columns and rows on that printer (mm), starting at the Avery 5160 numbers
+  labelWidth          Float     @default(66.675)
+  labelHeight         Float     @default(25.4)
+  labelGapX           Float     @default(3.175)
+  labelGapY           Float     @default(0)
   labelNudgeUpdatedAt DateTime?
   labelNudgeUpdatedBy String?
 
