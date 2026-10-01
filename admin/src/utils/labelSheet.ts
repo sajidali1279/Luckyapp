@@ -4,18 +4,28 @@
 // a4x18:    A4, 18 tall labels (6 across, 3 down). The label can carry the usual design turned 90 degrees ("sideways", for sticking
 //           along a shelf edge) or a stacked design read with the label standing up ("upright", for a door or a peg). A4 sheets differ
 //           by maker, so the sizes are adjustable in millimetres; the starting numbers are a guess until someone measures the sheet.
+//
+// letter.down / letter.right: the Letter sheet's layout is the sheet's real die-cut positions, but most printers place the whole page
+//           a millimetre or two off (an HP DeskJet 2700 did, 2026-10-01). These move everything by that much (minus = up / left).
 
 export type SheetFormat = 'letter30' | 'a4x18';
 export type TallDesign = 'sideways' | 'upright';
 export interface A4Sizes { labelW: number; labelH: number; top: number; left: number; gapX: number; gapY: number }
-export interface SheetSettings { format: SheetFormat; design: TallDesign; a4: A4Sizes }
+export interface LetterNudge { down: number; right: number }
+export interface SheetSettings { format: SheetFormat; design: TallDesign; a4: A4Sizes; letter: LetterNudge }
 
 export const A4_PAGE = { w: 210, h: 297 };
 export const A4_COLS = 6;
 export const A4_ROWS = 3;
 export const A4_PER_SHEET = A4_COLS * A4_ROWS;
 export const A4_DEFAULTS: A4Sizes = { labelW: 31.3, labelH: 92.3, top: 8, left: 6, gapX: 2, gapY: 2 };
-export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS } };
+export const LETTER_NUDGE_DEFAULTS: LetterNudge = { down: 0, right: 0 };
+export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS }, letter: { ...LETTER_NUDGE_DEFAULTS } };
+
+// The Letter page margins are 1/2 in top and bottom, 3/16 in left and right; a move takes from one side what it gives the other, so the
+// 10 rows still fill exactly one page. Kept inside those margins.
+export const LETTER_MARGIN_MM = { topBottom: 12.7, side: 4.7625 };
+export const NUDGE_LIMITS: Record<keyof LetterNudge, [number, number]> = { down: [-10, 10], right: [-4.5, 4.5] };
 
 export const SIZE_LIMITS: Record<keyof A4Sizes, [number, number]> = {
   labelW: [15, 60], labelH: [40, 140], top: [0, 40], left: [0, 40], gapX: [0, 15], gapY: [0, 20],
@@ -32,10 +42,17 @@ export function cleanSheet(raw: unknown): SheetSettings {
     const v = Number(a[k]);
     if (Number.isFinite(v)) a4[k] = round1(Math.min(SIZE_LIMITS[k][1], Math.max(SIZE_LIMITS[k][0], v)));
   });
+  const l = (r.letter && typeof r.letter === 'object' ? r.letter : {}) as Partial<LetterNudge>;
+  const letter = { ...LETTER_NUDGE_DEFAULTS };
+  (Object.keys(NUDGE_LIMITS) as (keyof LetterNudge)[]).forEach((k) => {
+    const v = Number(l[k]);
+    if (Number.isFinite(v)) letter[k] = round1(Math.min(NUDGE_LIMITS[k][1], Math.max(NUDGE_LIMITS[k][0], v)));
+  });
   return {
     format: r.format === 'a4x18' ? 'a4x18' : 'letter30',
     design: r.design === 'upright' ? 'upright' : 'sideways',
     a4,
+    letter,
   };
 }
 

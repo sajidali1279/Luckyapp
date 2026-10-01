@@ -1,5 +1,5 @@
 import { code128ToSvg } from './code128';
-import { SheetSettings, A4Sizes, A4_PER_SHEET, A4_COLS, A4_ROWS, SIZE_LIMITS, A4_DEFAULTS, cleanSheet, fitProblem, tallScale, loadSheet, saveSheet } from './labelSheet';
+import { SheetSettings, A4Sizes, A4_PER_SHEET, A4_COLS, A4_ROWS, SIZE_LIMITS, A4_DEFAULTS, cleanSheet, fitProblem, tallScale, loadSheet, saveSheet, LetterNudge, NUDGE_LIMITS, LETTER_NUDGE_DEFAULTS, LETTER_MARGIN_MM } from './labelSheet';
 import { renderPagePng, zipFiles, downloadBytes } from './labelImages';
 
 /**
@@ -158,6 +158,9 @@ function a4Sheets(labels: PrintableLabel[], s: SheetSettings, skip: number, capt
 // A test page: just the outline of each label, numbered and measured, to print on plain paper and hold against a sheet of labels
 // before using real ones
 function outlineSheet(s: SheetSettings): string {
+  if (s.format === 'letter30') {
+    return `<div class="grid">${Array.from({ length: LETTER_PER_SHEET }, (_, i) => `<div class="label-test"><b>${i + 1}</b></div>`).join('')}</div>`;
+  }
   const cells = Array.from({ length: A4_PER_SHEET }, (_, i) =>
     `<div class="cell outline"><b>${i + 1}</b><small>${s.a4.labelW} x ${s.a4.labelH} mm</small></div>`).join('');
   return `<div class="sheet">${cells}</div>`;
@@ -182,7 +185,7 @@ function printBody(job: PrintJob, s: SheetSettings, skip: number, view: View): s
 
 // The same sheets for pictures: every sheet on its own page-sized box (Letter included), no store pages, no captions
 function imagePages(job: PrintJob, s: SheetSettings, skip: number, view: View): { name: string; html: string }[] {
-  if (view === 'test') return [{ name: 'test-page', html: `<div class="img-page a4">${outlineSheet(s)}</div>` }];
+  if (view === 'test') return [{ name: 'test-page', html: `<div class="img-page ${s.format === 'letter30' ? 'letter' : 'a4'}">${outlineSheet(s)}</div>` }];
   const pages: { name: string; html: string }[] = [];
   job.groups.forEach((g) => {
     const labels = expand(g.entries);
@@ -213,14 +216,14 @@ function dividerPage(storeName: string, count: number, first: boolean): string {
   </div>`;
 }
 
-const LETTER_LAYOUT = `
+const letterLayout = (s: SheetSettings) => `
     /* Matches a real, specific product: 1in x 2-5/8in address-label sheets
        (Avery 5160-compatible - e.g. the Walmart "3000 Mailing Address
        Labels" box), 30 labels/sheet, 3 columns x 10 rows, on US Letter.
        Margins and gap are the sheet's actual die-cut positions, not chosen
        for density - printing outside these exact numbers means labels
        land on the sticker seams instead of centered on each sticker. */
-    @page { size: letter; margin: 0.5in 0.1875in; }
+    @page { size: letter; margin: ${letterMargins(s.letter)}; }
     .grid {
       display: grid;
       grid-template-columns: repeat(3, 2.625in);
@@ -230,8 +233,11 @@ const LETTER_LAYOUT = `
     }
     /* A spot left empty on a sheet that already has labels peeled off */
     .label-blank { width: 2.625in; height: 1in; }
+    /* The test page: each label's outline only, to hold against a sheet of labels */
+    .label-test { width: 2.625in; height: 1in; border: 0.3mm dashed #333; display: flex; align-items: center; justify-content: center; color: #333; }
+    .label-test b { font-size: 14pt; }
     @media screen {
-      .grid { background: #fff; width: 8.5in; padding: 0.5in 0.1875in; margin: 16px auto; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
+      .grid { background: #fff; width: 8.5in; padding: ${letterMargins(s.letter)}; margin: 16px auto; box-shadow: 0 2px 10px rgba(0,0,0,0.18); }
     }
 `;
 
@@ -448,6 +454,12 @@ const LABEL_STYLE = `
 
 const n = (x: number) => Number(x.toFixed(3));
 
+// Page margins for a Letter sheet (top right bottom left), moved by the printer fine-tune: what one side gains the other gives up
+function letterMargins(l: LetterNudge): string {
+  const { topBottom: tb, side } = LETTER_MARGIN_MM;
+  return `${n(tb + l.down)}mm ${n(side - l.right)}mm ${n(tb - l.down)}mm ${n(side + l.right)}mm`;
+}
+
 // A4, 18 tall labels: each sheet is its own page with the labels at the measured positions (the page margin is 0, so the millimetres
 // count from the paper's edge). Turned sideways, the usual design is drawn at the size that fills the label's long side and turned 90
 // degrees; upright, the stacked design is sized from the label's width.
@@ -496,7 +508,7 @@ function tallCss(s: SheetSettings): string {
 }
 
 function sheetCss(s: SheetSettings): string {
-  return s.format === 'letter30' ? LETTER_LAYOUT + LABEL_STYLE : LABEL_STYLE + tallCss(s);
+  return s.format === 'letter30' ? letterLayout(s) + LABEL_STYLE : LABEL_STYLE + tallCss(s);
 }
 
 // What a picture of a sheet needs on top of the sheet's own CSS: the page box, and none of the on-screen extras of the preview
@@ -656,6 +668,18 @@ const PANEL_HTML = `
         <button type="button" class="ps-link" id="ps-reset">Back to the starting sizes</button>
       </details>
     </section>
+    <section class="ps-sec" id="ps-nudge-sec">
+      <details class="ps-sizes" id="ps-nudge">
+        <summary>Fine-tune for your printer (mm)</summary>
+        <p class="ps-help" style="margin: 8px 0 0">Most printers place the page a millimetre or two off. Print the test page on plain paper, hold it over a label sheet against a window or a light, and see how far the boxes are from the stickers.</p>
+        <p class="ps-help" style="margin: 6px 0 0">Boxes too high: type how much in Move down. Too low: a minus number. The same for Move right (minus moves left). It is saved for this computer.</p>
+        <div class="ps-fields">
+          <label class="ps-field">Move down<span class="in"><input type="number" step="0.1" min="${NUDGE_LIMITS.down[0]}" max="${NUDGE_LIMITS.down[1]}" id="ps-nudge-down" /><em>mm</em></span></label>
+          <label class="ps-field">Move right<span class="in"><input type="number" step="0.1" min="${NUDGE_LIMITS.right[0]}" max="${NUDGE_LIMITS.right[1]}" id="ps-nudge-right" /><em>mm</em></span></label>
+        </div>
+        <button type="button" class="ps-link" id="ps-nudge-reset">Back to 0 (no move)</button>
+      </details>
+    </section>
     <div class="ps-actions">
       <div class="ps-warn" id="ps-warn" role="alert"></div>
       <button type="button" class="ps-primary" id="ps-print">Print</button>
@@ -709,7 +733,6 @@ function openPrintWindow(job: PrintJob): boolean {
   function render(keepFocused = false, keepStatus = false) {
     if (!keepStatus && !busy) { el('ps-status').textContent = ''; el('ps-status').className = 'ps-status'; }
     const tall = settings.format === 'a4x18';
-    if (!tall) view = 'labels';
     const per = perSheet(settings);
     start = Math.min(Math.max(1, start), per);
     const skip = single ? start - 1 : 0;
@@ -721,7 +744,12 @@ function openPrintWindow(job: PrintJob): boolean {
     radios('ps-view').forEach(r => { r.checked = r.value === view; });
     el('ps-design-sec').hidden = !tall;
     el('ps-sizes-sec').hidden = !tall;
-    el('ps-view').hidden = !tall;
+    el('ps-nudge-sec').hidden = tall;
+    if (!tall && view === 'test') el<HTMLDetailsElement>('ps-nudge').open = true;
+    (['down', 'right'] as (keyof LetterNudge)[]).forEach((k) => {
+      const input = el<HTMLInputElement>(`ps-nudge-${k}`);
+      if (!(keepFocused && doc.activeElement === input)) input.value = String(settings.letter[k]);
+    });
     el('ps-start-sec').hidden = !single || view === 'test';
     SIZE_FIELDS.forEach(([k]) => {
       const input = el<HTMLInputElement>(`ps-${k}`);
@@ -754,7 +782,7 @@ function openPrintWindow(job: PrintJob): boolean {
     el('ps-image').textContent = busy ? 'Making images…' : sheets > 1 ? `Save as images (${sheets} sheets, .zip)` : 'Save as image';
     el('ps-tip').textContent = tall
       ? 'In the print box choose paper A4, scale 100% (actual size, not "fit") and margins None. Images are 300 dpi: print them at actual size.'
-      : 'In the print box choose paper Letter and scale 100% (actual size). Images are 300 dpi: print them at actual size.';
+      : 'In the print box choose paper Letter, scale 100% (actual size, not "fit") and margins Default. Images are 300 dpi: print them at actual size.';
     el('ps-note').textContent = view === 'test' ? 'Print on plain paper and hold it against a label sheet' : 'Preview at actual size';
   }
 
@@ -787,6 +815,15 @@ function openPrintWindow(job: PrintJob): boolean {
     input.addEventListener('change', () => render());   // leaving the box shows the number as it was kept
   });
   el('ps-reset').addEventListener('click', () => change({ a4: { ...A4_DEFAULTS } }));
+  (['down', 'right'] as (keyof LetterNudge)[]).forEach((k) => {
+    const input = el<HTMLInputElement>(`ps-nudge-${k}`);
+    input.addEventListener('input', () => {
+      const v = parseFloat(input.value);
+      if (Number.isFinite(v)) change({ letter: { ...settings.letter, [k]: v } }, true);
+    });
+    input.addEventListener('change', () => render());
+  });
+  el('ps-nudge-reset').addEventListener('click', () => change({ letter: { ...LETTER_NUDGE_DEFAULTS } }));
   el('ps-print').addEventListener('click', () => { if (!el<HTMLButtonElement>('ps-print').disabled) { win.focus(); win.print(); } });
 
   el('ps-image').addEventListener('click', async () => {

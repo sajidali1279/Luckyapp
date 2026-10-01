@@ -6,7 +6,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { code128ToSvg } from './code128';
-import { SheetSettings, DEFAULT_SHEET, A4_PER_SHEET, A4_COLS, A4_ROWS, PAGE_POINTS, tallScale } from './labelSheet';
+import { SheetSettings, DEFAULT_SHEET, A4_PER_SHEET, A4_COLS, A4_ROWS, PAGE_POINTS, tallScale, LetterNudge, LETTER_MARGIN_MM, LETTER_PER_SHEET } from './labelSheet';
 
 export interface PrintableLabel {
   id: string;
@@ -102,7 +102,14 @@ function renderLabel(label: PrintableLabel): string {
   `;
 }
 
-const LETTER_LAYOUT = `
+// Page margins for a Letter sheet (top right bottom left), moved by the printer fine-tune: what one side gains the other gives up
+function letterMargins(l: LetterNudge): string {
+  const { topBottom: tb, side } = LETTER_MARGIN_MM;
+  const r = (x: number) => Number(x.toFixed(3));
+  return `${r(tb + l.down)}mm ${r(side - l.right)}mm ${r(tb - l.down)}mm ${r(side + l.right)}mm`;
+}
+
+const letterLayout = (s: SheetSettings) => `
 
     /* Matches a real, specific product: 1in x 2-5/8in address-label sheets
        (Avery 5160-compatible - e.g. the Walmart "3000 Mailing Address
@@ -110,7 +117,7 @@ const LETTER_LAYOUT = `
        Margins and gap are the sheet's actual die-cut positions, not chosen
        for density - printing outside these exact numbers means labels
        land on the sticker seams instead of centered on each sticker. */
-    @page { size: letter; margin: 0.5in 0.1875in; }
+    @page { size: letter; margin: ${letterMargins(s.letter)}; }
     .grid {
       display: grid;
       grid-template-columns: repeat(3, 2.625in);
@@ -120,6 +127,9 @@ const LETTER_LAYOUT = `
     }
     /* A spot left empty on a sheet that already has labels peeled off */
     .label-blank { width: 2.625in; height: 1in; }
+    /* The test page: each label's outline only, to hold against a sheet of labels */
+    .label-test { width: 2.625in; height: 1in; border: 0.3mm dashed #333; display: flex; align-items: center; justify-content: center; color: #333; }
+    .label-test b { font-size: 14pt; }
 `;
 
 const LABEL_STYLE = `
@@ -414,7 +424,7 @@ function page(css: string, body: string): string {
 export function buildHtml(entries: PrintableLabelEntry[], sheet: SheetSettings = DEFAULT_SHEET, skip = 0): string {
   const labels: PrintableLabel[] = entries.flatMap(e => Array(Math.max(1, e.quantity)).fill(e.label));
   if (sheet.format === 'letter30') {
-    return page(LETTER_LAYOUT + LABEL_STYLE, `<div class="grid">
+    return page(letterLayout(sheet) + LABEL_STYLE, `<div class="grid">
     ${'<div class="label-blank"></div>'.repeat(skip)}${labels.map(renderLabel).join('')}
   </div>`);
   }
@@ -426,8 +436,11 @@ export function buildHtml(entries: PrintableLabelEntry[], sheet: SheetSettings =
   return page(LABEL_STYLE + tallCss(sheet), sheets.join(''));
 }
 
-// A test page: just the outline of each A4 label, numbered and measured, to print on plain paper and hold against a sheet of labels
+// A test page: just the outline of each label, numbered, to print on plain paper and hold against a sheet of labels
 export function buildTestSheetHtml(sheet: SheetSettings): string {
+  if (sheet.format === 'letter30') {
+    return page(letterLayout(sheet) + LABEL_STYLE, `<div class="grid">${Array.from({ length: LETTER_PER_SHEET }, (_, i) => `<div class="label-test"><b>${i + 1}</b></div>`).join('')}</div>`);
+  }
   const cells = Array.from({ length: A4_PER_SHEET }, (_, i) =>
     `<div class="cell outline"><b>${i + 1}</b><small>${sheet.a4.labelW} x ${sheet.a4.labelH} mm</small></div>`).join('');
   return page(LABEL_STYLE + tallCss({ ...sheet, format: 'a4x18' }), `<div class="sheet">${cells}</div>`);
@@ -461,5 +474,5 @@ export async function printLabels({
 }
 
 export async function printTestSheet(sheet: SheetSettings): Promise<void> {
-  await output(buildTestSheetHtml(sheet), PAGE_POINTS.a4x18, false);
+  await output(buildTestSheetHtml(sheet), PAGE_POINTS[sheet.format], false);
 }

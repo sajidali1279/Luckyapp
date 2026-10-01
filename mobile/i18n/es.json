@@ -2415,7 +2415,14 @@
     "later": "Empezar una etiqueta después",
     "less": "Menos: {{field}}",
     "more": "Más: {{field}}",
-    "rowStarts": " · empieza en la {{n}}"
+    "rowStarts": " · empieza en la {{n}}",
+    "nudge": "Ajuste fino para su impresora (mm)",
+    "nudgeHint": "Casi todas las impresoras colocan la página uno o dos milímetros fuera de lugar. Imprima la página de prueba en papel normal, póngala sobre una hoja de etiquetas a contraluz y vea qué tan lejos quedan los recuadros de las etiquetas. Recuadros muy arriba: mueva hacia abajo. Muy a la derecha: mueva a la derecha con un número negativo.",
+    "moveDown": "Mover abajo",
+    "moveRight": "Mover a la derecha",
+    "nudgeReset": "Volver a 0 (sin mover)",
+    "testPageLetterSub": "Solo contornos. Imprímala en papel normal y póngala sobre una hoja de etiquetas para ver dónde quedan.",
+    "printHintLetter": "En la pantalla de impresión elija papel Carta y escala 100% (tamaño real, no \"ajustar\")."
   },
   "notices": {
     "urgent": "Urgente",

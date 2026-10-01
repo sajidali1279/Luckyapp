@@ -6,7 +6,7 @@ import { COLORS } from '../constants';
 import { PrinterIcon, ChevronDownIcon, ChevronUpIcon } from './Icons';
 import KeyboardSafe from './KeyboardSafe';
 import ModalToastHost from './ModalToastHost';
-import { SheetSettings, A4Sizes, A4_DEFAULTS, SIZE_LIMITS, cleanSheet, fitIssue, perSheet } from '../utils/labelSheet';
+import { SheetSettings, A4Sizes, A4_DEFAULTS, SIZE_LIMITS, cleanSheet, fitIssue, perSheet, LetterNudge, NUDGE_LIMITS, LETTER_NUDGE_DEFAULTS } from '../utils/labelSheet';
 import { printTestSheet } from '../utils/printLabels';
 
 // Which label paper My Prints prints on: US Letter with 30 labels (as always), or A4 with 18 tall labels, turned sideways (for a shelf
@@ -39,6 +39,7 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
   const [texts, setTexts] = useState<Record<keyof A4Sizes, string>>(() => sizeTexts(sheet.a4));
   const [editing, setEditing] = useState<keyof A4Sizes | null>(null);
   const [printingTest, setPrintingTest] = useState(false);
+  const [showNudge, setShowNudge] = useState(false);
 
   // The boxes show the kept numbers, except the one being typed in (so "31." is not rewritten while typing)
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
 
   const set = (next: Partial<SheetSettings>) => onChange(cleanSheet({ ...sheet, ...next }));
   const setSize = (k: keyof A4Sizes, v: number) => set({ a4: { ...sheet.a4, [k]: Math.round(v * 10) / 10 } });
+  const setNudge = (k: keyof LetterNudge, v: number) => set({ letter: { ...sheet.letter, [k]: Math.round(v * 10) / 10 } });
   const tall = sheet.format === 'a4x18';
   const per = perSheet(sheet);
   const issue = tall ? fitIssue(sheet.a4) : null;
@@ -245,6 +247,65 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
                 </TouchableOpacity>
                 <Text style={st.hint}>{t('labelPaper.testPageSub')}</Text>
                 <Text style={[st.hint, { marginTop: 8 }]}>{t('labelPaper.printHint')}</Text>
+              </>
+            )}
+
+            {!tall && (
+              <>
+                {/* Letter: the sheet's layout is fixed, but most printers place the page a millimetre or two off. Move it by that much. */}
+                <TouchableOpacity
+                  style={st.sizesToggle}
+                  onPress={() => setShowNudge(v => !v)}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: showNudge }}
+                  accessibilityLabel={t('labelPaper.nudge')}
+                >
+                  <Text style={[st.sizesToggleText, { color: accentColor }]}>{t('labelPaper.nudge')}</Text>
+                  {showNudge ? <ChevronUpIcon size={18} color={accentColor} /> : <ChevronDownIcon size={18} color={accentColor} />}
+                </TouchableOpacity>
+
+                {showNudge && (
+                  <View style={st.sizesBox}>
+                    <Text style={st.hint}>{t('labelPaper.nudgeHint')}</Text>
+                    {(['down', 'right'] as (keyof LetterNudge)[]).map(k => {
+                      const name = t(k === 'down' ? 'labelPaper.moveDown' : 'labelPaper.moveRight');
+                      const v = sheet.letter[k];
+                      return (
+                        <View key={k} style={st.sizeRow}>
+                          <Text style={st.sizeLabel}>{name}</Text>
+                          <View style={st.stepper}>
+                            <TouchableOpacity style={st.stepBtnSm} onPress={() => setNudge(k, v - STEP_MM)} disabled={v <= NUDGE_LIMITS[k][0]}
+                              accessibilityRole="button" accessibilityLabel={t('labelPaper.less', { field: name })}>
+                              <Text style={st.stepBtnText}>−</Text>
+                            </TouchableOpacity>
+                            <Text style={[st.sizeInput, { textAlignVertical: 'center' }]} accessibilityLabel={`${name}: ${v} mm`}>{v}</Text>
+                            <TouchableOpacity style={st.stepBtnSm} onPress={() => setNudge(k, v + STEP_MM)} disabled={v >= NUDGE_LIMITS[k][1]}
+                              accessibilityRole="button" accessibilityLabel={t('labelPaper.more', { field: name })}>
+                              <Text style={st.stepBtnText}>+</Text>
+                            </TouchableOpacity>
+                          </View>
+                          <Text style={st.sizeUnit}>mm</Text>
+                        </View>
+                      );
+                    })}
+                    <TouchableOpacity onPress={() => set({ letter: { ...LETTER_NUDGE_DEFAULTS } })} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 4 }}>
+                      <Text style={[st.link, { color: accentColor }]}>{t('labelPaper.nudgeReset')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={[st.testBtn, { borderColor: accentColor }, printingTest && { opacity: 0.5 }]}
+                  onPress={testPage}
+                  disabled={printingTest}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('labelPaper.testPage')}
+                >
+                  <PrinterIcon size={16} color={accentColor} strokeWidth={2.2} />
+                  <Text style={[st.testBtnText, { color: accentColor }]}>{t('labelPaper.testPage')}</Text>
+                </TouchableOpacity>
+                <Text style={st.hint}>{t('labelPaper.testPageLetterSub')}</Text>
+                <Text style={[st.hint, { marginTop: 8 }]}>{t('labelPaper.printHintLetter')}</Text>
               </>
             )}
 
