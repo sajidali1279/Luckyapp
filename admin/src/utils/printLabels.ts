@@ -71,7 +71,7 @@ function renderLabel(label: PrintableLabel): string {
     : 'label-name';
   const priceGroupClass = deal ? 'price-group has-deal' : 'price-group';
   return `
-    <div class="label ${cssClass}">
+    <div class="label ${cssClass}${barcode ? ' has-barcode' : ''}">
       <div class="watermark">LUCKY STOP</div>
       <div class="label-main">
         <div class="${nameClass}">${icon}${esc(label.productName)}</div>
@@ -400,7 +400,6 @@ const LABEL_STYLE = `
       flex-shrink: 0;
       text-align: center;
     }
-    /* The side column holds only the barcode (the QR was taken off, 2026-10-02), so the bars are taller and easier to scan */
     .label-barcode {
       display: block;
       width: 100%;
@@ -413,6 +412,19 @@ const LABEL_STYLE = `
       margin-top: 0.2mm;
       word-break: break-all;
     }
+    /* With a barcode (2026-10-02): the name runs the full width along the top, the price sits bottom-left, and the barcode fills the
+       bottom-right corner, big enough to scan easily (31 mm wide, 11 mm bars). The price is kept clear of it. */
+    .label.has-barcode .label-side {
+      position: absolute;
+      right: 1.2mm;
+      bottom: 1.2mm;
+      width: 31mm;
+      justify-content: flex-end;
+      gap: 0;
+    }
+    .label.has-barcode .label-barcode { height: 11mm; }
+    .label.has-barcode .label-barcode-val { font-size: 5.5pt; margin-top: 0.3mm; letter-spacing: 0.4px; }
+    .label.has-barcode .price-group { max-width: calc(100% - 32mm); }
     /* One store's heading page, ahead of a bulk print's grouped sheets (printLabelsGrouped only) */
     .divider-page {
       height: 100%;
