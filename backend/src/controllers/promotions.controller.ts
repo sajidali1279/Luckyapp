@@ -123,7 +123,7 @@ export async function featuredAdsLimit(): Promise<number> {
   return Number.isInteger(n) && n >= 1 && n <= FEATURED_ADS_MAX ? n : FEATURED_ADS_DEFAULT;
 }
 
-// GET /promotions — every live ad, newest first. Each carries `featured` (one of the newest `featuredLimit`), so the app can show a
+// GET /promotions: every live ad, newest first. Each carries `featured` (one of the newest `featuredLimit`), so the app can show a
 // Featured tab and an All Businesses tab. The list itself is unchanged, so an older app that ignores `featured` still shows them all.
 export async function getPublishedPromotions(_req: AuthRequest, res: Response) {
   const now = new Date();
@@ -153,7 +153,7 @@ export async function getPublishedPromotions(_req: AuthRequest, res: Response) {
   res.json({ success: true, data: promos.map((p, i) => ({ ...p, website: websiteOrNull(p.website), featured: i < limit })), featuredLimit: limit });
 }
 
-// GET /promotions/settings — DevAdmin. The featured limit and how many ads are live now.
+// GET /promotions/settings: DevAdmin. The featured limit and how many ads are live now.
 export async function getPromotionSettings(_req: AuthRequest, res: Response) {
   const now = new Date();
   const [featuredLimit, live] = await Promise.all([
@@ -163,7 +163,7 @@ export async function getPromotionSettings(_req: AuthRequest, res: Response) {
   res.json({ success: true, data: { featuredLimit, live, max: FEATURED_ADS_MAX } });
 }
 
-// PUT /promotions/settings — DevAdmin. { featuredLimit: 1..50 }
+// PUT /promotions/settings: DevAdmin. { featuredLimit: 1..50 }
 export async function updatePromotionSettings(req: AuthRequest, res: Response) {
   const n = (req.body ?? {}).featuredLimit;
   if (!Number.isInteger(n) || n < 1 || n > FEATURED_ADS_MAX) {
