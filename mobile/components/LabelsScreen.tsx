@@ -760,9 +760,10 @@ export default function LabelsScreen() {
     return res.data.data.id;
   }
 
-  // Prints exactly what's in My Prints. The store rows and "printed" stamps
-  // are only written AFTER the print/PDF actually succeeded, so cancelling
-  // the system print dialog leaves both the list and the server untouched.
+  // Prints exactly what's in My Prints. Nothing is recorded when the print happens: the phone asks first whether the labels came out
+  // right (as the admin site does). Yes records them and empties My Prints; No keeps them for another try and records nothing, so a
+  // sheet that printed off the stickers, a jam or a cancelled print never marks anything printed. Cancelling the system print dialog
+  // leaves both the list and the server untouched as before.
   async function handlePrint(shareAsPdf: boolean) {
     if (!cartId || !storeId || printing || cartRows.length === 0 || unpricedCount > 0) return;
     // A4 sizes that run off the page would print across the seams: fix them first
@@ -771,9 +772,10 @@ export default function LabelsScreen() {
       setShowPaper(true);
       return;
     }
+    const rows = cartRows;
+    const thisCart = cartId;
     setPrinting(true);
     try {
-      const rows = cartRows;
       const entries: PrintableLabelEntry[] = rows.map(r => ({
         label: {
           // printPrice is non-null for every row: unpricedCount > 0 returned above.
@@ -783,36 +785,66 @@ export default function LabelsScreen() {
         quantity: r.entry.quantity,
       }));
       await printLabels({ entries, shareAsPdf, sheet: printSheet, skip: startAt - 1 });
-      setStartAt(1);
-
-      const outcomes = await runPool(rows, STORE_ROW_CONCURRENCY, ensureStoreRow);
-      const stamp: { storeLabelId: string; quantity: number }[] = [];
-      let unrecorded = 0;
-      outcomes.forEach((o, i) => {
-        if (o.status === 'fulfilled') stamp.push({ storeLabelId: o.value, quantity: rows[i].entry.quantity });
-        else unrecorded++;
-      });
-      if (stamp.length > 0) {
-        try {
-          await labelsApi.print(stamp);
-        } catch {
-          unrecorded += stamp.length;
-        }
-      }
-
-      // They're on paper now, so they leave the list either way; a failed
-      // status update shouldn't tempt anyone into printing them twice.
-      useLabelCart.getState().remove(cartId, rows.map(r => r.label.id));
-      await qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] });
-      if (unrecorded > 0) {
-        Toast.show({ type: 'error', text1: t('sharedLabels.printedButUnrecorded', { count: unrecorded }), text2: t('sharedLabels.pullToRefreshCheck') });
-      } else {
-        Toast.show({ type: 'success', text1: shareAsPdf ? t('sharedLabels.pdfReady') : t('sharedLabels.sentToPrinter'), text2: t('sharedLabels.labelCount', { count: copyCount }) });
-      }
     } catch (err: any) {
       Toast.show({ type: 'error', text1: shareAsPdf ? t('sharedLabels.exportFailed') : t('sharedLabels.printFailed'), text2: err?.message });
-    } finally {
       setPrinting(false);
+      return;
+    }
+    Alert.alert(
+      t(shareAsPdf ? 'sharedLabels.askPrintedPdfTitle' : 'sharedLabels.askPrintedTitle'),
+      t('sharedLabels.askPrintedBody'),
+      [
+        {
+          text: t('sharedLabels.askPrintedNo'), style: 'cancel',
+          onPress: () => {
+            setPrinting(false);
+            Toast.show({ type: 'info', text1: t('sharedLabels.keptInMyPrints'), text2: t('sharedLabels.keptInMyPrintsSub') });
+          },
+        },
+        { text: t('sharedLabels.askPrintedYes'), onPress: () => { recordPrinted(rows, thisCart, shareAsPdf).finally(() => setPrinting(false)); } },
+      ],
+      { cancelable: false },
+    );
+  }
+
+  // After "yes": writes the store rows and the printed stamps, then empties My Prints. A label the server would not mark (its price changed
+  // while it printed, or it has no price now) stays in My Prints, since the paper for it is out of date.
+  async function recordPrinted(rows: typeof cartRows, thisCart: string, shareAsPdf: boolean) {
+    setStartAt(1);
+    const outcomes = await runPool(rows, STORE_ROW_CONCURRENCY, ensureStoreRow);
+    const stamp: { storeLabelId: string; quantity: number; printedPrice: string }[] = [];
+    const labelOfRow = new Map<string, string>();
+    let unrecorded = 0;
+    outcomes.forEach((o, i) => {
+      if (o.status === 'fulfilled') {
+        stamp.push({ storeLabelId: o.value, quantity: rows[i].entry.quantity, printedPrice: rows[i].printPrice! });
+        labelOfRow.set(o.value, rows[i].label.id);
+      } else unrecorded++;
+    });
+    const keep = new Set<string>();
+    if (stamp.length > 0) {
+      try {
+        const res = await labelsApi.print(stamp);
+        for (const n of (res.data?.data?.notMarked ?? []) as { storeLabelId: string; reason: string }[]) {
+          if (n.reason === 'gone') continue;
+          const labelId = labelOfRow.get(n.storeLabelId);
+          if (labelId) keep.add(labelId);
+        }
+      } catch {
+        unrecorded += stamp.length;
+      }
+    }
+
+    // They're on paper now, so they leave the list (a failed status update shouldn't tempt anyone into printing them twice), except the
+    // ones printed at a price that is no longer right
+    useLabelCart.getState().remove(thisCart, rows.map(r => r.label.id).filter(id => !keep.has(id)));
+    await qc.invalidateQueries({ queryKey: ['mobile-labels', 'catalog-all'] });
+    if (keep.size > 0) {
+      Toast.show({ type: 'error', text1: t('sharedLabels.priceChangedKept', { count: keep.size }), text2: t('sharedLabels.priceChangedKeptSub') });
+    } else if (unrecorded > 0) {
+      Toast.show({ type: 'error', text1: t('sharedLabels.printedButUnrecorded', { count: unrecorded }), text2: t('sharedLabels.pullToRefreshCheck') });
+    } else {
+      Toast.show({ type: 'success', text1: shareAsPdf ? t('sharedLabels.pdfReady') : t('sharedLabels.sentToPrinter'), text2: t('sharedLabels.labelCount', { count: rows.reduce((n, r) => n + r.entry.quantity, 0) }) });
     }
   }
 

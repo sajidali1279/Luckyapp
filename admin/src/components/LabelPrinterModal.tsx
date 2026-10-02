@@ -4,6 +4,7 @@ import Modal from './Modal';
 import { storesApi } from '../services/api';
 import { failureMessage } from '../lib/apiError';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { loadSheet } from '../utils/labelSheet';
 
 // A store's label printer fine-tune for US Letter (Avery 5160) sheets: how far that store's printer places the page off, in mm.
 // HQ only sets it. Staff print from their own phones, and every phone printing for the store uses these numbers. Someone at the
@@ -33,6 +34,12 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
   const [text, setText] = useState<Record<keyof Nudge, string>>(toText(AVERY));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // The same numbers for every open store (what works on HQ's printer, for every store's phones)
+  const [allStores, setAllStores] = useState(false);
+  // What this computer's print page is set to (Labels, Print, Fine-tune for your printer), so it can be copied here without retyping
+  const here = loadSheet().letter;
+  const hereNudge: Nudge = { down: here.down, right: here.right, width: here.labelW, height: here.labelH, gapX: here.gapX, gapY: here.gapY };
+  const hereIsDefault = KEYS.every(k => hereNudge[k] === AVERY[k]);
 
   async function load() {
     setLoading(true);
@@ -53,6 +60,7 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
 
   const num = (k: keyof Nudge) => parseFloat(text[k].replace(',', '.'));
   const changed = KEYS.some(k => num(k) !== saved[k]);
+  const canSave = changed || allStores;
 
   async function save() {
     if (saving) return;
@@ -70,12 +78,17 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
       const across = 4.7625 + next.right + 3 * next.width + 2 * next.gapX, down = 12.7 + next.down + 10 * next.height + 9 * next.gapY;
       if (across > PAGE.w + 0.05) { setError(`The labels would run ${Math.round((across - PAGE.w) * 10) / 10} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.`); return; }
       if (down > PAGE.h + 0.05) { setError(`The labels would run ${Math.round((down - PAGE.h) * 10) / 10} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.`); return; }
-      const r = await storesApi.setLabelPrinter(store.id, next);
-      const d = r.data.data;
-      setSaved(pick(d));
-      setText(toText(pick(d)));
-      setBy({ name: d.updatedBy, at: d.updatedAt });
-      toast.success(`Saved for ${store.name}. Every phone printing there uses it from the next print.`);
+      if (allStores) {
+        const r = await storesApi.setLabelPrinterAllStores(next);
+        toast.success(`Saved for all ${r.data.data.stores} open stores. Every phone uses it from the next print. A store can still be set on its own.`, { duration: 6000 });
+      } else {
+        const r = await storesApi.setLabelPrinter(store.id, next);
+        const d = r.data.data;
+        setSaved(pick(d));
+        setText(toText(pick(d)));
+        setBy({ name: d.updatedBy, at: d.updatedAt });
+        toast.success(`Saved for ${store.name}. Every phone printing there uses it from the next print.`);
+      }
       onClose();
     } catch (err) {
       setError(failureMessage(err, 'Could not save. Nothing was changed.'));
@@ -123,13 +136,28 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
             {field('height', 'Label height', 'One sticker, top to bottom.')}
             {field('width', 'Label width', 'One sticker, left to right.')}
           </div>
+          <div style={p.copyRow}>
+            {hereIsDefault ? (
+              <span style={p.help}>This computer's print page has no fine-tune saved (it uses the Avery 5160 numbers).</span>
+            ) : (
+              <button type="button" style={p.link} onClick={() => { setError(''); setText(toText(hereNudge)); }}
+                title="The numbers on this computer's print page (Labels, Print, Fine-tune for your printer)">
+                Copy from this computer's print page
+              </button>
+            )}
+            {!hereIsDefault && <span style={p.help}>down {hereNudge.down}, right {hereNudge.right}, rows +{hereNudge.gapY}, columns {hereNudge.gapX}, labels {hereNudge.width} x {hereNudge.height}</span>}
+          </div>
+          <label style={p.allRow}>
+            <input type="checkbox" checked={allStores} onChange={e => { setError(''); setAllStores(e.target.checked); }} />
+            <span><b>Use these numbers for every open store</b><br /><small style={p.help}>For phones at every store to print like this. Any store can still be set on its own afterwards.</small></span>
+          </label>
           <p style={p.note}>After saving, ask the store to print the test page again to check before printing real labels.</p>
           {error && <div role="alert" style={p.error}>{error}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
             <button type="button" style={p.link} onClick={() => { setError(''); setText(toText(AVERY)); }}>Back to the Avery 5160 numbers</button>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" style={p.cancel} onClick={onClose} disabled={saving}>Cancel</button>
-              <button type="button" style={{ ...p.save, ...(!changed ? { opacity: 0.5, cursor: 'default' } : {}) }} onClick={save} disabled={saving || !changed}>{saving ? 'Saving…' : 'Save'}</button>
+              <button type="button" style={{ ...p.save, ...(!canSave ? { opacity: 0.5, cursor: 'default' } : {}) }} onClick={save} disabled={saving || !canSave}>{saving ? 'Saving…' : allStores ? 'Save for all stores' : 'Save'}</button>
             </div>
           </div>
         </div>
@@ -149,6 +177,8 @@ const p: Record<string, CSSProperties> = {
   input: { width: '100%', minWidth: 0, border: 'none', outline: 'none', fontSize: 15, fontWeight: 600, textAlign: 'center', color: '#0f172a', background: 'transparent' },
   unit: { fontStyle: 'normal', color: TEXT_MUTED, fontSize: 12.5, paddingRight: 4 },
   help: { fontSize: 12, color: TEXT_MUTED, lineHeight: 1.4 },
+  copyRow: { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 },
+  allRow: { display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', border: '1.5px solid #e4e7ec', borderRadius: 10, fontSize: 14, color: '#111827', cursor: 'pointer' },
   error: { background: '#fdf2f2', color: '#a51b28', borderRadius: 9, padding: '9px 12px', fontSize: 13.5, fontWeight: 600 },
   link: { background: 'none', border: 'none', color: '#1D3557', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', padding: 0, fontSize: 13.5 },
   cancel: { background: '#f1f3f6', border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer' },

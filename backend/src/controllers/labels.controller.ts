@@ -633,7 +633,8 @@ const printLabelsSchema = z.object({
     storeLabelId: z.string().uuid(),
     quantity: z.number().int().min(1).max(999).default(1),
     // The price that is on the paper. When it is sent, the label counts as printed only if it is still the store's price (a price changed
-    // while the sheet was printing means the paper is out of date). The phone does not send it yet, and then the check is skipped.
+    // while the sheet was printing means the paper is out of date). The admin and the app (from 1.2.5) send it; an older app does not,
+    // and then the check is skipped.
     printedPrice: priceField.optional(),
   })).min(1),
 });
@@ -663,8 +664,9 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
     where: { id: { in: storeLabelIds } },
     include: { label: true },
   });
-  for (const r of rows) {
-    if (!(await canTouchStore(req.user!.id, req.user!.role, r.storeId))) {
+  // Once per store, not once per label (a sheet of 30 from one store was 30 identical lookups)
+  for (const storeId of new Set(rows.map((r) => r.storeId))) {
+    if (!(await canTouchStore(req.user!.id, req.user!.role, storeId))) {
       res.status(403).json({ success: false, error: "You don't have access to one of those stores" });
       return;
     }

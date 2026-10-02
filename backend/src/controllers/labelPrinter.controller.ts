@@ -49,30 +49,41 @@ export async function getLabelPrinter(req: AuthRequest, res: Response) {
   res.json({ success: true, data: shape(store) });
 }
 
-/** PUT /stores/:storeId/label-printer — HQ only */
-export async function updateLabelPrinter(req: AuthRequest, res: Response) {
-  const parsed = layoutSchema.safeParse(req.body);
+type Layout = z.infer<typeof layoutSchema>;
+
+// The six numbers from a request, rounded to 0.001 mm, or the sentence that refuses them (a missing or odd number, or labels that would
+// run off the page: 3 across and 10 down must still fit)
+function checkLayout(body: unknown): { layout: Layout } | { error: string } {
+  const parsed = layoutSchema.safeParse(body);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
-    res.status(400).json({ success: false, error: first?.code === 'unrecognized_keys' ? 'Send only: down, right, width, height, gapX, gapY (mm).' : first?.message });
-    return;
+    return { error: first?.code === 'unrecognized_keys' ? 'Send only: down, right, width, height, gapX, gapY (mm).' : (first?.message ?? 'Those numbers are not valid.') };
   }
-  const v = Object.fromEntries(Object.entries(parsed.data).map(([k, x]) => [k, round3(x)])) as typeof parsed.data;
-  // 3 labels across and 10 down must still fit on the page
+  const v = Object.fromEntries(Object.entries(parsed.data).map(([k, x]) => [k, round3(x)])) as Layout;
   const across = FIRST.left + v.right + 3 * v.width + 2 * v.gapX;
   const down = FIRST.top + v.down + 10 * v.height + 9 * v.gapY;
-  if (across > PAGE.w + 0.05) { res.status(400).json({ success: false, error: `The labels would run ${Math.round((across - PAGE.w) * 10) / 10} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.` }); return; }
-  if (down > PAGE.h + 0.05) { res.status(400).json({ success: false, error: `The labels would run ${Math.round((down - PAGE.h) * 10) / 10} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.` }); return; }
+  if (across > PAGE.w + 0.05) return { error: `The labels would run ${Math.round((across - PAGE.w) * 10) / 10} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.` };
+  if (down > PAGE.h + 0.05) return { error: `The labels would run ${Math.round((down - PAGE.h) * 10) / 10} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.` };
+  return { layout: v };
+}
+
+const toColumns = (v: Layout, by: string | null) => ({
+  labelNudgeDown: v.down, labelNudgeRight: v.right, labelWidth: v.width, labelHeight: v.height, labelGapX: v.gapX, labelGapY: v.gapY,
+  labelNudgeUpdatedAt: new Date(), labelNudgeUpdatedBy: by,
+});
+
+/** PUT /stores/:storeId/label-printer — HQ only */
+export async function updateLabelPrinter(req: AuthRequest, res: Response) {
+  const checked = checkLayout(req.body);
+  if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
+  const v = checked.layout;
 
   const before = await prisma.store.findUnique({ where: { id: req.params.storeId }, select: SELECT });
   if (!before) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
 
   const store = await prisma.store.update({
     where: { id: before.id },
-    data: {
-      labelNudgeDown: v.down, labelNudgeRight: v.right, labelWidth: v.width, labelHeight: v.height, labelGapX: v.gapX, labelGapY: v.gapY,
-      labelNudgeUpdatedAt: new Date(), labelNudgeUpdatedBy: req.user!.name || null,
-    },
+    data: toColumns(v, req.user!.name || null),
     select: SELECT,
   });
   const was = shape(before);
@@ -86,4 +97,24 @@ export async function updateLabelPrinter(req: AuthRequest, res: Response) {
     storeId: store.id, storeName: store.name,
   });
   res.json({ success: true, data: shape(store) });
+}
+
+/**
+ * PUT /label-printer/all-stores — HQ only. The same numbers for every open store, for when HQ has found what works on its own printer
+ * (on the admin print page) and wants the phones at every store to print the same way. A store can still be set on its own afterwards.
+ */
+export async function applyLabelPrinterToAllStores(req: AuthRequest, res: Response) {
+  const checked = checkLayout(req.body);
+  if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
+  const v = checked.layout;
+  const stores = await prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
+  if (stores.length === 0) { res.status(400).json({ success: false, error: 'There are no open stores to set.' }); return; }
+  const { count } = await prisma.store.updateMany({ where: { id: { in: stores.map((s) => s.id) } }, data: toColumns(v, req.user!.name || null) });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'LABEL_PRINTER_FINE_TUNE', entity: 'store', entityId: null,
+    details: { summary: `Set the label printer for all ${count} open stores: down ${v.down}, right ${v.right}, rows +${v.gapY}, columns ${v.gapX}, labels ${v.width} x ${v.height} mm.`, to: v, stores: count, storeNames: stores.map((s) => s.name) },
+    storeId: null,
+  });
+  res.json({ success: true, data: { stores: count, layout: v } });
 }

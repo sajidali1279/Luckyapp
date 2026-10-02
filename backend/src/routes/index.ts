@@ -163,7 +163,7 @@ import {
   getPendingRatings,
   getMyRatingSummary,
 } from '../controllers/leaderboard.controller';
-import { getLabelPrinter, updateLabelPrinter } from '../controllers/labelPrinter.controller';
+import { getLabelPrinter, updateLabelPrinter, applyLabelPrinterToAllStores } from '../controllers/labelPrinter.controller';
 import { getLaunchStats } from '../controllers/launch.controller';
 import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
 import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks, copyMiddleTasks } from '../controllers/dailyTask.controller';
@@ -332,6 +332,7 @@ router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE
 router.patch('/stores/:storeId/order-instructions', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateOrderInstructions); // Manager+ per store — standing note
 router.get('/stores/:storeId/label-printer', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getLabelPrinter);        // Anyone at the store: the printer fine-tune the app applies
 router.put('/stores/:storeId/label-printer', authenticate, requireRole(Role.SUPER_ADMIN), updateLabelPrinter);                     // HQ only sets it (admin Stores page)
+router.put('/label-printer/all-stores', authenticate, requireRole(Role.SUPER_ADMIN), applyLabelPrinterToAllStores);                    // HQ: the same numbers for every open store
 
 // ─── Store Hours (weekly schedule + holiday overrides) ────────────────────────
 router.get('/stores/:storeId/hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreHours);

@@ -354,7 +354,7 @@ export const labelsApi = {
     api.post('/labels', data),
   update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.patch(`/labels/${labelId}`, data),
-  print: (items: { storeLabelId: string; quantity: number }[]) => api.post('/labels/print', { items }),
+  print: (items: { storeLabelId: string; quantity: number; printedPrice?: string }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
   lookupByBarcode: (storeId: string, barcode: string) =>
     api.get(`/labels/lookup?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(barcode)}`),

@@ -2032,7 +2032,17 @@
     "productsLoadError": "Failed to load your product list.",
     "productsCapNote": "Showing the 200 most scanned. Search to find others.",
     "alsoInProducts": "Also in your product list, no label yet",
-    "toastExistingAddedToMyPrints": "Already a label: \"{{name}}\". Added to My Prints"
+    "toastExistingAddedToMyPrints": "Already a label: \"{{name}}\". Added to My Prints",
+    "askPrintedTitle": "Did the labels come out right?",
+    "askPrintedPdfTitle": "Did you print the labels?",
+    "askPrintedBody": "Only say yes if they printed on the stickers. If not, they stay in My Prints and nothing is recorded. You can print the test page from Paper to check where they land.",
+    "askPrintedYes": "Yes, record them",
+    "askPrintedNo": "No, keep them",
+    "keptInMyPrints": "Kept in My Prints",
+    "keptInMyPrintsSub": "Nothing was recorded. Print again when ready.",
+    "priceChangedKept_one": "{{count}} label stayed in My Prints",
+    "priceChangedKept_other": "{{count}} labels stayed in My Prints",
+    "priceChangedKeptSub": "The price changed while printing. Print them again at the new price."
   },
   "sharedScanner": {
     "titleScan": "Scan Barcode",

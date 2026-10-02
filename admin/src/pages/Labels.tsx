@@ -13,7 +13,7 @@ import StoreLabelsPanel from '../components/StoreLabelsPanel';
 import CoverageView from '../components/CoverageView';
 import HealthView from '../components/HealthView';
 import PrintTray from '../components/PrintTray';
-import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
+import { printLabels, PrintableLabelEntry, labelPreviewHtml } from '../utils/printLabels';
 import DataTablePagination from '../components/DataTablePagination';
 import Modal from '../components/Modal';
 import { failureMessage } from '../lib/apiError';
@@ -47,14 +47,15 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 // Sentinel for the "Uncategorized" filter option — distinct from '' (no filter).
 const UNCATEGORIZED = '__uncategorized__';
 
+// The swatch is each design's own frame colour on the printed label (utils/printLabels.ts), the same as the app shows
 const TEMPLATE_OPTIONS: { value: string; label: string; accent: string }[] = [
-  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#a51b28' },
-  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', accent: '#17663a' },
-  { value: 'SUMMER', label: 'Summer', accent: '#8a5300' },
-  { value: 'CLEARANCE', label: 'Clearance', accent: '#c42130' },
-  { value: 'INDEPENDENCE_DAY', label: 'Independence Day', accent: '#1D3557' },
-  { value: 'HALLOWEEN', label: 'Halloween', accent: '#4f6d8f' },
-  { value: 'PREMIUM', label: 'Premium / Top Shelf', accent: '#8a5300' },
+  { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black', accent: '#b91c1c' },
+  { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter', accent: '#14532d' },
+  { value: 'SUMMER', label: 'Summer', accent: '#ea580c' },
+  { value: 'CLEARANCE', label: 'Clearance', accent: '#dc2626' },
+  { value: 'INDEPENDENCE_DAY', label: 'Independence Day', accent: '#1e3a8a' },
+  { value: 'HALLOWEEN', label: 'Halloween', accent: '#7c3aed' },
+  { value: 'PREMIUM', label: 'Premium / Top Shelf', accent: '#b8860b' },
 ];
 
 const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
@@ -807,6 +808,21 @@ export default function Labels() {
                 </button>
               ))}
             </div>
+            <div style={m.label} id="lbl-preview-label">Preview</div>
+            <iframe
+              title="How this label prints"
+              aria-labelledby="lbl-preview-label"
+              style={m.preview}
+              sandbox=""
+              srcDoc={labelPreviewHtml({
+                id: editingLabel?.id ?? 'preview',
+                productName: formProductName.trim() || 'Product name',
+                priceText: canonicalPrice(formPriceText) ?? '0.00',
+                dealText: formDealText.trim() || null,
+                barcode: formBarcode.trim() || null,
+                template: formTemplate,
+              })}
+            />
             {formError && <div role="alert" style={m.err}>{formError}</div>}
             <div style={m.actions}>
               <button type="button" style={m.cancelBtn} onClick={closeModal} disabled={saveMutation.isPending}>Cancel</button>
@@ -1182,6 +1198,7 @@ const s: Record<string, CSSProperties> = {
 };
 
 const m: Record<string, CSSProperties> = {
+  preview: { width: '100%', height: 176, border: '1px solid #e4e7ec', borderRadius: 10, background: '#f6f7f9', display: 'block' },
   form: { display: 'flex', flexDirection: 'column', gap: 8 },
   err: { fontSize: 13, color: '#a51b28', lineHeight: 1.4 },
   warn: { fontSize: 14, color: '#a51b28', fontWeight: 700, margin: '8px 0 0', lineHeight: 1.5 },

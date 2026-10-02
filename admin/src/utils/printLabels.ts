@@ -657,7 +657,7 @@ const PANEL_HTML = `
       <details class="ps-sizes" id="ps-nudge">
         <summary>Fine-tune for your printer (mm)</summary>
         <p class="ps-help" style="margin: 8px 0 0">Most printers place the page a millimetre or two off. Print the test page on plain paper, hold it over a label sheet against a window or a light, and see how far the boxes are from the stickers.</p>
-        <p class="ps-help" style="margin: 6px 0 0">Boxes too high: type how much in Move down. Too low: a minus number. The same for Move right (minus moves left). It is saved for this computer.</p>
+        <p class="ps-help" style="margin: 6px 0 0">Boxes too high: type how much in Move down. Too low: a minus number. The same for Move right (minus moves left). It is saved for this computer. For the phones at the stores to print the same way, open Stores, Label Printer, Copy from this computer's print page.</p>
         <div class="ps-fields">
           <label class="ps-field">Move down<span class="in"><input type="number" step="0.1" min="${LETTER_LIMITS.down[0]}" max="${LETTER_LIMITS.down[1]}" id="ps-nudge-down" /><em>mm</em></span></label>
           <label class="ps-field">Move right<span class="in"><input type="number" step="0.1" min="${LETTER_LIMITS.right[0]}" max="${LETTER_LIMITS.right[1]}" id="ps-nudge-right" /><em>mm</em></span></label>
@@ -848,6 +848,16 @@ function openPrintWindow(job: PrintJob): boolean {
   render();
   el('ps-print').focus();
   return true;
+}
+
+// One label drawn on its own, for the live preview in the Add / Edit box: the same markup and styles as the printed sheet, at 1.6x so it
+// can be read on screen. No script, nothing fetched.
+export function labelPreviewHtml(label: PrintableLabel): string {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${LABEL_STYLE}
+    html, body { margin: 0; height: 100%; }
+    body { background: #f6f7f9 !important; display: flex; align-items: center; justify-content: center; }
+    .label { zoom: 1.6; background: #fff; }
+  </style></head><body>${renderLabel(label)}</body></html>`;
 }
 
 export function printLabels(entries: PrintableLabelEntry[]): boolean {

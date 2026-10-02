@@ -2032,7 +2032,17 @@
     "productsLoadError": "No se pudo cargar tu lista de productos.",
     "productsCapNote": "Mostrando los 200 más escaneados. Busca para encontrar otros.",
     "alsoInProducts": "También en tu lista de productos, sin etiqueta",
-    "toastExistingAddedToMyPrints": "Ya existe una etiqueta: \"{{name}}\". Agregada a Para imprimir"
+    "toastExistingAddedToMyPrints": "Ya existe una etiqueta: \"{{name}}\". Agregada a Para imprimir",
+    "askPrintedTitle": "¿Salieron bien las etiquetas?",
+    "askPrintedPdfTitle": "¿Imprimió las etiquetas?",
+    "askPrintedBody": "Diga que sí solo si se imprimieron sobre las etiquetas. Si no, se quedan en Mis impresiones y no se registra nada. Puede imprimir la página de prueba desde Papel para ver dónde caen.",
+    "askPrintedYes": "Sí, registrarlas",
+    "askPrintedNo": "No, conservarlas",
+    "keptInMyPrints": "Se quedaron en Mis impresiones",
+    "keptInMyPrintsSub": "No se registró nada. Imprima de nuevo cuando esté listo.",
+    "priceChangedKept_one": "{{count}} etiqueta se quedó en Mis impresiones",
+    "priceChangedKept_other": "{{count}} etiquetas se quedaron en Mis impresiones",
+    "priceChangedKeptSub": "El precio cambió mientras se imprimía. Imprímalas de nuevo con el precio nuevo."
   },
   "sharedScanner": {
     "titleScan": "Escanear Código de Barras",
