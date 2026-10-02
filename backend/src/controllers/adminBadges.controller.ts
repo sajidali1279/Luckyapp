@@ -29,7 +29,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       data: {
         transactionsPendingCount: 0, disputesPendingCount: 0, requestsPendingCount: 0, chatUnreadCount: 0,
         schedulingPendingCount: 0, promotionsPendingCount: 0, hotFoodPendingCount: 0, categoriesPendingCount: 0,
-        billingPendingCount: 0, careersNewCount: 0, supportUnread: 0,
+        billingPendingCount: 0, careersNewCount: 0, supportUnread: 0, offerRequestsPendingCount: 0,
       },
     });
     return;
@@ -65,6 +65,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
     unpaidPeriods,
     careersNewCount,
     supportUnread,
+    offerRequestsPendingCount,
   ] = await Promise.all([
     // points.controller.ts getTransactionsPendingCount
     prisma.pointsTransaction.count({ where: { storeId: { in: storeIds }, status: { in: ['PENDING', 'FLAGGED'] } } }),
@@ -94,6 +95,8 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
     isDevAdmin
       ? prisma.supportMessage.count({ where: { isRead: false, senderRole: { not: 'DEV_ADMIN' } } })
       : prisma.supportMessage.count({ where: { isRead: false, senderRole: 'DEV_ADMIN', thread: { fromUserId: user.id } } }),
+    // offerRequests.controller.ts: store managers' promotion requests waiting for HQ
+    prisma.offerRequest.count({ where: { status: 'PENDING', storeId: { in: storeIds } } }),
   ]);
 
   res.json({
@@ -110,6 +113,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       billingPendingCount: unpaidPeriods.length,
       careersNewCount,
       supportUnread,
+      offerRequestsPendingCount,
     },
   });
 }

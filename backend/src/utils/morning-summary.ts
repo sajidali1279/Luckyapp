@@ -20,7 +20,7 @@ export async function runMorningSummary(now: Date = new Date()): Promise<Summary
 
   const count = (p: Promise<number>) => p.catch(() => 0);
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const [flagged, staleFlagged, disputes, alerts, urgentAlerts, stock, shifts, products, unpaid] = await Promise.all([
+  const [flagged, staleFlagged, disputes, alerts, urgentAlerts, stock, shifts, products, unpaid, offerRequests] = await Promise.all([
     count(prisma.pointsTransaction.count({ where: { status: 'FLAGGED' } })),
     // Waited over a day for a decision: worth a more pointed line than "some are flagged", the same idea as a
     // stale flagged sale getting its own nudge rather than blending into the daily count.
@@ -32,6 +32,7 @@ export async function runMorningSummary(now: Date = new Date()): Promise<Summary
     count(prisma.shiftRequest.count({ where: { status: 'PENDING' } })),
     count(prisma.productRequest.count({ where: { status: 'PENDING', expiresAt: { gte: now } } })),
     count(prisma.billingRecord.count({ where: { isPaid: false } })),
+    count(prisma.offerRequest.count({ where: { status: 'PENDING' } })),
   ]);
 
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -43,13 +44,14 @@ export async function runMorningSummary(now: Date = new Date()): Promise<Summary
   if (products) lines.push(`${plural(products, 'product request is', 'product requests are')} waiting.`);
   if (shifts) lines.push(`${plural(shifts, 'schedule request is', 'schedule requests are')} waiting.`);
   if (unpaid) lines.push(`${plural(unpaid, 'bill is', 'bills are')} unpaid.`);
+  if (offerRequests) lines.push(`${plural(offerRequests, 'promotion request from a manager is', 'promotion requests from managers are')} waiting (Offers).`);
   if (lines.length === 0) return 'nothing-waiting';
 
   await emailHQ('Lucky Stop: what is waiting this morning', 'Good morning. This is what is waiting:', lines, { path: '/', label: 'Open the dashboard' }, 'MORNING_SUMMARY');
   audit({
     actorId: 'system', actorName: 'Morning summary (automatic)', actorRole: 'DEV_ADMIN',
     action: 'MORNING_SUMMARY', entity: 'notification', entityId: null,
-    details: { summary: lines.join(' '), flagged, staleFlagged, disputes, alerts, urgentAlerts, stock, shifts, products, unpaid },
+    details: { summary: lines.join(' '), flagged, staleFlagged, disputes, alerts, urgentAlerts, stock, shifts, products, unpaid, offerRequests },
   });
   return 'sent';
 }

@@ -11,6 +11,9 @@ import { CASHBACK_RATE_CAP } from '../config/constants';
 import { refuse } from '../utils/refusal';
 import { startOfStoreDate } from '../utils/storeTime';
 import { storeDateKey } from '../utils/storeTime';
+import { checkHours, offerPaysAt, hoursText } from '../utils/offerHours';
+import { shelfDealsForStore } from '../utils/shelfDeals';
+import { estimateOffer } from '../utils/offerEstimate';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
@@ -23,7 +26,7 @@ export const MANAGER_CASHBACK_MESSAGE = 'Cashback promotions need HQ approval. A
 
 const blankToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 // Multipart forms send everything as text: 'true' is true and anything else (including 'false') is not
-const flag = (v: unknown) => v === true || v === 'true';
+export const flag = (v: unknown) => v === true || v === 'true';
 // tierBonusRates arrives as a JSON string in a multipart form and as an object in a JSON body
 const tierMapInput = (v: unknown) => {
   if (typeof v !== 'string') return v;
@@ -37,7 +40,7 @@ const cpgField = z.coerce.number().min(0).max(MAX_CENTS_PER_GALLON, `A per-gallo
 
 // tierBonusRates: per-tier bonus map e.g. {"BRONZE": 0.03, "GOLD": 0.01}
 // When set, bonusRate should be the max of tierBonusRates values (for offer ordering)
-const offerSchema = z.object({
+export const offerSchema = z.object({
   title: z.string({ required_error: 'Add a title.' }).trim().min(1, 'Add a title.').max(100, 'The title can be at most 100 characters.'),
   description: z.string().max(500, 'The description can be at most 500 characters.').optional().default(''),
   type: z.nativeEnum(OfferType).default(OfferType.ALL_STORES),
@@ -100,6 +103,10 @@ export async function createOffer(req: AuthRequest, res: Response) {
     refuse(res, parsed.error);
     return;
   }
+  // Happy hours (days and times, store time); without them it pays all day
+  const hours = checkHours(req.body ?? {});
+  if (!hours.ok) { res.status(400).json({ success: false, error: hours.message }); return; }
+  const lastDayReminder = req.body?.lastDayReminder === undefined ? true : flag(req.body.lastDayReminder);
 
   // Store managers can only create store-specific offers for a store they're
   // actually assigned to — prefer the store they picked in the UI (a real
@@ -139,7 +146,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
 
   const offer = await prisma.offer.create({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data: { ...parsed.data, imageUrl, startDate: new Date(parsed.data.startDate), endDate: new Date(parsed.data.endDate) } as any,
+    data: { ...parsed.data, ...hours.hours, lastDayReminder, imageUrl, startDate: new Date(parsed.data.startDate), endDate: new Date(parsed.data.endDate) } as any,
   });
 
   // Customers hear about it when it STARTS: now if it already has, otherwise the hourly job announces it on its first day. A single-store promotion goes
@@ -154,7 +161,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
     details: {
       title: offer.title, type: offer.type, category: offer.category, bonusRate: offer.bonusRate,
       gasBonusCentsPerGallon: offer.gasBonusCentsPerGallon, dealText: offer.dealText,
-      startDate: offer.startDate, endDate: offer.endDate,
+      startDate: offer.startDate, endDate: offer.endDate, happyHours: hoursText(offer),
     },
     storeId: offer.storeId,
   });
@@ -199,7 +206,14 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
     include: { store: { select: { name: true, address: true, city: true, state: true, phone: true } } },
   });
 
-  res.json({ success: true, data: offers });
+  // onNow: false only for a happy-hour promotion outside its hours (shown all day, pays in its hours); hoursText says when
+  const data: Record<string, unknown>[] = offers.map((o) => ({ ...o, onNow: offerPaysAt(o, now), hoursText: hoursText(o) }));
+  // A customer at a store also sees that store's shelf deals (labels with a deal, e.g. "2 for $5") in Today's Deals, as deals
+  if (req.user!.role === Role.CUSTOMER && storeId) {
+    try { data.push(...(await shelfDealsForStore(storeId, now))); } catch (e) { console.error('[offers] shelf deals failed:', (e as Error).message); }
+  }
+
+  res.json({ success: true, data });
 }
 
 const updateOfferSchema = z.object({
@@ -264,8 +278,20 @@ export async function updateOffer(req: AuthRequest, res: Response) {
     if (existingHasCashback) delete d.category;
   }
 
+  // Happy hours and the last-day push: HQ only (a manager's edit leaves them as they are). Sent only when they are being changed.
+  let hoursEdit: Record<string, unknown> = {};
+  if (req.user!.role !== Role.STORE_MANAGER) {
+    const b = req.body ?? {};
+    if ('happyFrom' in b || 'happyTo' in b || 'happyDays' in b) {
+      const hours = checkHours(b);
+      if (!hours.ok) { res.status(400).json({ success: false, error: hours.message }); return; }
+      hoursEdit = { ...hours.hours };
+    }
+    if ('lastDayReminder' in b) hoursEdit.lastDayReminder = flag(b.lastDayReminder);
+  }
+
   const { startDate, endDate, ...rest } = parsed.data;
-  const before = await prisma.offer.findUnique({ where: { id: offerId }, select: { title: true, startDate: true, endDate: true, isActive: true } });
+  const before = await prisma.offer.findUnique({ where: { id: offerId }, select: { title: true, startDate: true, endDate: true, isActive: true, happyDays: true, happyFrom: true, happyTo: true } });
   if (!before) { res.status(404).json({ success: false, error: 'That offer does not exist.' }); return; }
   // The dates it would have after this edit: the last day on or after the first, and not already over ("End now" sends now)
   const nextStart = startDate ? new Date(startDate) : before.startDate;
@@ -278,6 +304,7 @@ export async function updateOffer(req: AuthRequest, res: Response) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: {
       ...rest,
+      ...hoursEdit,
       ...(startDate && { startDate: new Date(startDate) }),
       ...(endDate && { endDate: new Date(endDate) }),
     } as any,
@@ -293,6 +320,7 @@ export async function updateOffer(req: AuthRequest, res: Response) {
         if (before.title !== offer.title) changes.push(`renamed from "${before.title}"`);
         if (+before.startDate !== +offer.startDate) changes.push(`now starts ${storeDateKey(offer.startDate)}`);
         if (+before.endDate !== +offer.endDate) changes.push(offer.endDate.getTime() <= Date.now() + 60_000 ? 'ended early' : `now ends ${storeDateKey(offer.endDate)}`);
+        if (hoursText(before) !== hoursText(offer)) changes.push(hoursText(offer) ? `happy hours ${hoursText(offer)}` : 'happy hours removed (all day)');
         return `Offer "${offer.title}" ${changes.length ? changes.join(', ') : 'edited'}`;
       })(),
     },
@@ -541,4 +569,67 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
       },
     },
   });
+}
+
+// ─── Cost estimate ────────────────────────────────────────────────────────────
+
+/**
+ * POST /offers/estimate (store manager and HQ): what a promotion would add in cashback, from the last 4 weeks of the same kind of sales
+ * (utils/offerEstimate.ts). Takes the same fields as an offer; a store manager's estimate is for one of their own stores.
+ */
+export async function estimateOfferCost(req: AuthRequest, res: Response) {
+  const body = req.body ?? {};
+  const isManager = req.user!.role === Role.STORE_MANAGER;
+  let storeId: string | undefined = typeof body.storeId === 'string' && body.storeId ? body.storeId : undefined;
+  if (isManager) {
+    const mine = req.user!.storeIds ?? [];
+    storeId = storeId && mine.includes(storeId) ? storeId : mine[0];
+    if (!storeId) { res.status(403).json({ success: false, error: 'No store assigned to your account' }); return; }
+  }
+  const type = storeId ? OfferType.SPECIFIC_STORE : OfferType.ALL_STORES;
+  const parsed = offerSchema.safeParse({ ...body, title: 'estimate', description: '', dealText: undefined, type, storeId });
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const hours = checkHours(body);
+  if (!hours.ok) { res.status(400).json({ success: false, error: hours.message }); return; }
+  const d = parsed.data;
+  const est = await estimateOffer({
+    storeId: d.storeId ?? null, category: d.category ?? null, bonusRate: d.bonusRate ?? null,
+    tierBonusRates: d.tierBonusRates ?? null, gasBonusCentsPerGallon: d.gasBonusCentsPerGallon ?? null,
+    startDate: new Date(d.startDate), endDate: new Date(d.endDate), ...hours.hours,
+  });
+  res.json({ success: true, data: est });
+}
+
+// ─── Shelf deals (from Labels) ────────────────────────────────────────────────
+
+/** GET /offers/shelf-deals (HQ): every label with a deal: how many stores carry it, and whether it is hidden from the app. */
+export async function listShelfDeals(_req: AuthRequest, res: Response) {
+  const labels = await prisma.label.findMany({
+    where: { dealText: { not: null } },
+    select: { id: true, productName: true, dealText: true, priceText: true, dealHiddenInApp: true, updatedAt: true, _count: { select: { storeLabels: true } } },
+    orderBy: { updatedAt: 'desc' },
+  });
+  res.json({
+    success: true,
+    data: labels.filter((l) => l.dealText && l.dealText.trim()).map((l) => ({
+      labelId: l.id, productName: l.productName, dealText: l.dealText, priceText: l.priceText, hidden: l.dealHiddenInApp, stores: l._count.storeLabels,
+    })),
+  });
+}
+
+/** PATCH /offers/shelf-deals/:labelId (HQ): { hidden: true|false }: hide a label's deal from the app's Today's Deals, or show it again. */
+export async function setShelfDealHidden(req: AuthRequest, res: Response) {
+  if (typeof req.body?.hidden !== 'boolean') { res.status(400).json({ success: false, error: 'Say whether to hide it (true) or show it (false).' }); return; }
+  const label = await prisma.label.findUnique({ where: { id: req.params.labelId }, select: { id: true, productName: true, dealText: true, dealHiddenInApp: true } });
+  if (!label || !label.dealText) { res.status(404).json({ success: false, error: 'That label has no deal any more.' }); return; }
+  if (label.dealHiddenInApp !== req.body.hidden) {
+    await prisma.label.update({ where: { id: label.id }, data: { dealHiddenInApp: req.body.hidden } });
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'SHELF_DEAL_VISIBILITY', entity: 'label', entityId: label.id,
+      details: { summary: `${req.body.hidden ? 'Hid' : 'Showed'} the shelf deal "${label.dealText}" for ${label.productName} ${req.body.hidden ? 'from' : 'in'} the app.` },
+      storeId: null,
+    });
+  }
+  res.json({ success: true, data: { labelId: label.id, hidden: req.body.hidden } });
 }

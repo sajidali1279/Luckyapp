@@ -32,7 +32,11 @@ import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, delete
 import {
   createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults,
   createBanner, getActiveBanners, deleteBanner,
+  estimateOfferCost,
+  listShelfDeals,
+  setShelfDealHidden,
 } from '../controllers/offers.controller';
+import { createOfferRequest, listOfferRequests, withdrawOfferRequest, approveOfferRequest, declineOfferRequest } from '../controllers/offerRequests.controller';
 import {
   generateReceiptToken,
   getReceiptToken,
@@ -307,6 +311,14 @@ router.get('/points/export', authenticate, requireRole(Role.STORE_MANAGER), expo
 // ─── Offers ───────────────────────────────────────────────────────────────────
 router.get('/offers', authenticate, getActiveOffers); // All authenticated users
 router.get('/offers/history', authenticate, requireRole(Role.STORE_MANAGER), getOffersHistory);
+router.post('/offers/estimate', authenticate, requireRole(Role.STORE_MANAGER), estimateOfferCost);                 // What a promotion would cost (last 4 weeks of sales)
+router.get('/offers/shelf-deals', authenticate, requireRole(Role.SUPER_ADMIN), listShelfDeals);                    // Label deals shown in the app
+router.patch('/offers/shelf-deals/:labelId', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealHidden);     // Hide or show one
+router.post('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), createOfferRequest);                 // A manager asks HQ for a cashback promotion
+router.get('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), listOfferRequests);                   // Manager: own stores; HQ: all
+router.post('/offer-requests/:id/withdraw', authenticate, requireRole(Role.STORE_MANAGER), withdrawOfferRequest);  // The manager takes it back
+router.post('/offer-requests/:id/approve', authenticate, requireRole(Role.SUPER_ADMIN), approveOfferRequest);      // HQ approves (with any changes)
+router.post('/offer-requests/:id/decline', authenticate, requireRole(Role.SUPER_ADMIN), declineOfferRequest);      // HQ declines with a reason
 router.get('/offers/:offerId/results', authenticate, requireRole(Role.SUPER_ADMIN), getOfferResults); // What a promotion did (HQ)
 router.post('/offers', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), createOffer);
 router.patch('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER), updateOffer);

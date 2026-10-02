@@ -83,6 +83,14 @@ enum OfferType {
   SPECIFIC_STORE
 }
 
+// A store manager's request for a cashback promotion at their store, until HQ decides
+enum OfferRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  WITHDRAWN
+}
+
 enum ProductCategory {
   GROCERIES
   FROZEN_FOODS
@@ -341,6 +349,7 @@ model Store {
   transactions      PointsTransaction[]
   creditRedemptions CreditRedemption[]
   offers            Offer[]
+  offerRequests     OfferRequest[]
   banners           Banner[]
   billing           BillingRecord[]
   receiptTokens     ReceiptToken[]
@@ -570,15 +579,61 @@ model Offer {
   startDate   DateTime
   endDate     DateTime
   isActive    Boolean     @default(true)
+  // Happy hours (utils/offerHours.ts): pays only on sales inside them, store time. No times = all day. days 0 = Sun .. 6 = Sat, empty = every day.
+  happyDays   Int[]       @default([])
+  happyFrom   String?     // "15:00"
+  happyTo     String?     // "18:00"; at or before happyFrom = runs past midnight
+  // The 10 AM push on the last day to the people it was announced to (promotions of 3+ days); HQ can switch it off
+  lastDayReminder   Boolean   @default(true)
+  lastDayRemindedAt DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   sales PointsTransaction[]   // the sales it raised (recorded from 2026-09-28)
   store Store? @relation(fields: [storeId], references: [id])
+  fromRequest OfferRequest?   // the manager's request it was approved from, if any
 
   @@index([isActive, startDate, endDate])
   @@index([storeId])
   @@map("offers")
+}
+
+// A store manager asks HQ for a cashback promotion at their store (they cannot post cashback themselves). HQ can change it, then approves
+// (which creates the real Offer) or declines with a reason; the manager is told either way. Kept apart from Offer so nothing pending can
+// ever pay or be shown to customers.
+model OfferRequest {
+  id                     String             @id @default(uuid())
+  storeId                String
+  requestedById          String             // a plain id (no link), so removing a staff account is not blocked by its requests
+  requestedByName        String?
+  title                  String
+  description            String             @default("")
+  category               ProductCategory?
+  bonusRate              Float?
+  tierBonusRates         Json?
+  gasBonusCentsPerGallon Float?
+  requires21             Boolean            @default(false)
+  startDate              DateTime
+  endDate                DateTime
+  happyDays              Int[]              @default([])
+  happyFrom              String?
+  happyTo                String?
+  note                   String?            // the manager's reason, for HQ
+  status                 OfferRequestStatus @default(PENDING)
+  decidedById            String?
+  decidedByName          String?
+  decidedAt              DateTime?
+  declineReason          String?
+  offerId                String?            @unique
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  store Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  offer Offer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([storeId])
+  @@map("offer_requests")
 }
 
 model Banner {
@@ -621,6 +676,7 @@ model Label {
   barcode          String?       // the physical product's own barcode (UPC/EAN/etc) for order lookups — independent of priceText/dealText
   category         String?       // freeform, same approval pipeline as Order List/Stock Request (OrderCategory) — not constrained by an enum here
   template         LabelTemplate @default(CLASSIC_RED_BLACK)
+  dealHiddenInApp  Boolean       @default(false) // a label's deal shows in the customer app's Today's Deals at stores that carry it, unless HQ hides it
   createdByStoreId String?       // which store first created this catalog entry — history only, no longer drives print-queue membership
   createdById      String?       // which user created this. Set once at creation, never changed by edits.
   createdAt        DateTime      @default(now())

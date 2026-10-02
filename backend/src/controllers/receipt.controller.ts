@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { offerPaysAt } from '../utils/offerHours';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
@@ -103,8 +104,8 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { id: true, createdAt: true, type: true, storeId: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true },
-    }),
+      select: { id: true, createdAt: true, type: true, storeId: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true, happyDays: true, happyFrom: true, happyTo: true },
+    }).then((rows) => rows.filter((o) => offerPaysAt(o, now))),   // a happy-hour promotion pays only inside its hours
   ]);
 
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
@@ -224,8 +225,8 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { id: true, createdAt: true, type: true, storeId: true, title: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true },
-    }),
+      select: { id: true, createdAt: true, type: true, storeId: true, title: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, happyDays: true, happyFrom: true, happyTo: true },
+    }).then((rows) => rows.filter((o) => offerPaysAt(o, now))),   // a happy-hour promotion pays only inside its hours
   ]);
 
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;

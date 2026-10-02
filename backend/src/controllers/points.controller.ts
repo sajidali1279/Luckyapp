@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { offerPaysAt } from '../utils/offerHours';
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
@@ -68,7 +69,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     prisma.categoryRate.findUnique({ where: { category: category as any } }),
     prisma.offer.findMany({
       where: { isActive: true, startDate: { lte: now }, endDate: { gte: now } },
-      select: { id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true },
+      select: { id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true, happyDays: true, happyFrom: true, happyTo: true },
     }),
     prisma.store.findUnique({ where: { id: storeId }, select: { name: true, isActive: true, transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
   ]);
@@ -79,9 +80,11 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   }
 
   // Filter to relevant offers for this store (JS filter — avoids Prisma AND/OR nesting bugs)
+  // A happy-hour promotion pays only inside its hours (store time)
   const allStoreOffers = allActiveOffers.filter((o) =>
     (o.bonusRate !== null || o.gasBonusCentsPerGallon !== null) &&
-    (o.type === OfferType.ALL_STORES || o.storeId === storeId)
+    (o.type === OfferType.ALL_STORES || o.storeId === storeId) &&
+    offerPaysAt(o, now)
   );
 
   // Tier base rate + optional per-category bonus (additive)
