@@ -13,8 +13,8 @@ import { loadSheet } from '../utils/labelSheet';
 const LIMITS = { down: [-10, 10], right: [-4.5, 4.5], width: [55, 75], height: [20, 30], gapX: [0, 10], gapY: [0, 8] } as const;
 type Nudge = { down: number; right: number; width: number; height: number; gapX: number; gapY: number };
 const KEYS: (keyof Nudge)[] = ['down', 'right', 'gapY', 'gapX', 'height', 'width'];
-// Avery 5160: 2-5/8 x 1 in labels, 1/8 in between columns, none between rows
-const AVERY: Nudge = { down: 0, right: 0, width: 66.675, height: 25.4, gapX: 3.175, gapY: 0 };
+// The starting numbers (utils/labelSheet.ts LETTER_DEFAULTS): what prints right on Avery 5160 sheets on HQ's printer
+const AVERY: Nudge = { down: 0, right: 1, width: 65, height: 25, gapX: 4.9, gapY: 0.6 };
 const NAMES: Record<keyof Nudge, string> = { down: 'Move down', right: 'Move right', width: 'Label width', height: 'Label height', gapX: 'Space between columns', gapY: 'Space between rows' };
 const PAGE = { w: 215.9, h: 279.4 };
 const stepOf = (k: keyof Nudge) => (k === 'down' || k === 'right' ? 0.5 : 0.1);
@@ -123,13 +123,13 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
             holds it over a label sheet against a light, and tells you how far the boxes are from the stickers. Every phone printing for this store uses these numbers.
           </p>
           <div style={p.current}>
-            {by.name ? <>Set by {by.name}{by.at ? `, ${when(by.at)}` : ''}: down {saved.down}, right {saved.right}, rows +{saved.gapY}, columns {saved.gapX}, labels {saved.width} x {saved.height} mm</> : <>Not set yet: the Avery 5160 numbers, no move.</>}
+            {by.name ? <>Set by {by.name}{by.at ? `, ${when(by.at)}` : ''}: down {saved.down}, right {saved.right}, rows +{saved.gapY}, columns {saved.gapX}, labels {saved.width} x {saved.height} mm</> : <>Not set yet: the starting numbers (down 0, right 1, rows +0.6, columns 4.9, labels 65 x 25 mm).</>}
           </div>
           <div style={p.fields}>
             {field('down', 'Move down', 'Boxes too high: a plus number. Too low: minus.')}
             {field('right', 'Move right', 'Boxes too far left: plus. Too far right: minus.')}
           </div>
-          <p style={p.note}>Top row right but the bottom row off? Change the space between rows. Left column right but the right column off? The space between columns. These start at the Avery 5160 numbers.</p>
+          <p style={p.note}>Top row right but the bottom row off? Change the space between rows. Left column right but the right column off? The space between columns. These start at the numbers that print right on HQ's printer.</p>
           <div style={p.fields}>
             {field('gapY', 'Space between rows', 'Bottom row too low: smaller (already 0? make the label height a little smaller). Too high: bigger.')}
             {field('gapX', 'Space between columns', 'Right column too far right: smaller. Too far left: bigger.')}
@@ -138,7 +138,7 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
           </div>
           <div style={p.copyRow}>
             {hereIsDefault ? (
-              <span style={p.help}>This computer's print page has no fine-tune saved (it uses the Avery 5160 numbers).</span>
+              <span style={p.help}>This computer's print page uses the starting numbers (nothing of its own saved).</span>
             ) : (
               <button type="button" style={p.link} onClick={() => { setError(''); setText(toText(hereNudge)); }}
                 title="The numbers on this computer's print page (Labels, Print, Fine-tune for your printer)">
@@ -154,7 +154,7 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
           <p style={p.note}>After saving, ask the store to print the test page again to check before printing real labels.</p>
           {error && <div role="alert" style={p.error}>{error}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}>
-            <button type="button" style={p.link} onClick={() => { setError(''); setText(toText(AVERY)); }}>Back to the Avery 5160 numbers</button>
+            <button type="button" style={p.link} onClick={() => { setError(''); setText(toText(AVERY)); }}>Back to the starting numbers</button>
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" style={p.cancel} onClick={onClose} disabled={saving}>Cancel</button>
               <button type="button" style={{ ...p.save, ...(!canSave ? { opacity: 0.5, cursor: 'default' } : {}) }} onClick={save} disabled={saving || !canSave}>{saving ? 'Saving…' : allStores ? 'Save for all stores' : 'Save'}</button>

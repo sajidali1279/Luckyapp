@@ -26,8 +26,10 @@ export const A4_PER_SHEET = A4_COLS * A4_ROWS;
 export const LETTER_PER_SHEET = 30;
 export const perSheet = (s: SheetSettings) => (s.format === 'a4x18' ? A4_PER_SHEET : LETTER_PER_SHEET);
 export const A4_DEFAULTS: A4Sizes = { labelW: 31.3, labelH: 92.3, top: 8, left: 6, gapX: 2, gapY: 2 };
-// Avery 5160: 2-5/8 x 1 in labels, 1/8 in between columns, none between rows
-export const LETTER_DEFAULTS: LetterLayout = { down: 0, right: 0, labelW: 66.675, labelH: 25.4, gapX: 3.175, gapY: 0 };
+// The starting numbers for Letter sheets: what HQ found prints right on Avery 5160 sheets (HP DeskJet 2700, 2026-10-02), so every
+// computer and every store's phones start there. The sheet's own die-cut numbers are 66.675 x 25.4 mm labels, 3.175 mm between
+// columns and none between rows; a printer's small shift and scale are why these differ.
+export const LETTER_DEFAULTS: LetterLayout = { down: 0, right: 1, labelW: 65, labelH: 25, gapX: 4.9, gapY: 0.6 };
 export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS }, letter: { ...LETTER_DEFAULTS } };
 
 // Where an Avery 5160 sheet's first label sits: 1/2 in from the top, 3/16 in from the left. Move down / right shift from there.
@@ -64,7 +66,7 @@ export function cleanSheet(raw: unknown): SheetSettings {
   const letter = { ...LETTER_DEFAULTS };
   (Object.keys(LETTER_LIMITS) as (keyof LetterLayout)[]).forEach((k) => {
     const v = Number(l[k]);
-    // to 0.001 mm, so the 5160 numbers (66.675, 3.175) are kept exactly
+    // to 0.001 mm, so exact sheet numbers (66.675, 3.175) are kept as typed
     if (Number.isFinite(v)) letter[k] = Math.round(Math.min(LETTER_LIMITS[k][1], Math.max(LETTER_LIMITS[k][0], v)) * 1000) / 1000;
   });
   return {

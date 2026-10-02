@@ -2430,7 +2430,7 @@
     "nudgeHint": "Casi todas las impresoras colocan la página uno o dos milímetros fuera de lugar. Imprima la página de prueba en papel normal, póngala sobre una hoja de etiquetas a contraluz y vea qué tan lejos quedan los recuadros de las etiquetas. Recuadros muy arriba: mueva hacia abajo. Muy a la derecha: mueva a la derecha con un número negativo. Se guarda para {{store}}, así todos los teléfonos que imprimen ahí lo usan.",
     "moveDown": "Mover abajo",
     "moveRight": "Mover a la derecha",
-    "nudgeReset": "Volver a 0 (sin mover)",
+    "nudgeReset": "Volver a los números iniciales",
     "testPageLetterSub": "Solo contornos. Imprímala en papel normal y póngala sobre una hoja de etiquetas para ver dónde quedan.",
     "printHintLetter": "En la pantalla de impresión elija papel Carta y escala 100% (tamaño real, no \"ajustar\").",
     "nudgeHintStaff": "La oficina central lo ajusta una vez para la impresora de {{store}}, y todos los teléfonos que imprimen ahí lo usan. Si las etiquetas no caen en su lugar, imprima la página de prueba, póngala sobre una hoja de etiquetas a contraluz y diga a la oficina central qué tan desviados quedan los recuadros (por ejemplo: 1.5 mm muy arriba, o la fila de arriba está bien pero la de abajo queda 2 mm muy abajo).",

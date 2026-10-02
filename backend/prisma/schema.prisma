@@ -310,12 +310,13 @@ model Store {
   // The label printer's fine-tune for US Letter sheets, in mm (minus = up / left). Per store because the offset belongs to the
   // store's printer, and staff print from their own phones.
   labelNudgeDown      Float     @default(0)
-  labelNudgeRight     Float     @default(0)
-  // The label size and the space between columns and rows on that printer (mm), starting at the Avery 5160 numbers
-  labelWidth          Float     @default(66.675)
-  labelHeight         Float     @default(25.4)
-  labelGapX           Float     @default(3.175)
-  labelGapY           Float     @default(0)
+  labelNudgeRight     Float     @default(1)
+  // The label size and the space between columns and rows on that printer (mm). They start at what prints right on Avery 5160
+  // sheets on HQ's printer (2026-10-02), the same starting numbers the app and the admin print page use.
+  labelWidth          Float     @default(65)
+  labelHeight         Float     @default(25)
+  labelGapX           Float     @default(4.9)
+  labelGapY           Float     @default(0.6)
   labelNudgeUpdatedAt DateTime?
   labelNudgeUpdatedBy String?
 

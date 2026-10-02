@@ -666,7 +666,7 @@ const PANEL_HTML = `
         <div class="ps-fields">
           ${LETTER_SIZE_FIELDS.map(([k, name]) => `<label class="ps-field">${name}<span class="in"><input type="number" step="0.1" min="${LETTER_LIMITS[k][0]}" max="${LETTER_LIMITS[k][1]}" id="ps-nudge-${k}" /><em>mm</em></span></label>`).join('')}
         </div>
-        <button type="button" class="ps-link" id="ps-nudge-reset">Back to the Avery 5160 numbers (no move)</button>
+        <button type="button" class="ps-link" id="ps-nudge-reset">Back to the starting numbers</button>
       </details>
     </section>
     <div class="ps-actions">

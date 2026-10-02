@@ -2430,7 +2430,7 @@
     "nudgeHint": "Most printers place the page a millimetre or two off. Print the test page on plain paper, hold it over a label sheet against a light, and see how far the boxes are from the stickers. Boxes too high: move down. Too far right: move right with a minus number. Saved for {{store}}, so every phone printing there uses it.",
     "moveDown": "Move down",
     "moveRight": "Move right",
-    "nudgeReset": "Back to 0 (no move)",
+    "nudgeReset": "Back to the starting numbers",
     "testPageLetterSub": "Outlines only. Print it on plain paper and hold it over a label sheet to check where the labels land.",
     "printHintLetter": "In the print screen choose Letter paper and 100% scale (actual size, not \"fit\").",
     "nudgeHintStaff": "HQ sets this once for {{store}}'s printer, and every phone printing there uses it. If labels land off the stickers, print the test page, hold it over a label sheet against a light, and tell HQ how far off the boxes are (for example: 1.5 mm too high, or the top row is right but the bottom row is 2 mm too low).",
