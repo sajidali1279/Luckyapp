@@ -10,6 +10,7 @@ import Toast from 'react-native-toast-message';
 import QRCode from 'react-native-qrcode-svg';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
+import { hoursText } from '../../utils/offerHours';
 import { useCallback, useMemo, useRef, useState, useEffect, memo } from 'react';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +26,7 @@ import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon,
   FlameIcon, TagIcon, ReceiptIcon, CameraIcon, ChevronRightIcon, StarIcon,
-  PercentIcon, GiftIcon,
+  PercentIcon, GiftIcon, ClockIcon,
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
@@ -460,6 +461,7 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
             </View>
             <Text style={ds.dealTextBig} numberOfLines={1}>{item.dealText}</Text>
             <Text style={ds.title} numberOfLines={1}>{item.title}</Text>
+            {item.regularPrice ? <Text style={ds.body} numberOfLines={1}>{t('customerHome.regularPrice', { price: priceText(item.regularPrice) })}</Text> : null}
             {item.description && item.description !== item.dealText && (
               <Text style={ds.body} numberOfLines={1}>{item.description}</Text>
             )}
@@ -628,7 +630,7 @@ export default function CustomerHome() {
   const scrollViewRef = useRef<ScrollView>(null);
   const gasSectionRef = useRef<View>(null);
   const offersSectionRef = useRef<View>(null);
-  const { scrollTo } = useLocalSearchParams<{ scrollTo?: string }>();
+  const { scrollTo, lastDay } = useLocalSearchParams<{ scrollTo?: string; lastDay?: string }>();
 
   useFocusEffect(useCallback(() => {
     if (!scrollTo) return;
@@ -817,6 +819,13 @@ export default function CustomerHome() {
     if (isOfferLocked(offer)) { setAgeGateOffer(offer); return; }
     setSelectedOffer(offer);
   }
+  // The "Last day!" push opens its promotion once the offers are in (if it is still running here)
+  useEffect(() => {
+    if (!lastDay || contentLoading || !offersData) return;
+    const offer = allOffers.find((o: any) => o.id === lastDay);
+    if (offer) onOfferPress(offer);
+    router.setParams({ lastDay: '' });
+  }, [lastDay, contentLoading, offersData]);
   const [pendingRating, setPendingRating] = useState<any>(null);
   const [hoveredStar, setHoveredStar] = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
@@ -1249,6 +1258,7 @@ export default function CustomerHome() {
                               : t('customerHome.cashbackPill', { pct: Math.round(offer.bonusRate * 100) })}
                           </Text>
                         </View>
+                        <OfferHoursLine offer={offer} />
                       </View>
                       <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={2.5} />
                     </View>
@@ -1303,6 +1313,7 @@ export default function CustomerHome() {
                                 : `+${Math.round(offer.bonusRate * 100)}%`}
                             </Text>
                           </View>
+                          <OfferHoursLine offer={offer} compact />
                         </View>
                       </View>
                     </PressScale>
@@ -1818,6 +1829,13 @@ export default function CustomerHome() {
               ) : null}
               <Text style={om.title}>{selectedOffer.title}</Text>
               {selectedOffer.description ? <Text style={om.desc}>{selectedOffer.description}</Text> : null}
+              {selectedOffer.source === 'SHELF' ? (
+                <View style={om.dateRow}>
+                  <Text style={om.dateText}>
+                    {selectedOffer.regularPrice ? `${t('customerHome.regularPrice', { price: priceText(selectedOffer.regularPrice) })}. ` : ''}{t('customerHome.shelfDealNote')}
+                  </Text>
+                </View>
+              ) : (
               <View style={om.dateRow}>
                 <Text style={om.dateText}>
                   {t('customerHome.validRange', {
@@ -1826,6 +1844,15 @@ export default function CustomerHome() {
                   })}
                 </Text>
               </View>
+              )}
+              {hoursText(selectedOffer, t) ? (
+                <View style={om.dateRow}>
+                  <Text style={[om.dateText, { fontWeight: '700' }]}>
+                    {t('customerHome.happyHoursOnly', { hours: hoursText(selectedOffer, t) })}
+                    {selectedOffer.onNow === true ? ` ${t('customerHome.onNowShort')}` : selectedOffer.onNow === false ? ` ${t('customerHome.notOnNowShort')}` : ''}
+                  </Text>
+                </View>
+              ) : null}
               <View style={om.howBox}>
                 <Text style={om.howTitle}>{t('customerHome.howItWorks')}</Text>
                 <Text style={om.howText}>
@@ -1915,6 +1942,27 @@ export default function CustomerHome() {
         <ModalToastHost />
       </Modal>
 
+    </View>
+  );
+}
+
+/** "$2.79" from a label price, whether or not it was typed with the dollar sign. */
+function priceText(p: string): string {
+  return `$${String(p).replace(/^\$/, '')}`;
+}
+
+/** A happy-hour promotion's hours under its bonus, and whether it pays right now. Nothing for one that pays all day. */
+function OfferHoursLine({ offer, compact }: { offer: any; compact?: boolean }) {
+  const { t } = useTranslation();
+  const hours = hoursText(offer, t);
+  if (!hours) return null;
+  const on = offer.onNow !== false;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+      <ClockIcon size={11} color={on ? COLORS.success : COLORS.textMuted} strokeWidth={2.5} />
+      <Text style={{ fontSize: 11, fontWeight: '700', color: on ? COLORS.success : COLORS.textMuted }} numberOfLines={compact ? 2 : undefined}>
+        {hours}{offer.onNow === true ? ` · ${t('customerHome.onNowShort')}` : offer.onNow === false ? ` · ${t('customerHome.notOnNowShort')}` : ''}
+      </Text>
     </View>
   );
 }

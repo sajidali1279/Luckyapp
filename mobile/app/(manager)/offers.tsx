@@ -7,6 +7,7 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
+import { useLocalSearchParams } from 'expo-router';
 import { offersApi, storesApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
@@ -16,6 +17,8 @@ import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
+import OfferRequestsTab from '../../components/OfferRequestsTab';
+import { hoursText } from '../../utils/offerHours';
 
 interface Store { id: string; name: string }
 
@@ -48,6 +51,10 @@ export default function ManagerOffersScreen() {
   // gallon) - only HQ sets those now; a manager can still post and edit Deals for their store. Dev
   // Admin/Super Admin testing this screen from the app itself are unaffected.
   const canSetBonus = user?.role !== 'STORE_MANAGER';
+  // A store manager asks HQ for cashback on the Requests tab (a push about an answer opens it: ?tab=requests)
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<'offers' | 'requests'>(tabParam === 'requests' && !canSetBonus ? 'requests' : 'offers');
+  useEffect(() => { if (tabParam === 'requests' && !canSetBonus) setTab('requests'); }, [tabParam]);
 
   // Accessible stores
   const { data: storesData } = useQuery({
@@ -170,7 +177,7 @@ export default function ManagerOffersScreen() {
       <ManagerHeader
         title={t('managerOffers.title')}
         subtitle={t('managerOffers.subtitle')}
-        rightSlot={
+        rightSlot={tab === 'requests' ? undefined : (
           <TouchableOpacity
             style={s.addBtn}
             onPress={() => setShowCreate(true)}
@@ -182,7 +189,7 @@ export default function ManagerOffersScreen() {
             <PlusIcon size={16} color="#fff" strokeWidth={2.5} />
             <Text style={s.addBtnText}>{t('managerOffers.newShort')}</Text>
           </TouchableOpacity>
-        }
+        )}
       >
         {/* Store selector */}
         {stores.length > 1 && (
@@ -205,6 +212,16 @@ export default function ManagerOffersScreen() {
             ))}
           </ScrollView>
         )}
+        {!canSetBonus && (
+          <View style={s.tabRow} accessibilityRole="tablist">
+            {(['offers', 'requests'] as const).map((k) => (
+              <TouchableOpacity key={k} style={[s.tabBtn, tab === k && s.tabBtnActive]} onPress={() => setTab(k)} activeOpacity={0.8}
+                accessibilityRole="tab" accessibilityState={{ selected: tab === k }} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                <Text style={[s.tabText, tab === k && s.tabTextActive]}>{k === 'offers' ? t('managerOffers.tabOffers') : t('managerOffers.tabRequests')}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ManagerHeader>
 
       <ScrollView
@@ -212,7 +229,9 @@ export default function ManagerOffersScreen() {
         contentContainerStyle={s.body}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
       >
-        {isLoading ? (
+        {tab === 'requests' ? (
+          <OfferRequestsTab storeId={storeId} storeName={stores.find((x) => x.id === storeId)?.name} />
+        ) : isLoading ? (
           <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} size="large" /></View>
         ) : isError ? (
           <ErrorState message={t('managerOffers.loadError')} onRetry={() => refetch()} />
@@ -255,6 +274,13 @@ export default function ManagerOffersScreen() {
                   {offer.category ? (
                     <View style={[s.tag, { backgroundColor: COLORS.success + '18' }]}>
                       <Text style={[s.tagText, { color: COLORS.success }]}>{offer.category.replace(/_/g, ' ')}</Text>
+                    </View>
+                  ) : null}
+                  {hoursText(offer, t) ? (
+                    <View style={[s.tag, { backgroundColor: (offer.onNow === false ? COLORS.textMuted : COLORS.success) + '18' }]}>
+                      <Text style={[s.tagText, { color: offer.onNow === false ? COLORS.textMuted : COLORS.success, textTransform: 'none' }]}>
+                        {t(offer.onNow === false ? 'managerOffers.hoursNotNow' : 'managerOffers.hoursOnNow', { hours: hoursText(offer, t) })}
+                      </Text>
                     </View>
                   ) : null}
                   <Text style={s.offerDates}>
@@ -501,6 +527,11 @@ const s = StyleSheet.create({
   storeChipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.55)' },
   storeChipText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
   storeChipTextActive: { color: '#fff', fontWeight: '700' },
+  tabRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 14 },
+  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)' },
+  tabBtnActive: { backgroundColor: '#fff' },
+  tabText: { color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: '700' },
+  tabTextActive: { color: COLORS.managerPrimary, fontWeight: '800' },
 
   body: { padding: 16, paddingBottom: 24 },
   sectionLabel: {

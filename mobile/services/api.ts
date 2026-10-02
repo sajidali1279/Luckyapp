@@ -117,6 +117,8 @@ export const offersApi = {
   create:      (data: object) => api.post('/offers', data),
   update:      (offerId: string, data: object) => api.patch(`/offers/${offerId}`, data),
   deleteOffer: (offerId: string) => api.delete(`/offers/${offerId}`),
+  /** What a promotion would add in cashback, from the last 4 weeks of the same kind of sales at the store. */
+  estimate:    (data: object) => api.post('/offers/estimate', data),
   deleteBanner:(bannerId: string) => api.delete(`/banners/${bannerId}`),
   createBanner: async (formData: FormData) => {
     const res = await fetchWithAuth('/banners', { method: 'POST', body: formData as any });
@@ -124,6 +126,13 @@ export const offersApi = {
     if (!res.ok) throw { response: { data: json, status: res.status } };
     return { data: json };
   },
+};
+
+/** A store manager asks HQ for a cashback promotion at their store; HQ approves (maybe with changes) or declines with a reason. */
+export const offerRequestsApi = {
+  list:     () => api.get('/offer-requests'),
+  create:   (data: object) => api.post('/offer-requests', data),
+  withdraw: (id: string) => api.post(`/offer-requests/${id}/withdraw`),
 };
 
 export const schedulingApi = {
