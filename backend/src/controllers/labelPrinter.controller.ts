@@ -14,9 +14,9 @@ import { audit } from '../utils/audit';
 // The same limits the app and the admin print page use. The sheet's first label sits 12.7 mm down and 4.7625 mm in.
 const PAGE = { w: 215.9, h: 279.4 };
 const FIRST = { top: 12.7, left: 4.7625 };
-const num = (name: string, min: number, max: number) =>
-  z.number({ invalid_type_error: `${name} must be a number of millimetres.`, required_error: `${name} is missing.` }).finite()
-    .min(min, `${name} can be from ${min} to ${max} mm.`).max(max, `${name} can be from ${min} to ${max} mm.`);
+const num = (name: string, min: number, max: number, unit: 'mm' | '%' = 'mm') =>
+  z.number({ invalid_type_error: unit === '%' ? `${name} must be a number (a percentage).` : `${name} must be a number of millimetres.`, required_error: `${name} is missing.` }).finite()
+    .min(min, `${name} can be from ${min} to ${max} ${unit}.`).max(max, `${name} can be from ${min} to ${max} ${unit}.`);
 const layoutSchema = z.object({
   down: num('Move down', -10, 10),
   right: num('Move right', -4.5, 4.5),
@@ -24,22 +24,24 @@ const layoutSchema = z.object({
   height: num('Label height', 20, 30),
   gapX: num('Space between columns', 0, 10),
   gapY: num('Space between rows', 0, 8),
+  // Missing from an older app or page: 100 (as set)
+  scale: num('Size %', 90, 110, '%').default(100),
 }).strict();
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 const SELECT = {
   id: true, name: true, labelNudgeDown: true, labelNudgeRight: true, labelWidth: true, labelHeight: true, labelGapX: true, labelGapY: true,
-  labelNudgeUpdatedAt: true, labelNudgeUpdatedBy: true,
+  labelScale: true, labelNudgeUpdatedAt: true, labelNudgeUpdatedBy: true,
 } as const;
 
 type Row = {
   id: string; name: string; labelNudgeDown: number; labelNudgeRight: number; labelWidth: number; labelHeight: number; labelGapX: number; labelGapY: number;
-  labelNudgeUpdatedAt: Date | null; labelNudgeUpdatedBy: string | null;
+  labelScale: number; labelNudgeUpdatedAt: Date | null; labelNudgeUpdatedBy: string | null;
 };
 const shape = (s: Row) => ({
   storeId: s.id, storeName: s.name,
   down: s.labelNudgeDown, right: s.labelNudgeRight, width: s.labelWidth, height: s.labelHeight, gapX: s.labelGapX, gapY: s.labelGapY,
-  updatedAt: s.labelNudgeUpdatedAt, updatedBy: s.labelNudgeUpdatedBy,
+  scale: s.labelScale, updatedAt: s.labelNudgeUpdatedAt, updatedBy: s.labelNudgeUpdatedBy,
 });
 
 /** GET /stores/:storeId/label-printer: anyone with access to the store */
@@ -57,19 +59,24 @@ function checkLayout(body: unknown): { layout: Layout } | { error: string } {
   const parsed = layoutSchema.safeParse(body);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
-    return { error: first?.code === 'unrecognized_keys' ? 'Send only: down, right, width, height, gapX, gapY (mm).' : (first?.message ?? 'Those numbers are not valid.') };
+    return { error: first?.code === 'unrecognized_keys' ? 'Send only: down, right, width, height, gapX, gapY (mm) and scale (%).' : (first?.message ?? 'Those numbers are not valid.') };
   }
   const v = Object.fromEntries(Object.entries(parsed.data).map(([k, x]) => [k, round3(x)])) as Layout;
-  const across = FIRST.left + v.right + 3 * v.width + 2 * v.gapX;
-  const down = FIRST.top + v.down + 10 * v.height + 9 * v.gapY;
-  if (across > PAGE.w + 0.05) return { error: `The labels would run ${Math.round((across - PAGE.w) * 10) / 10} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.` };
-  if (down > PAGE.h + 0.05) return { error: `The labels would run ${Math.round((down - PAGE.h) * 10) / 10} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.` };
+  // 3 labels across and 10 down, grown or shrunk by the size % around the middle of the page (the way the page draws them), must fit
+  const k = v.scale / 100, cx = PAGE.w / 2, cy = PAGE.h / 2;
+  const x0 = FIRST.left + v.right, x1 = x0 + 3 * v.width + 2 * v.gapX, y0 = FIRST.top + v.down, y1 = y0 + 10 * v.height + 9 * v.gapY;
+  const left = cx + (x0 - cx) * k, right = cx + (x1 - cx) * k, top = cy + (y0 - cy) * k, bottom = cy + (y1 - cy) * k;
+  const mm = (n: number) => Math.round(n * 10) / 10;
+  if (right > PAGE.w + 0.05) return { error: `The labels would run ${mm(right - PAGE.w)} mm past the right edge of the page. Make them narrower, the space between columns smaller, the size % smaller, or move them left.` };
+  if (bottom > PAGE.h + 0.05) return { error: `The labels would run ${mm(bottom - PAGE.h)} mm past the bottom of the page. Make them shorter, the space between rows smaller, the size % smaller, or move them up.` };
+  if (left < -0.05) return { error: `The labels would run ${mm(-left)} mm past the left edge of the page. Move them right, or make the size % smaller.` };
+  if (top < -0.05) return { error: `The labels would run ${mm(-top)} mm past the top of the page. Move them down, or make the size % smaller.` };
   return { layout: v };
 }
 
 const toColumns = (v: Layout, by: string | null) => ({
   labelNudgeDown: v.down, labelNudgeRight: v.right, labelWidth: v.width, labelHeight: v.height, labelGapX: v.gapX, labelGapY: v.gapY,
-  labelNudgeUpdatedAt: new Date(), labelNudgeUpdatedBy: by,
+  labelScale: v.scale, labelNudgeUpdatedAt: new Date(), labelNudgeUpdatedBy: by,
 });
 
 /** PUT /stores/:storeId/label-printer: HQ only */
@@ -91,7 +98,7 @@ export async function updateLabelPrinter(req: AuthRequest, res: Response) {
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'LABEL_PRINTER_FINE_TUNE', entity: 'store', entityId: store.id,
     details: {
-      from: { down: was.down, right: was.right, width: was.width, height: was.height, gapX: was.gapX, gapY: was.gapY },
+      from: { down: was.down, right: was.right, width: was.width, height: was.height, gapX: was.gapX, gapY: was.gapY, scale: was.scale },
       to: v,
     },
     storeId: store.id, storeName: store.name,
@@ -113,7 +120,7 @@ export async function applyLabelPrinterToAllStores(req: AuthRequest, res: Respon
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'LABEL_PRINTER_FINE_TUNE', entity: 'store', entityId: null,
-    details: { summary: `Set the label printer for all ${count} open stores: down ${v.down}, right ${v.right}, rows +${v.gapY}, columns ${v.gapX}, labels ${v.width} x ${v.height} mm.`, to: v, stores: count, storeNames: stores.map((s) => s.name) },
+    details: { summary: `Set the label printer for all ${count} open stores: down ${v.down}, right ${v.right}, rows +${v.gapY}, columns ${v.gapX}, labels ${v.width} x ${v.height} mm, size ${v.scale}%.`, to: v, stores: count, storeNames: stores.map((s) => s.name) },
     storeId: null,
   });
   res.json({ success: true, data: { stores: count, layout: v } });

@@ -27,11 +27,12 @@ export function paperSummary(t: (k: string, o?: any) => string, sheet: SheetSett
 // The store's printer fine-tune as the server keeps it
 export interface StorePrinter {
   storeId: string; storeName: string; down: number; right: number; width: number; height: number; gapX: number; gapY: number;
+  scale?: number;   // missing from a server older than the size % (then 100)
   updatedAt: string | null; updatedBy: string | null;
 }
-const LETTER_KEYS: (keyof LetterLayout)[] = ['down', 'right', 'gapY', 'gapX', 'labelH', 'labelW'];
-const LETTER_NAME_KEYS: Record<keyof LetterLayout, string> = { down: 'moveDown', right: 'moveRight', gapY: 'gapRows', gapX: 'gapCols', labelH: 'letterLabelH', labelW: 'letterLabelW' };
-const letterStep = (k: keyof LetterLayout) => (k === 'down' || k === 'right' ? STEP_MM : 0.1);
+const LETTER_KEYS: (keyof LetterLayout)[] = ['down', 'right', 'gapY', 'gapX', 'labelH', 'labelW', 'scale'];
+const LETTER_NAME_KEYS: Record<keyof LetterLayout, string> = { down: 'moveDown', right: 'moveRight', gapY: 'gapRows', gapX: 'gapCols', labelH: 'letterLabelH', labelW: 'letterLabelW', scale: 'sizePct' };
+const letterStep = (k: keyof LetterLayout) => (k === 'down' || k === 'right' || k === 'scale' ? STEP_MM : 0.1);
 
 export default function LabelPaperModal({ visible, sheet, startAt, accentColor, onChange, onStartAt, onClose, printer, storeName, canSetPrinter, onSavePrinter }: {
   visible: boolean;
@@ -320,7 +321,7 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
                               <Text style={st.stepBtnText}>+</Text>
                             </TouchableOpacity>}
                           </View>
-                          <Text style={st.sizeUnit}>mm</Text>
+                          <Text style={st.sizeUnit}>{k === 'scale' ? '%' : 'mm'}</Text>
                         </View>
                       );
                     })}
@@ -331,7 +332,7 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
                         </TouchableOpacity>
                         {letterIssue && (
                           <Text style={st.warn} accessibilityRole="alert">
-                            {t(letterIssue.edge === 'right' ? 'labelPaper.letterFitRight' : 'labelPaper.letterFitBottom', { mm: letterIssue.mm })}
+                            {t({ right: 'labelPaper.letterFitRight', bottom: 'labelPaper.letterFitBottom', left: 'labelPaper.letterFitLeft', top: 'labelPaper.letterFitTop' }[letterIssue.edge], { mm: letterIssue.mm })}
                           </Text>
                         )}
                         {draftChanged && (
@@ -364,6 +365,13 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
                 <Text style={[st.hint, { marginTop: 8 }]}>{t('labelPaper.printHintLetter')}</Text>
               </>
             )}
+
+            {/* How this phone prints: an exact-size PDF first (the default), or the page handed to the print app directly */}
+            <Text style={st.section}>{t('labelPaper.printMethod')}</Text>
+            <View accessibilityRole="radiogroup" style={st.group}>
+              {card(sheet.method === 'pdf', <PrinterIcon size={22} color={sheet.method === 'pdf' ? accentColor : COLORS.textMuted} strokeWidth={2} />, t('labelPaper.methodPdf'), t('labelPaper.methodPdfSub'), () => set({ method: 'pdf' }))}
+              {card(sheet.method === 'direct', <PrinterIcon size={22} color={sheet.method === 'direct' ? accentColor : COLORS.textMuted} strokeWidth={2} />, t('labelPaper.methodDirect'), t('labelPaper.methodDirectSub'), () => set({ method: 'direct' }))}
+            </View>
 
             <TouchableOpacity style={[st.doneBtn, { backgroundColor: accentColor }]} onPress={onClose} accessibilityRole="button">
               <Text style={st.doneBtnText}>{t('labelPaper.done')}</Text>

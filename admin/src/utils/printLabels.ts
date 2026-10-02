@@ -202,6 +202,16 @@ function dividerPage(storeName: string, count: number, first: boolean): string {
   </div>`;
 }
 
+// The size % as CSS: the sheet zoomed by k, its first label placed so the whole grid grows or shrinks around the middle of the page
+function scaledSheetCss(l: LetterLayout): string {
+  const k = l.scale / 100;
+  const cx = 215.9 / 2, cy = 279.4 / 2;
+  const left = cx + (LETTER_MARGIN_MM.side + l.right - cx) * k;
+  const top = cy + (LETTER_MARGIN_MM.topBottom + l.down - cy) * k;
+  const f = (x: number) => Number(x.toFixed(3));
+  return `.lsheet { zoom: ${k}; width: ${f(215.9 / k)}mm; height: ${f(279 / k)}mm; padding: ${f(top / k)}mm 0 0 ${f(left / k)}mm; }`;
+}
+
 const letterLayout = (s: SheetSettings) => {
   const l = s.letter;
   return `
@@ -222,6 +232,11 @@ const letterLayout = (s: SheetSettings) => {
       break-after: page; page-break-after: always;
     }
     .lsheet:last-child { break-after: auto; page-break-after: auto; }
+    /* The size %: the sheet drawn larger (or smaller) around the middle of the page, undoing a print app that shrinks the page to fit
+       (it shrinks it around the middle too). Done with zoom, which really lays the page out at that size: a transform was cut off at
+       the old edges when printed. Inside a zoomed sheet every mm counts k times, so the page size and the first label's place are
+       divided by k to land where they should. */
+    ${l.scale !== 100 ? scaledSheetCss(l) : ''}
     .lsheet .label { width: ${l.labelW}mm; height: ${l.labelH}mm; }
     /* A spot left empty on a sheet that already has labels peeled off */
     .label-blank { width: ${l.labelW}mm; height: ${l.labelH}mm; }
@@ -591,7 +606,7 @@ const PANEL_STYLE = `
 const LETTER_SIZE_FIELDS: [keyof LetterLayout, string][] = [
   ['gapY', 'Space between rows'], ['gapX', 'Space between columns'], ['labelH', 'Label height'], ['labelW', 'Label width'],
 ];
-const LETTER_KEYS: (keyof LetterLayout)[] = ['down', 'right', 'gapY', 'gapX', 'labelH', 'labelW'];
+const LETTER_KEYS: (keyof LetterLayout)[] = ['down', 'right', 'gapY', 'gapX', 'labelH', 'labelW', 'scale'];
 
 const SIZE_FIELDS: [keyof A4Sizes, string][] = [
   ['labelW', 'Label width'], ['labelH', 'Label height'], ['top', 'Top edge to first label'], ['left', 'Left edge to first label'],
@@ -662,9 +677,10 @@ const PANEL_HTML = `
           <label class="ps-field">Move down<span class="in"><input type="number" step="0.1" min="${LETTER_LIMITS.down[0]}" max="${LETTER_LIMITS.down[1]}" id="ps-nudge-down" /><em>mm</em></span></label>
           <label class="ps-field">Move right<span class="in"><input type="number" step="0.1" min="${LETTER_LIMITS.right[0]}" max="${LETTER_LIMITS.right[1]}" id="ps-nudge-right" /><em>mm</em></span></label>
         </div>
-        <p class="ps-help" style="margin: 10px 0 0">Top row right but the bottom row off? Change the space between rows (smaller when the bottom row is too low; if it is already 0, make the label height a little smaller). Left column right but the right column off? The space between columns.</p>
+        <p class="ps-help" style="margin: 10px 0 0">Top row right but the bottom row off? Change the space between rows (smaller when the bottom row is too low; if it is already 0, make the label height a little smaller). Left column right but the right column off? The space between columns. Every row a little higher than the one before, as if the page were shrunk? Set the size % a little over 100.</p>
         <div class="ps-fields">
           ${LETTER_SIZE_FIELDS.map(([k, name]) => `<label class="ps-field">${name}<span class="in"><input type="number" step="0.1" min="${LETTER_LIMITS[k][0]}" max="${LETTER_LIMITS[k][1]}" id="ps-nudge-${k}" /><em>mm</em></span></label>`).join('')}
+          <label class="ps-field">Size %<span class="in"><input type="number" step="0.5" min="${LETTER_LIMITS.scale[0]}" max="${LETTER_LIMITS.scale[1]}" id="ps-nudge-scale" /><em>%</em></span></label>
         </div>
         <button type="button" class="ps-link" id="ps-nudge-reset">Back to the starting numbers</button>
       </details>

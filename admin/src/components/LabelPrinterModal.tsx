@@ -10,16 +10,16 @@ import { loadSheet } from '../utils/labelSheet';
 // HQ only sets it. Staff print from their own phones, and every phone printing for the store uses these numbers. Someone at the
 // store measures it with the test page in the app (Labels, Paper) and tells HQ, for example "the boxes are 1.5 mm too high".
 
-const LIMITS = { down: [-10, 10], right: [-4.5, 4.5], width: [55, 75], height: [20, 30], gapX: [0, 10], gapY: [0, 8] } as const;
-type Nudge = { down: number; right: number; width: number; height: number; gapX: number; gapY: number };
-const KEYS: (keyof Nudge)[] = ['down', 'right', 'gapY', 'gapX', 'height', 'width'];
+const LIMITS = { down: [-10, 10], right: [-4.5, 4.5], width: [55, 75], height: [20, 30], gapX: [0, 10], gapY: [0, 8], scale: [90, 110] } as const;
+type Nudge = { down: number; right: number; width: number; height: number; gapX: number; gapY: number; scale: number };
+const KEYS: (keyof Nudge)[] = ['down', 'right', 'gapY', 'gapX', 'height', 'width', 'scale'];
 // The starting numbers (utils/labelSheet.ts LETTER_DEFAULTS): what prints right on Avery 5160 sheets on HQ's printer
-const AVERY: Nudge = { down: 0, right: 1, width: 65, height: 25, gapX: 4.9, gapY: 0.6 };
-const NAMES: Record<keyof Nudge, string> = { down: 'Move down', right: 'Move right', width: 'Label width', height: 'Label height', gapX: 'Space between columns', gapY: 'Space between rows' };
+const AVERY: Nudge = { down: 0, right: 1, width: 65, height: 25, gapX: 4.9, gapY: 0.6, scale: 100 };
+const NAMES: Record<keyof Nudge, string> = { down: 'Move down', right: 'Move right', width: 'Label width', height: 'Label height', gapX: 'Space between columns', gapY: 'Space between rows', scale: 'Size %' };
 const PAGE = { w: 215.9, h: 279.4 };
-const stepOf = (k: keyof Nudge) => (k === 'down' || k === 'right' ? 0.5 : 0.1);
+const stepOf = (k: keyof Nudge) => (k === 'down' || k === 'right' || k === 'scale' ? 0.5 : 0.1);
 const toText = (n: Nudge) => Object.fromEntries(KEYS.map(k => [k, String(n[k])])) as Record<keyof Nudge, string>;
-const pick = (d: any): Nudge => ({ down: d.down, right: d.right, width: d.width, height: d.height, gapX: d.gapX, gapY: d.gapY });
+const pick = (d: any): Nudge => ({ down: d.down, right: d.right, width: d.width, height: d.height, gapX: d.gapX, gapY: d.gapY, scale: d.scale ?? 100 });
 
 function when(iso: string | null): string {
   if (!iso) return '';
@@ -38,7 +38,7 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
   const [allStores, setAllStores] = useState(false);
   // What this computer's print page is set to (Labels, Print, Fine-tune for your printer), so it can be copied here without retyping
   const here = loadSheet().letter;
-  const hereNudge: Nudge = { down: here.down, right: here.right, width: here.labelW, height: here.labelH, gapX: here.gapX, gapY: here.gapY };
+  const hereNudge: Nudge = { down: here.down, right: here.right, width: here.labelW, height: here.labelH, gapX: here.gapX, gapY: here.gapY, scale: here.scale };
   const hereIsDefault = KEYS.every(k => hereNudge[k] === AVERY[k]);
 
   async function load() {
@@ -68,16 +68,24 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
     for (const k of KEYS) {
       const v = num(k);
       const name = NAMES[k];
-      if (!Number.isFinite(v)) { setError(`${name}: type a number of millimetres (0 for no move).`); return; }
-      if (v < LIMITS[k][0] || v > LIMITS[k][1]) { setError(`${name} can be from ${LIMITS[k][0]} to ${LIMITS[k][1]} mm.`); return; }
+      const unit = k === 'scale' ? '%' : 'mm';
+      if (!Number.isFinite(v)) { setError(k === 'scale' ? 'Size %: type a percentage (100 for as set).' : `${name}: type a number of millimetres (0 for no move).`); return; }
+      if (v < LIMITS[k][0] || v > LIMITS[k][1]) { setError(`${name} can be from ${LIMITS[k][0]} to ${LIMITS[k][1]} ${unit}.`); return; }
     }
     setSaving(true);
     try {
       const next = Object.fromEntries(KEYS.map(k => [k, num(k)])) as Nudge;
       // 3 labels across and 10 down must still fit on the page (the server checks this too)
-      const across = 4.7625 + next.right + 3 * next.width + 2 * next.gapX, down = 12.7 + next.down + 10 * next.height + 9 * next.gapY;
-      if (across > PAGE.w + 0.05) { setError(`The labels would run ${Math.round((across - PAGE.w) * 10) / 10} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.`); return; }
-      if (down > PAGE.h + 0.05) { setError(`The labels would run ${Math.round((down - PAGE.h) * 10) / 10} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.`); return; }
+      // The size % grows or shrinks the sheet around the middle of the page (as the page draws it): every edge must stay on the paper
+      const k = next.scale / 100, cx = PAGE.w / 2, cy = PAGE.h / 2;
+      const x0 = 4.7625 + next.right, x1 = x0 + 3 * next.width + 2 * next.gapX, y0 = 12.7 + next.down, y1 = y0 + 10 * next.height + 9 * next.gapY;
+      const left = cx + (x0 - cx) * k, right = cx + (x1 - cx) * k, top = cy + (y0 - cy) * k, bottom = cy + (y1 - cy) * k;
+      const mm = (n: number) => Math.round(n * 10) / 10;
+      const off = right > PAGE.w + 0.05 ? `The labels would run ${mm(right - PAGE.w)} mm past the right edge of the page. Make them narrower, the space between columns smaller, the size % smaller, or move them left.`
+        : bottom > PAGE.h + 0.05 ? `The labels would run ${mm(bottom - PAGE.h)} mm past the bottom of the page. Make them shorter, the space between rows smaller, the size % smaller, or move them up.`
+        : left < -0.05 ? `The labels would run ${mm(-left)} mm past the left edge of the page. Move them right, or make the size % smaller.`
+        : top < -0.05 ? `The labels would run ${mm(-top)} mm past the top of the page. Move them down, or make the size % smaller.` : '';
+      if (off) { setError(off); return; }
       if (allStores) {
         const r = await storesApi.setLabelPrinterAllStores(next);
         toast.success(`Saved for all ${r.data.data.stores} open stores. Every phone uses it from the next print. A store can still be set on its own.`, { duration: 6000 });
@@ -104,7 +112,7 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
         <button type="button" style={p.step} aria-label={`${label}: ${stepOf(k)} mm less`} onClick={() => { setError(''); setText(t => ({ ...t, [k]: String(Math.round(((parseFloat(t[k]) || 0) - stepOf(k)) * 1000) / 1000) })); }}>−</button>
         <input style={p.input} inputMode="decimal" value={text[k]} aria-label={`${label} (mm)`} onChange={e => { setError(''); setText(t => ({ ...t, [k]: e.target.value })); }} />
         <button type="button" style={p.step} aria-label={`${label}: ${stepOf(k)} mm more`} onClick={() => { setError(''); setText(t => ({ ...t, [k]: String(Math.round(((parseFloat(t[k]) || 0) + stepOf(k)) * 1000) / 1000) })); }}>+</button>
-        <em style={p.unit}>mm</em>
+        <em style={p.unit}>{k === 'scale' ? '%' : 'mm'}</em>
       </span>
       <small style={p.help}>{help}</small>
     </label>
@@ -123,7 +131,7 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
             holds it over a label sheet against a light, and tells you how far the boxes are from the stickers. Every phone printing for this store uses these numbers.
           </p>
           <div style={p.current}>
-            {by.name ? <>Set by {by.name}{by.at ? `, ${when(by.at)}` : ''}: down {saved.down}, right {saved.right}, rows +{saved.gapY}, columns {saved.gapX}, labels {saved.width} x {saved.height} mm</> : <>Not set yet: the starting numbers (down 0, right 1, rows +0.6, columns 4.9, labels 65 x 25 mm).</>}
+            {by.name ? <>Set by {by.name}{by.at ? `, ${when(by.at)}` : ''}: down {saved.down}, right {saved.right}, rows +{saved.gapY}, columns {saved.gapX}, labels {saved.width} x {saved.height} mm, size {saved.scale}%</> : <>Not set yet: the starting numbers (down 0, right 1, rows +0.6, columns 4.9, labels 65 x 25 mm, size 100%).</>}
           </div>
           <div style={p.fields}>
             {field('down', 'Move down', 'Boxes too high: a plus number. Too low: minus.')}
@@ -135,6 +143,7 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
             {field('gapX', 'Space between columns', 'Right column too far right: smaller. Too far left: bigger.')}
             {field('height', 'Label height', 'One sticker, top to bottom.')}
             {field('width', 'Label width', 'One sticker, left to right.')}
+            {field('scale', 'Size %', 'Every row a little higher than the one before, as if the page were shrunk? A little over 100, e.g. 103.')}
           </div>
           <div style={p.copyRow}>
             {hereIsDefault ? (
@@ -145,7 +154,7 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
                 Copy from this computer's print page
               </button>
             )}
-            {!hereIsDefault && <span style={p.help}>down {hereNudge.down}, right {hereNudge.right}, rows +{hereNudge.gapY}, columns {hereNudge.gapX}, labels {hereNudge.width} x {hereNudge.height}</span>}
+            {!hereIsDefault && <span style={p.help}>down {hereNudge.down}, right {hereNudge.right}, rows +{hereNudge.gapY}, columns {hereNudge.gapX}, labels {hereNudge.width} x {hereNudge.height}, size {hereNudge.scale}%</span>}
           </div>
           <label style={p.allRow}>
             <input type="checkbox" checked={allStores} onChange={e => { setError(''); setAllStores(e.target.checked); }} />

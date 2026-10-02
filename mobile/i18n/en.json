@@ -2447,7 +2447,15 @@
     "letterLabelH": "Label height",
     "letterLabelW": "Label width",
     "letterFitRight": "The labels would run {{mm}} mm past the right edge of the page. Make them narrower, the space between columns smaller, or move them left.",
-    "letterFitBottom": "The labels would run {{mm}} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up."
+    "letterFitBottom": "The labels would run {{mm}} mm past the bottom of the page. Make them shorter, the space between rows smaller, or move them up.",
+    "sizePct": "Size %",
+    "printMethod": "How this phone prints",
+    "methodPdf": "Exact-size PDF (recommended)",
+    "methodPdfSub": "Makes a PDF at the exact paper size, then prints it, so the print app cannot change the layout.",
+    "methodDirect": "Direct",
+    "methodDirectSub": "Hands the page to the print app. Try this only if a printer does better with it.",
+    "letterFitLeft": "The labels would run {{mm}} mm past the left edge of the page. Move them right, or make the size % smaller.",
+    "letterFitTop": "The labels would run {{mm}} mm past the top of the page. Move them down, or make the size % smaller."
   },
   "notices": {
     "urgent": "Urgent",

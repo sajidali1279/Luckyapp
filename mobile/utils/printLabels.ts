@@ -6,7 +6,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { code128ToSvg } from './code128';
-import { SheetSettings, DEFAULT_SHEET, A4_PER_SHEET, A4_COLS, A4_ROWS, PAGE_POINTS, tallScale, LETTER_MARGIN_MM, LETTER_PER_SHEET, LETTER_COLS, LETTER_ROWS } from './labelSheet';
+import { SheetSettings, DEFAULT_SHEET, A4_PER_SHEET, A4_COLS, A4_ROWS, PAGE_POINTS, tallScale, LETTER_MARGIN_MM, LETTER_PER_SHEET, LETTER_COLS, LETTER_ROWS, PrintMethod, LetterLayout } from './labelSheet';
 
 export interface PrintableLabel {
   id: string;
@@ -93,6 +93,16 @@ function renderLabel(label: PrintableLabel): string {
   `;
 }
 
+// The size % as CSS: the sheet zoomed by k, its first label placed so the whole grid grows or shrinks around the middle of the page
+function scaledSheetCss(l: LetterLayout): string {
+  const k = l.scale / 100;
+  const cx = 215.9 / 2, cy = 279.4 / 2;
+  const left = cx + (LETTER_MARGIN_MM.side + l.right - cx) * k;
+  const top = cy + (LETTER_MARGIN_MM.topBottom + l.down - cy) * k;
+  const f = (x: number) => Number(x.toFixed(3));
+  return `.lsheet { zoom: ${k}; width: ${f(215.9 / k)}mm; height: ${f(279 / k)}mm; padding: ${f(top / k)}mm 0 0 ${f(left / k)}mm; }`;
+}
+
 const letterLayout = (s: SheetSettings) => {
   const l = s.letter;
   const r = (x: number) => Number(x.toFixed(3));
@@ -114,6 +124,11 @@ const letterLayout = (s: SheetSettings) => {
       break-after: page; page-break-after: always;
     }
     .lsheet:last-child { break-after: auto; page-break-after: auto; }
+    /* The size %: the sheet drawn larger (or smaller) around the middle of the page, undoing a print app that shrinks the page to fit
+       (it shrinks it around the middle too). Done with zoom, which really lays the page out at that size: a transform was cut off at
+       the old edges when printed. Inside a zoomed sheet every mm counts k times, so the page size and the first label's place are
+       divided by k to land where they should. */
+    ${l.scale !== 100 ? scaledSheetCss(l) : ''}
     .lsheet .label { width: ${l.labelW}mm; height: ${l.labelH}mm; }
     /* A spot left empty on a sheet that already has labels peeled off */
     .label-blank { width: ${l.labelW}mm; height: ${l.labelH}mm; }
@@ -427,7 +442,10 @@ export function buildTestSheetHtml(sheet: SheetSettings): string {
   return page(LABEL_STYLE + tallCss({ ...sheet, format: 'a4x18' }), `<div class="sheet">${cells}</div>`);
 }
 
-async function output(html: string, pageSize: { width: number; height: number }, shareAsPdf: boolean) {
+// Prints (or shares) the page. 'pdf' (the default) makes a PDF at the exact paper size first and prints that file, so the phone's print app
+// cannot lay the page out again on its own (the cause of labels creeping off the stickers on some phones). 'direct' hands the page itself
+// to the print app, as before; it is also the fallback when the PDF cannot be made.
+async function output(html: string, pageSize: { width: number; height: number }, shareAsPdf: boolean, method: PrintMethod = 'pdf') {
   if (shareAsPdf) {
     const { uri } = await Print.printToFileAsync({ html, ...pageSize });
     await Sharing.shareAsync(uri, {
@@ -435,9 +453,21 @@ async function output(html: string, pageSize: { width: number; height: number },
       dialogTitle: 'Labels.pdf',
       UTI: 'com.adobe.pdf',
     });
-  } else {
-    await Print.printAsync({ html, ...pageSize });
+    return;
   }
+  if (method === 'pdf') {
+    let uri: string | null = null;
+    try {
+      uri = (await Print.printToFileAsync({ html, ...pageSize })).uri;
+    } catch {
+      uri = null;   // could not make the PDF: print the page directly instead
+    }
+    if (uri) {
+      await Print.printAsync({ uri });
+      return;
+    }
+  }
+  await Print.printAsync({ html, ...pageSize });
 }
 
 export async function printLabels({
@@ -451,9 +481,9 @@ export async function printLabels({
   sheet?: SheetSettings;
   skip?: number;
 }): Promise<void> {
-  await output(buildHtml(entries, sheet, skip), PAGE_POINTS[sheet.format], shareAsPdf);
+  await output(buildHtml(entries, sheet, skip), PAGE_POINTS[sheet.format], shareAsPdf, sheet.method);
 }
 
 export async function printTestSheet(sheet: SheetSettings): Promise<void> {
-  await output(buildTestSheetHtml(sheet), PAGE_POINTS[sheet.format], false);
+  await output(buildTestSheetHtml(sheet), PAGE_POINTS[sheet.format], false, sheet.method);
 }

@@ -2447,7 +2447,15 @@
     "letterLabelH": "Alto de la etiqueta",
     "letterLabelW": "Ancho de la etiqueta",
     "letterFitRight": "Las etiquetas se saldrían {{mm}} mm del borde derecho de la página. Hágalas más angostas, reduzca el espacio entre columnas o muévalas a la izquierda.",
-    "letterFitBottom": "Las etiquetas se saldrían {{mm}} mm del borde inferior de la página. Hágalas más bajas, reduzca el espacio entre filas o muévalas hacia arriba."
+    "letterFitBottom": "Las etiquetas se saldrían {{mm}} mm del borde inferior de la página. Hágalas más bajas, reduzca el espacio entre filas o muévalas hacia arriba.",
+    "sizePct": "Tamaño %",
+    "printMethod": "Cómo imprime este teléfono",
+    "methodPdf": "PDF de tamaño exacto (recomendado)",
+    "methodPdfSub": "Crea un PDF del tamaño exacto del papel y lo imprime, así la app de impresión no cambia el diseño.",
+    "methodDirect": "Directo",
+    "methodDirectSub": "Envía la página a la app de impresión. Úselo solo si una impresora funciona mejor así.",
+    "letterFitLeft": "Las etiquetas se saldrían {{mm}} mm del borde izquierdo de la página. Muévalas a la derecha o reduzca el tamaño %.",
+    "letterFitTop": "Las etiquetas se saldrían {{mm}} mm del borde superior de la página. Muévalas hacia abajo o reduzca el tamaño %."
   },
   "notices": {
     "urgent": "Urgente",

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "stores" ADD COLUMN     "labelScale" DOUBLE PRECISION NOT NULL DEFAULT 100;
+

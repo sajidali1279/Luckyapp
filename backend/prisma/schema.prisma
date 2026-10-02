@@ -317,6 +317,8 @@ model Store {
   labelHeight         Float     @default(25)
   labelGapX           Float     @default(4.9)
   labelGapY           Float     @default(0.6)
+  // The whole sheet drawn this % of its size, for a phone print app that shrinks the page (100 = as set)
+  labelScale          Float     @default(100)
   labelNudgeUpdatedAt DateTime?
   labelNudgeUpdatedBy String?
 

@@ -291,13 +291,13 @@ export default function LabelsScreen() {
   const storePrinter: StorePrinter | null = printerData?.data?.data ?? null;
   const printSheet: SheetSettings = useMemo(
     () => ({ ...sheet, letter: storePrinter
-      ? { down: storePrinter.down, right: storePrinter.right, labelW: storePrinter.width, labelH: storePrinter.height, gapX: storePrinter.gapX, gapY: storePrinter.gapY }
+      ? { down: storePrinter.down, right: storePrinter.right, labelW: storePrinter.width, labelH: storePrinter.height, gapX: storePrinter.gapX, gapY: storePrinter.gapY, scale: storePrinter.scale ?? 100 }
       : { ...LETTER_DEFAULTS } }),
     [sheet, storePrinter],
   );
   async function savePrinter(l: LetterLayout) {
     if (!storeId) return;
-    const res = await storesApi.setLabelPrinter(storeId, { down: l.down, right: l.right, width: l.labelW, height: l.labelH, gapX: l.gapX, gapY: l.gapY });
+    const res = await storesApi.setLabelPrinter(storeId, { down: l.down, right: l.right, width: l.labelW, height: l.labelH, gapX: l.gapX, gapY: l.gapY, scale: l.scale });
     qc.setQueryData(['label-printer', storeId], res);
   }
   const cart = useLabelCart(s => (cartId ? s.carts[cartId] : undefined)) ?? EMPTY_CART;

@@ -16,8 +16,13 @@ export type SheetFormat = 'letter30' | 'a4x18';
 export type TallDesign = 'sideways' | 'upright';
 export interface A4Sizes { labelW: number; labelH: number; top: number; left: number; gapX: number; gapY: number }
 // down/right move the whole page; labelW/labelH are one label, gapX/gapY the space between columns and between rows (all mm)
-export interface LetterLayout { down: number; right: number; labelW: number; labelH: number; gapX: number; gapY: number }
-export interface SheetSettings { format: SheetFormat; design: TallDesign; a4: A4Sizes; letter: LetterLayout }
+// scale: the whole sheet drawn this % of its size (100 = as set). A phone's print app that shrinks the page (top row right, the rows
+// creeping up the further down they are) is made up for by a little over 100, e.g. 103.
+export interface LetterLayout { down: number; right: number; labelW: number; labelH: number; gapX: number; gapY: number; scale: number }
+// method: how the phone prints. 'pdf' makes a PDF at the exact paper size first and prints that file, so the print app cannot lay the
+// page out again (the default); 'direct' hands the page to the print app as before, for a printer that does better that way.
+export type PrintMethod = 'pdf' | 'direct';
+export interface SheetSettings { format: SheetFormat; design: TallDesign; a4: A4Sizes; letter: LetterLayout; method: PrintMethod }
 
 export const A4_PAGE = { w: 210, h: 297 };
 export const A4_COLS = 6;
@@ -29,8 +34,8 @@ export const A4_DEFAULTS: A4Sizes = { labelW: 31.3, labelH: 92.3, top: 8, left: 
 // The starting numbers for Letter sheets: what HQ found prints right on Avery 5160 sheets (HP DeskJet 2700, 2026-10-02), so every
 // computer and every store's phones start there. The sheet's own die-cut numbers are 66.675 x 25.4 mm labels, 3.175 mm between
 // columns and none between rows; a printer's small shift and scale are why these differ.
-export const LETTER_DEFAULTS: LetterLayout = { down: 0, right: 1, labelW: 65, labelH: 25, gapX: 4.9, gapY: 0.6 };
-export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS }, letter: { ...LETTER_DEFAULTS } };
+export const LETTER_DEFAULTS: LetterLayout = { down: 0, right: 1, labelW: 65, labelH: 25, gapX: 4.9, gapY: 0.6, scale: 100 };
+export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS }, letter: { ...LETTER_DEFAULTS }, method: 'pdf' };
 
 // Where an Avery 5160 sheet's first label sits: 1/2 in from the top, 3/16 in from the left. Move down / right shift from there.
 export const LETTER_PAGE = { w: 215.9, h: 279.4 };
@@ -38,7 +43,7 @@ export const LETTER_COLS = 3;
 export const LETTER_ROWS = 10;
 export const LETTER_MARGIN_MM = { topBottom: 12.7, side: 4.7625 };
 export const LETTER_LIMITS: Record<keyof LetterLayout, [number, number]> = {
-  down: [-10, 10], right: [-4.5, 4.5], labelW: [55, 75], labelH: [20, 30], gapX: [0, 10], gapY: [0, 8],
+  down: [-10, 10], right: [-4.5, 4.5], labelW: [55, 75], labelH: [20, 30], gapX: [0, 10], gapY: [0, 8], scale: [90, 110],
 };
 
 export const SIZE_LIMITS: Record<keyof A4Sizes, [number, number]> = {
@@ -74,6 +79,7 @@ export function cleanSheet(raw: unknown): SheetSettings {
     design: r.design === 'upright' ? 'upright' : 'sideways',
     a4,
     letter,
+    method: r.method === 'direct' ? 'direct' : 'pdf',
   };
 }
 
@@ -87,11 +93,16 @@ export function fitIssue(a: A4Sizes): { edge: 'right' | 'bottom'; mm: number } |
 }
 
 // The Letter labels as set would run past the right edge or the bottom of the page by this many millimetres (null when they fit)
-export function letterFitIssue(l: LetterLayout): { edge: 'right' | 'bottom'; mm: number } | null {
-  const width = LETTER_MARGIN_MM.side + l.right + LETTER_COLS * l.labelW + (LETTER_COLS - 1) * l.gapX;
-  const height = LETTER_MARGIN_MM.topBottom + l.down + LETTER_ROWS * l.labelH + (LETTER_ROWS - 1) * l.gapY;
-  if (width > LETTER_PAGE.w + 0.05) return { edge: 'right', mm: round1(width - LETTER_PAGE.w) };
-  if (height > LETTER_PAGE.h + 0.05) return { edge: 'bottom', mm: round1(height - LETTER_PAGE.h) };
+export function letterFitIssue(l: LetterLayout): { edge: 'right' | 'bottom' | 'left' | 'top'; mm: number } | null {
+  const k = l.scale / 100;   // the size % grows or shrinks the drawn sheet around the middle of the page
+  const cx = LETTER_PAGE.w / 2, cy = LETTER_PAGE.h / 2;
+  const x0 = LETTER_MARGIN_MM.side + l.right, x1 = x0 + LETTER_COLS * l.labelW + (LETTER_COLS - 1) * l.gapX;
+  const y0 = LETTER_MARGIN_MM.topBottom + l.down, y1 = y0 + LETTER_ROWS * l.labelH + (LETTER_ROWS - 1) * l.gapY;
+  const left = cx + (x0 - cx) * k, right = cx + (x1 - cx) * k, top = cy + (y0 - cy) * k, bottom = cy + (y1 - cy) * k;
+  if (right > LETTER_PAGE.w + 0.05) return { edge: 'right', mm: round1(right - LETTER_PAGE.w) };
+  if (bottom > LETTER_PAGE.h + 0.05) return { edge: 'bottom', mm: round1(bottom - LETTER_PAGE.h) };
+  if (left < -0.05) return { edge: 'left', mm: round1(-left) };
+  if (top < -0.05) return { edge: 'top', mm: round1(-top) };
   return null;
 }
 
