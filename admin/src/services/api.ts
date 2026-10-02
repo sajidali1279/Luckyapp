@@ -120,6 +120,18 @@ export const offersApi = {
   getLiveAndScheduled: () => api.get('/offers?includeScheduled=1'),
   getHistory: () => api.get('/offers/history'),
   getResults: (offerId: string) => api.get(`/offers/${offerId}/results`),   // what a promotion did (HQ)
+  /** What a promotion would add in cashback, from the last 4 weeks of the same kind of sales. */
+  estimate: (data: object) => api.post('/offers/estimate', data),
+  /** Label deals the app shows in Today's Deals, and hiding one (HQ). */
+  getShelfDeals: () => api.get('/offers/shelf-deals'),
+  setShelfDealHidden: (labelId: string, hidden: boolean) => api.patch(`/offers/shelf-deals/${labelId}`, { hidden }),
+};
+
+/** Store managers' cashback promotion requests, which HQ approves (with any changes) or declines with a reason. */
+export const offerRequestsApi = {
+  list: (status?: string) => api.get('/offer-requests', { params: status ? { status } : {} }),
+  approve: (id: string, changes: object) => api.post(`/offer-requests/${id}/approve`, changes),
+  decline: (id: string, reason: string) => api.post(`/offer-requests/${id}/decline`, { reason }),
 };
 
 export const bannersApi = {

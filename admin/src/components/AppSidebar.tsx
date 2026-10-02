@@ -162,7 +162,7 @@ export function AppSidebar() {
   const {
     unreadCount, supportUnread, careersNewCount, requestsPendingCount, disputesPendingCount, chatUnreadCount,
     transactionsPendingCount, schedulingPendingCount, promotionsPendingCount, hotFoodPendingCount,
-    categoriesPendingCount, billingPendingCount,
+    categoriesPendingCount, billingPendingCount, offerRequestsPendingCount,
   } = badges;
 
   // Pinned pages (from the command palette, Shift+Enter) and pages opened recently through it. Both are
@@ -307,7 +307,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Content</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarNavItem to="/offers" icon={<Tag size={16} />} label="Offers" />
+              <SidebarNavItem to="/offers" icon={<Tag size={16} />} label="Offers" badge={offerRequestsPendingCount} />
               <SidebarNavItem to="/banners" icon={<Image size={16} />} label="Banners" />
               <SidebarNavItem to="/notices" icon={<Pin size={16} />} label="Notices" />
               <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Catalog" />

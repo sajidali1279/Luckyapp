@@ -25,7 +25,7 @@ export const NAV_ITEMS: NavEntry[] = [
   { to: '/inventory-analytics', label: 'Inventory Intelligence', icon: Package, group: 'Overview' },
   { to: '/analytics', label: 'Analytics', icon: TrendingUp, group: 'Overview', roles: ['DEV_ADMIN'] },
 
-  { to: '/offers', label: 'Offers', icon: Tag, group: 'Content' },
+  { to: '/offers', label: 'Offers', icon: Tag, group: 'Content', badgeKey: 'offerRequestsPendingCount' },
   { to: '/banners', label: 'Banners', icon: Image, group: 'Content' },
   { to: '/notices', label: 'Notices', icon: Pin, group: 'Content' },
   { to: '/catalog', label: 'Catalog', icon: Gift, group: 'Content' },

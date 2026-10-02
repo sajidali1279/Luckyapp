@@ -90,9 +90,19 @@ export async function listOfferRequests(req: AuthRequest, res: Response) {
     where: { ...(status ? { status: status as never } : {}), ...(mine ? { storeId: { in: req.user!.storeIds ?? [] } } : {}) },
     orderBy: [{ createdAt: 'desc' }],
     take: 100,
-    include: { store: { select: { name: true } } },
+    include: {
+      store: { select: { name: true } },
+      // What was approved (HQ may have changed the bonus, the dates or the hours)
+      offer: { select: { id: true, title: true, category: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, startDate: true, endDate: true, happyDays: true, happyFrom: true, happyTo: true, isActive: true } },
+    },
   });
-  res.json({ success: true, data: requests.map((r) => ({ ...r, bonusText: bonusWords(r), hoursText: hoursText(r) })) });
+  res.json({
+    success: true,
+    data: requests.map((r) => ({
+      ...r, bonusText: bonusWords(r), hoursText: hoursText(r),
+      offer: r.offer ? { ...r.offer, bonusText: bonusWords(r.offer), hoursText: hoursText(r.offer) } : null,
+    })),
+  });
 }
 
 /** POST /offer-requests/:id/withdraw: the manager takes back a request HQ has not decided yet. */

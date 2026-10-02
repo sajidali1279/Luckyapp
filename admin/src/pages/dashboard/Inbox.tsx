@@ -102,6 +102,7 @@ export default function AttentionInbox() {
       text: `${plural(ending.length, 'promotion')} ending within two days`, meta: list(ending.map((o) => o.title)) });
   }
 
+  if (b.offerRequestsPendingCount > 0) items.push({ id: 'offer-requests', sev: 'med', count: b.offerRequestsPendingCount, text: `${plural(b.offerRequestsPendingCount, 'promotion request')} from store managers`, to: '/offers?tab=requests' });
   if (b.requestsPendingCount > 0) items.push({ id: 'requests', sev: 'med', count: b.requestsPendingCount, text: `${plural(b.requestsPendingCount, 'store request')} to review`, to: '/store-requests' });
   if (b.supportUnread > 0) items.push({ id: 'support', sev: 'med', count: b.supportUnread, text: `${plural(b.supportUnread, 'unread support message')}`, to: '/support' });
   if (b.schedulingPendingCount > 0) items.push({ id: 'scheduling', sev: 'med', count: b.schedulingPendingCount, text: `${plural(b.schedulingPendingCount, 'schedule request')} waiting`, to: '/scheduling' });

@@ -7,6 +7,7 @@
 import prisma from '../config/prisma';
 import { ProductCategory } from '@prisma/client';
 import { offerPaysAt, OfferHours } from './offerHours';
+import { getTierBonusRate } from './tier';
 
 export const ESTIMATE_BASIS_DAYS = 28;
 
@@ -52,8 +53,9 @@ export async function estimateOffer(input: EstimateInput, now: Date = new Date()
     if (input.gasBonusCentsPerGallon != null) {
       extra += (s.gasGallons ?? 0) * input.gasBonusCentsPerGallon / 100;
     } else {
-      const tierRate = input.tierBonusRates && s.customer?.tier ? input.tierBonusRates[s.customer.tier] : undefined;
-      extra += s.purchaseAmount * (tierRate ?? input.bonusRate ?? 0);
+      // The till's own rule (utils/tier.ts): per tier, a tier left out gets no bonus, not the top tier's rate that bonusRate carries
+      const perTier = input.tierBonusRates && Object.keys(input.tierBonusRates).length > 0 ? input.tierBonusRates : null;
+      extra += s.purchaseAmount * getTierBonusRate({ bonusRate: input.bonusRate ?? null, tierBonusRates: perTier }, s.customer?.tier ?? '');
     }
   }
   const days = Math.max(1, Math.round((input.endDate.getTime() - input.startDate.getTime()) / 86_400_000));

@@ -1,20 +1,26 @@
 ﻿import { useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { offersApi, storesApi } from '../services/api';
+import { offersApi, storesApi, offerRequestsApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { C, FONT, RADIUS, INPUT } from '../lib/theme';
 import { Page, PageHeader, SectionTitle, Tabs, Button, Chip, Card, Badge, Notice, EmptyState, Field } from '../components/kit';
-import { LayoutTemplate, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2, Pencil, Square } from 'lucide-react';
+import { LayoutTemplate, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2, Pencil, Square, Clock, BellOff } from 'lucide-react';
 import Modal from '../components/Modal';
 import { serverMessage } from '../lib/apiError';
 import OfferResultsModal from '../components/OfferResultsModal';
 import { storeToday, addDays, monthEnd, dayLabel, startOfStoreDay, endOfStoreDay, storeDayLong, storeDayTime } from '../lib/storeDates';
 import { CASHBACK_CAP, MAX_CENTS_PER_GALLON, findClashes, tiersAtCeiling, pctText, type Clash, type DraftPromo, type PostedOffer } from '../lib/offerRules';
 import { useTierRates, useCategoryRates } from './dashboard/queries';
+import CostEstimate, { type EstimateInput } from '../components/offers/CostEstimate';
+import OfferRequestsPanel from '../components/offers/OfferRequestsPanel';
+import OfferCalendar from '../components/offers/OfferCalendar';
+import ShelfDealsSection from '../components/offers/ShelfDealsSection';
+import { HappyHoursField, LastDayToggle, NO_HOURS, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -101,7 +107,9 @@ function fmtDate(d: string) { return storeDayLong(d); }
 type PostKind = 'promo' | 'quick' | 'deal';
 type QuickDuration = 'today' | '3d' | '1w' | '2w' | '1m';
 /** Everything the "are you sure" box shows before a post goes to customers. */
-type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[]; notify: string };
+type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[]; notify: string; estimate: EstimateInput };
+type MainTab = 'promotions' | 'deals' | 'requests' | 'calendar';
+const MAIN_TABS: MainTab[] = ['promotions', 'deals', 'requests', 'calendar'];
 
 const BONUS_TOO_BIG = `A bonus can be at most ${CASHBACK_CAP * 100}%, because total cashback is capped at ${CASHBACK_CAP * 100}% of a sale.`;
 /** A percentage typed as 7.5 as the fraction the server stores (0.075), without 0.07500000000000001. */
@@ -124,7 +132,14 @@ export default function Offers() {
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const isStoreManager = user?.role === 'STORE_MANAGER';
-  const [mainTab, setMainTab] = useState<'promotions' | 'deals'>('promotions');
+  const isHQ = user?.role === 'SUPER_ADMIN' || user?.role === 'DEV_ADMIN';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab') as MainTab | null;
+  const [mainTab, setMainTabState] = useState<MainTab>(urlTab && MAIN_TABS.includes(urlTab) && (isHQ || urlTab === 'deals' || urlTab === 'calendar') ? urlTab : 'promotions');
+  function setMainTab(v: MainTab) {
+    setMainTabState(v);
+    setSearchParams((sp) => { const n = new URLSearchParams(sp); if (v === 'promotions') n.delete('tab'); else n.set('tab', v); return n; }, { replace: true });
+  }
   const [showForm, setShowForm] = useState(false);
   const [showQuick, setShowQuick] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -165,6 +180,8 @@ export default function Offers() {
   const [endDate, setEndDate] = useState(defaultEndStr());
   const [imageFile, setImageFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [hours, setHours] = useState<HappyHours>(NO_HOURS);
+  const [lastDayReminder, setLastDayReminder] = useState(true);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [resultsFor, setResultsFor] = useState<{ id: string; title: string } | null>(null);
@@ -182,12 +199,15 @@ export default function Offers() {
   const tierRates: any[] = tierRatesQ.data?.data?.data || [];
   const catRates: any[] = catRatesQ.data?.data?.data || [];
   const { data: historyData } = useQuery({
-    queryKey: ['offers-history'], queryFn: () => offersApi.getHistory(), enabled: showHistory,
+    queryKey: ['offers-history'], queryFn: () => offersApi.getHistory(), enabled: showHistory || mainTab === 'calendar',
   });
   // getAccessible() avoids a pointless 403 for Store Manager (getAll() is
   // SuperAdmin+ only) — the store picker this feeds is already hidden for
   // that role, but there's no reason to fire a call guaranteed to fail.
   const { data: storesData } = useQuery({ queryKey: ['accessible-stores'], queryFn: () => storesApi.getAccessible() });
+  // Store managers' requests waiting for HQ (the Requests tab's count; the panel shares this list)
+  const { data: requestsData } = useQuery({ queryKey: ['offer-requests'], queryFn: () => offerRequestsApi.list(), enabled: isHQ });
+  const waitingRequests = ((requestsData?.data?.data ?? []) as any[]).filter((r) => r.status === 'PENDING').length;
 
   const offers: any[] = data?.data?.data || [];
   const pastOffers: any[] = historyData?.data?.data || [];
@@ -229,6 +249,7 @@ export default function Offers() {
     setUseTierBonuses(false); setTierBonuses({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
     setType('ALL_STORES'); setStoreId(''); setCategory(null); setGasBonusCpg(''); setGasBonusType('cpg');
     setStartDate(todayStr()); setEndDate(defaultEndStr()); setImageFile(null); setRequires21(false);
+    setHours(NO_HOURS); setLastDayReminder(true);
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -267,6 +288,8 @@ export default function Offers() {
     setType(offer.type || 'ALL_STORES');
     setStoreId(offer.storeId || '');
     setRequires21(!!offer.requires21);
+    setHours(hoursFrom(offer));
+    setLastDayReminder(offer.lastDayReminder !== false);
     setStartDate(todayStr());
     setEndDate(defaultEndStr());
     setShowForm(true);
@@ -302,6 +325,8 @@ export default function Offers() {
     if (endDate < startDate) { toast.error('The end date must be on or after the start date'); return; }
     if (endDate < storeToday()) { toast.error('That end date has already passed'); return; }
     if (type === 'SPECIFIC_STORE' && !storeId) { toast.error('Select a store'); return; }
+    const hoursIssue = hoursProblem(hours);
+    if (hoursIssue) { toast.error(hoursIssue); return; }
 
     const isGasDiesel = category === 'GAS' || category === 'DIESEL';
     const isCpg = isGasDiesel && gasBonusType === 'cpg';
@@ -350,13 +375,17 @@ export default function Offers() {
     if (category) fd.append('category', category);
     if (imageFile) fd.append('image', imageFile);
     if (requires21) fd.append('requires21', 'true');
+    const hp = hoursPayload(hours);
+    if (hp.happyFrom) { fd.append('happyDays', JSON.stringify(hp.happyDays)); fd.append('happyFrom', hp.happyFrom); fd.append('happyTo', hp.happyTo); }
+    fd.append('lastDayReminder', String(lastDayReminder));
 
     const draft: DraftPromo = {
       type, storeId: type === 'SPECIFIC_STORE' ? storeId : null, category: category || null,
       percent: tierMap ? Math.max(...Object.values(tierMap)) : isCpg ? null : frac(pct),
       tiers: tierMap, centsPerGallon: isCpg ? cpg : null, startMs, endMs,
     };
-    askToPost(describePost('promo', fd, autoTitle, `${bonusDisplay} on ${catLabel.toLowerCase()} purchases`, draft, whereText(type, storeId), whenText(startMs, endMs, false)));
+    const label = hoursLabel(hp);
+    askToPost(describePost('promo', fd, autoTitle, `${bonusDisplay} on ${catLabel.toLowerCase()} purchases${label ? `, ${label}` : ''}`, draft, whereText(type, storeId), whenText(startMs, endMs, false)));
   }
 
   function handleQuickPost() {
@@ -428,7 +457,42 @@ export default function Offers() {
     const notify = single
       ? `Customers of ${where} (an approved purchase there in the last 6 months) are notified ${timing}.`
       : `Every customer is notified ${timing}.`;
-    return { kind, fd, title, what, where, when, example, notes, clashes, notify };
+    return { kind, fd, title, what, where, when, example, notes, clashes, notify, estimate: draft ? estimateOf(draft, fd) : null };
+  }
+
+  /** The promotion as the estimate takes it (the same fields the post sends). */
+  function estimateOf(draft: DraftPromo, fd?: FormData): EstimateInput {
+    return {
+      storeId: draft.storeId ?? undefined, category: draft.category ?? '',
+      bonusRate: draft.centsPerGallon != null ? undefined : draft.percent ?? undefined,
+      tierBonusRates: draft.tiers ?? undefined, gasBonusCentsPerGallon: draft.centsPerGallon ?? undefined,
+      startDate: new Date(draft.startMs).toISOString(), endDate: new Date(draft.endMs).toISOString(),
+      ...(fd?.get('happyFrom') ? { happyDays: JSON.parse(String(fd.get('happyDays') ?? '[]')), happyFrom: fd.get('happyFrom'), happyTo: fd.get('happyTo') } : {}),
+    };
+  }
+
+  /** The full form as it stands, for the live estimate under it; null until it has a bonus. */
+  function formEstimate(): EstimateInput {
+    if (category === null || !startDate || !endDate || endDate < startDate || endDate < storeToday()) return null;
+    if (type === 'SPECIFIC_STORE' && !storeId) return null;
+    if (hoursProblem(hours)) return null;
+    const isGasDiesel = category === 'GAS' || category === 'DIESEL';
+    const cpg = isGasDiesel && gasBonusType === 'cpg' ? parseFloat(gasBonusCpg) : NaN;
+    let tiers: Record<string, number> | null = null;
+    if (useTierBonuses && !isGasDiesel) {
+      tiers = {};
+      for (const t of TIERS) { const v = parseFloat(tierBonuses[t]); if (v > 0) tiers[t] = frac(v); }
+      if (Object.keys(tiers).length === 0) return null;
+    }
+    const pct = parseFloat(bonusRate);
+    if (!tiers && !(cpg > 0) && !(pct > 0)) return null;
+    const hp = hoursPayload(hours);
+    return {
+      storeId: type === 'SPECIFIC_STORE' ? storeId : undefined, category,
+      ...(cpg > 0 ? { gasBonusCentsPerGallon: cpg } : tiers ? { tierBonusRates: tiers } : { bonusRate: frac(pct) }),
+      startDate: startOfStoreDay(startDate).toISOString(), endDate: endOfStoreDay(endDate).toISOString(),
+      ...(hp.happyFrom ? hp : {}),
+    };
   }
 
   function handleCreateDeal(e: React.FormEvent) {
@@ -487,6 +551,7 @@ export default function Offers() {
       {editing && (
         <OfferEditModal
           offer={editing}
+          canEditHours={isHQ && !editing.dealText}
           saving={editMutation.isPending}
           onClose={() => setEditing(null)}
           onSave={(data) => editMutation.mutate({ id: editing.id, data })}
@@ -523,6 +588,7 @@ export default function Offers() {
               <Notice key={c.offer.id} tone="warning" icon={<AlertTriangle size={15} />} style={{ marginTop: 6 }}>{c.text}</Notice>
             ))}
             {pending.notes.map((n, i) => <Notice key={i} tone="neutral" icon={<Info size={15} />} style={{ marginTop: 6 }}>{n}</Notice>)}
+            {pending.estimate && <div style={{ marginTop: 6 }}><CostEstimate input={pending.estimate} /></div>}
             <div style={{ marginTop: 8, fontWeight: 600, color: C.text }}>{pending.notify}</div>
           </div>
         )}
@@ -535,7 +601,7 @@ export default function Offers() {
       <PageHeader
         title="Offers"
         description="Promotions add cashback automatically. Deals show price specials in the app."
-        actions={mainTab === 'promotions' ? (
+        actions={mainTab === 'requests' || mainTab === 'calendar' ? undefined : mainTab === 'promotions' ? (
           <>
             <Button icon={<LayoutTemplate />} aria-pressed={showTemplates}
               onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); }}>
@@ -560,10 +626,12 @@ export default function Offers() {
       <Tabs
         ariaLabel="Offer type"
         value={mainTab}
-        onChange={(v) => { setMainTab(v); if (v === 'promotions') setShowDealForm(false); else { setShowForm(false); setShowTemplates(false); } }}
+        onChange={(v) => { setMainTab(v); if (v !== 'deals') setShowDealForm(false); if (v !== 'promotions') { setShowForm(false); setShowTemplates(false); setShowQuick(false); } }}
         tabs={[
           { value: 'promotions', label: 'Promotions', count: promotionOffers.length },
           { value: 'deals', label: 'Deals', count: dealOffers.length },
+          ...(isHQ ? [{ value: 'requests' as const, label: 'Requests', count: waitingRequests || undefined }] : []),
+          { value: 'calendar', label: 'Calendar' },
         ]}
       />
 
@@ -849,6 +917,21 @@ export default function Offers() {
               </div>
             )}
 
+            {category !== null && !isStoreManager && (
+              <div style={s.formSection}>
+                <div style={s.stepLabel}>6. Happy hours <span style={{ color: C.muted, fontWeight: 400 }}>(optional)</span></div>
+                <HappyHoursField idPrefix="offer-hours" value={hours} onChange={setHours} />
+              </div>
+            )}
+
+            {category !== null && !isStoreManager && (
+              <div style={s.formSection}>
+                <div style={s.stepLabel}>7. Reminder and cost</div>
+                <LastDayToggle on={lastDayReminder} onToggle={() => setLastDayReminder(!lastDayReminder)} />
+                <CostEstimate input={formEstimate()} />
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 8, paddingTop: 16 }}>
               <Button variant="primary" type="submit" disabled={createMutation.isPending || category === null}>
                 {createMutation.isPending ? 'Creating...' : 'Create Offer'}
@@ -858,6 +941,9 @@ export default function Offers() {
           </form>
         </Card>
       )}
+
+      {mainTab === 'requests' && isHQ && <OfferRequestsPanel />}
+      {mainTab === 'calendar' && <OfferCalendar offers={offers} past={pastOffers} stores={stores} />}
 
       {/* Promotions */}
       {mainTab === 'promotions' && (
@@ -1028,6 +1114,7 @@ export default function Offers() {
               )
             )}
           </div>
+          {isHQ && <ShelfDealsSection />}
         </>
       )}
     </Page>
@@ -1079,6 +1166,7 @@ function OfferCard({ offer, onDelete, onReuse, onResults, onEdit, onEndNow, isPa
   offer: any; onDelete?: () => void; onReuse: () => void; onResults?: () => void; onEdit?: () => void; onEndNow?: () => void; isPast?: boolean; isScheduled?: boolean;
 }) {
   const bonus = bonusText(offer);
+  const hours = offer.hoursText ?? hoursLabel(offer);
   return (
     <Card padding={0} style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} />}
@@ -1086,8 +1174,15 @@ function OfferCard({ offer, onDelete, onReuse, onResults, onEdit, onEndNow, isPa
         <OfferTags offer={offer} isPast={isPast} isScheduled={isScheduled} />
         <h3 style={s.cardTitle}>{offer.title}</h3>
         {bonus && <div style={s.bonus}>{bonus}</div>}
+        {hours && (
+          <div style={s.hours}>
+            <Clock size={13} aria-hidden /> Pays {hours}
+            {!isPast && !isScheduled && offer.onNow != null && <Badge tone={offer.onNow ? 'success' : 'neutral'} style={{ marginLeft: 4 }}>{offer.onNow ? 'On now' : 'Not on now'}</Badge>}
+          </div>
+        )}
         {offer.description && <p style={s.cardDesc}>{offer.description}</p>}
         <div style={s.cardDate}>{fmtDate(offer.startDate)} to {fmtDate(offer.endDate)}</div>
+        {!isPast && offer.lastDayReminder === false && <div style={{ ...s.cardDate, marginTop: 4, display: 'flex', gap: 4, alignItems: 'center' }}><BellOff size={12} aria-hidden /> No last-day reminder</div>}
       </div>
       <div style={s.cardActions}>
         {onResults && !isScheduled && <Button size="sm" icon={<BarChart3 />} onClick={onResults} aria-label={`Results of ${offer.title}`}>Results</Button>}
@@ -1126,16 +1221,20 @@ function DealCard({ offer, onDelete, onEdit, onEndNow, isPast, isScheduled }: { 
   );
 }
 
-function OfferEditModal({ offer, saving, onClose, onSave }: { offer: any; saving: boolean; onClose: () => void; onSave: (data: object) => void }) {
+function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offer: any; saving: boolean; onClose: () => void; onSave: (data: object) => void; canEditHours?: boolean }) {
   const started = new Date(offer.startDate).getTime() <= Date.now();
   const [title, setTitle] = useState<string>(offer.title ?? '');
   const [description, setDescription] = useState<string>(offer.description ?? '');
   const [start, setStart] = useState<string>(storeToday(new Date(offer.startDate)));
   const [end, setEnd] = useState<string>(storeToday(new Date(offer.endDate)));
+  const [hours, setHours] = useState<HappyHours>(hoursFrom(offer));
+  const [lastDay, setLastDay] = useState<boolean>(offer.lastDayReminder !== false);
   const today = storeToday();
-  const problem = !title.trim() ? 'Add a title.' : end < today ? 'The last day has already passed.' : end < start ? 'The last day is before the first day.' : null;
+  const problem = !title.trim() ? 'Add a title.' : end < today ? 'The last day has already passed.' : end < start ? 'The last day is before the first day.'
+    : canEditHours ? hoursProblem(hours) : null;
+  const hoursChanged = canEditHours && hoursLabel(hoursPayload(hours)) !== hoursLabel(offer);
   return (
-    <Modal title={offer.dealText ? 'Edit deal' : 'Edit promotion'} subtitle="Change the words and the dates. What a promotion pays stays as it was posted; to change that, End it and post a new one." onClose={onClose} busy={saving} maxWidth={560}>
+    <Modal title={offer.dealText ? 'Edit deal' : 'Edit promotion'} subtitle={canEditHours ? 'Change the words, the dates and the hours. What a promotion pays stays as it was posted; to change that, End it and post a new one.' : 'Change the words and the dates. What a promotion pays stays as it was posted; to change that, End it and post a new one.'} onClose={onClose} busy={saving} maxWidth={560}>
       <form onSubmit={(e) => {
         e.preventDefault();
         if (problem) return;
@@ -1144,6 +1243,8 @@ function OfferEditModal({ offer, saving, onClose, onSave }: { offer: any; saving
           ...(description.trim() ? { description: description.trim() } : {}),
           ...(!started ? { startDate: startOfStoreDay(start).toISOString() } : {}),
           endDate: endOfStoreDay(end).toISOString(),
+          ...(hoursChanged ? hoursPayload(hours) : {}),
+          ...(canEditHours && lastDay !== (offer.lastDayReminder !== false) ? { lastDayReminder: lastDay } : {}),
         });
       }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Field label="Title" htmlFor="edit-offer-title" required>
@@ -1160,6 +1261,14 @@ function OfferEditModal({ offer, saving, onClose, onSave }: { offer: any; saving
             <input id="edit-offer-end" className="ui-input" style={INPUT} type="date" value={end} min={start > today ? start : today} onChange={(e) => setEnd(e.target.value)} />
           </Field>
         </div>
+        {canEditHours && (
+          <>
+            <Field label="Happy hours">
+              <HappyHoursField idPrefix="edit-offer-hours" value={hours} onChange={setHours} />
+            </Field>
+            <LastDayToggle on={lastDay} onToggle={() => setLastDay(!lastDay)} />
+          </>
+        )}
         {problem && <Notice tone="warning" style={{ fontSize: FONT.small }}>{problem}</Notice>}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button onClick={onClose} disabled={saving}>Cancel</Button>
@@ -1195,6 +1304,7 @@ const s: Record<string, React.CSSProperties> = {
   cardBody: { padding: '16px 18px 14px', flex: 1 },
   cardTitle: { fontSize: FONT.section, fontWeight: 600, color: C.text, margin: '0 0 4px' },
   bonus: { fontSize: FONT.body, fontWeight: 600, color: C.primary, marginBottom: 6 },
+  hours: { display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', fontSize: FONT.small, color: C.text2, marginBottom: 6 },
   cardDesc: { color: C.muted, fontSize: FONT.small, margin: '0 0 8px', lineHeight: 1.5 },
   cardDate: { color: C.muted, fontSize: FONT.caption, marginTop: 8 },
   cardActions: { display: 'flex', gap: 6, padding: '10px 14px', borderTop: `1px solid ${C.border}`, background: C.subtle },
