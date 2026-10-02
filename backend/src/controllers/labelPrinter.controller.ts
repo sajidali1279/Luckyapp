@@ -42,7 +42,7 @@ const shape = (s: Row) => ({
   updatedAt: s.labelNudgeUpdatedAt, updatedBy: s.labelNudgeUpdatedBy,
 });
 
-/** GET /stores/:storeId/label-printer — anyone with access to the store */
+/** GET /stores/:storeId/label-printer: anyone with access to the store */
 export async function getLabelPrinter(req: AuthRequest, res: Response) {
   const store = await prisma.store.findUnique({ where: { id: req.params.storeId }, select: SELECT });
   if (!store) { res.status(404).json({ success: false, error: 'Store not found' }); return; }
@@ -72,7 +72,7 @@ const toColumns = (v: Layout, by: string | null) => ({
   labelNudgeUpdatedAt: new Date(), labelNudgeUpdatedBy: by,
 });
 
-/** PUT /stores/:storeId/label-printer — HQ only */
+/** PUT /stores/:storeId/label-printer: HQ only */
 export async function updateLabelPrinter(req: AuthRequest, res: Response) {
   const checked = checkLayout(req.body);
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
@@ -100,7 +100,7 @@ export async function updateLabelPrinter(req: AuthRequest, res: Response) {
 }
 
 /**
- * PUT /label-printer/all-stores — HQ only. The same numbers for every open store, for when HQ has found what works on its own printer
+ * PUT /label-printer/all-stores: HQ only. The same numbers for every open store, for when HQ has found what works on its own printer
  * (on the admin print page) and wants the phones at every store to print the same way. A store can still be set on its own afterwards.
  */
 export async function applyLabelPrinterToAllStores(req: AuthRequest, res: Response) {
