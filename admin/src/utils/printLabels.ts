@@ -20,13 +20,6 @@ export interface PrintableLabelEntry {
   quantity: number;
 }
 
-// Static QR code pointing at the Lucky Stop app/signup page — same on every
-// label, so it's generated once and baked in as a data URI rather than
-// pulled from a QR-generation library or a live external request at print
-// time (no new runtime dependency, no third-party call from a printed page).
-const QR_CODE_DATA_URI =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADIAQMAAACXljzdAAAABlBMVEX///8RERFxTxnbAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAvklEQVRYhd2UwRHEMAgD6b9pcgNI2EkFe/jhgfVHI5nIrois8ytNoCSqq1tPdkIko6qm0ZIz8WQ9/A9Sxl2OUYlz16YdEyRZv3Q0QRKX+adQxHrLOW/0pBLFb2aKIpjsdojjTVLJNPPKv4pK8mq9NZJLBiuJ+ltYErMr1sfUcyQ5ZFq65SLJ5G6C6HwiiUrtLg0msbaO5OkYk4T03Uq55JPDl14qkeieBJ1MFNPfjEriUNW7/M4ojCh7c3vEJA9A1mYnV9N4IgAAAABJRU5ErkJggg==';
-
 function esc(s: string): string {
   return s
     .replace(/&/g, '&amp;')
@@ -71,7 +64,6 @@ function renderLabel(label: PrintableLabel): string {
   const icon = TEMPLATE_ICONS[label.template] || '';
   const barcode = label.barcode?.trim();
   const deal = label.dealText?.trim();
-  const sideClass = barcode ? 'label-side' : 'label-side no-barcode';
   // A long name gets a smaller font tier instead of being clamped to fewer
   // lines — the name always keeps its full 2 lines, it just shrinks to fit.
   const nameClass = deal
@@ -88,21 +80,19 @@ function renderLabel(label: PrintableLabel): string {
           ${deal ? `<div class="price-deal">${esc(deal)}</div>` : ''}
         </div>
       </div>
-      <div class="${sideClass}">
-        <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
-        <div class="label-qr-caption">Scan to Join</div>
-        ${barcode ? `
+      ${barcode ? `
+      <div class="label-side">
         <div class="label-barcode-wrap">
           ${barcodeSvg(barcode)}
           <div class="label-barcode-val">${esc(barcode)}</div>
-        </div>` : ''}
-      </div>
+        </div>
+      </div>` : ''}
     </div>
   `;
 }
 
 // The same label read standing up, for tall labels (A4, 18 a sheet): name on top, the price big near the middle, the deal under it, then
-// the QR code and the barcode at the bottom. Sizes come from the sheet's CSS (tallCss), so they follow the label width.
+// the barcode at the bottom. Sizes come from the sheet's CSS (tallCss), so they follow the label width.
 function renderUpright(label: PrintableLabel): string {
   const cssClass = TEMPLATE_CLASS[label.template] || TEMPLATE_CLASS.CLASSIC_RED_BLACK;
   const icon = TEMPLATE_ICONS[label.template] || '';
@@ -116,10 +106,6 @@ function renderUpright(label: PrintableLabel): string {
       <div class="price-regular up-price${label.priceText.length >= 6 ? ' long' : ''}"><span class="price-dollar">$</span>${esc(label.priceText)}</div>
       ${deal ? `<div class="price-deal">${esc(deal)}</div>` : ''}
       <div class="up-fill"></div>
-      <div class="up-qr">
-        <img class="label-qr" src="${QR_CODE_DATA_URI}" alt="" />
-        <div class="label-qr-caption">Scan to Join</div>
-      </div>
       ${barcode ? `
       <div class="label-barcode-wrap">
         ${barcodeSvg(barcode)}
@@ -409,34 +395,16 @@ const LABEL_STYLE = `
       justify-content: center;
       gap: 0.4mm;
     }
-    .label-qr-caption {
-      font-size: 4.5pt;
-      font-weight: 700;
-      letter-spacing: 0.2px;
-      color: #555;
-      text-align: center;
-      white-space: nowrap;
-    }
-    .label-qr {
-      width: 7mm;
-      height: 7mm;
-      flex-shrink: 0;
-    }
-    /* No barcode to share the column with — let the QR grow into the
-       freed-up space instead of leaving it blank. */
-    .label-side.no-barcode .label-qr {
-      width: 14mm;
-      height: 14mm;
-    }
     .label-barcode-wrap {
       width: 100%;
       flex-shrink: 0;
       text-align: center;
     }
+    /* The side column holds only the barcode (the QR was taken off, 2026-10-02), so the bars are taller and easier to scan */
     .label-barcode {
       display: block;
       width: 100%;
-      height: 5mm;
+      height: 9mm;
     }
     .label-barcode-val {
       font-size: 4.5pt;
@@ -495,10 +463,6 @@ function tallCss(s: SheetSettings): string {
     .up .price-deal { align-self: center; font-size: ${n(10 * k)}pt; text-align: center; white-space: normal; }
     .up .up-fill { flex: 1; }
     .up .up-fill.top { flex: 0.6; }   /* the price sits a little above the middle, where the eye lands */
-    .up .up-qr { display: flex; flex-direction: column; align-items: center; gap: ${n(0.5 * k)}mm; }
-    .up .label-qr { width: ${n(12 * k)}mm; height: ${n(12 * k)}mm; }
-    .up.no-barcode .label-qr { width: ${n(17 * k)}mm; height: ${n(17 * k)}mm; }
-    .up .label-qr-caption { font-size: ${n(5.5 * k)}pt; }
     .up .label-barcode { height: ${n(9 * k)}mm; }
     .up .label-barcode-val { font-size: ${n(6 * k)}pt; text-align: center; margin-top: ${n(0.4 * k)}mm; }
     .up .watermark { writing-mode: vertical-rl; font-size: ${n(16 * k)}pt; letter-spacing: 2px; }
