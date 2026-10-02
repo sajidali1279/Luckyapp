@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { promotionsApi } from '../services/api';
@@ -10,6 +10,7 @@ import { storeToday, storeDayLong } from '../lib/storeDates';
 import { PageHeader, Button, HeaderStat } from '../components/kit';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import { failureMessage } from '../lib/apiError';
 
 interface PromoRequest {
   id: string;
@@ -334,6 +335,47 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+// How many of the newest live ads the app shows under Featured; the others are under All Businesses (and the app's Home shows the
+// newest). Newest first, no pinning: a new ad pushes the oldest featured one down to All Businesses.
+function FeaturedAdsSetting() {
+  const qc = useQueryClient();
+  const { data, isError, refetch } = useQuery({ queryKey: ['promo-settings'], queryFn: () => promotionsApi.getSettings() });
+  const settings = data?.data?.data as { featuredLimit: number; live: number; max: number } | undefined;
+  const [text, setText] = useState('');
+  useEffect(() => { if (settings) setText(String(settings.featuredLimit)); }, [settings?.featuredLimit]);
+  const n = Number(text);
+  const valid = Number.isInteger(n) && n >= 1 && n <= (settings?.max ?? 50);
+  const save = useMutation({
+    mutationFn: () => promotionsApi.setFeaturedLimit(n),
+    onSuccess: () => { toast.success(`The app now features the ${n} newest ${n === 1 ? 'ad' : 'ads'}.`); qc.invalidateQueries({ queryKey: ['promo-settings'] }); },
+    onError: (e: any) => toast.error(failureMessage(e, 'Could not save. Nothing was changed.')),
+  });
+  if (isError) return <div style={s.featured}><span style={{ color: '#a51b28' }}>Could not load the featured-ads setting.</span> <button type="button" style={s.featuredLink} onClick={() => refetch()}>Try again</button></div>;
+  if (!settings) return null;
+  const featured = Math.min(settings.live, settings.featuredLimit);
+  return (
+    <div style={s.featured} role="group" aria-label="Featured ads in the app">
+      <div style={{ flex: '1 1 260px' }}>
+        <div style={s.featuredTitle}>Featured in the app</div>
+        <div style={s.featuredSub}>
+          The newest ads are featured; the rest are listed under All Businesses. Right now {featured} of {settings.live} live {settings.live === 1 ? 'ad is' : 'ads are'} featured.
+        </div>
+      </div>
+      <label style={s.featuredField}>
+        <span>Featured ads</span>
+        <input
+          type="number" min={1} max={settings.max} value={text} aria-label="Number of featured ads"
+          onChange={e => setText(e.target.value)} style={s.featuredInput} aria-invalid={!valid}
+        />
+      </label>
+      <Button variant="primary" onClick={() => save.mutate()} disabled={!valid || save.isPending || n === settings.featuredLimit}>
+        {save.isPending ? 'Saving…' : 'Save'}
+      </Button>
+      {!valid && <span style={{ color: '#a51b28', fontSize: 13, flexBasis: '100%' }}>A whole number from 1 to {settings.max}.</span>}
+    </div>
+  );
+}
+
 export default function BusinessPromotions() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -411,6 +453,8 @@ export default function BusinessPromotions() {
           <HeaderStat label="Rejected" value={counts.REJECTED} tone="danger" />
         </div>
       </PageHeader>
+
+      <FeaturedAdsSetting />
 
       {/* Filter */}
       <div style={s.filterRow}>
@@ -563,6 +607,12 @@ export default function BusinessPromotions() {
 }
 
 const s: Record<string, React.CSSProperties> = {
+  featured: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 12, padding: '14px 16px' },
+  featuredTitle: { fontWeight: 700, fontSize: 15, color: '#111827' },
+  featuredSub: { fontSize: 13, color: TEXT_MUTED, marginTop: 2, lineHeight: 1.45 },
+  featuredField: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#374151' },
+  featuredInput: { width: 72, padding: '8px 10px', border: '1.5px solid #d5dae1', borderRadius: 8, fontSize: 15, fontWeight: 700, textAlign: 'center' },
+  featuredLink: { background: 'none', border: 'none', color: '#1D3557', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', padding: 0 },
   page: { padding: '32px 24px' },
   topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24 },
   addBtn: {

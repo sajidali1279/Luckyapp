@@ -103,6 +103,8 @@ import {
   createManualPromotion,
   rejectPromotion,
   deletePromotion,
+  getPromotionSettings,
+  updatePromotionSettings,
 } from '../controllers/promotions.controller';
 import {
   getWelcomeBonusStatus,
@@ -446,6 +448,8 @@ router.post('/catalog/redeem/:id/confirm', authenticate, requireRole(Role.EMPLOY
 // ─── Business Promotions ──────────────────────────────────────────────────────
 router.post('/promotions/request', authenticate, requireRole(Role.CUSTOMER), upload.single('image'), submitPromotionRequest);    // Customer submits (optional logo)
 router.get('/promotions', authenticate, getPublishedPromotions);                                                                  // All authenticated — see published ads
+router.get('/promotions/settings', authenticate, requireRole(Role.DEV_ADMIN), getPromotionSettings);                                // Featured-ads limit (DevAdmin)
+router.put('/promotions/settings', authenticate, requireRole(Role.DEV_ADMIN), updatePromotionSettings);                             // Set it
 router.get('/promotions/my', authenticate, requireRole(Role.CUSTOMER), getMyPromotionRequest);                                    // Customer checks their own request
 router.get('/promotions/requests', authenticate, requireRole(Role.DEV_ADMIN), getAllPromotionRequests);                           // DevAdmin sees all requests
 router.get('/promotions/requests/pending-count', authenticate, requireRole(Role.DEV_ADMIN), getPendingPromotionCount);            // Badge count

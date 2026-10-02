@@ -277,7 +277,9 @@
     "emptyTitle": "Aún no hay anuncios",
     "emptySubtitle": "Los anuncios de negocios locales aparecerán aquí. ¡Vuelve pronto!",
     "offerExpires": "La oferta expira el {{date}}",
-    "promoSub": "Mecánica, remolques, jardinería o cualquier otra cosa - promociónalo a todos los clientes de Lucky Stop aquí."
+    "promoSub": "Mecánica, remolques, jardinería o cualquier otra cosa - promociónalo a todos los clientes de Lucky Stop aquí.",
+    "tabFeatured": "Destacados ({{count}})",
+    "tabAll": "Todos los negocios ({{count}})"
   },
   "customerCareers": {
     "headerTitle": "Empleos",

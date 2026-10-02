@@ -355,6 +355,9 @@ export const promotionsApi = {
     api.patch(`/promotions/${id}/reject`, { devAdminNote }),
   delete: (id: string) => api.delete(`/promotions/${id}`),
   getPendingCount: () => api.get('/promotions/requests/pending-count'),
+  // How many of the newest live ads the app features (the rest are under All Businesses)
+  getSettings: () => api.get('/promotions/settings'),
+  setFeaturedLimit: (featuredLimit: number) => api.put('/promotions/settings', { featuredLimit }),
 };
 
 export const supportApi = {

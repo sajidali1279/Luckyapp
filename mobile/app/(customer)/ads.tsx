@@ -26,6 +26,8 @@ interface Ad {
   location: string | null;
   publishedAt: string;
   adExpiresAt: string | null;
+  // One of the newest ads HQ features (missing from an older server: then every ad counts as featured)
+  featured?: boolean;
 }
 
 function timeAgo(dateStr: string, t: (key: string, options?: Record<string, unknown>) => string) {
@@ -43,6 +45,7 @@ export default function AdsScreen() {
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
+  const [tab, setTab] = useState<'featured' | 'all'>('featured');
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['published-promotions'],
@@ -63,7 +66,11 @@ export default function AdsScreen() {
     refetchMyPromo();
   }, [refetch, refetchMyPromo]));
 
-  const ads: Ad[] = data?.data?.data ?? [];
+  const allAds: Ad[] = data?.data?.data ?? [];
+  // Featured: the newest ads, up to HQ's number; All Businesses: every live ad. The tabs only show when some ads are not featured.
+  const featuredAds = allAds.filter(a => a.featured !== false);
+  const hasMore = featuredAds.length < allAds.length;
+  const ads = hasMore && tab === 'featured' ? featuredAds : allAds;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -210,7 +217,33 @@ export default function AdsScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             contentContainerStyle={s.list}
-            ListHeaderComponent={PromoteCta}
+            ListHeaderComponent={
+              <>
+                <PromoteCta />
+                {hasMore && (
+                  <View style={s.tabs} accessibilityRole="tablist">
+                    {(['featured', 'all'] as const).map(k => {
+                      const on = tab === k;
+                      const count = k === 'featured' ? featuredAds.length : allAds.length;
+                      return (
+                        <TouchableOpacity
+                          key={k}
+                          style={[s.tab, on && s.tabOn]}
+                          onPress={() => setTab(k)}
+                          accessibilityRole="tab"
+                          accessibilityState={{ selected: on }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[s.tabText, on && s.tabTextOn]}>
+                            {t(k === 'featured' ? 'customerAds.tabFeatured' : 'customerAds.tabAll', { count })}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            }
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
             }
@@ -225,6 +258,11 @@ export default function AdsScreen() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background },
+  tabs: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  tab: { flex: 1, paddingVertical: 10, borderRadius: 999, borderWidth: 1.5, borderColor: '#E2E8F0', backgroundColor: '#fff', alignItems: 'center' },
+  tabOn: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
+  tabText: { fontSize: 13.5, fontWeight: '700', color: '#475569' },
+  tabTextOn: { color: '#fff' },
 
   header: {
     backgroundColor: COLORS.secondary,

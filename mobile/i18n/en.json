@@ -277,7 +277,9 @@
     "emptyTitle": "No ads yet",
     "emptySubtitle": "Local business advertisements will appear here. Check back soon!",
     "offerExpires": "Offer expires {{date}}",
-    "promoSub": "Auto care, towing, landscaping, or anything else - promote it to every Lucky Stop customer here."
+    "promoSub": "Auto care, towing, landscaping, or anything else - promote it to every Lucky Stop customer here.",
+    "tabFeatured": "Featured ({{count}})",
+    "tabAll": "All businesses ({{count}})"
   },
   "customerCareers": {
     "headerTitle": "Careers",

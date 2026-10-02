@@ -111,8 +111,23 @@ export async function submitPromotionRequest(req: AuthRequest, res: Response) {
 }
 
 // GET /promotions — published ads visible to all customers
+// How many of the newest live ads are "featured" in the app (its Featured tab); the rest are under All Businesses. Set by the developer
+// account on the Business Promotions page. Kept in app_config.
+const FEATURED_ADS_KEY = 'FEATURED_ADS_LIMIT';
+export const FEATURED_ADS_DEFAULT = 5;
+export const FEATURED_ADS_MAX = 50;
+
+export async function featuredAdsLimit(): Promise<number> {
+  const row = await prisma.appConfig.findUnique({ where: { key: FEATURED_ADS_KEY } });
+  const n = row ? Number(row.value) : NaN;
+  return Number.isInteger(n) && n >= 1 && n <= FEATURED_ADS_MAX ? n : FEATURED_ADS_DEFAULT;
+}
+
+// GET /promotions — every live ad, newest first. Each carries `featured` (one of the newest `featuredLimit`), so the app can show a
+// Featured tab and an All Businesses tab. The list itself is unchanged, so an older app that ignores `featured` still shows them all.
 export async function getPublishedPromotions(_req: AuthRequest, res: Response) {
   const now = new Date();
+  const limit = await featuredAdsLimit();
   const promos = await prisma.businessPromotion.findMany({
     where: {
       status: 'APPROVED',
@@ -135,7 +150,37 @@ export async function getPublishedPromotions(_req: AuthRequest, res: Response) {
     },
   });
   // An ad saved before websites were checked still opens: "www.mystore.com" is sent as https://www.mystore.com, a non-web one not at all
-  res.json({ success: true, data: promos.map((p) => ({ ...p, website: websiteOrNull(p.website) })) });
+  res.json({ success: true, data: promos.map((p, i) => ({ ...p, website: websiteOrNull(p.website), featured: i < limit })), featuredLimit: limit });
+}
+
+// GET /promotions/settings — DevAdmin. The featured limit and how many ads are live now.
+export async function getPromotionSettings(_req: AuthRequest, res: Response) {
+  const now = new Date();
+  const [featuredLimit, live] = await Promise.all([
+    featuredAdsLimit(),
+    prisma.businessPromotion.count({ where: { status: 'APPROVED', OR: [{ adExpiresAt: null }, { adExpiresAt: { gt: now } }] } }),
+  ]);
+  res.json({ success: true, data: { featuredLimit, live, max: FEATURED_ADS_MAX } });
+}
+
+// PUT /promotions/settings — DevAdmin. { featuredLimit: 1..50 }
+export async function updatePromotionSettings(req: AuthRequest, res: Response) {
+  const n = (req.body ?? {}).featuredLimit;
+  if (!Number.isInteger(n) || n < 1 || n > FEATURED_ADS_MAX) {
+    res.status(400).json({ success: false, error: `The number of featured ads must be a whole number from 1 to ${FEATURED_ADS_MAX}.` });
+    return;
+  }
+  const before = await featuredAdsLimit();
+  await prisma.appConfig.upsert({ where: { key: FEATURED_ADS_KEY }, update: { value: String(n) }, create: { key: FEATURED_ADS_KEY, value: String(n) } });
+  if (before !== n) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'PROMOTION_SETTINGS', entity: 'business_promotion', entityId: null,
+      details: { summary: `Featured local-business ads in the app: ${before} to ${n} (the newest ones).`, from: before, to: n },
+      storeId: null,
+    });
+  }
+  res.json({ success: true, data: { featuredLimit: n } });
 }
 
 // GET /promotions/my — customer checks their own request status

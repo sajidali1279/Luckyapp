@@ -40,6 +40,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   NOTICE_REACTIVATE:         { label: 'Notice Brought Back',    color: '#17663a', bg: '#2DC65318', icon: '🔄' },
   PROMOTION_PUBLISH:         { label: 'Business Ad Published',  color: '#1a7f45', bg: '#2DC65318', icon: '📣' },
   PROMOTION_REJECT:          { label: 'Business Ad Declined',   color: '#5a6472', bg: '#6c757d18', icon: '🚫' },
+  PROMOTION_SETTINGS:        { label: 'Featured Ads Setting',   color: '#3c6e8f', bg: '#3c6e8f18', icon: '⭐' },
   PROMOTION_DELETE:          { label: 'Business Ad Deleted',    color: '#c42130', bg: '#E6394618', icon: '🗑️' },
   CLEAR_CHAT:                { label: 'Store Chat Cleared',     color: '#c42130', bg: '#E6394618', icon: '🧹' },
   // Accounts, stores and the daily messages
@@ -297,7 +298,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Rewards, Notices & Local Ads ──">
-            {['CATALOG_ITEM_CREATE','CATALOG_ITEM_UPDATE','NOTICE_CREATE','NOTICE_UPDATE','NOTICE_REACTIVATE','NOTICE_DEACTIVATE','NOTICE_DELETE','PROMOTION_PUBLISH','PROMOTION_REJECT','PROMOTION_DELETE'].map(k => (
+            {['CATALOG_ITEM_CREATE','CATALOG_ITEM_UPDATE','NOTICE_CREATE','NOTICE_UPDATE','NOTICE_REACTIVATE','NOTICE_DEACTIVATE','NOTICE_DELETE','PROMOTION_PUBLISH','PROMOTION_REJECT','PROMOTION_DELETE','PROMOTION_SETTINGS'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
