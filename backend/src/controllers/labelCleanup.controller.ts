@@ -188,7 +188,6 @@ export async function importLabels(req: AuthRequest, res: Response) {
       price = canonicalPrice(blank(r.priceText)!);
       if (price === null) return err(`"${blank(r.priceText)}" is not a price. ${PRICE_MESSAGE}`);
     }
-    if (name && name.length > 40) return err('The product name is too long (40 characters at most).');
     const deal = dealColumn ? blank(r.dealText) : undefined;
     if (deal && deal.length > 20) return err('The deal text is too long (20 characters at most).');
     const category = blank(r.category);
@@ -211,6 +210,9 @@ export async function importLabels(req: AuthRequest, res: Response) {
       if (hits.length > 1) return err(`${hits.length} items are called "${name}". Add the barcode to the row so it is clear which one.`);
       match = hits[0];
     }
+
+    // A name is checked only when it changes (an item saved before the 40-character limit can come back unchanged)
+    if (name && name.length > 40 && (!match || name !== match.productName)) return err('The product name is too long (40 characters at most).');
 
     if (match) {
       const dupLine = seen.get(match.id);
