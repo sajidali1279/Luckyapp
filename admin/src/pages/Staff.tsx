@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { AxiosResponse } from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -137,7 +138,7 @@ export default function Staff() {
   const activeCount = staffList.filter((m) => m.isActive).length;
 
   const createMutation = useMutation({
-    mutationFn: (d: any) => {
+    mutationFn: (d: any): Promise<AxiosResponse> => {
       if (d.role === 'SUPER_ADMIN') return authApi.createSuperAdmin(d.phone, d.name, d.pin);
       return authApi.createStaff(d.phone, d.name, d.pin, d.role, d.storeId);
     },

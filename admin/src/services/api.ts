@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosResponse } from 'axios';
 import { refusalText } from '../lib/apiError';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -153,9 +153,9 @@ export const labelsApi = {
   impact: (labelId: string) => api.get(`/labels/${labelId}/impact`),
   getStoreLabels: (storeId: string, unprinted?: boolean) =>
     api.get(`/store-labels?storeId=${encodeURIComponent(storeId)}${unprinted ? '&unprinted=true' : ''}`),
-  addToStore: (labelId: string, storeId: string, priceText?: string | null, expiresAt?: string | null) =>
+  addToStore: (labelId: string, storeId: string, priceText?: string | null, expiresAt?: string | null): Promise<AxiosResponse> =>
     api.post('/store-labels', { labelId, storeId, priceText, expiresAt }),
-  updateStoreLabel: (storeLabelId: string, priceText: string | null, expiresAt?: string | null) =>
+  updateStoreLabel: (storeLabelId: string, priceText: string | null, expiresAt?: string | null): Promise<AxiosResponse> =>
     api.patch(`/store-labels/${storeLabelId}`, { priceText, expiresAt }),
   // Takes a label that was never printed there out of one store
   removeStoreLabel: (storeLabelId: string) => api.delete(`/store-labels/${storeLabelId}`),
@@ -582,6 +582,8 @@ export const inventoryAnalyticsApi = {
 // request. See useAdminBadges.ts.
 export const adminApi = {
   getBadgeCounts: () => api.get('/admin/badges'),
+  /** HQ alerts read (or unread) for every HQ admin, on every computer. */
+  setNotificationsRead: (ids: string[], read = true) => api.post('/admin/notifications/read', { ids, read }),
 };
 
 export default api;

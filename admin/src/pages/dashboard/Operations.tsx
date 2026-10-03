@@ -1,4 +1,5 @@
 import Glyph from '../../components/Glyph';
+import type { AxiosResponse } from 'axios';
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -324,7 +325,7 @@ function ReviewFeed() {
     ['feed', 'platform-summary', 'transactions-pending-count', 'all-transactions', 'store-health', 'platform-compare'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
   };
   const mutation = useMutation({
-    mutationFn: ({ id, kind, flagged: isFlagged }: Decision) =>
+    mutationFn: ({ id, kind, flagged: isFlagged }: Decision): Promise<AxiosResponse> =>
       isFlagged ? pointsApi.reviewFlagged(id, kind) : pointsApi.reject(id),
     onSuccess: (_r, d) => toast.success(d.kind === 'APPROVE' ? 'Approved. Points credited.' : 'Rejected.'),
     // The server says why (over $800, no receipt yet, already handled by someone else); the lists reload either way.
