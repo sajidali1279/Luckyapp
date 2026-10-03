@@ -19,11 +19,11 @@ const num = (name: string, min: number, max: number, unit: 'mm' | '%' = 'mm') =>
     .min(min, `${name} can be from ${min} to ${max} ${unit}.`).max(max, `${name} can be from ${min} to ${max} ${unit}.`);
 const layoutSchema = z.object({
   down: num('Move down', -10, 10),
-  right: num('Move right', -4.5, 4.5),
+  right: num('Move right', -10, 10),
   width: num('Label width', 55, 75),
   height: num('Label height', 20, 30),
-  gapX: num('Space between columns', 0, 10),
-  gapY: num('Space between rows', 0, 8),
+  gapX: num('Space between columns', 0, 25),
+  gapY: num('Space between rows', 0, 15),
   // Missing from an older app or page: 100 (as set)
   scale: num('Size %', 90, 110, '%').default(100),
 }).strict();

@@ -1,16 +1,16 @@
-import { useEffect, useState, CSSProperties } from 'react';
+import { useEffect, useRef, useState, CSSProperties } from 'react';
 import toast from 'react-hot-toast';
 import Modal from './Modal';
 import { storesApi } from '../services/api';
 import { failureMessage } from '../lib/apiError';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { loadSheet } from '../utils/labelSheet';
+import { loadSheet, resizeKeepingCentres, LetterLayout } from '../utils/labelSheet';
 
 // A store's label printer fine-tune for US Letter (Avery 5160) sheets: how far that store's printer places the page off, in mm.
 // HQ only sets it. Staff print from their own phones, and every phone printing for the store uses these numbers. Someone at the
 // store measures it with the test page in the app (Labels, Paper) and tells HQ, for example "the boxes are 1.5 mm too high".
 
-const LIMITS = { down: [-10, 10], right: [-4.5, 4.5], width: [55, 75], height: [20, 30], gapX: [0, 10], gapY: [0, 8], scale: [90, 110] } as const;
+const LIMITS = { down: [-10, 10], right: [-10, 10], width: [55, 75], height: [20, 30], gapX: [0, 25], gapY: [0, 15], scale: [90, 110] } as const;
 type Nudge = { down: number; right: number; width: number; height: number; gapX: number; gapY: number; scale: number };
 const KEYS: (keyof Nudge)[] = ['down', 'right', 'gapY', 'gapX', 'height', 'width', 'scale'];
 // The starting numbers (utils/labelSheet.ts LETTER_DEFAULTS): what prints right on Avery 5160 sheets on HQ's printer
@@ -20,6 +20,8 @@ const PAGE = { w: 215.9, h: 279.4 };
 const stepOf = (k: keyof Nudge) => (k === 'down' || k === 'right' || k === 'scale' ? 0.5 : 0.1);
 const toText = (n: Nudge) => Object.fromEntries(KEYS.map(k => [k, String(n[k])])) as Record<keyof Nudge, string>;
 const pick = (d: any): Nudge => ({ down: d.down, right: d.right, width: d.width, height: d.height, gapX: d.gapX, gapY: d.gapY, scale: d.scale ?? 100 });
+const toLayout = (n: Nudge): LetterLayout => ({ down: n.down, right: n.right, labelW: n.width, labelH: n.height, gapX: n.gapX, gapY: n.gapY, scale: n.scale });
+const fromLayout = (l: LetterLayout): Nudge => ({ down: l.down, right: l.right, width: l.labelW, height: l.labelH, gapX: l.gapX, gapY: l.gapY, scale: l.scale });
 
 function when(iso: string | null): string {
   if (!iso) return '';
@@ -59,6 +61,20 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
   useEffect(() => { load(); }, [store.id]);
 
   const num = (k: keyof Nudge) => parseFloat(text[k].replace(',', '.'));
+  // The numbers as typed, when every box holds a number
+  const parsed = (t: Record<keyof Nudge, string>): Nudge | null => {
+    const n = Object.fromEntries(KEYS.map(k => [k, parseFloat(t[k].replace(',', '.'))])) as Nudge;
+    return KEYS.every(k => Number.isFinite(n[k])) ? n : null;
+  };
+  // A label width or height keeps each label centred on its sticker: the space between them and the page position follow. Measured
+  // from the numbers when the box was entered, so typing 6 then 60 ends in the right place.
+  const resizeBase = useRef<Nudge | null>(null);
+  function setSize(k: 'width' | 'height', value: string, base: Nudge | null) {
+    const v = parseFloat(value.replace(',', '.'));
+    if (!base || !Number.isFinite(v)) { setText(t => ({ ...t, [k]: value })); return; }
+    const next = fromLayout(resizeKeepingCentres(toLayout(base), k === 'width' ? 'labelW' : 'labelH', v));
+    setText(t => ({ ...t, [k]: value, gapX: String(next.gapX), gapY: String(next.gapY), right: String(next.right), down: String(next.down) }));
+  }
   const changed = KEYS.some(k => num(k) !== saved[k]);
   const canSave = changed || allStores;
 
@@ -105,13 +121,22 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
     }
   }
 
+  const sized = (k: keyof Nudge): k is 'width' | 'height' => k === 'width' || k === 'height';
+  const stepTo = (k: keyof Nudge, by: number) => {
+    setError('');
+    const v = String(Math.round(((parseFloat(text[k]) || 0) + by) * 1000) / 1000);
+    if (sized(k)) setSize(k, v, parsed(text));
+    else setText(t => ({ ...t, [k]: v }));
+  };
   const field = (k: keyof Nudge, label: string, help: string) => (
     <label style={p.field}>
       <span style={p.fieldName}>{label}</span>
       <span style={p.inputWrap}>
-        <button type="button" style={p.step} aria-label={`${label}: ${stepOf(k)} mm less`} onClick={() => { setError(''); setText(t => ({ ...t, [k]: String(Math.round(((parseFloat(t[k]) || 0) - stepOf(k)) * 1000) / 1000) })); }}>−</button>
-        <input style={p.input} inputMode="decimal" value={text[k]} aria-label={`${label} (mm)`} onChange={e => { setError(''); setText(t => ({ ...t, [k]: e.target.value })); }} />
-        <button type="button" style={p.step} aria-label={`${label}: ${stepOf(k)} mm more`} onClick={() => { setError(''); setText(t => ({ ...t, [k]: String(Math.round(((parseFloat(t[k]) || 0) + stepOf(k)) * 1000) / 1000) })); }}>+</button>
+        <button type="button" style={p.step} aria-label={`${label}: ${stepOf(k)} mm less`} onClick={() => stepTo(k, -stepOf(k))}>−</button>
+        <input style={p.input} inputMode="decimal" value={text[k]} aria-label={`${label} (mm)`}
+          onFocus={() => { if (sized(k)) resizeBase.current = parsed(text); }}
+          onChange={e => { setError(''); if (sized(k)) setSize(k, e.target.value, resizeBase.current); else setText(t => ({ ...t, [k]: e.target.value })); }} />
+        <button type="button" style={p.step} aria-label={`${label}: ${stepOf(k)} mm more`} onClick={() => stepTo(k, stepOf(k))}>+</button>
         <em style={p.unit}>{k === 'scale' ? '%' : 'mm'}</em>
       </span>
       <small style={p.help}>{help}</small>
@@ -141,8 +166,8 @@ export default function LabelPrinterModal({ store, onClose }: { store: { id: str
           <div style={p.fields}>
             {field('gapY', 'Space between rows', 'Bottom row too low: smaller (already 0? make the label height a little smaller). Too high: bigger.')}
             {field('gapX', 'Space between columns', 'Right column too far right: smaller. Too far left: bigger.')}
-            {field('height', 'Label height', 'One sticker, top to bottom.')}
-            {field('width', 'Label width', 'One sticker, left to right.')}
+            {field('height', 'Label height', 'One sticker, top to bottom. Shorter stays centred: the space between rows grows.')}
+            {field('width', 'Label width', 'One sticker, left to right. Narrower stays centred: the space between columns grows.')}
             {field('scale', 'Size %', 'Every row a little higher than the one before, as if the page were shrunk? A little over 100, e.g. 103.')}
           </div>
           <div style={p.copyRow}>

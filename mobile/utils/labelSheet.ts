@@ -43,7 +43,9 @@ export const LETTER_COLS = 3;
 export const LETTER_ROWS = 10;
 export const LETTER_MARGIN_MM = { topBottom: 12.7, side: 4.7625 };
 export const LETTER_LIMITS: Record<keyof LetterLayout, [number, number]> = {
-  down: [-10, 10], right: [-4.5, 4.5], labelW: [55, 75], labelH: [20, 30], gapX: [0, 10], gapY: [0, 8], scale: [90, 110],
+  // Spacing up to 25 / 15 mm and moving right up to 10 mm: a narrower label keeps its place on its sticker by growing the space around it
+  // (resizeKeepingCentres). The page-fit check stops anything running off the paper.
+  down: [-10, 10], right: [-10, 10], labelW: [55, 75], labelH: [20, 30], gapX: [0, 25], gapY: [0, 15], scale: [90, 110],
 };
 
 export const SIZE_LIMITS: Record<keyof A4Sizes, [number, number]> = {

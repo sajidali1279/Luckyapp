@@ -34,8 +34,29 @@ export const LETTER_COLS = 3;
 export const LETTER_ROWS = 10;
 export const LETTER_MARGIN_MM = { topBottom: 12.7, side: 4.7625 };
 export const LETTER_LIMITS: Record<keyof LetterLayout, [number, number]> = {
-  down: [-10, 10], right: [-4.5, 4.5], labelW: [55, 75], labelH: [20, 30], gapX: [0, 10], gapY: [0, 8], scale: [90, 110],
+  // Spacing up to 25 / 15 mm and moving right up to 10 mm: a narrower label keeps its place on its sticker by growing the space around it
+  // (resizeKeepingCentres). The page-fit check stops anything running off the paper.
+  down: [-10, 10], right: [-10, 10], labelW: [55, 75], labelH: [20, 30], gapX: [0, 25], gapY: [0, 15], scale: [90, 110],
 };
+
+/**
+ * A new label width or height that keeps every label centred where it was on its sticker: the space between columns (rows) grows by
+ * what the label lost, and the page moves by half of it. Without this a narrower label pulled the middle and right columns left.
+ * base is the layout before this edit started (so typing 6, 60 in a box ends where it should). A wider label than the gap can absorb
+ * leaves the space at 0.
+ */
+export function resizeKeepingCentres(base: LetterLayout, key: 'labelW' | 'labelH', value: number): LetterLayout {
+  const r = (n: number) => Math.round(n * 1000) / 1000;
+  const lost = (key === 'labelW' ? base.labelW : base.labelH) - value;
+  if (key === 'labelW') {
+    const gapX = Math.max(0, base.gapX + lost);
+    const used = gapX - base.gapX;             // what the space could take (less than lost when it hit 0)
+    return { ...base, labelW: value, gapX: r(gapX), right: r(base.right + used / 2) };
+  }
+  const gapY = Math.max(0, base.gapY + lost);
+  const used = gapY - base.gapY;
+  return { ...base, labelH: value, gapY: r(gapY), down: r(base.down + used / 2) };
+}
 
 export const SIZE_LIMITS: Record<keyof A4Sizes, [number, number]> = {
   labelW: [15, 60], labelH: [40, 140], top: [0, 40], left: [0, 40], gapX: [0, 15], gapY: [0, 20],

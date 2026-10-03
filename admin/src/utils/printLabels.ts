@@ -1,5 +1,5 @@
 import { code128ToSvg } from './code128';
-import { SheetSettings, A4Sizes, A4_PER_SHEET, A4_COLS, A4_ROWS, SIZE_LIMITS, A4_DEFAULTS, cleanSheet, fitProblem, tallScale, loadSheet, saveSheet, LetterLayout, LETTER_LIMITS, LETTER_DEFAULTS, LETTER_MARGIN_MM, LETTER_COLS, LETTER_ROWS, letterFitProblem } from './labelSheet';
+import { SheetSettings, A4Sizes, A4_PER_SHEET, A4_COLS, A4_ROWS, SIZE_LIMITS, A4_DEFAULTS, cleanSheet, fitProblem, tallScale, loadSheet, saveSheet, LetterLayout, LETTER_LIMITS, LETTER_DEFAULTS, LETTER_MARGIN_MM, LETTER_COLS, LETTER_ROWS, letterFitProblem, resizeKeepingCentres } from './labelSheet';
 import { renderPagePng, zipFiles, downloadBytes } from './labelImages';
 
 /**
@@ -682,6 +682,7 @@ const PANEL_HTML = `
           ${LETTER_SIZE_FIELDS.map(([k, name]) => `<label class="ps-field">${name}<span class="in"><input type="number" step="0.1" min="${LETTER_LIMITS[k][0]}" max="${LETTER_LIMITS[k][1]}" id="ps-nudge-${k}" /><em>mm</em></span></label>`).join('')}
           <label class="ps-field">Size %<span class="in"><input type="number" step="0.5" min="${LETTER_LIMITS.scale[0]}" max="${LETTER_LIMITS.scale[1]}" id="ps-nudge-scale" /><em>%</em></span></label>
         </div>
+        <p class="ps-help" style="margin: 8px 0 0">A narrower or shorter label stays centred on its sticker: the space between the labels grows to match, and the columns and rows stay where they are.</p>
         <button type="button" class="ps-link" id="ps-nudge-reset">Back to the starting numbers</button>
       </details>
     </section>
@@ -822,11 +823,17 @@ function openPrintWindow(job: PrintJob): boolean {
   el('ps-reset').addEventListener('click', () => change({ a4: { ...A4_DEFAULTS } }));
   LETTER_KEYS.forEach((k) => {
     const input = el<HTMLInputElement>(`ps-nudge-${k}`);
+    // A label width or height keeps each label centred on its sticker (the space between them and the page position follow), measured
+    // from the numbers when this box was entered, so typing in steps ends in the right place
+    let base: LetterLayout = settings.letter;
+    input.addEventListener('focus', () => { base = settings.letter; });
     input.addEventListener('input', () => {
       const v = parseFloat(input.value);
-      if (Number.isFinite(v)) change({ letter: { ...settings.letter, [k]: v } }, true);
+      if (!Number.isFinite(v)) return;
+      if (k === 'labelW' || k === 'labelH') change({ letter: resizeKeepingCentres(base, k, v) }, true);
+      else change({ letter: { ...settings.letter, [k]: v } }, true);
     });
-    input.addEventListener('change', () => render());
+    input.addEventListener('change', () => { base = settings.letter; render(); });
   });
   el('ps-nudge-reset').addEventListener('click', () => change({ letter: { ...LETTER_DEFAULTS } }));
   el('ps-print').addEventListener('click', () => { if (!el<HTMLButtonElement>('ps-print').disabled) { win.focus(); win.print(); } });
