@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, CSSProperties } from 'react';
+import { useState, useEffect, useRef, useMemo, CSSProperties } from 'react';
 import type { AxiosResponse } from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import { LABEL_PRESETS } from '../data/labelPresets';
 import StoreLabelsPanel from '../components/StoreLabelsPanel';
 import SameBarcodePanel from '../components/SameBarcodePanel';
 import { sameBarcode } from '../lib/barcode';
+import { suggestFromBarcode, matchNames, CatalogItem } from '../lib/labelSimilar';
 import LabelImportModal from '../components/LabelImportModal';
 import CoverageView from '../components/CoverageView';
 import HealthView from '../components/HealthView';
@@ -114,13 +115,15 @@ export default function Labels() {
   const [dupHint, setDupHint] = useState(false);
 
   const nameQuery = formProductName.trim().toLowerCase();
-  const suggestions = nameQuery
-    ? LABEL_PRESETS.filter(p => p.name.toLowerCase().includes(nameQuery)).slice(0, 8)
-    : [];
+  // Name suggestions: the catalog first (every typed word at the start of a word, any order: "gat 28" finds Gatorade ... 28oz), then
+  // the starter list (data/labelPresets) for names the catalog does not have yet
+  type NameSuggestion = { key: string; name: string; priceText: string; dealText?: string | null; category?: string | null; fromCatalog: boolean };
 
-  function applyPreset(preset: (typeof LABEL_PRESETS)[number]) {
-    setFormProductName(preset.name);
-    setFormPriceText(preset.priceText.replace(/^\$/, ''));
+  function applyPreset(s: NameSuggestion) {
+    setFormProductName(s.name);
+    setFormPriceText(s.priceText.replace(/^\$/, ''));
+    if (s.dealText && !formDealText.trim()) setFormDealText(s.dealText);
+    if (s.category && !formCategory.trim()) setFormCategory(s.category);
     setShowSuggestions(false);
   }
 
@@ -145,6 +148,39 @@ export default function Labels() {
     enabled: viewMode === 'catalog',
   });
   const labels: Label[] = data?.data?.data || [];
+  const catalogItems: CatalogItem[] = useMemo(() => labels.map(l => ({
+    id: l.id, productName: l.productName, barcode: l.barcode, category: l.category, dealText: l.dealText, price: l.priceText,
+  })), [data]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A new item's barcode next to ones the catalog has (the same maker, often the same product line): what they suggest
+  const similarSugg = showModal && !editingLabel && formBarcode.trim() ? suggestFromBarcode(formBarcode, catalogItems, formProductName) : null;
+  // What the form filled in by itself: it keeps following the suggestion until a value of your own is typed
+  const autoFilled = useRef<{ price: string | null; category: string | null; name: string | null }>({ price: null, category: null, name: null });
+  const similarKey = similarSugg ? `${similarSugg.price}|${similarSugg.category}|${similarSugg.brand}` : '';
+  useEffect(() => {
+    if (!similarSugg) return;
+    if (formPriceText === '' || formPriceText === autoFilled.current.price) {
+      const next = similarSugg.price ?? '';
+      if (next !== formPriceText) setFormPriceText(next);
+      autoFilled.current.price = next || null;
+    }
+    if (similarSugg.category && (formCategory === '' || formCategory === autoFilled.current.category) && formCategory !== similarSugg.category) {
+      setFormCategory(similarSugg.category); autoFilled.current.category = similarSugg.category;
+    }
+    const brandName = similarSugg.brand ? `${similarSugg.brand} ` : null;
+    if (brandName && (formProductName === '' || formProductName === autoFilled.current.name) && formProductName !== brandName) {
+      setFormProductName(brandName); autoFilled.current.name = brandName;
+    }
+  }, [similarKey]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const suggestions: NameSuggestion[] = (() => {
+    if (!nameQuery || editingLabel) return [];
+    const fromCatalog = matchNames(nameQuery, catalogItems, 6).map(c => ({ key: c.id, name: c.productName, priceText: c.price ? `$${c.price}` : '', dealText: c.dealText, category: c.category, fromCatalog: true }));
+    const taken = new Set(fromCatalog.map(s => s.name.toLowerCase()));
+    const presets = LABEL_PRESETS.filter(p => p.name.toLowerCase().includes(nameQuery) && !taken.has(p.name.toLowerCase()))
+      .map(p => ({ key: `preset-${p.name}`, name: p.name, priceText: p.priceText, fromCatalog: false }));
+    return [...fromCatalog, ...presets].slice(0, 8);
+  })();
 
   const filteredLabels = labels.filter(l => {
     if (search.trim()) {
@@ -560,6 +596,7 @@ export default function Labels() {
   const runDelete = useSingleFlight(deleteMutation);
 
   function resetForm() {
+    autoFilled.current = { price: null, category: null, name: null };
     setFormProductName('');
     setFormPriceText('');
     setFormDealText('');
@@ -760,9 +797,9 @@ export default function Labels() {
               {showSuggestions && suggestions.length > 0 && (
                 <div style={m.sugg}>
                   {suggestions.map(p => (
-                    <div key={p.name} style={m.suggRow} onMouseDown={() => applyPreset(p)}>
+                    <div key={p.key} style={m.suggRow} onMouseDown={() => applyPreset(p)}>
                       <span style={{ fontWeight: 600 }}>{p.name}</span>
-                      <span style={m.suggPrice}>{p.priceText}</span>
+                      <span style={m.suggPrice}>{p.priceText}{p.dealText ? ` · ${p.dealText}` : ''}{p.fromCatalog ? '' : ' · starter'}</span>
                     </div>
                   ))}
                 </div>
@@ -806,6 +843,30 @@ export default function Labels() {
               maxLength={40}
               aria-invalid={!!barcodeClash}
             />
+            {similarSugg && similarSugg.similar.length > 0 && !existingForNew && (
+              <div style={m.similarBox} role="status" data-testid="similar-box">
+                {similarSugg.price && formPriceText === similarSugg.price && (
+                  <div style={m.similarFilled}>Price from {similarSugg.basis.length} similar items ({similarSugg.basis.slice(0, 2).join(', ')}). Check it before saving.</div>
+                )}
+                {similarSugg.prices.length > 0 && (
+                  <div style={m.similarChips}>
+                    <span style={m.hint}>Similar items cost:</span>
+                    {similarSugg.prices.slice(0, 4).map(pr => (
+                      <button key={pr.price} type="button" className="ui-chip" aria-pressed={formPriceText === pr.price}
+                        aria-label={`Use $${pr.price}, the price of ${pr.count} similar items like ${pr.example}`} onClick={() => { setFormPriceText(pr.price); setFormError(''); }}>
+                        ${pr.price}{pr.count > 1 ? ` ×${pr.count}` : ''}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {similarSugg.deal && !formDealText.trim() && (
+                  <button type="button" className="ui-chip" onClick={() => setFormDealText(similarSugg.deal!)}>Same deal as similar items: {similarSugg.deal}</button>
+                )}
+                <div style={m.hint}>
+                  {similarSugg.closeness === 'line' ? 'Same product line' : 'Same brand'}: {similarSugg.similar.slice(0, 3).map(x => `${x.item.productName}${x.item.price ? ` $${x.item.price}` : ''}`).join(', ')}
+                </div>
+              </div>
+            )}
             {dupHint && !formBarcode.trim() && <div style={m.hint}>The barcode was left empty: one barcode belongs to one item. Scan or type this copy's own.</div>}
             {barcodeClash && <div role="alert" style={m.err}>The barcode {formBarcode.trim()} already belongs to "{barcodeClash.productName}". Use that item, or change the barcode.</div>}
             {existingForNew && (
@@ -1278,6 +1339,9 @@ const m: Record<string, CSSProperties> = {
   pctBig: { color: '#a51b28', fontWeight: 700 },
   label: { fontSize: 13, fontWeight: 700, color: '#111827', marginTop: 6 },
   hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
+  similarBox: { display: 'flex', flexDirection: 'column' as const, gap: 6, padding: '8px 10px', borderRadius: 8, background: '#f6f8fb', border: '1px solid #e4e7ec' },
+  similarFilled: { fontSize: 12.5, fontWeight: 700, color: '#17663a' },
+  similarChips: { display: 'flex', flexWrap: 'wrap' as const, gap: 6, alignItems: 'center' },
   input: {
     border: '1.5px solid #d5dae1', borderRadius: 10,
     padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',

@@ -2054,7 +2054,13 @@
     "priceClashBodyNoPrice": "{{name}} has this barcode but no price at your store yet. Set your store's price to ${{typed}}?",
     "priceClashKeep": "Keep ${{price}}",
     "priceClashChange": "Change to ${{price}}",
-    "priceClashChanged": "{{name}} is now ${{price}} at your store, and in My Prints"
+    "priceClashChanged": "{{name}} is now ${{price}} at your store, and in My Prints",
+    "similarFilled": "Price from {{count}} similar items ({{names}}). Check it before printing.",
+    "similarPrices": "Similar items cost:",
+    "similarPriceA11y": "Use ${{price}}, the price of {{count}} similar items like {{example}}",
+    "similarDeal": "Same deal as similar items: {{deal}}",
+    "similarLine": "Same product line: {{names}}",
+    "similarMaker": "Same brand: {{names}}"
   },
   "sharedScanner": {
     "titleScan": "Scan Barcode",

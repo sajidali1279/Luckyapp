@@ -14,6 +14,7 @@ import { COLORS } from '../constants';
 import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, DollarSignIcon, ShoppingBagIcon, Trash2Icon, AlertTriangleIcon, PlusIcon, MapPinIcon, ChevronDownIcon, ChevronRightIcon, PrinterIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
 import { sameBarcode } from '../utils/barcode';
+import { suggestFromBarcode, matchNames, CatalogItem } from '../utils/labelSimilar';
 import PriceCheckModal from './PriceCheckModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { useAuthStore, isStoreManagerOrAbove } from '../store/authStore';
@@ -278,6 +279,11 @@ export default function LabelsScreen() {
     queryFn: () => labelsApi.getAllWithMyStore(storeId),
   });
   const allLabels: Label[] = catalogData?.data?.data || [];
+  // The catalog as the new-label form's suggestions read it: each item with this store's price (its own, else the chain price)
+  const catalogItems: CatalogItem[] = useMemo(() => allLabels.map(l => ({
+    id: l.id, productName: l.productName, barcode: l.barcode, category: l.category, dealText: l.dealText,
+    price: l.myStoreLabel?.effectivePrice ?? l.priceText,
+  })), [catalogData]);   // eslint-disable-line react-hooks/exhaustive-deps
   const labelsById = useMemo(() => new Map(allLabels.map(l => [l.id, l] as const)), [catalogData]);
 
   // My Prints is a personal cart kept on this phone (see utils/labelCart.ts),
@@ -444,6 +450,7 @@ export default function LabelsScreen() {
   function openCreateFromProduct(p: ScannedProduct) {
     createdViaRef.current = 'search';
     setEditingLabel(null);
+    autoFilled.current = { price: null, category: null };
     setFormProductName(p.name.slice(0, 40));
     setFormPriceText('');
     setFormDealText('');
@@ -459,17 +466,36 @@ export default function LabelsScreen() {
   // price too, so a repeat item takes one tap instead of full re-entry.
   // Only offered while creating (not editing) an existing label.
   const nameQuery = formProductName.trim().toLowerCase();
-  const nameSuggestions = !editingLabel && nameQuery
-    ? allLabels
-        .filter(l => l.productName.toLowerCase().includes(nameQuery))
-        .filter((l, i, arr) => arr.findIndex(x => x.productName.toLowerCase() === l.productName.toLowerCase()) === i)
-        .slice(0, 6)
+  // Every typed word matches the start of a word in the name, in any order ("gat 28" finds Gatorade ... 28oz)
+  const nameSuggestions: Label[] = !editingLabel && nameQuery
+    ? matchNames(nameQuery, catalogItems).map(ci => allLabels.find(l => l.id === ci.id)!).filter(Boolean)
     : [];
+
+  // A new barcode next to ones the catalog has (the same maker, often the same product line): what they suggest. See utils/labelSimilar.ts.
+  const similarSugg = useMemo(
+    () => (showForm && !editingLabel && formBarcode ? suggestFromBarcode(formBarcode, catalogItems, formProductName) : null),
+    [showForm, editingLabel, formBarcode, catalogItems, formProductName],
+  );
+  // What the form filled in by itself: it keeps following the suggestion until the person types their own value
+  const autoFilled = useRef<{ price: string | null; category: string | null }>({ price: null, category: null });
+  useEffect(() => {
+    if (!similarSugg) return;
+    if (formPriceText === '' || formPriceText === autoFilled.current.price) {
+      const next = similarSugg.price ?? '';
+      if (next !== formPriceText) setFormPriceText(next);
+      autoFilled.current.price = next || null;
+    }
+    if (similarSugg.category && (formCategory === '' || formCategory === autoFilled.current.category) && formCategory !== similarSugg.category) {
+      setFormCategory(similarSugg.category);
+      autoFilled.current.category = similarSugg.category;
+    }
+  }, [similarSugg]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   function applyNameSuggestion(label: Label) {
     setFormProductName(label.productName);
-    setFormPriceText(label.priceText || '');
+    setFormPriceText(label.myStoreLabel?.effectivePrice ?? label.priceText ?? '');
     setFormDealText(label.dealText || '');
+    if (!formCategory.trim() && label.category) setFormCategory(label.category);
     setShowNameSugg(false);
   }
 
@@ -600,7 +626,9 @@ export default function LabelsScreen() {
     }
     createdViaRef.current = 'scan';
     setEditingLabel(null);
-    setFormProductName(scanned.name);
+    autoFilled.current = { price: null, category: null };
+    const brand = scanned.name ? null : suggestFromBarcode(scanned.barcode, catalogItems, null).brand;
+    setFormProductName(scanned.name || (brand ? `${brand} ` : ''));
     setFormPriceText('');
     setFormDealText('');
     setFormBarcode(scanned.barcode);
@@ -608,7 +636,7 @@ export default function LabelsScreen() {
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowForm(true);
     // One screen for a new item: the name (if the scan did not know it), the price and the category are all here
-    setTimeout(() => (scanned.name ? priceRef : nameRef).current?.focus(), 450);
+    setTimeout(() => (scanned.name ? priceRef : nameRef).current?.focus(), 450);   // the brand is filled in: the cursor goes after it
   }
 
   // Used when a search for a barcode/name comes up empty everywhere in the
@@ -619,6 +647,7 @@ export default function LabelsScreen() {
     if (!term) return;
     createdViaRef.current = 'search';
     setEditingLabel(null);
+    autoFilled.current = { price: null, category: null };
     setFormProductName(isBarcodeLikeSearch ? '' : term);
     setFormPriceText('');
     setFormDealText('');
@@ -974,6 +1003,34 @@ export default function LabelsScreen() {
                   maxLength={7}
                 />
               </View>
+              {similarSugg && similarSugg.similar.length > 0 ? (
+                <View style={s.similarBox} accessibilityLiveRegion="polite">
+                  {similarSugg.price && formPriceText === similarSugg.price ? (
+                    <Text style={s.similarFilled}>{t('sharedLabels.similarFilled', { count: similarSugg.basis.length, names: similarSugg.basis.slice(0, 2).join(', ') })}</Text>
+                  ) : null}
+                  {similarSugg.prices.length > 0 ? (
+                    <View style={s.similarChips}>
+                      <Text style={s.similarLabel}>{t('sharedLabels.similarPrices')}</Text>
+                      {similarSugg.prices.slice(0, 4).map(p => (
+                        <TouchableOpacity key={p.price} style={[s.similarChip, formPriceText === p.price && s.similarChipOn]} onPress={() => setFormPriceText(p.price)}
+                          accessibilityRole="button" accessibilityLabel={t('sharedLabels.similarPriceA11y', { price: p.price, count: p.count, example: p.example })} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                          <Text style={[s.similarChipText, formPriceText === p.price && s.similarChipTextOn]}>${p.price}{p.count > 1 ? ` ×${p.count}` : ''}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : null}
+                  {similarSugg.deal && !formDealText.trim() ? (
+                    <TouchableOpacity style={s.similarDeal} onPress={() => setFormDealText(similarSugg.deal!)} accessibilityRole="button">
+                      <Text style={s.similarDealText}>{t('sharedLabels.similarDeal', { deal: similarSugg.deal })}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <Text style={s.similarItems} numberOfLines={2}>
+                    {t(similarSugg.closeness === 'line' ? 'sharedLabels.similarLine' : 'sharedLabels.similarMaker', {
+                      names: similarSugg.similar.slice(0, 3).map(x => `${x.item.productName}${x.item.price ? ` $${x.item.price}` : ''}`).join(', '),
+                    })}
+                  </Text>
+                </View>
+              ) : null}
 
               <Text style={[s.fieldLabel, { marginTop: 16 }]}>{t('sharedLabels.fieldDeal')}</Text>
               <TextInput
@@ -2001,6 +2058,17 @@ const s = StyleSheet.create({
   templateSwatch: { width: 10, height: 10, borderRadius: 5 },
   templateChipText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   priceInputWrap: { position: 'relative', justifyContent: 'center' },
+  similarBox: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: '#f6f8fb', borderWidth: 1, borderColor: '#e4e7ec', gap: 6 },
+  similarFilled: { fontSize: 12.5, fontWeight: '700', color: '#17663a' },
+  similarChips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
+  similarLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  similarChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fff' },
+  similarChipOn: { borderColor: COLORS.primary, backgroundColor: COLORS.primary + '12' },
+  similarChipText: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  similarChipTextOn: { color: COLORS.primary },
+  similarDeal: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 14, backgroundColor: COLORS.accent + '22' },
+  similarDealText: { fontSize: 12.5, fontWeight: '700', color: COLORS.text },
+  similarItems: { fontSize: 12, color: COLORS.textMuted, lineHeight: 16 },
   priceInputDollar: {
     position: 'absolute', left: 14, fontSize: 15, fontWeight: '700', color: COLORS.textMuted, zIndex: 1,
   },

@@ -2054,7 +2054,13 @@
     "priceClashBodyNoPrice": "{{name}} tiene este código pero aún no tiene precio en su tienda. ¿Poner el precio de su tienda en ${{typed}}?",
     "priceClashKeep": "Dejar ${{price}}",
     "priceClashChange": "Cambiar a ${{price}}",
-    "priceClashChanged": "{{name}} ahora cuesta ${{price}} en su tienda y está en Para imprimir"
+    "priceClashChanged": "{{name}} ahora cuesta ${{price}} en su tienda y está en Para imprimir",
+    "similarFilled": "Precio de {{count}} productos parecidos ({{names}}). Revíselo antes de imprimir.",
+    "similarPrices": "Productos parecidos cuestan:",
+    "similarPriceA11y": "Usar ${{price}}, el precio de {{count}} productos parecidos como {{example}}",
+    "similarDeal": "La misma oferta que productos parecidos: {{deal}}",
+    "similarLine": "Misma línea de productos: {{names}}",
+    "similarMaker": "Misma marca: {{names}}"
   },
   "sharedScanner": {
     "titleScan": "Escanear Código de Barras",
