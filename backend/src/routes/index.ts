@@ -78,6 +78,7 @@ import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.control
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
+import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
 import { getBarcodeDuplicates, mergeLabels, importLabels } from '../controllers/labelCleanup.controller';
 import {
   getStoreSchedule,
@@ -402,6 +403,7 @@ router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, require
 router.get('/my-invoices', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminInvoices);
 router.get('/billing/pending-count', authenticate, requireRole(Role.SUPER_ADMIN), getBillingPendingCount); // Badge count
 router.get('/notifications', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminNotifications);
+router.post('/admin/notifications/read', authenticate, requireRole(Role.SUPER_ADMIN), setAdminNotificationsRead);   // HQ alerts read (or unread) for every HQ admin
 
 // ─── Admin shell — every sidebar badge count in one request (shell audit batch S3) ────────────────────────
 router.get('/admin/badges', authenticate, requireRole(Role.SUPER_ADMIN), getAdminBadgeCounts);

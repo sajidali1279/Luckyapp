@@ -47,7 +47,7 @@ export function usePinnedNotice(storeId?: string | null) {
     setDismissedIds((prev) => {
       const next = new Set(prev);
       next.add(id);
-      localStorage.setItem(DISMISSED_NOTICES_KEY, JSON.stringify([...next]));
+      try { localStorage.setItem(DISMISSED_NOTICES_KEY, JSON.stringify([...next])); } catch { /* storage blocked: hidden for this visit only */ }
       return next;
     });
   }

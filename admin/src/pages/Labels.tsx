@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, CSSProperties } from 'react';
+import type { AxiosResponse } from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -493,7 +494,7 @@ export default function Labels() {
   const priceOnly = formChanges.length > 0 && formChanges.every(c => c.field === 'Price');
 
   const saveMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (): Promise<AxiosResponse> => {
       const category = formCategory.trim() || null;
       const barcode = formBarcode.trim() || null;
       if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
@@ -996,9 +997,11 @@ export default function Labels() {
                         <span className="sr-only">Select</span>
                         <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} aria-label={allFilteredSelected ? 'Deselect all labels' : 'Select all labels'} />
                       </TableHead>
-                      {['Product', 'Category', 'Base price', 'Deal', 'Design', 'Updated', ''].map(h => (
+                      {['Product', 'Category', 'Base price', 'Deal', 'Design', 'Updated'].map(h => (
                         <TableHead key={h} style={s.th}>{h}</TableHead>
                       ))}
+                      {/* The row buttons' column: no visible title, but a screen reader names it */}
+                      <TableHead style={s.th}><span className="sr-only">Actions</span></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

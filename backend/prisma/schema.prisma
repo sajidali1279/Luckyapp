@@ -934,6 +934,17 @@ model OtpCode {
 
 // ─── In-App Notifications ─────────────────────────────────────────────────────
 
+// HQ's alerts (Notifications page) marked read, shared by every HQ admin: one row per alert id (ids are stable, e.g. "dispute-<id>").
+// Before 2026-10-02 "read" lived in each browser, so another admin or another computer still showed it unread.
+model AdminNotificationRead {
+  notificationId String   @id
+  readById       String   // a plain id (no link), so removing an admin account is not blocked by it
+  readByName     String?
+  readAt         DateTime @default(now())
+
+  @@map("admin_notification_reads")
+}
+
 model UserNotification {
   id        String    @id @default(uuid())
   userId    String

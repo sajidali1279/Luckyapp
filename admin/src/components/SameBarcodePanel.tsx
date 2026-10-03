@@ -46,8 +46,11 @@ function GroupCard({ group }: { group: Group }) {
   const best = [...group.items].sort((a, b) => b.stores - a.stores)[0];
   const [keepId, setKeepId] = useState(best.id);
   const keep = group.items.find((i) => i.id === keepId)!;
-  const prices = [...new Set(group.items.map((i) => i.priceText).filter((p): p is string => !!p))];
-  const [price, setPrice] = useState<string | null>(best.priceText);
+  // One button per amount (".99" and "0.99" are the same price), written as 0.99
+  const amount = (p: string | null) => (p && !isNaN(Number(p)) ? Number(p).toFixed(2) : null);
+  const prices = [...new Set(group.items.map((i) => amount(i.priceText)).filter((p): p is string => !!p))];
+  // A kept item with no price takes another copy's price by default (a priceless copy should not wipe the real one)
+  const [price, setPrice] = useState<string | null>(amount(best.priceText) ?? prices[0] ?? null);
   const [asking, setAsking] = useState(false);
   const others = group.items.filter((i) => i.id !== keepId);
 
@@ -83,7 +86,7 @@ function GroupCard({ group }: { group: Group }) {
       <div role="radiogroup" aria-label={`Item to keep for barcode ${group.items[0].barcode}`}>
         {group.items.map((i) => (
           <label key={i.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 16px', borderBottom: `1px solid ${C.border}`, cursor: 'pointer', background: i.id === keepId ? C.primaryTint : C.surface }}>
-            <input type="radio" name={`keep-${group.key}`} checked={i.id === keepId} onChange={() => { setKeepId(i.id); setPrice(i.priceText); }}
+            <input type="radio" name={`keep-${group.key}`} checked={i.id === keepId} onChange={() => { setKeepId(i.id); setPrice(amount(i.priceText) ?? prices[0] ?? null); }}
               style={{ marginTop: 3, accentColor: C.primary }} aria-label={`Keep ${i.productName}`} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
@@ -101,7 +104,7 @@ function GroupCard({ group }: { group: Group }) {
         ))}
       </div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '12px 16px', flexWrap: 'wrap' }}>
-        {prices.length > 1 ? (
+        {prices.length > 1 || (prices.length === 1 && keep.priceText == null) ? (
           <div role="radiogroup" aria-label="Price to keep" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: FONT.small, color: C.text2, fontWeight: 600 }}>Price for all stores:</span>
             {prices.map((p) => (

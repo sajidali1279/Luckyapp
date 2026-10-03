@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { superAdminApi, devAdminApi, storesApi } from '../services/api';
+import { superAdminApi, devAdminApi, storesApi, adminApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { downloadInvoicePdf } from '../utils/invoicePdf';
 import ErrorState from '../components/ErrorState';
@@ -91,37 +91,30 @@ export default function Notifications() {
   const isDevAdmin = user?.role === 'DEV_ADMIN';
   const [activeTab, setActiveTab] = useState<TabKey>('all');
 
-  // Local read tracking — persisted in localStorage across sessions
-  const [localRead, setLocalRead] = useState<Set<string>>(() => {
-    try {
-      const s = localStorage.getItem('admin-notif-read-v2');
-      return new Set(s ? JSON.parse(s) : []);
-    } catch { return new Set(); }
+  // Read status is kept on the server for every HQ admin and every computer. An alert turns read here at once and is saved in the
+  // background; if saving fails it turns unread again and says so.
+  const [justRead, setJustRead] = useState<Set<string>>(new Set());
+  const readMutation = useMutation({
+    mutationFn: ({ ids, read }: { ids: string[]; read: boolean }) => adminApi.setNotificationsRead(ids, read),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['dev-admin-notifications'] });
+      qc.invalidateQueries({ queryKey: ['super-admin-notifications'] });
+    },
+    onError: (_e, v) => {
+      setJustRead(prev => { const next = new Set(prev); v.ids.forEach(id => next.delete(id)); return next; });
+      toast.error('Could not save that as read. Please try again.');
+    },
   });
 
-  function persistRead(next: Set<string>) {
-    try { localStorage.setItem('admin-notif-read-v2', JSON.stringify([...next])); } catch {}
-    // AppSidebar's own Notifications badge reads this same localStorage key
-    // but only re-checks it when its identically-keyed query re-renders —
-    // invalidating here makes the badge drop immediately instead of waiting
-    // for its next 60s poll.
-    qc.invalidateQueries({ queryKey: ['dev-admin-notifications'] });
-    qc.invalidateQueries({ queryKey: ['super-admin-notifications'] });
-  }
-
   function markRead(ids: string[]) {
-    setLocalRead(prev => {
-      const next = new Set(prev);
-      ids.forEach(id => next.add(id));
-      persistRead(next);
-      return next;
-    });
+    const fresh = ids.filter(id => !justRead.has(id) && !allNotifications.find(n => n.id === id)?.isRead);
+    if (fresh.length === 0) return;
+    setJustRead(prev => new Set([...prev, ...fresh]));
+    readMutation.mutate({ ids: fresh, read: true });
   }
 
   function markAllRead() {
-    const next = new Set([...localRead, ...allNotifications.map(n => n.id)]);
-    setLocalRead(next);
-    persistRead(next);
+    markRead(allNotifications.map(n => n.id));
   }
 
   const { data: notifData, isLoading, isError, refetch } = useQuery({
@@ -157,7 +150,7 @@ export default function Notifications() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [severityFilter, setSeverityFilter] = useState<string>('');
 
-  function isEffectivelyRead(n: Notification) { return n.isRead || localRead.has(n.id); }
+  function isEffectivelyRead(n: Notification) { return n.isRead || justRead.has(n.id); }
   function unreadCount(list: Notification[]) { return list.filter(n => !isEffectivelyRead(n)).length; }
 
   const allNotifications = rawNotifications;

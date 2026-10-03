@@ -21,6 +21,7 @@ import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { GAS_PRICE_MIN, GAS_PRICE_MAX, storePhone, inUnitedStates, COORDINATES_MESSAGE, COORDINATE_PAIR_MESSAGE } from '../utils/storeRules';
 import { resolveAudience } from '../utils/audience';
 import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
+import { withSharedReads } from './adminNotificationReads.controller';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 export async function getStoreById(req: AuthRequest, res: Response) {
@@ -1730,7 +1731,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   notifications.push(...await rewardChangeNotifications(now));
-  res.json({ success: true, data: notifications });
+  res.json({ success: true, data: await withSharedReads(notifications) });   // read by any HQ admin, on any computer
 }
 
 // DevAdmin — platform-owner notification feed
@@ -1987,7 +1988,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
 
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   notifications.push(...await rewardChangeNotifications(now));
-  res.json({ success: true, data: notifications });
+  res.json({ success: true, data: await withSharedReads(notifications) });   // read by any HQ admin, on any computer
 }
 
 // ─── Revenue & Analytics ──────────────────────────────────────────────────────

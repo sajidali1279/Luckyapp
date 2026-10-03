@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { superAdminApi, devAdminApi, adminApi } from '../services/api';
 
@@ -19,12 +20,24 @@ export function useAdminBadges() {
     refetchInterval: 60_000,
     retry: false,
   });
-  // Mirrors Notifications.tsx's own isEffectivelyRead(n) = n.isRead || locally dismissed. Without this,
-  // marking a notification read on that page never reduced the badge, since it only checked the
-  // server-derived `isRead` (computed fresh from live business state, not a per-user flag).
-  let dismissedNotificationIds: Set<string> = new Set();
-  try { dismissedNotificationIds = new Set(JSON.parse(localStorage.getItem('admin-notif-read-v2') || '[]')); } catch { /* ignore malformed storage */ }
-  const unreadCount: number = (notifData?.data?.data ?? []).filter((n: any) => !n.isRead && !dismissedNotificationIds.has(n.id)).length;
+  // Read status is kept on the server for every HQ admin (2026-10-02). Alerts this browser marked read before that are sent up once,
+  // so nothing comes back as unread, and then the old browser-only list is removed.
+  const qc = useQueryClient();
+  const alerts: any[] = notifData?.data?.data ?? [];
+  useEffect(() => {
+    if (alerts.length === 0) return;
+    let legacy: string[] = [];
+    try { legacy = JSON.parse(localStorage.getItem('admin-notif-read-v2') || '[]'); } catch { legacy = []; }
+    if (!Array.isArray(legacy) || legacy.length === 0) return;
+    const ids = alerts.filter((n) => !n.isRead && legacy.includes(n.id)).map((n) => n.id).slice(0, 500);
+    const done = () => { try { localStorage.removeItem('admin-notif-read-v2'); } catch { /* nothing to remove */ } };
+    if (ids.length === 0) { done(); return; }
+    adminApi.setNotificationsRead(ids).then(() => {
+      done();
+      qc.invalidateQueries({ queryKey: isDevAdmin ? ['dev-admin-notifications'] : ['super-admin-notifications'] });
+    }).catch(() => { /* tried again on the next load */ });
+  }, [alerts.length]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const unreadCount: number = alerts.filter((n: any) => !n.isRead).length;
 
   const { data: badgeData } = useQuery({
     queryKey: ['admin-badge-counts'],
