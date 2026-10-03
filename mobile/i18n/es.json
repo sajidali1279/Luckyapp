@@ -2048,7 +2048,13 @@
     "keptInMyPrintsSub": "No se registró nada. Imprima de nuevo cuando esté listo.",
     "priceChangedKept_one": "{{count}} etiqueta se quedó en Mis impresiones",
     "priceChangedKept_other": "{{count}} etiquetas se quedaron en Mis impresiones",
-    "priceChangedKeptSub": "El precio cambió mientras se imprimía. Imprímalas de nuevo con el precio nuevo."
+    "priceChangedKeptSub": "El precio cambió mientras se imprimía. Imprímalas de nuevo con el precio nuevo.",
+    "priceClashTitle": "Ya está en el catálogo",
+    "priceClashBody": "{{name}} tiene este código y cuesta ${{current}} en su tienda. ¿Cambiar el precio de su tienda a ${{typed}}?",
+    "priceClashBodyNoPrice": "{{name}} tiene este código pero aún no tiene precio en su tienda. ¿Poner el precio de su tienda en ${{typed}}?",
+    "priceClashKeep": "Dejar ${{price}}",
+    "priceClashChange": "Cambiar a ${{price}}",
+    "priceClashChanged": "{{name}} ahora cuesta ${{price}} en su tienda y está en Para imprimir"
   },
   "sharedScanner": {
     "titleScan": "Escanear Código de Barras",

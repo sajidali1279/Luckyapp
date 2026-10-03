@@ -33,6 +33,9 @@ interface Props {
   // next scan. Return a short message (shown briefly over the viewfinder)
   // when the barcode was handled; return null to let the normal flow run.
   onKnownBarcode?: (barcode: string) => string | null;
+  // Labels: hand every scan straight back (with the name and category if the catalog or Open Food Facts knows them) instead of
+  // showing the confirm or "name this product" screen, so the caller's own form asks for the name, category and price together.
+  skipConfirm?: boolean;
 }
 
 function mapOFFCategory(tags: string[]): string | null {
@@ -50,7 +53,7 @@ function mapOFFCategory(tags: string[]): string | null {
   return last.charAt(0).toUpperCase() + last.slice(1);
 }
 
-export default function BarcodeScannerModal({ visible, onClose, onResult, hideQuantity = false, confirmLabel, onKnownBarcode }: Props) {
+export default function BarcodeScannerModal({ visible, onClose, onResult, hideQuantity = false, confirmLabel, onKnownBarcode, skipConfirm = false }: Props) {
   const { t } = useTranslation();
   // Callers that don't pass their own button text get the translated default.
   const confirmText = confirmLabel ?? t('sharedScanner.addToList');
@@ -185,7 +188,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
       const catalogRes = await scannedProductApi.lookup(data);
       const cached     = catalogRes.data?.data;
       if (cached?.name) {
-        showFound(cached.name, cached.category ?? null, 'catalog');
+        showFound(cached.name, cached.category ?? null, 'catalog', data);
         return;
       }
     } catch {
@@ -208,13 +211,18 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
 
         if (name) {
           scannedProductApi.save({ barcode: data, name, category: cat ?? undefined, brand, source: 'openfoodfacts' }).catch(() => {});
-          showFound(name, cat, 'openfoodfacts');
+          showFound(name, cat, 'openfoodfacts', data);
           return;
         }
       }
     } catch { /* fall through */ }
 
-    // 3. Not found anywhere → naming form
+    // 3. Not found anywhere → naming form (or, for Labels, its own form with the name still to type)
+    if (skipConfirm) {
+      onResult({ name: '', category: null, barcode: data, quantity: '', source: 'manual' });
+      setPhase('done');
+      return;
+    }
     setPhase('naming');
     setTimeout(() => nameRef.current?.focus(), 300);
   }
@@ -227,7 +235,12 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
     handleScan({ data: code });
   }
 
-  function showFound(name: string, cat: string | null, src: 'catalog' | 'openfoodfacts') {
+  function showFound(name: string, cat: string | null, src: 'catalog' | 'openfoodfacts', code: string) {
+    if (skipConfirm) {   // the barcode state is not set yet in this render, so the code is passed in
+      onResult({ name, category: cat, barcode: code, quantity: '', source: src });
+      setPhase('done');
+      return;
+    }
     setFoundName(name);
     setFoundCat(cat);
     setFoundSource(src);

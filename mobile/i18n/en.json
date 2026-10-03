@@ -2048,7 +2048,13 @@
     "keptInMyPrintsSub": "Nothing was recorded. Print again when ready.",
     "priceChangedKept_one": "{{count}} label stayed in My Prints",
     "priceChangedKept_other": "{{count}} labels stayed in My Prints",
-    "priceChangedKeptSub": "The price changed while printing. Print them again at the new price."
+    "priceChangedKeptSub": "The price changed while printing. Print them again at the new price.",
+    "priceClashTitle": "Already in the catalog",
+    "priceClashBody": "{{name}} has this barcode and is ${{current}} at your store. Change your store's price to ${{typed}}?",
+    "priceClashBodyNoPrice": "{{name}} has this barcode but no price at your store yet. Set your store's price to ${{typed}}?",
+    "priceClashKeep": "Keep ${{price}}",
+    "priceClashChange": "Change to ${{price}}",
+    "priceClashChanged": "{{name}} is now ${{price}} at your store, and in My Prints"
   },
   "sharedScanner": {
     "titleScan": "Scan Barcode",

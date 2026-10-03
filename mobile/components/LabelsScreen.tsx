@@ -13,6 +13,7 @@ import { labelsApi, storesApi, orderCategoriesApi, scannedProductApi } from '../
 import { COLORS } from '../constants';
 import { TagIcon, XIcon, CheckCircleIcon, EditIcon, CameraIcon, FilterIcon, DollarSignIcon, ShoppingBagIcon, Trash2Icon, AlertTriangleIcon, PlusIcon, MapPinIcon, ChevronDownIcon, ChevronRightIcon, PrinterIcon } from './Icons';
 import BarcodeScannerModal, { BarcodeResult } from './BarcodeScannerModal';
+import { sameBarcode } from '../utils/barcode';
 import PriceCheckModal from './PriceCheckModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { useAuthStore, isStoreManagerOrAbove } from '../store/authStore';
@@ -157,6 +158,8 @@ export default function LabelsScreen() {
   // Where the New Label form was opened from: only a scan keeps the camera
   // going after the label is saved.
   const createdViaRef = useRef<'scan' | 'search'>('scan');
+  const nameRef = useRef<TextInput>(null);
+  const priceRef = useRef<TextInput>(null);
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
   // Which label paper prints come out on (US Letter 30, or A4 18 tall labels), kept on this phone
@@ -322,7 +325,7 @@ export default function LabelsScreen() {
   const searchTerm = search.trim();
   const isBarcodeLikeSearch = /^\d{4,}$/.test(searchTerm);
   const existingBarcodeMatch = isBarcodeLikeSearch
-    ? allLabels.find(l => l.barcode === searchTerm)
+    ? allLabels.find(l => sameBarcode(l.barcode, searchTerm))
     : undefined;
 
   function statusOf(l: Label): LabelPrintStatus {
@@ -564,7 +567,7 @@ export default function LabelsScreen() {
   // the scanner's normal lookup-and-name flow, which ends in the New Label form.
   function handleKnownBarcode(barcode: string): string | null {
     if (!cartId) return null;
-    const label = allLabelsRef.current.find(l => l.barcode === barcode);
+    const label = allLabelsRef.current.find(l => sameBarcode(l.barcode, barcode));   // with or without the leading 0
     if (!label) return null;
     const qty = useLabelCart.getState().addOrBump(cartId, label.id);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -575,7 +578,7 @@ export default function LabelsScreen() {
   }
 
   function openCreateForm(scanned: BarcodeResult) {
-    const existing = allLabels.find(l => l.barcode && l.barcode === scanned.barcode);
+    const existing = allLabels.find(l => sameBarcode(l.barcode, scanned.barcode));
     if (existing) {
       if (cartId) {
         // A label the scanner's own hook didn't catch (say the catalog was
@@ -604,6 +607,8 @@ export default function LabelsScreen() {
     setFormCategory(scanned.category || '');
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowForm(true);
+    // One screen for a new item: the name (if the scan did not know it), the price and the category are all here
+    setTimeout(() => (scanned.name ? priceRef : nameRef).current?.focus(), 450);
   }
 
   // Used when a search for a barcode/name comes up empty everywhere in the
@@ -697,6 +702,16 @@ export default function LabelsScreen() {
       // A new label whose barcode is already a real item this phone had not loaded yet (someone else made it a moment ago):
       // that item is what the person wants, so it goes into My Prints instead of ending on an error.
       const existingId: string | undefined = body?.data?.existingId;
+      if (wasCreate && body?.code === 'BARCODE_TAKEN' && existingId && storeId) {
+        const current: string | null = body.data.storePriceText ?? null;
+        const typed = Number(priceText.replace(/^\$/, ''));
+        if (current == null || Number(current) !== typed) {
+          // The item exists at another price: ask whether to change this store's price (HQ sets the price for every store)
+          setSaving(false);
+          askToChangePrice({ id: existingId, name: body.data.existingName ?? productName, current, typed: priceText, storeLabelId: body.data.storeLabelId ?? null });
+          return;
+        }
+      }
       if (wasCreate && body?.code === 'BARCODE_TAKEN' && existingId && cartId) {
         await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
         useLabelCart.getState().add(cartId, [existingId]);
@@ -710,6 +725,41 @@ export default function LabelsScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // One barcode, one item: someone typed a new price for an item that already exists. They keep the price or change their store's.
+  function askToChangePrice(x: { id: string; name: string; current: string | null; typed: string; storeLabelId: string | null }) {
+    const typed = x.typed.replace(/^\$/, '');
+    const done = async (toast: string) => {
+      await qc.invalidateQueries({ queryKey: ['mobile-labels'] });
+      if (cartId) useLabelCart.getState().add(cartId, [x.id]);
+      Toast.show({ type: 'success', text1: toast });
+      closeForm();
+      if (createdViaRef.current === 'scan') setShowScanner(true);
+    };
+    Alert.alert(
+      t('sharedLabels.priceClashTitle'),
+      x.current
+        ? t('sharedLabels.priceClashBody', { name: x.name, current: x.current, typed })
+        : t('sharedLabels.priceClashBodyNoPrice', { name: x.name, typed }),
+      [
+        { text: t('sharedLabels.cancel'), style: 'cancel' },
+        ...(x.current ? [{ text: t('sharedLabels.priceClashKeep', { price: x.current }), onPress: () => { done(t('sharedLabels.toastExistingAddedToMyPrints', { name: x.name })).catch(() => {}); } }] : []),
+        {
+          text: t('sharedLabels.priceClashChange', { price: typed }),
+          onPress: async () => {
+            try {
+              if (x.storeLabelId) await labelsApi.updateStoreLabel(x.storeLabelId, typed);
+              else await labelsApi.addToStore(x.id, storeId!, typed);
+              await done(t('sharedLabels.priceClashChanged', { name: x.name, price: typed }));
+            } catch (err: any) {
+              const e = err?.response?.data?.error;
+              Toast.show({ type: 'error', text1: typeof e === 'string' ? e : t('sharedLabels.toastSaveFailed') });
+            }
+          },
+        },
+      ],
+    );
   }
 
   function confirmDelete() {
@@ -857,6 +907,7 @@ export default function LabelsScreen() {
         onClose={() => setShowScanner(false)}
         onResult={(result) => { setShowScanner(false); openCreateForm(result); }}
         onKnownBarcode={handleKnownBarcode}
+        skipConfirm
       />
 
       {!!storeId && (
@@ -881,6 +932,7 @@ export default function LabelsScreen() {
               <Text style={s.fieldLabel}>{t('sharedLabels.fieldProductName')}</Text>
               <View style={{ position: 'relative' }}>
                 <TextInput
+                  ref={nameRef}
                   style={s.fieldInput}
                   value={formProductName}
                   onChangeText={text => { setFormProductName(text); setShowNameSugg(true); }}
@@ -912,6 +964,7 @@ export default function LabelsScreen() {
               <View style={s.priceInputWrap}>
                 <Text style={s.priceInputDollar}>$</Text>
                 <TextInput
+                  ref={priceRef}
                   style={[s.fieldInput, s.priceInput]}
                   value={formPriceText}
                   onChangeText={text => setFormPriceText(text.replace(/[^0-9.]/g, ''))}
