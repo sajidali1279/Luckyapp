@@ -162,6 +162,11 @@ export const labelsApi = {
   getCoverage: () => api.get('/labels/coverage'),
   getHealthSummary: () => api.get('/labels/health-summary'),
   pushToAllStores: (labelId: string) => api.post(`/labels/${labelId}/push-to-all`),
+  /** Items that share a barcode (with or without the leading 0), and folding them into one. */
+  getDuplicates: () => api.get('/labels/duplicates'),
+  merge: (keepId: string, mergeIds: string[], priceText?: string | null) => api.post('/labels/merge', { keepId, mergeIds, priceText }),
+  /** An edited Labels export: apply false is the preview, apply true makes the changes. */
+  importRows: (rows: object[], apply: boolean, dealColumn: boolean) => api.post('/labels/import', { rows, apply, dealColumn }),
 };
 
 export interface NoticeInput {

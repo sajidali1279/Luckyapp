@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ensureLabelForBarcode } from '../utils/labelSync';
+import { barcodeVariants, canonicalBarcode } from '../utils/barcode';
 
 // ─── GET /scanned-products/barcode/:barcode ───────────────────────────────────
 // Check the local catalog before hitting Open Food Facts.
@@ -12,13 +13,14 @@ export async function lookupBarcode(req: AuthRequest, res: Response) {
   const { barcode } = req.params;
   if (!barcode?.trim()) { res.status(400).json({ success: false, error: 'Barcode required' }); return; }
 
-  const product = await prisma.scannedProduct.findUnique({ where: { barcode } });
+  // The same product whether the camera read it with or without the leading 0
+  const product = await prisma.scannedProduct.findFirst({ where: { barcode: { in: barcodeVariants(barcode) } }, orderBy: { lastScannedAt: 'desc' } });
 
   if (!product) { res.json({ success: true, data: null }); return; }
 
   // Increment scan count + update timestamp (fire & forget)
   prisma.scannedProduct.update({
-    where: { barcode },
+    where: { barcode: product.barcode },
     data: { scanCount: { increment: 1 }, lastScannedAt: new Date() },
   }).catch(() => {});
 
@@ -42,7 +44,10 @@ export async function saveProduct(req: AuthRequest, res: Response) {
   const parsed = saveSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ success: false, error: parsed.error.errors[0].message }); return; }
 
-  const { barcode, name, category, brand, source } = parsed.data;
+  const { name, category, brand, source } = parsed.data;
+  // Saved on the row that already has this product in any form, or as a new row in the package's form (UPC, not EAN-13 with a 0)
+  const known = await prisma.scannedProduct.findFirst({ where: { barcode: { in: barcodeVariants(parsed.data.barcode) } }, select: { barcode: true } });
+  const barcode = known?.barcode ?? canonicalBarcode(parsed.data.barcode);
 
   const product = await prisma.scannedProduct.upsert({
     where: { barcode },

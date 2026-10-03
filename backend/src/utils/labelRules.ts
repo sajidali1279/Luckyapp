@@ -5,6 +5,7 @@
 import { Role } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import { samePrice } from './labelPrice';
+import { sameBarcode } from './barcode';
 
 export const PRICE_ROLE_MESSAGE = "Only HQ (a Super Admin or Dev Admin) can change an item's chain-wide price, because it changes the shelf label at every store. To change your own store's price, use the store price.";
 export const CONTENT_ROLE_MESSAGE = "Only a store manager or HQ can change an item's name, barcode, category, deal or design, because it changes the label at every store. Ask your manager.";
@@ -29,7 +30,10 @@ export function labelChanges(before: LabelFields, next: Partial<LabelFields>): L
   if (next.priceText !== undefined && !samePrice(before.priceText, next.priceText)) changes.priceText = { from: before.priceText, to: next.priceText };
   for (const field of ['productName', 'barcode', 'category', 'dealText', 'template'] as const) {
     if (next[field] === undefined) continue;
-    if (blank(before[field]) !== blank(next[field])) changes[field] = { from: before[field], to: next[field] };
+    if (blank(before[field]) === blank(next[field])) continue;
+    // The same barcode in another form (with or without the leading 0) is the same product, not a change
+    if (field === 'barcode' && sameBarcode(before.barcode, next.barcode)) continue;
+    changes[field] = { from: before[field], to: next[field] };
   }
   return changes;
 }

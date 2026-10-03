@@ -1,4 +1,5 @@
 import prisma from '../config/prisma';
+import { barcodeVariants, canonicalBarcode } from './barcode';
 
 // Server-side sync between the two barcode-keyed catalogs: ScannedProduct (a
 // no-price name/category/brand cache written by every scan surface) and
@@ -24,7 +25,7 @@ interface EnsureLabelInput {
 // template, category, etc.) must never be silently overwritten by a later,
 // possibly-lower-quality scan of the same barcode.
 export async function ensureLabelForBarcode(barcode: string, data: EnsureLabelInput): Promise<void> {
-  const existing = await prisma.label.findFirst({ where: { barcode } });
+  const existing = await prisma.label.findFirst({ where: { barcode: { in: barcodeVariants(barcode) } } });   // with or without the leading 0
   if (existing) return;
 
   await prisma.label.create({
@@ -33,7 +34,7 @@ export async function ensureLabelForBarcode(barcode: string, data: EnsureLabelIn
       priceText: null,
       category: data.category ?? null,
       brand: data.brand ?? null,
-      barcode,
+      barcode: canonicalBarcode(barcode),
       createdByStoreId: data.creatorStoreId,
       createdById: data.creatorId,
     },
@@ -85,10 +86,11 @@ export async function ensureScannedProductForBarcode(barcode: string, data: Ensu
   const hasBrand = typeof data.brand === 'string' && data.brand.trim().length > 0;
   const overwriteName = data.overwriteName ?? true;
   const overwriteCategory = data.overwriteCategory ?? true;
+  const known = await prisma.scannedProduct.findFirst({ where: { barcode: { in: barcodeVariants(barcode) } }, select: { barcode: true } });
   await prisma.scannedProduct.upsert({
-    where: { barcode },
+    where: { barcode: known?.barcode ?? canonicalBarcode(barcode) },
     create: {
-      barcode,
+      barcode: canonicalBarcode(barcode),
       name: data.name,
       category,
       brand,

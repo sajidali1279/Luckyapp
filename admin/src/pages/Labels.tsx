@@ -10,6 +10,9 @@ import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { LABEL_PRESETS } from '../data/labelPresets';
 import StoreLabelsPanel from '../components/StoreLabelsPanel';
+import SameBarcodePanel from '../components/SameBarcodePanel';
+import { sameBarcode } from '../lib/barcode';
+import LabelImportModal from '../components/LabelImportModal';
 import CoverageView from '../components/CoverageView';
 import HealthView from '../components/HealthView';
 import PrintTray from '../components/PrintTray';
@@ -19,7 +22,7 @@ import Modal from '../components/Modal';
 import { failureMessage } from '../lib/apiError';
 import { useSingleFlight } from '../hooks/useSingleFlight';
 import { canonicalPrice, priceProblem, priceChangePercent, BIG_PRICE_CHANGE_PERCENT } from '../lib/labelPrice';
-import { Copy, Trash2, RotateCcw, Download } from 'lucide-react';
+import { Copy, Trash2, RotateCcw, Download, Upload } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { labelsCsv, downloadCsv, CsvCoverage } from '../utils/labelsCsv';
 import { PageHeader, Button, Tabs } from '../components/kit';
@@ -65,8 +68,8 @@ const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
 export default function Labels() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
-  type ViewMode = 'catalog' | 'store' | 'coverage' | 'health';
-  const validTabs: ViewMode[] = ['catalog', 'store', 'coverage', 'health'];
+  type ViewMode = 'catalog' | 'store' | 'coverage' | 'health' | 'same';
+  const validTabs: ViewMode[] = ['catalog', 'store', 'coverage', 'health', 'same'];
   const initialTab = searchParams.get('tab') as ViewMode | null;
   const [viewMode, setViewMode] = useState<ViewMode>(initialTab && validTabs.includes(initialTab) ? initialTab : 'catalog');
 
@@ -103,6 +106,9 @@ export default function Labels() {
   const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
   const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
   const [confirmSave, setConfirmSave] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  // One barcode, one item: a new item whose barcode is already an item, at another price, asks to change that item's price instead
+  const [priceClash, setPriceClash] = useState<{ id: string; name: string; current: string | null; typed: string } | null>(null);
   const [formError, setFormError] = useState('');
   const [dupHint, setDupHint] = useState(false);
 
@@ -289,8 +295,11 @@ export default function Labels() {
     if (!coverage) toast.error(msg, { duration: 7000 }); else toast.success(msg, { duration: notes.length ? 7000 : 3000 });
   }
 
+  const { data: dupData } = useQuery({ queryKey: ['label-duplicates'], queryFn: () => labelsApi.getDuplicates(), staleTime: 60_000 });
+  const sameCount: number = (dupData?.data?.data ?? []).length;
+
   function refreshLabels() {
-    ['labels', 'store-labels', 'labels-coverage', 'labels-health-summary'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
+    ['labels', 'store-labels', 'labels-coverage', 'labels-health-summary', 'label-duplicates'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
   }
 
   // ── Editing straight in the table, saved together ─────────────────────────────
@@ -463,7 +472,12 @@ export default function Labels() {
   // What the edit box would change, field by field, against the item as it is now
   const priceOk = canonicalPrice(formPriceText) !== null;
   const priceIssue = priceProblem(formPriceText);
-  const barcodeClash = formBarcode.trim() ? labels.find(l => l.barcode === formBarcode.trim() && l.id !== editingLabel?.id) : undefined;
+  // The same product with or without the leading 0 (iPhones read UPCs as EAN-13). Editing: refused. A new item: offers its price instead.
+  const barcodeTaken = formBarcode.trim() ? labels.find(l => sameBarcode(l.barcode, formBarcode.trim()) && l.id !== editingLabel?.id) : undefined;
+  const barcodeClash = editingLabel ? barcodeTaken : undefined;
+  const existingForNew = !editingLabel ? barcodeTaken : undefined;
+  const typedPrice = canonicalPrice(formPriceText);
+  const sameAsExisting = !!existingForNew && !!typedPrice && !!existingForNew.priceText && Number(existingForNew.priceText) === Number(typedPrice);
   const formChanges: { field: string; from: string; to: string }[] = [];
   if (editingLabel) {
     const newPrice = canonicalPrice(formPriceText);
@@ -502,10 +516,28 @@ export default function Labels() {
     },
     onError: (e: any) => {
       setConfirmSave(false);
+      const body = e?.response?.data;
+      const typed = canonicalPrice(formPriceText);
+      if (!editingLabel && body?.code === 'BARCODE_TAKEN' && body.data?.existingId && typed && !(body.data.basePriceText && Number(body.data.basePriceText) === Number(typed))) {
+        setPriceClash({ id: body.data.existingId, name: body.data.existingName ?? formProductName.trim(), current: body.data.basePriceText ?? null, typed });
+        return;
+      }
       setFormError(failureMessage(e, 'Could not save the label. Nothing was changed.'));
     },
   });
   const runSave = useSingleFlight(saveMutation);
+
+  const clashMutation = useMutation({
+    mutationFn: (x: { id: string; typed: string }) => labelsApi.update(x.id, { priceText: x.typed }),
+    onSuccess: (res, x) => {
+      refreshLabels();
+      const d = res.data;
+      toast.success(`"${priceClash?.name}" is now $${x.typed}. ${plural(d?.reprint?.stores ?? 0, 'store is', 'stores are')} told to reprint${d?.reprint?.keptOwnPrice ? `; ${plural(d.reprint.keptOwnPrice, 'store keeps', 'stores keep')} its own price` : ''}.`, { duration: 6000 });
+      setPriceClash(null);
+      closeModal();
+    },
+    onError: (e: any) => { setPriceClash(null); setFormError(failureMessage(e, 'Could not change the price. Nothing was changed.')); },
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (labelId: string) => labelsApi.delete(labelId),
@@ -567,6 +599,11 @@ export default function Labels() {
   function handleSaveClick() {
     if (!formProductName.trim() || !priceOk || barcodeClash || saveMutation.isPending) return;
     setFormError('');
+    if (existingForNew) {   // no second item: change that one's price (asked first), or nothing when it is already this price
+      if (sameAsExisting || !typedPrice) return;
+      setPriceClash({ id: existingForNew.id, name: existingForNew.productName, current: existingForNew.priceText ?? null, typed: typedPrice });
+      return;
+    }
     if (!editingLabel) { runSave(); return; }
     if (formChanges.length === 0) { toast('Nothing was changed.'); closeModal(); return; }
     setConfirmSave(true);
@@ -770,6 +807,12 @@ export default function Labels() {
             />
             {dupHint && !formBarcode.trim() && <div style={m.hint}>The barcode was left empty: one barcode belongs to one item. Scan or type this copy's own.</div>}
             {barcodeClash && <div role="alert" style={m.err}>The barcode {formBarcode.trim()} already belongs to "{barcodeClash.productName}". Use that item, or change the barcode.</div>}
+            {existingForNew && (
+              <div role="status" style={m.hint}>
+                This barcode is already "{existingForNew.productName}"{existingForNew.priceText ? ` at $${existingForNew.priceText}` : ', with no price yet'}. One barcode is one item, so no second item is made.
+                {sameAsExisting ? ' It already has this price.' : typedPrice ? ` Saving changes its price to $${typedPrice} for every store (a store with its own price keeps it).` : ''}
+              </div>
+            )}
             <label style={m.label} htmlFor="lbl-category">Category (optional)</label>
             <div style={{ position: 'relative' as const }}>
               <input
@@ -828,16 +871,26 @@ export default function Labels() {
               <button type="button" style={m.cancelBtn} onClick={closeModal} disabled={saveMutation.isPending}>Cancel</button>
               <button
                 type="submit"
-                style={{ ...m.saveBtn, ...(!formProductName.trim() || !priceOk || !!barcodeClash || saveMutation.isPending ? m.saveBtnDim : {}) }}
-                disabled={!formProductName.trim() || !priceOk || !!barcodeClash || saveMutation.isPending}
+                style={{ ...m.saveBtn, ...(!formProductName.trim() || !priceOk || !!barcodeClash || sameAsExisting || saveMutation.isPending ? m.saveBtnDim : {}) }}
+                disabled={!formProductName.trim() || !priceOk || !!barcodeClash || sameAsExisting || saveMutation.isPending}
               >
-                {saveMutation.isPending ? 'Saving…' : 'Save Label'}
+                {saveMutation.isPending ? 'Saving…' : existingForNew ? `Change its price` : 'Save Label'}
               </button>
             </div>
           </form>
         </Modal>
       )}
 
+      {showImport && <LabelImportModal onClose={() => setShowImport(false)} />}
+      <ConfirmModal
+        open={!!priceClash}
+        title="This barcode is already an item"
+        message={priceClash ? `"${priceClash.name}" has this barcode${priceClash.current ? ` at $${priceClash.current}` : ' with no price yet'}. Change its price for every store to $${priceClash.typed}? Stores with their own price keep it.` : ''}
+        confirmLabel={clashMutation.isPending ? 'Changing…' : `Change to $${priceClash?.typed ?? ''}`}
+        busy={clashMutation.isPending}
+        onConfirm={() => { if (priceClash && !clashMutation.isPending) clashMutation.mutate({ id: priceClash.id, typed: priceClash.typed }); }}
+        onCancel={() => { setPriceClash(null); setFormError(`"${priceClash?.name}" already has this barcode, so no second item was made. Its price was not changed.`); }}
+      />
       <div style={s.inner}>
         <PageHeader
           title="Labels"
@@ -847,6 +900,8 @@ export default function Labels() {
             ? 'Per-store pricing, overrides, and printing.'
             : viewMode === 'coverage'
             ? 'Which stores have each item, and which are missing it.'
+            : viewMode === 'same'
+            ? 'Items that share a barcode: keep one, with one price.'
             : 'How many labels need printing right now, by store.'}
           actions={viewMode === 'catalog' && (
             <>
@@ -854,6 +909,7 @@ export default function Labels() {
                 title="Download the items shown below as a spreadsheet (opens in Excel)">
                 {exporting ? 'Exporting…' : 'Export'}
               </Button>
+              <Button icon={<Upload />} onClick={() => setShowImport(true)} title="Bring back an edited export: see every change, then apply">Import</Button>
               <Button variant="primary" icon={<Plus />} onClick={openAddModal}>Add Label</Button>
             </>
           )}
@@ -869,6 +925,7 @@ export default function Labels() {
             { value: 'store', label: 'By Store' },
             { value: 'coverage', label: 'Coverage' },
             { value: 'health', label: 'Health' },
+            { value: 'same', label: 'Same barcode', ...(sameCount ? { count: sameCount } : {}) },
           ]}
         />
 
@@ -878,6 +935,8 @@ export default function Labels() {
           <CoverageView />
         ) : viewMode === 'health' ? (
           <HealthView />
+        ) : viewMode === 'same' ? (
+          <SameBarcodePanel />
         ) : (
           <div style={s.catalogLayout}>
           <div style={s.catalogMain}>

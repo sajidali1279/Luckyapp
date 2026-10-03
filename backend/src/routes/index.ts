@@ -78,6 +78,7 @@ import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.control
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
+import { getBarcodeDuplicates, mergeLabels, importLabels } from '../controllers/labelCleanup.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -571,6 +572,9 @@ router.get   ('/labels/coverage',       authenticate, requireRole(Role.SUPER_ADM
 router.get   ('/labels/health-summary', authenticate, requireRole(Role.SUPER_ADMIN), getLabelsHealthSummary);
 router.post  ('/labels',                authenticate, requireRole(Role.EMPLOYEE), createLabel);
 router.post  ('/labels/print',          authenticate, requireRole(Role.EMPLOYEE), markLabelsPrinted);
+router.get   ('/labels/duplicates',     authenticate, requireRole(Role.SUPER_ADMIN), getBarcodeDuplicates);   // Items that share a barcode
+router.post  ('/labels/merge',          authenticate, requireRole(Role.SUPER_ADMIN), mergeLabels);            // Keep one, fold the others into it
+router.post  ('/labels/import',         authenticate, requireRole(Role.SUPER_ADMIN), importLabels);           // An edited Labels export: preview, then apply
 router.post  ('/labels/:labelId/push-to-all', authenticate, requireRole(Role.SUPER_ADMIN), pushLabelToAllStores);
 router.get   ('/labels/:labelId/impact', authenticate, requireRole(Role.SUPER_ADMIN), getLabelImpact);  // What a price change or a delete would touch
 router.patch ('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), updateLabel);

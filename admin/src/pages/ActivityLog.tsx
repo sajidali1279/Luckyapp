@@ -118,6 +118,8 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   STORE_LABEL_REMOVED:       { label: 'Label Removed From Store', color: '#c42130', bg: '#E6394618', icon: '➖' },
   PUSH_LABEL_TO_ALL_STORES:  { label: 'Label Added To All Stores', color: PRIMARY, bg: '#1D355718', icon: '📤' },
   LABEL_SALE_ENDED:          { label: 'Sale Prices Ended',      color: '#3c6e8f', bg: '#457b9d18', icon: '⏱️' },
+  LABELS_MERGED:             { label: 'Same-Barcode Items Merged', color: PRIMARY, bg: '#1D355718', icon: '🔗' },
+  LABELS_IMPORTED:           { label: 'Labels Imported',        color: PRIMARY, bg: '#1D355718', icon: '📥' },
 };
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
@@ -323,7 +325,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Labels ──">
-            {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','LABEL_CHANGE_REFUSED','PRINT_LABEL','STORE_LABEL_PRICE','STORE_LABEL_REMOVED','PUSH_LABEL_TO_ALL_STORES','LABEL_SALE_ENDED'].map(k => (
+            {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','LABEL_CHANGE_REFUSED','PRINT_LABEL','STORE_LABEL_PRICE','STORE_LABEL_REMOVED','PUSH_LABEL_TO_ALL_STORES','LABEL_SALE_ENDED','LABELS_MERGED','LABELS_IMPORTED'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

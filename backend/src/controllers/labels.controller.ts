@@ -9,6 +9,7 @@ import { hasMinRole } from '../middleware/auth';
 import { ensureScannedProductForBarcode } from '../utils/labelSync';
 import { refuse } from '../utils/refusal';
 import { priceField, samePrice } from '../utils/labelPrice';
+import { barcodeVariants, canonicalBarcode } from '../utils/barcode';
 import { labelChanges, refusalFor, describeChanges, editSummary, DELETE_ROLE_MESSAGE, ITEM_GONE_MESSAGE, barcodeTakenText } from '../utils/labelRules';
 import { endedSaleView, saleEnded, parseSaleEnd, planPriceSave, describeStorePrice } from '../utils/labelSale';
 
@@ -168,6 +169,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
   if (!parsed.success) { refuse(res, parsed.error); return; }
 
   const { storeId: requestedStoreId, ...labelData } = parsed.data;
+  if (labelData.barcode) labelData.barcode = canonicalBarcode(labelData.barcode);   // a UPC read as EAN-13 (leading 0) is saved as the UPC
 
   if (requestedStoreId && !(await canTouchStore(req.user!.id, req.user!.role, requestedStoreId))) {
     res.status(403).json({ success: false, error: "You don't have access to that store" });
@@ -178,15 +180,21 @@ export async function createLabel(req: AuthRequest, res: Response) {
   let adoptedPlaceholder = false;
   let label: Awaited<ReturnType<typeof prisma.label.create>> & { storeLabels: unknown[] };
 
+  // The same product however its barcode was read (iPhone EAN-13, Android UPC-A, Excel without leading zeros): the oldest item wins
   const taken = labelData.barcode
     ? await prisma.label.findFirst({
-        where: { barcode: labelData.barcode },
-        select: { id: true, productName: true, priceText: true, dealText: true, storeLabels: { select: { everPrinted: true, priceText: true } } },
+        where: { barcode: { in: barcodeVariants(labelData.barcode) } },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, productName: true, priceText: true, dealText: true, barcode: true, storeLabels: { select: { id: true, storeId: true, everPrinted: true, priceText: true, overrideExpiresAt: true, printedAt: true } } },
       })
     : null;
 
   if (taken && !isUnclaimedPlaceholder(taken)) {
-    res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(labelData.barcode!, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
+    // Says what the item costs now (chain-wide and at the store), so the app can offer to change the price instead of making a second item
+    const here = creatorStoreId ? taken.storeLabels.find((sl) => sl.storeId === creatorStoreId) ?? null : null;
+    const storePrice = here ? resolveEffectivePrice(taken, endedSaleView(here)) : taken.priceText;
+    res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(labelData.barcode!, taken.productName),
+      data: { existingId: taken.id, existingName: taken.productName, existingBarcode: taken.barcode, basePriceText: taken.priceText, storePriceText: storePrice, storeLabelId: here?.id ?? null } });
     return;
   }
 
@@ -308,6 +316,8 @@ export async function updateLabel(req: AuthRequest, res: Response) {
 
   const parsed = updateLabelSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
+  // Saved the way a new item's is (a UPC read as EAN-13 becomes the UPC); an unchanged barcode in another form is no change
+  if (parsed.data.barcode) parsed.data.barcode = canonicalBarcode(parsed.data.barcode);
 
   const before = await prisma.label.findUnique({ where: { id: labelId } });
   if (!before) {
@@ -332,8 +342,10 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     return;
   }
 
+  // A barcode sent back in another form of the same product stays as stored (the printed bars are not quietly changed)
+  if (!changes.barcode) delete parsed.data.barcode;
   if (changes.barcode?.to) {
-    const taken = await prisma.label.findFirst({ where: { barcode: changes.barcode.to, id: { not: labelId } }, select: { id: true, productName: true } });
+    const taken = await prisma.label.findFirst({ where: { barcode: { in: barcodeVariants(changes.barcode.to) }, id: { not: labelId } }, select: { id: true, productName: true } });
     if (taken) {
       res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(changes.barcode.to, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
       return;
@@ -729,7 +741,8 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
   }
 
   const label = await prisma.label.findFirst({
-    where: { barcode },
+    where: { barcode: { in: barcodeVariants(barcode) } },
+    orderBy: { createdAt: 'asc' },   // the same answer every time if two items share it (Labels > Same barcode merges them)
     include: { storeLabels: { where: { storeId } } },
   });
 
