@@ -192,14 +192,38 @@ function DealList({ labels }: { labels: Label[] }) {
   }, [deals, coverage, storeId, picked]);   // eslint-disable-line react-hooks/exhaustive-deps
   const storeName = coverage?.stores.find((x) => x.id === storeId)?.name;
 
+  // One line per price and deal (the default): in each category, items at the same price on the same deal are one line, named after one
+  // of them with "+N more". A different price or deal is its own line. Or every item, one line each. Remembered on this computer.
+  const [onePerDeal, setOnePerDealState] = useState<boolean>(() => { try { return localStorage.getItem('luckystop-deal-list-view') !== 'all'; } catch { return true; } });
+  const setOnePerDeal = (v: boolean) => { setOnePerDealState(v); try { localStorage.setItem('luckystop-deal-list-view', v ? 'one' : 'all'); } catch { /* kept for this visit */ } };
+  type Line = (typeof rows)[number] & { more: string[] };
+  const lines: Line[] = useMemo(() => {
+    const sorted = rows.slice().sort((a, b) => (a.category || 'Other').localeCompare(b.category || 'Other') || a.productName.localeCompare(b.productName));
+    if (!onePerDeal) return sorted.map((r) => ({ ...r, more: [] }));
+    const sameDeal = (d: string | null) => { const m = DEAL.exec(d ?? ''); return m ? `${Number(m[1])}|${Number(m[2].replace(',', '.')).toFixed(2)}` : (d ?? '').trim().toLowerCase(); };
+    const groups = new Map<string, Line>();
+    for (const r of sorted) {
+      const k = `${r.category || 'Other'}|${r.price ? Number(r.price).toFixed(2) : ''}|${sameDeal(r.dealText)}`;
+      const g = groups.get(k);
+      // A line shows its deal written the usual way ("2 for $3.50"), whichever item it is named after
+      const m = DEAL.exec(r.dealText ?? '');
+      const shownDeal = m ? `${Number(m[1])} for $${Number(m[2].replace(',', '.')).toFixed(2)}` : r.dealText;
+      if (g) g.more.push(r.productName); else groups.set(k, { ...r, dealText: shownDeal, more: [] });
+    }
+    return [...groups.values()];
+  }, [rows, onePerDeal]);
+
   function print() {
-    const byCat = new Map<string, typeof rows>();
-    rows.forEach((r) => byCat.set(r.category || 'Other', [...(byCat.get(r.category || 'Other') ?? []), r]));
-    const sections = [...byCat.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([cat, list]) => `
-      <section><h2>${esc(cat)} <small>${list.length} ${list.length === 1 ? 'deal' : 'deals'}</small></h2>
+    const byCat = new Map<string, Line[]>();
+    lines.forEach((r) => byCat.set(r.category || 'Other', [...(byCat.get(r.category || 'Other') ?? []), r]));
+    const sections = [...byCat.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([cat, list]) => {
+      const items = list.reduce((n, r) => n + 1 + r.more.length, 0);
+      return `
+      <section><h2>${esc(cat)} <small>${onePerDeal ? `${list.length} ${list.length === 1 ? 'deal' : 'deals'}, ${items} ${items === 1 ? 'item' : 'items'}` : `${items} ${items === 1 ? 'deal' : 'deals'}`}</small></h2>
       <table><thead><tr><th>Item</th><th class="n">Price</th><th>Deal</th><th class="n">Each on the deal</th><th class="n">Saves</th></tr></thead><tbody>
-      ${list.sort((a, b) => a.productName.localeCompare(b.productName)).map((r) => { const m = dealMath(r.dealText, r.price); return `<tr><td>${esc(r.productName)}</td><td class="n">${r.price ? `$${esc(r.price)}` : ''}</td><td class="deal">${esc(r.dealText ?? '')}</td><td class="n">${m?.each ?? ''}</td><td class="n">${m?.save ?? ''}</td></tr>`; }).join('')}
-      </tbody></table></section>`).join('');
+      ${list.map((r) => { const m = dealMath(r.dealText, r.price); return `<tr><td>${esc(r.productName)}${r.more.length ? ` <span class="more">+${r.more.length} more</span>` : ''}</td><td class="n">${r.price ? `$${esc(r.price)}` : ''}</td><td class="deal">${esc(r.dealText ?? '')}</td><td class="n">${m?.each ?? ''}</td><td class="n">${m?.save ?? ''}</td></tr>`; }).join('')}
+      </tbody></table></section>`;
+    }).join('');
     const win = window.open('', '_blank');
     if (!win) { toast.error('Allow pop-ups for this site to print the deal list.'); return; }
     win.document.write(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Lucky Stop deals</title><style>
@@ -210,11 +234,11 @@ function DealList({ labels }: { labels: Label[] }) {
       h2 { font-size: 13pt; margin: 14px 0 4px; color: #1D3557; break-after: avoid; } h2 small { font-size: 9pt; color: #666; font-weight: normal; }
       table { width: 100%; border-collapse: collapse; } th { text-align: left; font-size: 9pt; color: #555; border-bottom: 1px solid #999; padding: 4px; }
       td { padding: 4px; border-bottom: 1px solid #ddd; } tr { break-inside: avoid; } .n { text-align: right; white-space: nowrap; } .deal { font-weight: bold; color: #b00020; white-space: nowrap; }
-      section { break-inside: auto; } footer { margin-top: 14px; font-size: 9pt; color: #666; }
+      section { break-inside: auto; } footer { margin-top: 14px; font-size: 9pt; color: #666; } .more { color: #666; font-size: 9pt; }
     </style></head><body>
-      <header><h1>Lucky Stop deals</h1><span>${esc(storeName ? `${storeName} prices` : 'Chain prices')} &middot; ${esc(storeDayLong(new Date()))} &middot; ${rows.length} deals</span></header>
+      <header><h1>Lucky Stop deals</h1><span>${esc(storeName ? `${storeName} prices` : 'Chain prices')} &middot; ${esc(storeDayLong(new Date()))} &middot; ${onePerDeal ? `${lines.length} deals (one line per price and deal), ${rows.length} items` : `${rows.length} deals`}</span></header>
       ${sections || '<p>No deals in the chosen categories.</p>'}
-      <footer>Ring up the deal when the customer buys the full number. Prices and deals as in the Lucky Stop label catalog on the date above.</footer>
+      <footer>${onePerDeal ? '"+N more": that many other items in the same category at the same price are on the same deal. ' : ''}Ring up the deal when the customer buys the full number. Prices and deals as in the Lucky Stop label catalog on the date above.</footer>
     </body></html>`);
     win.document.close();
     win.focus();
@@ -223,14 +247,18 @@ function DealList({ labels }: { labels: Label[] }) {
 
   return (
     <Card>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}><Sparkles size={16} aria-hidden /><SectionTitle count={rows.length} style={{ margin: 0 }}>Deal list for training</SectionTitle></div>
-      <p style={{ ...s.reason, margin: '0 0 12px' }}>Every deal, by category, with what one costs on the deal and what it saves. Print it for the staff, or for one store at that store's prices.</p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}><Sparkles size={16} aria-hidden /><SectionTitle count={lines.length} style={{ margin: 0 }}>Deal list for training</SectionTitle></div>
+      <p style={{ ...s.reason, margin: '0 0 12px' }}>The deals by category, with what one costs on the deal and what it saves: one line per price and deal (items alike are one line, "+N more"), or every item. Print it for the staff, or for one store at that store's prices.</p>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
         <label style={{ fontSize: FONT.small, color: C.text2, fontWeight: 600 }} htmlFor="deal-list-store">Prices</label>
         <select id="deal-list-store" className="ui-input" style={{ padding: '6px 10px', borderRadius: RADIUS.md, border: `1px solid ${C.border}` }} value={storeId} onChange={(e) => setStoreId(e.target.value)}>
           <option value="">Chain prices (every store)</option>
           {(coverage?.stores ?? []).map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}
         </select>
+        <div role="radiogroup" aria-label="How the list shows the items" style={{ display: 'flex', gap: 6 }}>
+          <button type="button" className="ui-chip" role="radio" aria-checked={onePerDeal} onClick={() => setOnePerDeal(true)}>One line per price and deal</button>
+          <button type="button" className="ui-chip" role="radio" aria-checked={!onePerDeal} onClick={() => setOnePerDeal(false)}>Every item</button>
+        </div>
         <Button variant="primary" icon={<Printer />} onClick={print} disabled={rows.length === 0}>Print the deal list</Button>
       </div>
       <div role="group" aria-label="Categories on the list" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -244,9 +272,10 @@ function DealList({ labels }: { labels: Label[] }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: FONT.small }}>
           <thead><tr style={{ background: C.subtle, textAlign: 'left' }}><th style={s.th}>Category</th><th style={s.th}>Item</th><th style={s.th}>Price</th><th style={s.th}>Deal</th><th style={s.th}>Each</th><th style={s.th}>Saves</th></tr></thead>
           <tbody>
-            {rows.slice().sort((a, b) => (a.category ?? '').localeCompare(b.category ?? '') || a.productName.localeCompare(b.productName)).slice(0, 400).map((r) => { const m = dealMath(r.dealText, r.price); return (
+            {lines.slice(0, 400).map((r) => { const m = dealMath(r.dealText, r.price); return (
               <tr key={r.id} style={{ borderTop: `1px solid ${C.border}` }}>
-                <td style={s.td}>{r.category || 'Other'}</td><td style={{ ...s.td, color: C.text, fontWeight: 600 }}>{r.productName}</td><td style={s.td}>{r.price ? `$${r.price}` : ''}</td>
+                <td style={s.td}>{r.category || 'Other'}</td>
+                <td style={{ ...s.td, color: C.text, fontWeight: 600 }}>{r.productName}{r.more.length > 0 && <span style={{ color: C.muted, fontWeight: 400 }} title={r.more.join(', ')}> +{r.more.length} more</span>}</td><td style={s.td}>{r.price ? `$${r.price}` : ''}</td>
                 <td style={{ ...s.td, fontWeight: 700, color: C.text }}>{r.dealText}</td><td style={s.td}>{m?.each ?? ''}</td><td style={s.td}>{m?.save ?? ''}</td>
               </tr>
             ); })}
