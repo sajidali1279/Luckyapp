@@ -35,6 +35,10 @@ export const A4_DEFAULTS: A4Sizes = { labelW: 31.3, labelH: 92.3, top: 8, left: 
 // computer and every store's phones start there. The sheet's own die-cut numbers are 66.675 x 25.4 mm labels, 3.175 mm between
 // columns and none between rows; a printer's small shift and scale are why these differ.
 export const LETTER_DEFAULTS: LetterLayout = { down: 0, right: 1, labelW: 65, labelH: 25, gapX: 4.9, gapY: 0.6, scale: 100 };
+// A4 18-label paper is not used (the user, 2026-10-04): the app prints on US Letter only, whose sizes HQ sets per store (admin Stores,
+// Label Printer), so nobody at a store can change a label's size from a phone. The A4 code is kept, switched off here.
+export const A4_IN_APP = false;
+
 export const DEFAULT_SHEET: SheetSettings = { format: 'letter30', design: 'sideways', a4: { ...A4_DEFAULTS }, letter: { ...LETTER_DEFAULTS }, method: 'pdf' };
 
 // Where an Avery 5160 sheet's first label sits: 1/2 in from the top, 3/16 in from the left. Move down / right shift from there.
@@ -77,7 +81,7 @@ export function cleanSheet(raw: unknown): SheetSettings {
     if (Number.isFinite(v)) letter[k] = Math.round(Math.min(LETTER_LIMITS[k][1], Math.max(LETTER_LIMITS[k][0], v)) * 1000) / 1000;
   });
   return {
-    format: r.format === 'a4x18' ? 'a4x18' : 'letter30',
+    format: A4_IN_APP && r.format === 'a4x18' ? 'a4x18' : 'letter30',   // a phone that had A4 picked prints on Letter now
     design: r.design === 'upright' ? 'upright' : 'sideways',
     a4,
     letter,

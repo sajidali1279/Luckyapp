@@ -6,7 +6,7 @@ import { COLORS } from '../constants';
 import { PrinterIcon, ChevronDownIcon, ChevronUpIcon } from './Icons';
 import KeyboardSafe from './KeyboardSafe';
 import ModalToastHost from './ModalToastHost';
-import { SheetSettings, A4Sizes, A4_DEFAULTS, SIZE_LIMITS, cleanSheet, fitIssue, perSheet, LetterLayout, LETTER_LIMITS, LETTER_DEFAULTS, letterFitIssue } from '../utils/labelSheet';
+import { SheetSettings, A4Sizes, A4_DEFAULTS, A4_IN_APP, SIZE_LIMITS, cleanSheet, fitIssue, perSheet, LetterLayout, LETTER_LIMITS, LETTER_DEFAULTS, letterFitIssue } from '../utils/labelSheet';
 import { printTestSheet } from '../utils/printLabels';
 
 // Which label paper My Prints prints on: US Letter with 30 labels (as always), or A4 with 18 tall labels, turned sideways (for a shelf
@@ -151,11 +151,16 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
               <Text style={st.title}>{t('labelPaper.title')}</Text>
             </View>
 
-            <Text style={st.section}>{t('labelPaper.paper')}</Text>
-            <View accessibilityRole="radiogroup" style={st.group}>
-              {card(!tall, sheetPicture(3, 10, 9, 3), t('labelPaper.paperLetter'), t('labelPaper.paperLetterSub'), () => set({ format: 'letter30' }))}
-              {card(tall, sheetPicture(6, 3, 4, 13), t('labelPaper.paperA4'), t('labelPaper.paperA4Sub'), () => { set({ format: 'a4x18' }); onStartAt(Math.min(startAt, 18)); })}
-            </View>
+            {/* Only Letter is used now (A4_IN_APP): no paper to choose, so the choice is shown only if A4 is switched back on */}
+            {A4_IN_APP && (
+              <>
+                <Text style={st.section}>{t('labelPaper.paper')}</Text>
+                <View accessibilityRole="radiogroup" style={st.group}>
+                  {card(!tall, sheetPicture(3, 10, 9, 3), t('labelPaper.paperLetter'), t('labelPaper.paperLetterSub'), () => set({ format: 'letter30' }))}
+                  {card(tall, sheetPicture(6, 3, 4, 13), t('labelPaper.paperA4'), t('labelPaper.paperA4Sub'), () => { set({ format: 'a4x18' }); onStartAt(Math.min(startAt, 18)); })}
+                </View>
+              </>
+            )}
 
             {tall && (
               <>
