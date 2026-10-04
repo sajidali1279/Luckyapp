@@ -20,6 +20,8 @@ import { resolveEffectivePrice } from '../utils/labelPricing';
 import { ensureScannedProductForBarcode } from '../utils/labelSync';
 import { ITEM_GONE_MESSAGE } from '../utils/labelRules';
 import { recommendDeals } from '../utils/dealRecommendations';
+import { loadDealLimits, dealLimitsSchema, DEAL_LIMITS_KEY } from '../utils/dealLimits';
+import { DEAL_LIMITS_DEFAULT } from '../utils/dealSuggest';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -296,12 +298,13 @@ export async function importLabels(req: AuthRequest, res: Response) {
 
 /** GET /labels/deal-recommendations: what to fix, match or try in the catalog's deals (utils/dealRecommendations.ts), less what HQ dismissed. */
 export async function getDealRecommendations(_req: AuthRequest, res: Response) {
-  const [labels, dismissed] = await Promise.all([
+  const [labels, dismissed, limits] = await Promise.all([
     prisma.label.findMany({ select: { id: true, productName: true, category: true, barcode: true, priceText: true, dealText: true } }),
     prisma.dealRecommendationDismissal.findMany({ select: { key: true } }),
+    loadDealLimits(),
   ]);
   const hidden = new Set(dismissed.map((d) => d.key));
-  const all = recommendDeals(labels);
+  const all = recommendDeals(labels, limits);
   res.json({ success: true, data: { recommendations: all.filter((r) => !hidden.has(r.key)), dismissed: all.filter((r) => hidden.has(r.key)).length } });
 }
 
@@ -337,4 +340,74 @@ export async function restoreDealRecommendations(req: AuthRequest, res: Response
     details: { summary: `Showed ${plural(count, 'dismissed deal recommendation', 'dismissed deal recommendations')} again` }, storeId: null,
   });
   res.json({ success: true, data: { restored: count } });
+}
+
+// ─── Deal limits ──────────────────────────────────────────────────────────────
+
+/** GET /labels/deal-settings: HQ's max discount per category for deal suggestions, the defaults, and the categories the catalog uses. */
+export async function getDealSettings(_req: AuthRequest, res: Response) {
+  const [limits, cats] = await Promise.all([
+    loadDealLimits(),
+    prisma.label.findMany({ where: { category: { not: null } }, select: { category: true }, distinct: ['category'] }),
+  ]);
+  res.json({ success: true, data: { limits, defaults: DEAL_LIMITS_DEFAULT, categories: [...new Set(cats.map((c) => (c.category ?? '').trim()).filter(Boolean))].sort() } });
+}
+
+/** PUT /labels/deal-settings { defaultPct, categories, excluded }: saves the limits (audited, with what changed). */
+export async function updateDealSettings(req: AuthRequest, res: Response) {
+  const parsed = dealLimitsSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const before = await loadDealLimits();
+  const next = parsed.data;
+  await prisma.appConfig.upsert({ where: { key: DEAL_LIMITS_KEY }, create: { key: DEAL_LIMITS_KEY, value: JSON.stringify(next) }, update: { value: JSON.stringify(next) } });
+  const changes: string[] = [];
+  if (before.defaultPct !== next.defaultPct) changes.push(`other categories ${before.defaultPct}% to ${next.defaultPct}%`);
+  new Set([...Object.keys(before.categories), ...Object.keys(next.categories)]).forEach((c) => {
+    const a = before.categories[c], b = next.categories[c];
+    if (a !== b) changes.push(`${c} ${a ?? 'default'}${a != null ? '%' : ''} to ${b ?? 'default'}${b != null ? '%' : ''}`);
+  });
+  next.excluded.filter((c) => !before.excluded.includes(c)).forEach((c) => changes.push(`${c} left out`));
+  before.excluded.filter((c) => !next.excluded.includes(c)).forEach((c) => changes.push(`${c} back in`));
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'DEAL_LIMITS', entity: 'label', entityId: 'deal-limits',
+    details: { summary: changes.length ? `Deal limits: ${changes.join(', ')}` : 'Deal limits saved (no change)', before, after: next }, storeId: null,
+  });
+  res.json({ success: true, data: { limits: next } });
+}
+
+const bulkDealsSchema = z.object({
+  items: z.array(z.object({
+    labelId: z.string().min(1).max(64),
+    dealText: z.string().trim().min(1, 'A deal cannot be empty.').max(20, 'A deal can be at most 20 characters.'),
+  })).min(1, 'Choose at least one deal.').max(1000, 'At most 1,000 deals at once.'),
+});
+
+/** POST /labels/deals/bulk { items: [{ labelId, dealText }] }: sets many deals at once (Apply all); stores carrying them reprint them. */
+export async function setDealsBulk(req: AuthRequest, res: Response) {
+  const parsed = bulkDealsSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const wanted = new Map(parsed.data.items.map((i) => [i.labelId, i.dealText]));
+  const found = await prisma.label.findMany({ where: { id: { in: [...wanted.keys()] } }, select: { id: true, productName: true, dealText: true } });
+  let changed = 0, reprint = 0;
+  await prisma.$transaction(async (tx) => {
+    for (const l of found) {
+      const deal = wanted.get(l.id)!;
+      if ((l.dealText ?? '').trim() === deal) continue;
+      await tx.label.update({ where: { id: l.id }, data: { dealText: deal } });
+      reprint += (await tx.storeLabel.updateMany({ where: { labelId: l.id }, data: { printedAt: null } })).count;   // the deal is printed on the label
+      changed += 1;
+    }
+  });
+  const missing = wanted.size - found.length;
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'DEALS_BULK', entity: 'label', entityId: 'deals',
+    details: {
+      summary: `Set ${plural(changed, 'deal', 'deals')} at once${missing ? ` (${plural(missing, 'item', 'items')} no longer there)` : ''}; ${plural(reprint, 'store copy', 'store copies')} to reprint`,
+      deals: found.filter((l) => (l.dealText ?? '').trim() !== wanted.get(l.id)).slice(0, 300).map((l) => ({ item: l.productName, from: l.dealText, to: wanted.get(l.id) })),
+    },
+    storeId: null,
+  });
+  res.json({ success: true, data: { changed, reprint, missing } });
 }

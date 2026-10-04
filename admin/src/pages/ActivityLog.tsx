@@ -121,6 +121,8 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   LABELS_MERGED:             { label: 'Same-Barcode Items Merged', color: PRIMARY, bg: '#1D355718', icon: '🔗' },
   LABELS_IMPORTED:           { label: 'Labels Imported',        color: PRIMARY, bg: '#1D355718', icon: '📥' },
   DEAL_RECOMMENDATIONS_RESTORED: { label: 'Deal Suggestions Shown Again', color: PRIMARY, bg: '#1D355718', icon: '💡' },
+  DEAL_LIMITS:               { label: 'Deal Limits Changed',    color: PRIMARY, bg: '#1D355718', icon: '📏' },
+  DEALS_BULK:                { label: 'Deals Set Together',     color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
 };
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
@@ -326,7 +328,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Labels ──">
-            {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','LABEL_CHANGE_REFUSED','PRINT_LABEL','STORE_LABEL_PRICE','STORE_LABEL_REMOVED','PUSH_LABEL_TO_ALL_STORES','LABEL_SALE_ENDED','LABELS_MERGED','LABELS_IMPORTED','DEAL_RECOMMENDATIONS_RESTORED'].map(k => (
+            {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','LABEL_CHANGE_REFUSED','PRINT_LABEL','STORE_LABEL_PRICE','STORE_LABEL_REMOVED','PUSH_LABEL_TO_ALL_STORES','LABEL_SALE_ENDED','LABELS_MERGED','LABELS_IMPORTED','DEAL_RECOMMENDATIONS_RESTORED','DEAL_LIMITS','DEALS_BULK'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

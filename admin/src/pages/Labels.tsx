@@ -15,6 +15,7 @@ import SameBarcodePanel from '../components/SameBarcodePanel';
 import DealsPanel from '../components/DealsPanel';
 import { sameBarcode } from '../lib/barcode';
 import { suggestFromBarcode, matchNames, CatalogItem } from '../lib/labelSimilar';
+import { DEAL_LIMITS_DEFAULT, DealLimits, limitFor, suggestDeal } from '../lib/dealSuggest';
 import LabelImportModal from '../components/LabelImportModal';
 import CoverageView from '../components/CoverageView';
 import HealthView from '../components/HealthView';
@@ -152,6 +153,27 @@ export default function Labels() {
   const catalogItems: CatalogItem[] = useMemo(() => labels.map(l => ({
     id: l.id, productName: l.productName, barcode: l.barcode, category: l.category, dealText: l.dealText, price: l.priceText,
   })), [data]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A suggested deal for the item in the form, within HQ's limit for its category (Labels > Deals > Deal limits)
+  const dealSettingsQuery = useQuery({ queryKey: ['deal-settings'], queryFn: () => labelsApi.getDealSettings(), enabled: showModal, staleTime: 60_000 });
+  const dealLimits: DealLimits = dealSettingsQuery.data?.data?.data?.limits ?? DEAL_LIMITS_DEFAULT;
+  const dealHint = (() => {
+    if (!showModal) return null;
+    const price = Number(canonicalPrice(formPriceText) ?? NaN);
+    if (!(price > 0)) return null;
+    const limit = limitFor(dealLimits, formCategory);
+    if (limit === null) return { left: true as const };
+    const catName = formCategory.trim() || 'Other categories';
+    const m = formDealText.trim().match(/^(\d+)\s*(?:for|\/)\s*\$?(\d+(?:\.\d{1,2})?)$/i);
+    if (m) {
+      const qty = Number(m[1]), total = Number(m[2]);
+      const saving = qty > 1 ? 1 - total / (qty * price) : 0;
+      return { current: { saving, deep: saving > limit + 0.005 }, limit, catName };
+    }
+    if (formDealText.trim()) return null;   // BOGO and the like: nothing to measure
+    const s = suggestDeal(price, limit);
+    return s ? { suggestion: s, limit, catName } : null;
+  })();
 
   // A new item's barcode next to ones the catalog has (the same maker, often the same product line): what they suggest
   const similarSugg = showModal && !editingLabel && formBarcode.trim() ? suggestFromBarcode(formBarcode, catalogItems, formProductName) : null;
@@ -834,6 +856,24 @@ export default function Labels() {
               placeholder='e.g. "2 for $5" or "BOGO" - shown alongside the price above'
               maxLength={20}
             />
+            {dealHint && 'left' in dealHint && (
+              <div style={m.hint} data-testid="deal-hint">No deal suggested: this category is left out of deals (Labels &gt; Deals &gt; Deal limits).</div>
+            )}
+            {dealHint && 'suggestion' in dealHint && dealHint.suggestion && (
+              <div style={{ ...m.hint, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }} data-testid="deal-hint">
+                <button type="button" style={m.dealChip} onClick={() => { setFormDealText(dealHint.suggestion!.text); setFormError(''); }}>
+                  Suggested: {dealHint.suggestion.text}
+                </button>
+                <span>saves {Math.round(dealHint.suggestion.saving * 100)}%, {dealHint.catName} limit {Math.round(dealHint.limit * 1000) / 10}%</span>
+              </div>
+            )}
+            {dealHint && 'current' in dealHint && dealHint.current && (
+              <div style={{ ...m.hint, color: dealHint.current.deep ? '#b54708' : TEXT_MUTED }} data-testid="deal-hint">
+                {dealHint.current.saving <= 0
+                  ? 'This deal saves nothing at this price.'
+                  : `Saves ${Math.round(dealHint.current.saving * 100)}%${dealHint.current.deep ? `, more than the ${dealHint.catName} limit of ${Math.round(dealHint.limit * 1000) / 10}%. Fine if a supplier pays for it.` : '.'}`}
+              </div>
+            )}
             <label style={m.label} htmlFor="lbl-barcode">Barcode (optional)</label>
             <input
               id="lbl-barcode"
@@ -1345,6 +1385,7 @@ const m: Record<string, CSSProperties> = {
   pctBig: { color: '#a51b28', fontWeight: 700 },
   label: { fontSize: 13, fontWeight: 700, color: '#111827', marginTop: 6 },
   hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
+  dealChip: { fontSize: 12, fontWeight: 700, color: PRIMARY, background: '#eef2ff', border: `1px solid ${PRIMARY}`, borderRadius: 999, padding: '3px 10px', cursor: 'pointer' },
   similarBox: { display: 'flex', flexDirection: 'column' as const, gap: 6, padding: '8px 10px', borderRadius: 8, background: '#f6f8fb', border: '1px solid #e4e7ec' },
   similarFilled: { fontSize: 12.5, fontWeight: 700, color: '#17663a' },
   similarChips: { display: 'flex', flexWrap: 'wrap' as const, gap: 6, alignItems: 'center' },

@@ -171,6 +171,10 @@ export const labelsApi = {
   getDealRecommendations: () => api.get('/labels/deal-recommendations'),
   dismissDealRecommendation: (key: string, dismiss = true) => api.post('/labels/deal-recommendations/dismiss', { key, dismiss }),
   restoreDealRecommendations: () => api.post('/labels/deal-recommendations/restore'),
+  /** HQ's max discount per category for deal suggestions, and saving them; many deals at once (Apply all). */
+  getDealSettings: () => api.get('/labels/deal-settings'),
+  updateDealSettings: (limits: { defaultPct: number; categories: Record<string, number>; excluded: string[] }) => api.put('/labels/deal-settings', limits),
+  setDealsBulk: (items: { labelId: string; dealText: string }[]) => api.post('/labels/deals/bulk', { items }),
 };
 
 export interface NoticeInput {

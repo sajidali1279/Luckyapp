@@ -14,6 +14,7 @@ import { storeDateKey } from '../utils/storeTime';
 import { checkHours, offerPaysAt, hoursText } from '../utils/offerHours';
 import { shelfDealsForStore } from '../utils/shelfDeals';
 import { estimateOffer } from '../utils/offerEstimate';
+import { isRestrictedCategory } from '../utils/dealSuggest';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
@@ -606,13 +607,14 @@ export async function estimateOfferCost(req: AuthRequest, res: Response) {
 export async function listShelfDeals(_req: AuthRequest, res: Response) {
   const labels = await prisma.label.findMany({
     where: { dealText: { not: null } },
-    select: { id: true, productName: true, dealText: true, priceText: true, dealHiddenInApp: true, updatedAt: true, _count: { select: { storeLabels: true } } },
+    select: { id: true, productName: true, dealText: true, priceText: true, category: true, dealHiddenInApp: true, updatedAt: true, _count: { select: { storeLabels: true } } },
     orderBy: { updatedAt: 'desc' },
   });
   res.json({
     success: true,
     data: labels.filter((l) => l.dealText && l.dealText.trim()).map((l) => ({
       labelId: l.id, productName: l.productName, dealText: l.dealText, priceText: l.priceText, hidden: l.dealHiddenInApp, stores: l._count.storeLabels,
+      restricted: isRestrictedCategory(l.category),   // tobacco, vape or alcohol: never shown in the app
     })),
   });
 }

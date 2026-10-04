@@ -7,6 +7,7 @@
 import prisma from '../config/prisma';
 import { resolveEffectivePrice } from './labelPricing';
 import { endedSaleView } from './labelSale';
+import { isRestrictedCategory } from './dealSuggest';
 
 const FAR_FUTURE = new Date('2099-12-31T23:59:59.999Z');
 
@@ -15,10 +16,12 @@ export async function shelfDealsForStore(storeId: string, now: Date = new Date()
     where: { dealText: { not: null }, dealHiddenInApp: false, storeLabels: { some: { storeId } } },
     include: { storeLabels: { where: { storeId } } },
     orderBy: { updatedAt: 'desc' },
-    take: 30,
+    take: 120,   // room for the ones left out below; the app gets 30
   });
   return labels
-    .filter((l) => l.dealText && l.dealText.trim())
+    // Tobacco, vape and alcohol label deals never show in the app (Google Play policy), whatever the label says
+    .filter((l) => l.dealText && l.dealText.trim() && !isRestrictedCategory(l.category))
+    .slice(0, 30)
     .map((l) => {
       const price = resolveEffectivePrice(l, endedSaleView(l.storeLabels[0] ?? null, now));
       return {
