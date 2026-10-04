@@ -12,6 +12,7 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { LABEL_PRESETS } from '../data/labelPresets';
 import StoreLabelsPanel from '../components/StoreLabelsPanel';
 import SameBarcodePanel from '../components/SameBarcodePanel';
+import DealsPanel from '../components/DealsPanel';
 import { sameBarcode } from '../lib/barcode';
 import { suggestFromBarcode, matchNames, CatalogItem } from '../lib/labelSimilar';
 import LabelImportModal from '../components/LabelImportModal';
@@ -70,8 +71,8 @@ const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
 export default function Labels() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
-  type ViewMode = 'catalog' | 'store' | 'coverage' | 'health' | 'same';
-  const validTabs: ViewMode[] = ['catalog', 'store', 'coverage', 'health', 'same'];
+  type ViewMode = 'catalog' | 'store' | 'coverage' | 'health' | 'same' | 'deals';
+  const validTabs: ViewMode[] = ['catalog', 'store', 'coverage', 'health', 'same', 'deals'];
   const initialTab = searchParams.get('tab') as ViewMode | null;
   const [viewMode, setViewMode] = useState<ViewMode>(initialTab && validTabs.includes(initialTab) ? initialTab : 'catalog');
 
@@ -145,7 +146,7 @@ export default function Labels() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['labels'],
     queryFn: labelsApi.getAll,
-    enabled: viewMode === 'catalog',
+    enabled: viewMode === 'catalog' || viewMode === 'deals',   // the Deals tab lists and prints the catalog's deals
   });
   const labels: Label[] = data?.data?.data || [];
   const catalogItems: CatalogItem[] = useMemo(() => labels.map(l => ({
@@ -964,6 +965,8 @@ export default function Labels() {
             ? 'Which stores have each item, and which are missing it.'
             : viewMode === 'same'
             ? 'Items that share a barcode: keep one, with one price.'
+            : viewMode === 'deals'
+            ? 'Deal recommendations, and the deal list to print for the staff.'
             : 'How many labels need printing right now, by store.'}
           actions={viewMode === 'catalog' && (
             <>
@@ -988,6 +991,7 @@ export default function Labels() {
             { value: 'coverage', label: 'Coverage' },
             { value: 'health', label: 'Health' },
             { value: 'same', label: 'Same barcode', ...(sameCount ? { count: sameCount } : {}) },
+            { value: 'deals', label: 'Deals' },
           ]}
         />
 
@@ -999,6 +1003,8 @@ export default function Labels() {
           <HealthView />
         ) : viewMode === 'same' ? (
           <SameBarcodePanel />
+        ) : viewMode === 'deals' ? (
+          <DealsPanel labels={labels} />
         ) : (
           <div style={s.catalogLayout}>
           <div style={s.catalogMain}>

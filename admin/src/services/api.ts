@@ -167,6 +167,10 @@ export const labelsApi = {
   merge: (keepId: string, mergeIds: string[], priceText?: string | null) => api.post('/labels/merge', { keepId, mergeIds, priceText }),
   /** An edited Labels export: apply false is the preview, apply true makes the changes. */
   importRows: (rows: object[], apply: boolean, dealColumn: boolean) => api.post('/labels/import', { rows, apply, dealColumn }),
+  /** Deals to fix, match or try (Labels > Deals), and hiding one for every HQ admin. */
+  getDealRecommendations: () => api.get('/labels/deal-recommendations'),
+  dismissDealRecommendation: (key: string, dismiss = true) => api.post('/labels/deal-recommendations/dismiss', { key, dismiss }),
+  restoreDealRecommendations: () => api.post('/labels/deal-recommendations/restore'),
 };
 
 export interface NoticeInput {

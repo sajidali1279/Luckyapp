@@ -79,7 +79,7 @@ import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct 
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
-import { getBarcodeDuplicates, mergeLabels, importLabels } from '../controllers/labelCleanup.controller';
+import { getBarcodeDuplicates, mergeLabels, importLabels, getDealRecommendations, dismissDealRecommendation, restoreDealRecommendations } from '../controllers/labelCleanup.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -577,6 +577,9 @@ router.post  ('/labels/print',          authenticate, requireRole(Role.EMPLOYEE)
 router.get   ('/labels/duplicates',     authenticate, requireRole(Role.SUPER_ADMIN), getBarcodeDuplicates);   // Items that share a barcode
 router.post  ('/labels/merge',          authenticate, requireRole(Role.SUPER_ADMIN), mergeLabels);            // Keep one, fold the others into it
 router.post  ('/labels/import',         authenticate, requireRole(Role.SUPER_ADMIN), importLabels);           // An edited Labels export: preview, then apply
+router.get   ('/labels/deal-recommendations',          authenticate, requireRole(Role.SUPER_ADMIN), getDealRecommendations);      // Deals to fix, match or try
+router.post  ('/labels/deal-recommendations/dismiss',  authenticate, requireRole(Role.SUPER_ADMIN), dismissDealRecommendation);   // Hide one (or show it again)
+router.post  ('/labels/deal-recommendations/restore',  authenticate, requireRole(Role.SUPER_ADMIN), restoreDealRecommendations);  // Show every dismissed one again
 router.post  ('/labels/:labelId/push-to-all', authenticate, requireRole(Role.SUPER_ADMIN), pushLabelToAllStores);
 router.get   ('/labels/:labelId/impact', authenticate, requireRole(Role.SUPER_ADMIN), getLabelImpact);  // What a price change or a delete would touch
 router.patch ('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), updateLabel);

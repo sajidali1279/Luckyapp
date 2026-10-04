@@ -934,6 +934,19 @@ model OtpCode {
 
 // ─── In-App Notifications ─────────────────────────────────────────────────────
 
+// A deal recommendation HQ dismissed (Labels > Deals): kept by its key (the item, the kind and the suggestion), so a different suggestion
+// for the same item shows again. Shared by every HQ admin.
+model DealRecommendationDismissal {
+  key             String   @id
+  labelId         String   // a plain id (no link): removing the item just leaves an unused row
+  dismissedById   String
+  dismissedByName String?
+  dismissedAt     DateTime @default(now())
+
+  @@index([labelId])
+  @@map("deal_recommendation_dismissals")
+}
+
 // HQ's alerts (Notifications page) marked read, shared by every HQ admin: one row per alert id (ids are stable, e.g. "dispute-<id>").
 // Before 2026-10-02 "read" lived in each browser, so another admin or another computer still showed it unread.
 model AdminNotificationRead {

@@ -19,6 +19,7 @@ import { barcodeKey, canonicalBarcode } from '../utils/barcode';
 import { resolveEffectivePrice } from '../utils/labelPricing';
 import { ensureScannedProductForBarcode } from '../utils/labelSync';
 import { ITEM_GONE_MESSAGE } from '../utils/labelRules';
+import { recommendDeals } from '../utils/dealRecommendations';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -289,4 +290,51 @@ export async function importLabels(req: AuthRequest, res: Response) {
     storeId: null,
   });
   res.json({ success: true, data: { applied: true, summary, rows: outcomes, updated, created, reprint } });
+}
+
+// ─── Deal recommendations ─────────────────────────────────────────────────────
+
+/** GET /labels/deal-recommendations: what to fix, match or try in the catalog's deals (utils/dealRecommendations.ts), less what HQ dismissed. */
+export async function getDealRecommendations(_req: AuthRequest, res: Response) {
+  const [labels, dismissed] = await Promise.all([
+    prisma.label.findMany({ select: { id: true, productName: true, category: true, barcode: true, priceText: true, dealText: true } }),
+    prisma.dealRecommendationDismissal.findMany({ select: { key: true } }),
+  ]);
+  const hidden = new Set(dismissed.map((d) => d.key));
+  const all = recommendDeals(labels);
+  res.json({ success: true, data: { recommendations: all.filter((r) => !hidden.has(r.key)), dismissed: all.filter((r) => hidden.has(r.key)).length } });
+}
+
+const dismissSchema = z.object({
+  key: z.string().min(3).max(300),
+  dismiss: z.boolean().default(true),
+});
+
+/** POST /labels/deal-recommendations/dismiss { key, dismiss }: hides a recommendation for every HQ admin (or shows it again). */
+export async function dismissDealRecommendation(req: AuthRequest, res: Response) {
+  const parsed = dismissSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const { key, dismiss } = parsed.data;
+  const labelId = key.split('|')[0];
+  if (dismiss) {
+    await prisma.dealRecommendationDismissal.upsert({
+      where: { key },
+      create: { key, labelId, dismissedById: req.user!.id, dismissedByName: req.user!.name || null },
+      update: {},
+    });
+  } else {
+    await prisma.dealRecommendationDismissal.deleteMany({ where: { key } });
+  }
+  res.json({ success: true, data: { key, dismissed: dismiss } });
+}
+
+/** POST /labels/deal-recommendations/restore: shows every dismissed recommendation again. */
+export async function restoreDealRecommendations(req: AuthRequest, res: Response) {
+  const { count } = await prisma.dealRecommendationDismissal.deleteMany({});
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'DEAL_RECOMMENDATIONS_RESTORED', entity: 'label', entityId: 'deal-recommendations',
+    details: { summary: `Showed ${plural(count, 'dismissed deal recommendation', 'dismissed deal recommendations')} again` }, storeId: null,
+  });
+  res.json({ success: true, data: { restored: count } });
 }
