@@ -12,6 +12,7 @@ import { audit } from '../utils/audit';
 import { lockCustomer, settlePendingRedemption } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { usableStoreIds } from '../utils/storeAccess';
+import { pointsForPrice } from '../utils/rewardPoints';
 
 const HOLD_MINUTES = 30;
 
@@ -46,7 +47,7 @@ export async function getAllCatalog(req: AuthRequest, res: Response) {
   const items = await prisma.redemptionCatalogItem.findMany({
     // A manager sees the chain's rewards and their own stores' (not another store's)
     where: mine === null ? {} : { OR: [{ storeId: null }, { storeId: { in: mine } }] },
-    include: { store: { select: { id: true, name: true } } },
+    include: { store: { select: { id: true, name: true } }, label: { select: { id: true, productName: true, priceText: true, category: true } } },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
   // How often each reward is actually taken: all time and the last 30 days (handed out only, not held, cancelled or expired)
@@ -76,8 +77,18 @@ const rewardFields = {
   category: z.enum(['IN_STORE', 'GAS', 'HOT_FOODS', 'GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS'], { message: 'Pick a category from the list.' }),
   // null (or empty) = every store
   storeId: z.string().trim().nullable().transform((v) => v || null),
+  // The Labels catalog item it is: its points follow that item's price. null (or empty) = points set by hand
+  labelId: z.string().trim().max(64).nullable().transform((v) => v || null),
 };
-const createRewardSchema = z.object({ ...rewardFields, description: rewardFields.description.optional(), emoji: rewardFields.emoji.optional(), sortOrder: rewardFields.sortOrder.optional(), isActive: rewardFields.isActive.optional(), chain: rewardFields.chain.optional(), category: rewardFields.category.optional(), storeId: rewardFields.storeId.optional() });
+const createRewardSchema = z.object({ ...rewardFields, description: rewardFields.description.optional(), emoji: rewardFields.emoji.optional(), sortOrder: rewardFields.sortOrder.optional(), isActive: rewardFields.isActive.optional(), chain: rewardFields.chain.optional(), category: rewardFields.category.optional(), storeId: rewardFields.storeId.optional(), labelId: rewardFields.labelId.optional() });
+
+/** The linked item, and the points its price makes; a 400 sentence when the item is gone. Points stay as asked when it has no price. */
+async function linkedPoints(labelId: string | null | undefined): Promise<{ error: string } | { points: number | null; label: { productName: string; priceText: string | null } | null }> {
+  if (!labelId) return { points: null, label: null };
+  const label = await prisma.label.findUnique({ where: { id: labelId }, select: { productName: true, priceText: true } });
+  if (!label) return { error: 'That catalog item no longer exists. Pick it again.' };
+  return { points: pointsForPrice(label.priceText), label };
+}
 const updateRewardSchema = createRewardSchema.partial();
 
 async function storeName(id: string): Promise<string> {
@@ -99,13 +110,16 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
   if (storeId && !(await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } }))) {
     res.status(400).json({ success: false, error: 'That store does not exist.' }); return;
   }
+  const link = await linkedPoints(d.labelId);
+  if ('error' in link) { res.status(400).json({ success: false, error: link.error }); return; }
   const item = await prisma.redemptionCatalogItem.create({
     data: {
       storeId,
+      labelId: d.labelId ?? null,
       title: d.title,
       description: d.description ?? '',
       emoji: d.emoji || '🎁',
-      pointsCost: d.pointsCost,
+      pointsCost: link.points ?? d.pointsCost,   // a linked item's price decides
       sortOrder: d.sortOrder ?? 0,
       isActive: d.isActive ?? true,
       chain: d.chain || 'Lucky Stop',
@@ -115,7 +129,7 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CATALOG_ITEM_CREATE', entity: 'catalog_item', entityId: item.id,
-    details: { summary: `Reward added${item.storeId ? ` for ${(await storeName(item.storeId))}` : ' for every store'}: ${rewardWords(item)}` },
+    details: { summary: `Reward added${item.storeId ? ` for ${(await storeName(item.storeId))}` : ' for every store'}: ${rewardWords(item)}${link.label ? `, linked to ${link.label.productName} ($${link.label.priceText ?? 'no price'})` : ''}` },
     storeId: item.storeId, storeName: item.storeId ? await storeName(item.storeId) : undefined,
   });
   res.status(201).json({ success: true, data: item });
@@ -135,8 +149,14 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   if (nextStore && nextStore !== before.storeId && !(await prisma.store.findUnique({ where: { id: nextStore }, select: { id: true } }))) {
     res.status(400).json({ success: false, error: 'That store does not exist.' }); return;
   }
-  const item = await prisma.redemptionCatalogItem.update({ where: { id }, data: parsed.data });
+  // Linked (now, or still): the item's price decides the points; a typed number is used only without a price
+  const nextLabel = parsed.data.labelId === undefined ? before.labelId : parsed.data.labelId;
+  const link = await linkedPoints(nextLabel);
+  if ('error' in link) { res.status(400).json({ success: false, error: link.error }); return; }
+  const data = { ...parsed.data, ...(link.points != null ? { pointsCost: link.points } : {}) };
+  const item = await prisma.redemptionCatalogItem.update({ where: { id }, data });
   const changes: string[] = [];
+  if (before.labelId !== item.labelId) changes.push(item.labelId ? `linked to ${link.label!.productName} ($${link.label!.priceText ?? 'no price'})` : 'unlinked from its catalog item (points set by hand)');
   if (before.title !== item.title) changes.push(`name "${before.title}" to "${item.title}"`);
   if (before.pointsCost !== item.pointsCost) changes.push(`${before.pointsCost.toLocaleString('en-US')} to ${item.pointsCost.toLocaleString('en-US')} pts`);
   if (before.isActive !== item.isActive) changes.push(item.isActive ? 'turned on' : 'turned off');

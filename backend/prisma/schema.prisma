@@ -683,6 +683,7 @@ model Label {
   updatedAt        DateTime      @updatedAt
 
   storeLabels StoreLabel[]
+  rewards     RedemptionCatalogItem[]   // rewards whose points follow this item's price
 
   @@index([createdByStoreId])
   @@map("labels")
@@ -1021,13 +1022,18 @@ model RedemptionCatalogItem {
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   storeId     String?  // one store's own reward (its manager may change it); null = chain-wide, HQ only
+  // The Labels catalog item this reward is (2026-10-04): its points follow that item's chain price (price x 100, rounded up to the next
+  // 25: utils/rewardPoints.ts). null = points set by hand (a fountain drink, coffee: things with no label). Removing the item unlinks it.
+  labelId     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   store       Store?   @relation(fields: [storeId], references: [id])
+  label       Label?   @relation(fields: [labelId], references: [id], onDelete: SetNull)
   redemptions CatalogRedemption[]
 
   @@index([storeId])
+  @@index([labelId])
 
   @@map("redemption_catalog_items")
 }

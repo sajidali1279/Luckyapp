@@ -33,6 +33,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   // Rewards and notices
   CATALOG_ITEM_CREATE:       { label: 'Reward Added',           color: PRIMARY, bg: '#1D355718', icon: '🎁' },
   CATALOG_ITEM_UPDATE:       { label: 'Reward Changed',         color: PRIMARY, bg: '#1D355718', icon: '✏️' },
+  CATALOG_POINTS_FOLLOWED_PRICE: { label: 'Reward Points Followed Price', color: PRIMARY, bg: '#1D355718', icon: '🔗' },
   NOTICE_CREATE:             { label: 'Notice Posted',          color: '#8a5300', bg: '#F4A26118', icon: '📌' },
   NOTICE_DEACTIVATE:         { label: 'Notice Taken Down',      color: '#5a6472', bg: '#6c757d18', icon: '⏹️' },
   NOTICE_DELETE:             { label: 'Notice Deleted',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
@@ -309,7 +310,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Rewards, Notices & Local Ads ──">
-            {['CATALOG_ITEM_CREATE','CATALOG_ITEM_UPDATE','NOTICE_CREATE','NOTICE_UPDATE','NOTICE_REACTIVATE','NOTICE_DEACTIVATE','NOTICE_DELETE','PROMOTION_PUBLISH','PROMOTION_REJECT','PROMOTION_DELETE','PROMOTION_SETTINGS'].map(k => (
+            {['CATALOG_ITEM_CREATE','CATALOG_ITEM_UPDATE','CATALOG_POINTS_FOLLOWED_PRICE','NOTICE_CREATE','NOTICE_UPDATE','NOTICE_REACTIVATE','NOTICE_DEACTIVATE','NOTICE_DELETE','PROMOTION_PUBLISH','PROMOTION_REJECT','PROMOTION_DELETE','PROMOTION_SETTINGS'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

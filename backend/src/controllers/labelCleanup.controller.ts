@@ -23,6 +23,7 @@ import { recommendDeals } from '../utils/dealRecommendations';
 import { loadDealLimits, dealLimitsSchema, DEAL_LIMITS_KEY } from '../utils/dealLimits';
 import { DEAL_LIMITS_DEFAULT, learnStyles } from '../utils/dealSuggest';
 import { loadDealEdits, recordDealEdits, learningSummary, loadLearningSince, DEAL_LEARNING_SINCE_KEY } from '../utils/dealLearning';
+import { syncRewardPoints, auditRewardSync, RewardPointChange } from '../utils/rewardPoints';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -98,6 +99,7 @@ export async function mergeLabels(req: AuthRequest, res: Response) {
   const finalPrice = newPrice !== undefined ? newPrice : keep.priceText;
   const keptStores = new Set(keep.storeLabels.map((s) => s.storeId));
   let moved = 0, dropped = 0, reprint = 0;
+  let rewardChanges: RewardPointChange[] = [];
   await prisma.$transaction(async (tx) => {
     // The kept item: its price (if HQ picked another) and its barcode in the package's form
     const priceChanged = newPrice !== undefined && !samePrice(keep.priceText, newPrice);
@@ -115,9 +117,13 @@ export async function mergeLabels(req: AuthRequest, res: Response) {
         moved += 1;
         if (!printedSame && sl.printedAt) reprint += 1;
       }
+      // A reward linked to the removed item is the kept item now (it would otherwise lose its link)
+      await tx.redemptionCatalogItem.updateMany({ where: { labelId: other.id }, data: { labelId: keep.id } });
       await tx.label.delete({ where: { id: other.id } });   // its remaining store copies (stores that had both) go with it
     }
+    rewardChanges = await syncRewardPoints(tx, [keep.id]);
   });
+  auditRewardSync(req.user!, rewardChanges, `items merged into ${keep.productName}`);
 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
@@ -252,6 +258,7 @@ export async function importLabels(req: AuthRequest, res: Response) {
   // Apply: each item is changed the way an edit on the Labels page changes it (who reprints follows what changed)
   let reprint = 0, created = 0, updated = 0;
   const syncs: { barcode: string; name: string; category: string | null }[] = [];
+  const rewardChanges: RewardPointChange[] = [];
   for (const o of outcomes) {
     if (o.kind === 'update') {
       const data: Record<string, string | null> = {};
@@ -265,6 +272,7 @@ export async function importLabels(req: AuthRequest, res: Response) {
         else if (priceOnly) reprint += (await tx.storeLabel.updateMany({ where: { labelId: o.labelId, priceText: null }, data: { printedAt: null } })).count;
         else reprint += (await tx.storeLabel.updateMany({ where: { labelId: o.labelId }, data: { printedAt: null } })).count;
         if (l.barcode && (o.changes.productName || o.changes.category || o.changes.barcode)) syncs.push({ barcode: l.barcode, name: l.productName, category: l.category });
+        if (o.changes.priceText) rewardChanges.push(...await syncRewardPoints(tx, [o.labelId]));
       });
       updated += 1;
     } else if (o.kind === 'new') {
@@ -279,6 +287,7 @@ export async function importLabels(req: AuthRequest, res: Response) {
       created += 1;
     }
   }
+  auditRewardSync(req.user!, rewardChanges, 'a Labels file was imported');
   for (const s of syncs) {
     ensureScannedProductForBarcode(s.barcode, { name: s.name, category: s.category }).catch((e) => console.error('[labels-import] catalog sync failed', s.barcode, e?.message ?? e));
   }

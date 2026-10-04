@@ -12,6 +12,7 @@ import { priceField, samePrice } from '../utils/labelPrice';
 import { barcodeVariants, canonicalBarcode } from '../utils/barcode';
 import { labelChanges, refusalFor, describeChanges, editSummary, DELETE_ROLE_MESSAGE, ITEM_GONE_MESSAGE, barcodeTakenText } from '../utils/labelRules';
 import { recordDealEdits } from '../utils/dealLearning';
+import { syncRewardPoints, auditRewardSync, RewardPointChange } from '../utils/rewardPoints';
 import { endedSaleView, saleEnded, parseSaleEnd, planPriceSave, describeStorePrice } from '../utils/labelSale';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
@@ -367,10 +368,13 @@ export async function updateLabel(req: AuthRequest, res: Response) {
   const priceOnly = Object.keys(changes).every((k) => k === 'priceText' || k === 'category');
   let flagged = 0;
   let keptOwnPrice = 0;
+  let rewardChanges: RewardPointChange[] = [];
   let label;
   try {
     label = await prisma.$transaction(async (tx) => {
       const updated = await tx.label.update({ where: { id: labelId }, data: parsed.data });
+      // Rewards linked to this item cost its new price in points (Redemption Catalog)
+      if (changes.priceText) rewardChanges = await syncRewardPoints(tx, [labelId]);
       if (printedUnchanged) {
         // Nothing on the paper changed: no store needs to reprint
       } else if (priceOnly) {
@@ -411,6 +415,7 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     }
   }
 
+  auditRewardSync(req.user!, rewardChanges, `${label.productName} now $${label.priceText}`);
   if (changes.dealText) {
     await recordDealEdits([{ labelId: label.id, productName: label.productName, category: label.category, priceText: label.priceText, suggested: dealSuggested, chosen: label.dealText }],
       { id: req.user!.id, name: req.user!.name });
