@@ -142,9 +142,9 @@ export const bannersApi = {
 
 export const labelsApi = {
   getAll: () => api.get('/labels'),
-  create: (data: { productName: string; priceText: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
+  create: (data: { productName: string; priceText: string; dealText?: string | null; dealSuggested?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.post('/labels', data),
-  update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
+  update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; dealSuggested?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
     api.patch(`/labels/${labelId}`, data),
   // printedPrice is the price on the paper: a label counts as printed only if it is still the store's price
   print: (items: { storeLabelId: string; quantity: number; printedPrice?: string }[]) => api.post('/labels/print', { items }),
@@ -174,7 +174,8 @@ export const labelsApi = {
   /** HQ's max discount per category for deal suggestions, and saving them; many deals at once (Apply all). */
   getDealSettings: () => api.get('/labels/deal-settings'),
   updateDealSettings: (limits: { defaultPct: number; categories: Record<string, number>; excluded: string[] }) => api.put('/labels/deal-settings', limits),
-  setDealsBulk: (items: { labelId: string; dealText: string }[]) => api.post('/labels/deals/bulk', { items }),
+  setDealsBulk: (items: { labelId: string; dealText: string; suggested?: string | null }[]) => api.post('/labels/deals/bulk', { items }),
+  resetDealLearning: (category: string) => api.post('/labels/deal-learning/reset', { category }),
 };
 
 export interface NoticeInput {

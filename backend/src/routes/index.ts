@@ -79,7 +79,7 @@ import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct 
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
-import { getBarcodeDuplicates, mergeLabels, importLabels, getDealRecommendations, dismissDealRecommendation, restoreDealRecommendations, getDealSettings, updateDealSettings, setDealsBulk } from '../controllers/labelCleanup.controller';
+import { getBarcodeDuplicates, mergeLabels, importLabels, getDealRecommendations, dismissDealRecommendation, restoreDealRecommendations, getDealSettings, updateDealSettings, setDealsBulk, resetDealLearning } from '../controllers/labelCleanup.controller';
 import {
   getStoreSchedule,
   getTodayRoster,
@@ -583,6 +583,7 @@ router.post  ('/labels/deal-recommendations/restore',  authenticate, requireRole
 router.get   ('/labels/deal-settings',  authenticate, requireRole(Role.SUPER_ADMIN), getDealSettings);       // Max discount per category for deal suggestions
 router.put   ('/labels/deal-settings',  authenticate, requireRole(Role.SUPER_ADMIN), updateDealSettings);    // Save them
 router.post  ('/labels/deals/bulk',     authenticate, requireRole(Role.SUPER_ADMIN), setDealsBulk);          // Apply all: many deals at once
+router.post  ('/labels/deal-learning/reset', authenticate, requireRole(Role.SUPER_ADMIN), resetDealLearning);   // A category's suggestions start over (changes kept)
 router.post  ('/labels/:labelId/push-to-all', authenticate, requireRole(Role.SUPER_ADMIN), pushLabelToAllStores);
 router.get   ('/labels/:labelId/impact', authenticate, requireRole(Role.SUPER_ADMIN), getLabelImpact);  // What a price change or a delete would touch
 router.patch ('/labels/:labelId',       authenticate, requireRole(Role.EMPLOYEE), updateLabel);

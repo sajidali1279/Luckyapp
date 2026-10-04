@@ -15,7 +15,7 @@ import SameBarcodePanel from '../components/SameBarcodePanel';
 import DealsPanel from '../components/DealsPanel';
 import { sameBarcode } from '../lib/barcode';
 import { suggestFromBarcode, matchNames, CatalogItem } from '../lib/labelSimilar';
-import { DEAL_LIMITS_DEFAULT, DealLimits, limitFor, suggestDeal } from '../lib/dealSuggest';
+import { DEAL_LIMITS_DEFAULT, DealLimits, DealStyle, limitFor, suggestDeal, parseDeal, styleFor } from '../lib/dealSuggest';
 import LabelImportModal from '../components/LabelImportModal';
 import CoverageView from '../components/CoverageView';
 import HealthView from '../components/HealthView';
@@ -154,26 +154,31 @@ export default function Labels() {
     id: l.id, productName: l.productName, barcode: l.barcode, category: l.category, dealText: l.dealText, price: l.priceText,
   })), [data]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A suggested deal for the item in the form, within HQ's limit for its category (Labels > Deals > Deal limits)
+  // A suggested deal for the item in the form, within HQ's limit for its category (Labels > Deals > Deal limits), sized the way the
+  // category's deals are and the owner's changes to suggestions taught (lib/dealSuggest.ts). A different deal saved after a suggestion
+  // was shown is sent with it, so the suggestions learn from it too.
   const dealSettingsQuery = useQuery({ queryKey: ['deal-settings'], queryFn: () => labelsApi.getDealSettings(), enabled: showModal, staleTime: 60_000 });
   const dealLimits: DealLimits = dealSettingsQuery.data?.data?.data?.limits ?? DEAL_LIMITS_DEFAULT;
+  const dealStyles: Record<string, DealStyle> | undefined = dealSettingsQuery.data?.data?.data?.styles;
+  const suggestionShown = useRef(false);
+  useEffect(() => { if (!showModal) suggestionShown.current = false; }, [showModal]);
+  const formPrice = Number(canonicalPrice(formPriceText) ?? NaN);
+  const formLimit = limitFor(dealLimits, formCategory);
+  const suggestionNow = showModal && formPrice > 0 && formLimit != null ? suggestDeal(formPrice, formLimit, null, styleFor(dealStyles, formCategory)) : null;
   const dealHint = (() => {
-    if (!showModal) return null;
-    const price = Number(canonicalPrice(formPriceText) ?? NaN);
-    if (!(price > 0)) return null;
-    const limit = limitFor(dealLimits, formCategory);
+    if (!showModal || !(formPrice > 0)) return null;
+    const limit = formLimit;
     if (limit === null) return { left: true as const };
     const catName = formCategory.trim() || 'Other categories';
-    const m = formDealText.trim().match(/^(\d+)\s*(?:for|\/)\s*\$?(\d+(?:\.\d{1,2})?)$/i);
-    if (m) {
-      const qty = Number(m[1]), total = Number(m[2]);
-      const saving = qty > 1 ? 1 - total / (qty * price) : 0;
+    const d = parseDeal(formDealText);
+    if (d) {
+      const saving = 1 - d.total / (d.qty * formPrice);
       return { current: { saving, deep: saving > limit + 0.005 }, limit, catName };
     }
     if (formDealText.trim()) return null;   // BOGO and the like: nothing to measure
-    const s = suggestDeal(price, limit);
-    return s ? { suggestion: s, limit, catName } : null;
+    return suggestionNow ? { suggestion: suggestionNow, limit, catName } : null;
   })();
+  if (dealHint && 'suggestion' in dealHint) suggestionShown.current = true;
 
   // A new item's barcode next to ones the catalog has (the same maker, often the same product line): what they suggest
   const similarSugg = showModal && !editingLabel && formBarcode.trim() ? suggestFromBarcode(formBarcode, catalogItems, formProductName) : null;
@@ -559,7 +564,8 @@ export default function Labels() {
       if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
         orderCategoriesApi.submitNew(category).catch(() => {});
       }
-      const body = { productName: formProductName.trim(), priceText: canonicalPrice(formPriceText) ?? formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate };
+      const body = { productName: formProductName.trim(), priceText: canonicalPrice(formPriceText) ?? formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate,
+        dealSuggested: suggestionShown.current && formDealText.trim() && suggestionNow ? suggestionNow.text : null };
       return editingLabel ? labelsApi.update(editingLabel.id, body) : labelsApi.create(body);
     },
     onSuccess: (res) => {

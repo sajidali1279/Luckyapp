@@ -21,7 +21,8 @@ import { ensureScannedProductForBarcode } from '../utils/labelSync';
 import { ITEM_GONE_MESSAGE } from '../utils/labelRules';
 import { recommendDeals } from '../utils/dealRecommendations';
 import { loadDealLimits, dealLimitsSchema, DEAL_LIMITS_KEY } from '../utils/dealLimits';
-import { DEAL_LIMITS_DEFAULT } from '../utils/dealSuggest';
+import { DEAL_LIMITS_DEFAULT, learnStyles } from '../utils/dealSuggest';
+import { loadDealEdits, recordDealEdits, learningSummary, loadLearningSince, DEAL_LEARNING_SINCE_KEY } from '../utils/dealLearning';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -298,14 +299,19 @@ export async function importLabels(req: AuthRequest, res: Response) {
 
 /** GET /labels/deal-recommendations: what to fix, match or try in the catalog's deals (utils/dealRecommendations.ts), less what HQ dismissed. */
 export async function getDealRecommendations(_req: AuthRequest, res: Response) {
-  const [labels, dismissed, limits] = await Promise.all([
+  const [labels, dismissed, limits, edits] = await Promise.all([
     prisma.label.findMany({ select: { id: true, productName: true, category: true, barcode: true, priceText: true, dealText: true } }),
     prisma.dealRecommendationDismissal.findMany({ select: { key: true } }),
     loadDealLimits(),
+    loadDealEdits(),
   ]);
   const hidden = new Set(dismissed.map((d) => d.key));
-  const all = recommendDeals(labels, limits);
-  res.json({ success: true, data: { recommendations: all.filter((r) => !hidden.has(r.key)), dismissed: all.filter((r) => hidden.has(r.key)).length } });
+  const all = recommendDeals(labels, limits, edits);
+  res.json({ success: true, data: {
+    recommendations: all.filter((r) => !hidden.has(r.key)),
+    dismissed: all.filter((r) => hidden.has(r.key)).length,
+    learning: learningSummary(edits, learnStyles(labels, edits), limits),
+  } });
 }
 
 const dismissSchema = z.object({
@@ -346,11 +352,41 @@ export async function restoreDealRecommendations(req: AuthRequest, res: Response
 
 /** GET /labels/deal-settings: HQ's max discount per category for deal suggestions, the defaults, and the categories the catalog uses. */
 export async function getDealSettings(_req: AuthRequest, res: Response) {
-  const [limits, cats] = await Promise.all([
+  const [limits, labels, edits] = await Promise.all([
     loadDealLimits(),
-    prisma.label.findMany({ where: { category: { not: null } }, select: { category: true }, distinct: ['category'] }),
+    prisma.label.findMany({ select: { category: true, dealText: true } }),
+    loadDealEdits(),
   ]);
-  res.json({ success: true, data: { limits, defaults: DEAL_LIMITS_DEFAULT, categories: [...new Set(cats.map((c) => (c.category ?? '').trim()).filter(Boolean))].sort() } });
+  res.json({ success: true, data: {
+    limits, defaults: DEAL_LIMITS_DEFAULT,
+    categories: [...new Set(labels.map((c) => (c.category ?? '').trim()).filter(Boolean))].sort(),
+    styles: learnStyles(labels, edits),   // how each category's deals are sized (the Add/Edit form's suggestion uses it)
+  } });
+}
+
+const resetLearningSchema = z.object({ category: z.string({ message: 'Choose a category.' }).trim().max(100) });
+
+/** POST /labels/deal-learning/reset { category }: the category's suggestions stop following the changes made so far (they are kept). */
+export async function resetDealLearning(req: AuthRequest, res: Response) {
+  const parsed = resetLearningSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const cat = parsed.data.category;
+  const since = await loadLearningSince();
+  const before = since[cat.toLowerCase()];
+  const set = (await loadDealEdits()).filter((e) => (e.category ?? '').trim().toLowerCase() === cat.toLowerCase()).length;
+  since[cat.toLowerCase()] = new Date().toISOString();
+  await prisma.appConfig.upsert({
+    where: { key: DEAL_LEARNING_SINCE_KEY },
+    create: { key: DEAL_LEARNING_SINCE_KEY, value: JSON.stringify(since) },
+    update: { value: JSON.stringify(since) },
+  });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'DEAL_LEARNING_RESET', entity: 'label', entityId: 'deal-learning',
+    details: { summary: `Deal suggestions for ${cat || 'items with no category'} start over (${plural(set, 'change', 'changes')} no longer followed; kept)`, category: cat, previousStart: before ?? null },
+    storeId: null,
+  });
+  res.json({ success: true, data: { category: cat, setAside: set } });
 }
 
 /** PUT /labels/deal-settings { defaultPct, categories, excluded }: saves the limits (audited, with what changed). */
@@ -380,6 +416,7 @@ const bulkDealsSchema = z.object({
   items: z.array(z.object({
     labelId: z.string().min(1).max(64),
     dealText: z.string().trim().min(1, 'A deal cannot be empty.').max(20, 'A deal can be at most 20 characters.'),
+    suggested: z.string().trim().max(20).nullable().optional(),   // what was suggested: a deal set differently teaches the suggestions
   })).min(1, 'Choose at least one deal.').max(1000, 'At most 1,000 deals at once.'),
 });
 
@@ -388,7 +425,8 @@ export async function setDealsBulk(req: AuthRequest, res: Response) {
   const parsed = bulkDealsSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
   const wanted = new Map(parsed.data.items.map((i) => [i.labelId, i.dealText]));
-  const found = await prisma.label.findMany({ where: { id: { in: [...wanted.keys()] } }, select: { id: true, productName: true, dealText: true } });
+  const suggestedFor = new Map(parsed.data.items.map((i) => [i.labelId, i.suggested]));
+  const found = await prisma.label.findMany({ where: { id: { in: [...wanted.keys()] } }, select: { id: true, productName: true, dealText: true, category: true, priceText: true } });
   let changed = 0, reprint = 0;
   await prisma.$transaction(async (tx) => {
     for (const l of found) {
@@ -400,14 +438,18 @@ export async function setDealsBulk(req: AuthRequest, res: Response) {
     }
   });
   const missing = wanted.size - found.length;
+  const changedLabels = found.filter((l) => (l.dealText ?? '').trim() !== wanted.get(l.id));
+  const learned = await recordDealEdits(changedLabels.map((l) => ({
+    labelId: l.id, productName: l.productName, category: l.category, priceText: l.priceText, suggested: suggestedFor.get(l.id), chosen: wanted.get(l.id),
+  })), { id: req.user!.id, name: req.user!.name });
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'DEALS_BULK', entity: 'label', entityId: 'deals',
     details: {
-      summary: `Set ${plural(changed, 'deal', 'deals')} at once${missing ? ` (${plural(missing, 'item', 'items')} no longer there)` : ''}; ${plural(reprint, 'store copy', 'store copies')} to reprint`,
-      deals: found.filter((l) => (l.dealText ?? '').trim() !== wanted.get(l.id)).slice(0, 300).map((l) => ({ item: l.productName, from: l.dealText, to: wanted.get(l.id) })),
+      summary: `Set ${changed === 1 && changedLabels.length === 1 ? `the deal on ${changedLabels[0].productName} (${wanted.get(changedLabels[0].id)})` : `${plural(changed, 'deal', 'deals')} at once`}${missing ? ` (${plural(missing, 'item', 'items')} no longer there)` : ''}; ${plural(reprint, 'store copy', 'store copies')} to reprint${learned ? `; ${plural(learned, 'suggestion', 'suggestions')} changed, which the suggestions learn from` : ''}`,
+      deals: changedLabels.slice(0, 300).map((l) => ({ item: l.productName, from: l.dealText, to: wanted.get(l.id), ...(suggestedFor.get(l.id) && suggestedFor.get(l.id) !== wanted.get(l.id) ? { suggested: suggestedFor.get(l.id) } : {}) })),
     },
     storeId: null,
   });
-  res.json({ success: true, data: { changed, reprint, missing } });
+  res.json({ success: true, data: { changed, reprint, missing, learned } });
 }

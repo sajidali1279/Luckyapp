@@ -11,6 +11,7 @@ import { refuse } from '../utils/refusal';
 import { priceField, samePrice } from '../utils/labelPrice';
 import { barcodeVariants, canonicalBarcode } from '../utils/barcode';
 import { labelChanges, refusalFor, describeChanges, editSummary, DELETE_ROLE_MESSAGE, ITEM_GONE_MESSAGE, barcodeTakenText } from '../utils/labelRules';
+import { recordDealEdits } from '../utils/dealLearning';
 import { endedSaleView, saleEnded, parseSaleEnd, planPriceSave, describeStorePrice } from '../utils/labelSale';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
@@ -49,6 +50,7 @@ const createLabelSchema = z.object({
   productName: z.string({ message: 'Enter the product name.' }).trim().min(1, 'Enter the product name.').max(40, 'The product name is too long (40 characters at most).'),
   priceText: priceField.optional().nullable(),
   dealText: textField('deal text', 20).optional().nullable(),
+  dealSuggested: z.string().trim().max(20).optional().nullable(),   // the deal the form suggested: one set differently teaches the suggestions
   barcode: textField('barcode', 40).optional().nullable(),
   category: textField('category', 100).optional().nullable(),
   template: z.nativeEnum(LabelTemplate, { message: 'Choose one of the label designs.' }).default(LabelTemplate.CLASSIC_RED_BLACK),
@@ -168,7 +170,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
   const parsed = createLabelSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
 
-  const { storeId: requestedStoreId, ...labelData } = parsed.data;
+  const { storeId: requestedStoreId, dealSuggested, ...labelData } = parsed.data;
   if (labelData.barcode) labelData.barcode = canonicalBarcode(labelData.barcode);   // a UPC read as EAN-13 (leading 0) is saved as the UPC
 
   if (requestedStoreId && !(await canTouchStore(req.user!.id, req.user!.role, requestedStoreId))) {
@@ -261,6 +263,9 @@ export async function createLabel(req: AuthRequest, res: Response) {
     }
   }
 
+  await recordDealEdits([{ labelId: label.id, productName: label.productName, category: label.category, priceText: label.priceText, suggested: dealSuggested, chosen: label.dealText }],
+    { id: req.user!.id, name: req.user!.name });
+
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CREATE_LABEL', entity: 'label', entityId: label.id,
@@ -275,6 +280,7 @@ const updateLabelSchema = z.object({
   productName: z.string({ message: 'Enter the product name.' }).trim().min(1, 'Enter the product name.').max(40, 'The product name is too long (40 characters at most).').optional(),
   priceText: priceField.optional().nullable(),
   dealText: textField('deal text', 20).optional().nullable(),
+  dealSuggested: z.string().trim().max(20).optional().nullable(),   // the deal the form suggested: one set differently teaches the suggestions
   barcode: textField('barcode', 40).optional().nullable(),
   category: textField('category', 100).optional().nullable(),
   template: z.nativeEnum(LabelTemplate, { message: 'Choose one of the label designs.' }).optional(),
@@ -318,6 +324,8 @@ export async function updateLabel(req: AuthRequest, res: Response) {
   if (!parsed.success) { refuse(res, parsed.error); return; }
   // Saved the way a new item's is (a UPC read as EAN-13 becomes the UPC); an unchanged barcode in another form is no change
   if (parsed.data.barcode) parsed.data.barcode = canonicalBarcode(parsed.data.barcode);
+  const dealSuggested = parsed.data.dealSuggested;
+  delete parsed.data.dealSuggested;   // not a field of the item
 
   const before = await prisma.label.findUnique({ where: { id: labelId } });
   if (!before) {
@@ -401,6 +409,11 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     } catch (err) {
       console.error('ensureScannedProductForBarcode failed for label', label.id, err);
     }
+  }
+
+  if (changes.dealText) {
+    await recordDealEdits([{ labelId: label.id, productName: label.productName, category: label.category, priceText: label.priceText, suggested: dealSuggested, chosen: label.dealText }],
+      { id: req.user!.id, name: req.user!.name });
   }
 
   audit({

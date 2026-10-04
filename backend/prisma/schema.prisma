@@ -947,6 +947,25 @@ model DealRecommendationDismissal {
   @@map("deal_recommendation_dismissals")
 }
 
+// A suggested deal the owner changed before applying it (Labels > Deals, or the Add/Edit form). The next suggestions in the category learn
+// from these (utils/dealSuggest.ts): the ending it was rounded to, how much it takes off, 2 for or 3 for. Never deleted; "start over"
+// for a category only sets a date before which they are not used (AppConfig DEAL_LEARNING_SINCE).
+model DealSuggestionEdit {
+  id           String   @id @default(uuid())
+  labelId      String   // a plain id (no link): removing the item keeps what was learned from it
+  productName  String
+  category     String?
+  price        Float    // the item's price when it was changed
+  suggested    String
+  chosen       String
+  editedById   String
+  editedByName String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("deal_suggestion_edits")
+}
+
 // HQ's alerts (Notifications page) marked read, shared by every HQ admin: one row per alert id (ids are stable, e.g. "dispute-<id>").
 // Before 2026-10-02 "read" lived in each browser, so another admin or another computer still showed it unread.
 model AdminNotificationRead {

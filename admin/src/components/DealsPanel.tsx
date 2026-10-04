@@ -1,7 +1,8 @@
 // Labels > Deals (HQ). Two parts:
 //   1. Recommendations from the catalog itself (backend utils/dealRecommendations.ts): deals to fix, items missing their product line's
-//      deal, and ideas by category. Apply sets the item's deal (stores are told to reprint, like any deal change); Dismiss hides it for
-//      every HQ admin until the suggestion changes.
+//      deal, and ideas by category. Each suggested deal can be changed before Apply sets it (stores are told to reprint, like any deal
+//      change), and a changed one teaches the suggestions (how the owner rounds, how much they take off, 2 for or 3 for: "What the
+//      suggestions learned"). Dismiss hides one for every HQ admin until the suggestion changes.
 //   2. The deal list for training: every deal, by category, with the chain's or one store's prices, printed on a clean page.
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,10 +16,13 @@ import ConfirmModal from './ConfirmModal';
 import CardSkeleton from './CardSkeleton';
 import ErrorState from './ErrorState';
 import { storeDayLong } from '../lib/storeDates';
+import { DEAL_LIMITS_DEFAULT, DealLimits, limitFor, parseDeal } from '../lib/dealSuggest';
 
 type Kind = 'no-saving' | 'too-deep' | 'over-limit' | 'format' | 'line' | 'brand' | 'idea';
 type Limits = { defaultPct: number; categories: Record<string, number>; excluded: string[] };
 type Reco = { key: string; kind: Kind; labelId: string; productName: string; category: string | null; price: string; currentDeal: string | null; suggestedDeal: string | null; saving: number | null; reason: string };
+type Learned = { category: string; changes: number; roundsTo: string[]; saving: number | null; limit: number | null; pastLimit: boolean; threeUnder: number | null;
+  recent: { productName: string; price: string; suggested: string; chosen: string; why: string; at: string; by: string | null }[] };
 type Label = { id: string; productName: string; priceText: string | null; dealText: string | null; category: string | null; barcode: string | null };
 type Coverage = { stores: { id: string; name: string }[]; labels: { id: string; coverage: { storeId: string; status: string; priceText: string | null }[] }[] };
 
@@ -42,19 +46,45 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['deal-recos'], queryFn: () => labelsApi.getDealRecommendations() });
   const recos: Reco[] = data?.data?.data?.recommendations ?? [];
   const dismissedCount: number = data?.data?.data?.dismissed ?? 0;
+  const learning: Learned[] = data?.data?.data?.learning ?? [];
+  const { data: settingsData } = useQuery({ queryKey: ['deal-settings'], queryFn: () => labelsApi.getDealSettings() });
+  const limits: DealLimits = settingsData?.data?.data?.limits ?? DEAL_LIMITS_DEFAULT;
+  // What is typed over a suggestion, by item: kept while the suggestions refresh around it
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const valueOf = (r: Reco) => drafts[r.labelId] ?? r.suggestedDeal ?? '';
+  const edited = (r: Reco) => drafts[r.labelId] != null && drafts[r.labelId].trim() !== (r.suggestedDeal ?? '');
+  const check = (r: Reco) => {   // what the deal in the box saves, and whether it is past the category's limit
+    const d = parseDeal(valueOf(r)), price = Number(r.price);
+    if (!valueOf(r).trim()) return { ok: false, text: 'Type a deal', tone: 'danger' as const };
+    if (!d || !(price > 0)) return { ok: true, text: '', tone: 'ok' as const };
+    const saving = 1 - d.total / (d.qty * price), limit = limitFor(limits, r.category);
+    if (saving <= 0.001) return { ok: false, text: 'saves nothing', tone: 'danger' as const };
+    if (limit != null && saving > limit + 0.005) return { ok: true, text: `saves ${pct(saving)}, past the ${Math.round(limit * 1000) / 10}% limit`, tone: 'warn' as const };
+    return { ok: true, text: `saves ${pct(saving)}`, tone: 'ok' as const };
+  };
+  const [resetCat, setResetCat] = useState<Learned | null>(null);
+  const reset = useMutation({
+    mutationFn: (category: string) => labelsApi.resetDealLearning(category),
+    onSuccess: (_res, category) => { toast.success(`${category || 'No category'}: the suggestions start over. The changes are kept in the Activity Log.`); qc.invalidateQueries({ queryKey: ['deal-recos'] }); qc.invalidateQueries({ queryKey: ['deal-settings'] }); },
+    onError: (err) => toast.error(serverMessage(err, 'Could not start over.')),
+    onSettled: () => setResetCat(null),
+  });
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [applyAll, setApplyAll] = useState<{ category: string; items: Reco[] } | null>(null);
 
-  const refresh = () => { ['deal-recos', 'labels', 'store-labels', 'labels-coverage'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); };
+  const refresh = () => { ['deal-recos', 'deal-settings', 'labels', 'store-labels', 'labels-coverage'].forEach((k) => qc.invalidateQueries({ queryKey: [k] })); };
+  const forget = (ids: string[]) => setDrafts((d) => { const n = { ...d }; ids.forEach((id) => delete n[id]); return n; });
   const mark = (key: string, on: boolean) => setBusy((s) => { const n = new Set(s); if (on) n.add(key); else n.delete(key); return n; });
 
   async function apply(r: Reco) {
-    if (!r.suggestedDeal || busy.has(r.key)) return;
+    const deal = valueOf(r).trim();
+    if (!r.suggestedDeal || !deal || !check(r).ok || busy.has(r.key)) return;
     mark(r.key, true);
     try {
-      const res = await labelsApi.update(r.labelId, { dealText: r.suggestedDeal });
-      const stores = res.data?.reprint?.stores ?? 0;
-      toast.success(`${r.productName}: ${r.suggestedDeal}. ${stores ? `${stores} ${stores === 1 ? 'store is' : 'stores are'} told to reprint.` : ''}`);
+      const res = await labelsApi.setDealsBulk([{ labelId: r.labelId, dealText: deal, suggested: r.suggestedDeal }]);
+      const d = res.data?.data ?? {};
+      toast.success(`${r.productName}: ${deal}.${d.learned ? ` ${r.category || 'These'} suggestions learn from your change.` : ''}${d.reprint ? ` ${d.reprint} store ${d.reprint === 1 ? 'copy needs' : 'copies need'} reprinting.` : ''}`, { duration: 5000 });
+      forget([r.labelId]);
       refresh();
     } catch (err) { toast.error(serverMessage(err, 'Could not change the deal. Nothing was changed.')); }
     finally { mark(r.key, false); }
@@ -74,9 +104,12 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
     if (applying) return;
     setApplying(true);
     try {
-      const res = await labelsApi.setDealsBulk(items.filter((r) => r.suggestedDeal).map((r) => ({ labelId: r.labelId, dealText: r.suggestedDeal! })));
+      const ready = items.filter((r) => r.suggestedDeal && check(r).ok);
+      const res = await labelsApi.setDealsBulk(ready.map((r) => ({ labelId: r.labelId, dealText: valueOf(r).trim(), suggested: r.suggestedDeal })));
       const d = res.data?.data ?? {};
-      toast.success(`${d.changed ?? 0} deals set. ${d.reprint ? `${d.reprint} store ${d.reprint === 1 ? 'copy needs' : 'copies need'} reprinting.` : ''}`, { duration: 6000 });
+      const skipped = items.length - ready.length;
+      toast.success(`${d.changed ?? 0} deals set.${d.learned ? ` ${d.learned} you changed teach the suggestions.` : ''}${d.reprint ? ` ${d.reprint} store ${d.reprint === 1 ? 'copy needs' : 'copies need'} reprinting.` : ''}${skipped ? ` ${skipped} left as they were (no deal, or one that saves nothing).` : ''}`, { duration: 7000 });
+      forget(ready.map((r) => r.labelId));
       refresh();
     } catch (err) { toast.error(serverMessage(err, 'Could not set them. Nothing was changed.')); }
     finally { setApplying(false); setApplyAll(null); }
@@ -104,11 +137,25 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
       </div>
       <div style={s.change}>
         <span style={{ color: C.muted, textDecoration: r.suggestedDeal ? 'line-through' : 'none' }}>{r.currentDeal ?? 'no deal'}</span>
-        {r.suggestedDeal && <><span aria-hidden style={{ color: C.muted }}>to</span><strong style={{ color: C.text }}>{r.suggestedDeal}</strong>{r.saving != null && <span style={s.save}>saves {pct(r.saving)}</span>}</>}
+        {r.suggestedDeal && (() => { const c = check(r); return (
+          <>
+            <span aria-hidden style={{ color: C.muted }}>to</span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <input className="ui-input" aria-label={`Deal for ${r.productName}`} value={valueOf(r)} maxLength={20}
+                style={{ ...s.dealInput, ...(edited(r) ? { borderColor: C.primary, background: C.subtle } : {}) }}
+                onChange={(e) => { const v = e.target.value; setDrafts((d) => ({ ...d, [r.labelId]: v })); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') apply(r); }} />
+              {edited(r) && (
+                <button type="button" style={s.linkBtn} onClick={() => forget([r.labelId])}>Suggested {r.suggestedDeal}: use it</button>
+              )}
+            </span>
+            {c.text && <span style={c.tone === 'ok' ? s.save : { ...s.save, color: c.tone === 'danger' ? C.danger : C.warning }} data-testid="deal-check">{c.text}</span>}
+          </>
+        ); })()}
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         {r.suggestedDeal ? (
-          <Button size="sm" variant="primary" disabled={busy.has(r.key)} onClick={() => apply(r)} aria-label={`Apply ${r.suggestedDeal} to ${r.productName}`}>{busy.has(r.key) ? 'Saving…' : 'Apply'}</Button>
+          <Button size="sm" variant="primary" disabled={busy.has(r.key) || !check(r).ok} onClick={() => apply(r)} aria-label={`Apply ${valueOf(r)} to ${r.productName}`}>{busy.has(r.key) ? 'Saving…' : 'Apply'}</Button>
         ) : <span style={{ ...s.reason, alignSelf: 'center' }}>Edit it in the Catalog</span>}
         <Button size="sm" variant="ghost" disabled={dismiss.isPending} onClick={() => dismiss.mutate(r.key)} aria-label={`Dismiss the suggestion for ${r.productName}`}>Dismiss</Button>
       </div>
@@ -120,11 +167,20 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
       <ConfirmModal
         open={!!applyAll}
         title={`Set ${applyAll?.items.length ?? 0} ${applyAll?.category === '*' ? '' : `${applyAll?.category ?? ''} `}deals?`}
-        message={applyAll ? `Each item gets the deal shown next to it (${applyAll.items.slice(0, 3).map((r) => `${r.productName}: ${r.suggestedDeal}`).join('; ')}${applyAll.items.length > 3 ? '; ...' : ''}). Stores carrying them are told to reprint those labels.` : ''}
+        message={applyAll ? `Each item gets the deal in its box (${applyAll.items.slice(0, 3).map((r) => `${r.productName}: ${valueOf(r)}`).join('; ')}${applyAll.items.length > 3 ? '; ...' : ''})${applyAll.items.some(edited) ? `, ${applyAll.items.filter(edited).length} of them as you changed them` : ''}. Stores carrying them are told to reprint those labels.` : ''}
         confirmLabel={applying ? 'Setting…' : 'Set them'}
         busy={applying}
         onConfirm={() => { if (applyAll) applyCategory(applyAll.items); }}
         onCancel={() => setApplyAll(null)}
+      />
+      <ConfirmModal
+        open={!!resetCat}
+        title={`Start over for ${resetCat?.category || 'items with no category'}?`}
+        message={`The suggestions stop following your ${resetCat?.changes ?? 0} ${resetCat?.changes === 1 ? 'change' : 'changes'} there and go back to how the category's deals are written. Nothing is deleted.`}
+        confirmLabel={reset.isPending ? 'Starting over…' : 'Start over'}
+        busy={reset.isPending}
+        onConfirm={() => { if (resetCat) reset.mutate(resetCat.category); }}
+        onCancel={() => setResetCat(null)}
       />
       <p style={{ margin: 0, color: C.muted, fontSize: FONT.body, lineHeight: 1.5 }}>
         Suggestions from the catalog itself: deals that need fixing, items missing their product line's deal, and ideas where most of a category is on a deal.
@@ -149,7 +205,7 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
             <Card padding={0}>
               <div style={s.head}>
                 <Lightbulb size={16} aria-hidden /><SectionTitle count={ideas.length} style={{ margin: 0 }}>Deal ideas by category</SectionTitle>
-                <span style={{ ...s.reason, flex: 1 }}>Every item with no deal, within its category's limit (Deal limits below).</span>
+                <span style={{ ...s.reason, flex: 1 }}>Every item with no deal, within its category's limit (Deal limits below), rounded the way that category's deals are. Change any of them before you apply it: the next suggestions learn from what you change.</span>
                 <Button size="sm" variant="primary" onClick={() => setApplyAll({ category: '*', items: ideas })}>Apply every idea ({ideas.length})</Button>
               </div>
               {ideaGroups.map(([cat, items]) => (
@@ -172,6 +228,32 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
                   <span style={{ ...s.reason, flex: 1 }}>For information: these take more off than the limit. Fine when a supplier pays for the deal; otherwise each shows a deal within the limit.</span>
                 </summary>
                 {over.map(row)}
+              </details>
+            </Card>
+          )}
+          {learning.length > 0 && (
+            <Card padding={0}>
+              <details open data-testid="deal-learning">
+                <summary style={{ ...s.summary, background: C.subtle }}>
+                  <Sparkles size={16} aria-hidden /><span style={{ fontWeight: 700, color: C.text }}>What the suggestions learned</span><Badge>{learning.reduce((n, l) => n + l.changes, 0)}</Badge>
+                  <span style={{ ...s.reason, flex: 1 }}>From the suggested deals you changed: how you round, how much you take off, 2 for or 3 for. The latest 20 changes in a category count.</span>
+                </summary>
+                {learning.map((l) => (
+                  <div key={l.category} style={{ ...s.row, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                      <strong style={{ color: C.text }}>{l.category || 'No category'}</strong>
+                      <span style={s.reason}>{l.changes} {l.changes === 1 ? 'change' : 'changes'}. Rounds to {l.roundsTo.join(', then ')}.{l.saving != null ? ` Deals save about ${pct(l.saving)}${l.limit != null ? ` (limit ${Math.round(l.limit * 1000) / 10}%)` : ''}.` : ''}{l.threeUnder ? ` 3 for on items under $${l.threeUnder.toFixed(2)}.` : ''}</span>
+                      <span style={{ flex: 1 }} />
+                      <Button size="sm" variant="ghost" icon={<RotateCcw />} onClick={() => setResetCat(l)}>Start over</Button>
+                    </div>
+                    {l.pastLimit && <Notice tone="warning">Your changes here take more off than the limit. Suggestions stop at the limit; raise it under Deal limits if that is on purpose.</Notice>}
+                    <ul style={{ margin: 0, paddingLeft: 18, color: C.text2, fontSize: FONT.small, lineHeight: 1.6 }}>
+                      {l.recent.map((e, n) => (
+                        <li key={n}><strong style={{ color: C.text }}>{e.productName}</strong> ${e.price}: suggested {e.suggested}, you set <strong style={{ color: C.text }}>{e.chosen}</strong> ({e.why})</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               </details>
             </Card>
           )}
@@ -314,6 +396,8 @@ const s: Record<string, React.CSSProperties> = {
   head: { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: `1px solid ${C.border}`, background: C.subtle },
   row: { display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', padding: '10px 16px', borderBottom: `1px solid ${C.border}` },
   reason: { fontSize: FONT.small, color: C.muted, lineHeight: 1.45 },
+  dealInput: { width: 128, padding: '4px 8px', fontWeight: 700, color: C.text },
+  linkBtn: { background: 'none', border: 'none', padding: 0, color: C.primary, fontSize: 11, cursor: 'pointer', textAlign: 'left' },
   change: { display: 'flex', gap: 6, alignItems: 'baseline', flexWrap: 'wrap', fontSize: FONT.body, minWidth: 200 },
   save: { fontSize: FONT.caption, color: '#17663a', fontWeight: 700 },
   group: { borderBottom: `1px solid ${C.border}` },

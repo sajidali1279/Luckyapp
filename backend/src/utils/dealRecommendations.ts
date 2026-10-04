@@ -10,10 +10,15 @@
 //          items there save when that is less.
 //   Over:  a deal that takes more off than its category's limit (the owner gives away more than HQ allows), resized to the limit.
 //
+// Every suggested size follows the category's style (dealSuggest.ts): how the owner rounds deals there, and what their own changes to
+// suggestions have taught it.
+//
 // The system has no cost per item, so the limits are what keep a deal from losing money.
 
 import { sharedDigits, sizeOf } from './labelSimilar';
-import { DealLimits, DEAL_LIMITS_DEFAULT, limitFor, suggestDeal } from './dealSuggest';
+import { DealLimits, DEAL_LIMITS_DEFAULT, DealEdit, DealStyle, limitFor, suggestDeal, learnStyles, styleFor, parseDeal } from './dealSuggest';
+
+export { parseDeal };
 
 export type DealRecoKind = 'no-saving' | 'too-deep' | 'over-limit' | 'format' | 'line' | 'brand' | 'idea';
 
@@ -39,16 +44,6 @@ export interface DealReco {
   reason: string;
 }
 
-const DEAL = /^\s*(\d{1,2})\s*for\s*\$?\s*(\d{1,3}(?:[.,]\d{1,2})?)\s*$/i;
-
-/** "2 for $5.00" (any spacing, "For", a comma or no "$") as a number and a total, or null for other deals ("BOGO"). */
-export function parseDeal(text: string | null | undefined): { qty: number; total: number } | null {
-  const m = DEAL.exec(text ?? '');
-  if (!m) return null;
-  const qty = Number(m[1]), total = Number(m[2].replace(',', '.'));
-  return qty >= 2 && total > 0 ? { qty, total } : null;
-}
-
 export const dealText = (qty: number, total: number) => `${qty} for $${total.toFixed(2)}`;
 const money = (n: number) => `$${n.toFixed(2)}`;
 const pct = (f: number) => `${Math.round(f * 100)}%`;
@@ -64,8 +59,11 @@ export function niceTotal(price: number, qty: number, target: number): number | 
   return candidates.reduce((a, b) => (Math.abs(b - target) < Math.abs(a - target) ? b : a));
 }
 
-export function recommendDeals(items: DealRecoItem[], limits: DealLimits = DEAL_LIMITS_DEFAULT): DealReco[] {
+export function recommendDeals(items: DealRecoItem[], limits: DealLimits = DEAL_LIMITS_DEFAULT, edits: DealEdit[] = []): DealReco[] {
   const limitOf = (c: string | null) => limitFor(limits, c);
+  const styles = learnStyles(items, edits);
+  const styleOf = (c: string | null): DealStyle | undefined => styleFor(styles, c);
+  const learned = (c: string | null) => { const n = styleOf(c)?.changes ?? 0; return n ? ` Sized the way you changed ${n === 1 ? 'one' : n} ${c || ''} suggestion${n === 1 ? '' : 's'}.` : ''; };
   const pctText = (l: number) => `${Math.round(l * 100)}%`;
   const priced = items
     .map((i) => ({ ...i, price: i.priceText != null && !Number.isNaN(Number(i.priceText)) ? Number(i.priceText) : null, deal: parseDeal(i.dealText) }))
@@ -97,7 +95,7 @@ export function recommendDeals(items: DealRecoItem[], limits: DealLimits = DEAL_
       const s = savingOf(i.price, i.deal);
       if (s <= 0.001) {
         const typical = typicalSaving(i, 2);
-        const fix = suggestDeal(i.price, limitOf(i.category) ?? limits.defaultPct / 100, typical?.saving);
+        const fix = suggestDeal(i.price, limitOf(i.category) ?? limits.defaultPct / 100, typical?.saving, styleOf(i.category));
         add(i, 'no-saving', fix ? fix.text : null,
           `${i.dealText} is ${money(i.deal.total / i.deal.qty)} each, ${s < -0.001 ? 'more than' : 'the same as'} the ${money(i.price)} price: it saves nothing.`);
         handled.add(i.id);
@@ -117,7 +115,7 @@ export function recommendDeals(items: DealRecoItem[], limits: DealLimits = DEAL_
       // Deeper than HQ's limit for the category: information (a supplier often pays for such a deal), shown last
       const limit = limitOf(i.category);
       if (limit != null && s > limit + 0.005) {
-        const resized = suggestDeal(i.price, limit);
+        const resized = suggestDeal(i.price, limit, null, styleOf(i.category));
         add(i, 'over-limit', resized ? resized.text : null,
           `${i.dealText} takes ${pct(s)} off; the ${i.category ?? 'category'} limit is ${pctText(limit)}. Fine if a supplier pays for it.${resized ? '' : ' No deal fits the limit at this price.'}`);
         handled.add(i.id);
@@ -153,13 +151,13 @@ export function recommendDeals(items: DealRecoItem[], limits: DealLimits = DEAL_
       const limit = limitOf(i.category);
       if (limit == null) continue;   // left out (Tobacco)
       const typical = typicalSaving(i, 2);
-      const deal = suggestDeal(i.price, limit, typical?.saving);
+      const deal = suggestDeal(i.price, limit, typical?.saving, styleOf(i.category));
       if (!deal) continue;
       const withDeal = list.filter((x) => x.deal).length;
       add(i, 'idea', deal.text,
         `${cat || 'No category'} limit ${pctText(limit)}: ${deal.text} saves ${pct(deal.saving)}.`
         + (typical && typical.saving < limit ? ` ${typical.n} deals on ${cat} items near ${money(i.price)} save about ${pct(typical.saving)}.` : '')
-        + (list.length ? ` ${withDeal} of ${list.length} ${cat || ''} items have a deal now.` : ''));
+        + (list.length ? ` ${withDeal} of ${list.length} ${cat || ''} items have a deal now.` : '') + learned(i.category));
     }
   }
 
