@@ -13,6 +13,8 @@ export interface OfferHours {
 }
 
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/;
+/** From 00:00 to 00:00: the whole of each chosen day ("Tuesdays, all day"). */
+export const ALL_DAY = '00:00';
 const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 export const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -56,6 +58,11 @@ export function checkHours(input: { happyDays?: unknown; happyFrom?: unknown; ha
   }
   if (!from || !to) return { ok: false, message: 'Give the happy hour both a start and an end time.' };
   if (!HHMM.test(from) || !HHMM.test(to)) return { ok: false, message: 'Write the happy-hour times like 15:00 and 18:00.' };
+  // 00:00 to 00:00 is "all day on these days" (Taco Tuesday); any other same start and end is a mistake
+  if (from === to && from === ALL_DAY) {
+    if (cleanDays.length === 0 || cleanDays.length === 7) return { ok: true, hours: { happyDays: [], happyFrom: null, happyTo: null } };   // every day, all day: no hours
+    return { ok: true, hours: { happyDays: cleanDays, happyFrom: ALL_DAY, happyTo: ALL_DAY } };
+  }
   if (from === to) return { ok: false, message: 'The happy hour starts and ends at the same time. Leave both empty for all day.' };
   return { ok: true, hours: { happyDays: cleanDays.length === 7 ? [] : cleanDays, happyFrom: from, happyTo: to } };
 }
@@ -74,5 +81,6 @@ export function hoursText(o: OfferHours): string | null {
     const run = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
     dayText = run && days.length >= 3 ? `${DAY_SHORT[days[0]]}-${DAY_SHORT[days[days.length - 1]]}` : days.map((d) => DAY_SHORT[d]).join(', ');
   }
+  if (o.happyFrom === ALL_DAY && o.happyTo === ALL_DAY) return `${dayText}, all day`;
   return `${dayText}, ${twelve(o.happyFrom!)} to ${twelve(o.happyTo!)}`;
 }

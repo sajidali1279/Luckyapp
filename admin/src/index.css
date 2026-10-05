@@ -342,6 +342,8 @@
 .ui-band .ui-btn-secondary { background: rgba(255, 255, 255, 0.08); color: #fff; border-color: rgba(255, 255, 255, 0.24); box-shadow: none; }
 .ui-band .ui-btn-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.36); }
 .ui-band .ui-btn-secondary[aria-pressed="true"] { background: #fff; color: #1D3557; border-color: #fff; }
+/* pressed and under the mouse: stays light (the hover above made it navy text on navy) */
+.ui-band .ui-btn-secondary[aria-pressed="true"]:hover:not(:disabled) { background: #eef2f7; color: #1D3557; border-color: #eef2f7; }
 .ui-band .ui-btn-ghost { color: #dbe3ee; }
 .ui-band .ui-btn-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); color: #fff; }
 .ui-band .ui-btn-danger { background: transparent; color: #ffb3ba; border-color: rgba(255, 179, 186, 0.4); }

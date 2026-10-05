@@ -30,7 +30,7 @@ import {
 } from '../controllers/points.controller';
 import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem, customerInitiateRedemption, getMyRedemptions, cancelRedemption, getPendingRedemptionsForCustomer, confirmRedemption } from '../controllers/catalog.controller';
 import {
-  createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults,
+  createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults, setOfferImage, removeOfferImage,
   createBanner, getActiveBanners, deleteBanner,
   estimateOfferCost,
   listShelfDeals,
@@ -324,6 +324,8 @@ router.post('/offer-requests/:id/decline', authenticate, requireRole(Role.SUPER_
 router.get('/offers/:offerId/results', authenticate, requireRole(Role.SUPER_ADMIN), getOfferResults); // What a promotion did (HQ)
 router.post('/offers', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), createOffer);
 router.patch('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER), updateOffer);
+router.post('/offers/:offerId/image', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), setOfferImage);   // A new picture for an offer already posted
+router.delete('/offers/:offerId/image', authenticate, requireRole(Role.STORE_MANAGER), removeOfferImage);                     // Take its picture off
 router.delete('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER), deleteOffer);
 
 // ─── Banners ──────────────────────────────────────────────────────────────────

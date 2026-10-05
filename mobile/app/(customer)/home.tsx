@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { offerBonusText } from '../../utils/offerRate';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
@@ -1255,7 +1256,7 @@ export default function CustomerHome() {
                           <Text style={styles.offerBonusText}>
                             {offer.gasBonusCentsPerGallon != null
                               ? t('customerHome.bonusPerGal', { cents: offer.gasBonusCentsPerGallon })
-                              : t('customerHome.cashbackPill', { pct: Math.round(offer.bonusRate * 100) })}
+                              : offerBonusText(offer, t, 'cashbackPill')}
                           </Text>
                         </View>
                         <OfferHoursLine offer={offer} />
@@ -1310,7 +1311,7 @@ export default function CustomerHome() {
                             <Text style={styles.offerBonusText}>
                               {offer.gasBonusCentsPerGallon != null
                                 ? `+${offer.gasBonusCentsPerGallon}¢/gal`
-                                : `+${Math.round(offer.bonusRate * 100)}%`}
+                                : offerBonusText(offer, t)}
                             </Text>
                           </View>
                           <OfferHoursLine offer={offer} compact />
@@ -1821,7 +1822,7 @@ export default function CustomerHome() {
                 <View style={om.badgeRow}>
                   <View style={om.badge}>
                     <PercentIcon size={13} color={COLORS.primary} strokeWidth={2} />
-                    <Text style={om.badgeText}>{t('customerHome.offerCashbackBadge', { pct: Math.round(selectedOffer.bonusRate * 100) })}</Text>
+                    <Text style={om.badgeText}>{offerBonusText(selectedOffer, t, 'offerCashbackBadge')}</Text>
                   </View>
                 </View>
               ) : selectedOffer.dealText && selectedOffer.imageUrl ? (

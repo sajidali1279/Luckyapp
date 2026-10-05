@@ -135,6 +135,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
   }
 
   let imageUrl: string | undefined;
+  if (req.file && !/^image\//.test(req.file.mimetype)) { res.status(400).json({ success: false, error: 'That file is not a picture. Use a JPG, PNG or WebP.' }); return; }
   if (req.file) {
     const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
@@ -219,15 +220,16 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
 
 const updateOfferSchema = z.object({
   title: z.string().trim().min(1, 'Add a title.').max(100, 'The title can be at most 100 characters.').optional(),
-  description: z.string().min(1).max(500, 'The description can be at most 500 characters.').optional(),
+  description: z.string().trim().max(500, 'The description can be at most 500 characters.').optional(),   // empty clears it
   type: z.nativeEnum(OfferType).optional(),
   storeId: z.string().uuid().nullable().optional(),
   category: z.nativeEnum(ProductCategory).nullable().optional(),
   bonusRate: z.coerce.number().min(0).max(CASHBACK_RATE_CAP, BONUS_TOO_BIG).nullable().optional(),
-  tierBonusRates: z.record(z.string(), z.number().min(0).max(CASHBACK_RATE_CAP, BONUS_TOO_BIG)).nullable().optional(),
+  tierBonusRates: z.record(z.string(), z.number().min(0).max(CASHBACK_RATE_CAP, BONUS_TOO_BIG))
+    .refine((m) => Object.keys(m).every((k) => k in Tier), 'Tier bonuses must be for Bronze, Silver, Gold, Diamond or Platinum.').nullable().optional(),
   gasBonusCentsPerGallon: cpgField.nullable().optional(),
   dealText: z.string().min(1).max(40, 'The deal text can be at most 40 characters.').nullable().optional(),
-  requires21: z.coerce.boolean().optional(),
+  requires21: z.preprocess(flag, z.boolean()).optional(),   // "false" is false (z.coerce.boolean made any text true)
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   isActive: z.boolean().optional(),
@@ -292,8 +294,25 @@ export async function updateOffer(req: AuthRequest, res: Response) {
   }
 
   const { startDate, endDate, ...rest } = parsed.data;
-  const before = await prisma.offer.findUnique({ where: { id: offerId }, select: { title: true, startDate: true, endDate: true, isActive: true, happyDays: true, happyFrom: true, happyTo: true } });
+  const before = await prisma.offer.findUnique({ where: { id: offerId } });
   if (!before) { res.status(404).json({ success: false, error: 'That offer does not exist.' }); return; }
+  // What it would be after this edit: it still has to be for a store that exists (one store), pay something or show a deal, and keep
+  // cents per gallon to Gas and Diesel (a new offer is held to the same rules by offerSchema)
+  const next = { ...before, ...rest };
+  if (next.type === OfferType.SPECIFIC_STORE) {
+    if (!next.storeId) { res.status(400).json({ success: false, error: 'Choose which store this is for.' }); return; }
+    if (rest.storeId && rest.storeId !== before.storeId && !(await prisma.store.findUnique({ where: { id: rest.storeId }, select: { id: true } }))) {
+      res.status(400).json({ success: false, error: 'That store does not exist. Choose one from the list.' }); return;
+    }
+  } else if (rest.type === OfferType.ALL_STORES) {
+    (rest as Record<string, unknown>).storeId = null;
+  }
+  const nextTiers = (next.tierBonusRates ?? null) as Record<string, number> | null;
+  const nextPays = (next.bonusRate ?? 0) > 0 || (next.gasBonusCentsPerGallon ?? 0) > 0 || Object.values(nextTiers ?? {}).some((v) => v > 0);
+  if (!nextPays && !next.dealText) { res.status(400).json({ success: false, error: 'Add a bonus (a percentage or cents per gallon) or a deal text.' }); return; }
+  if (next.gasBonusCentsPerGallon != null && next.category !== ProductCategory.GAS && next.category !== ProductCategory.DIESEL) {
+    res.status(400).json({ success: false, error: 'A cents-per-gallon promotion must be for Gas or Diesel.' }); return;
+  }
   // The dates it would have after this edit: the last day on or after the first, and not already over ("End now" sends now)
   const nextStart = startDate ? new Date(startDate) : before.startDate;
   const nextEnd = endDate ? new Date(endDate) : before.endDate;
@@ -339,6 +358,10 @@ export async function deleteOffer(req: AuthRequest, res: Response) {
       return;
     }
   }
+  if (!(await prisma.offer.findUnique({ where: { id: req.params.offerId }, select: { id: true } }))) {
+    res.status(404).json({ success: false, error: 'That offer does not exist.' });
+    return;
+  }
   const deleted = await prisma.offer.update({
     where: { id: req.params.offerId }, data: { isActive: false },
   });
@@ -349,6 +372,54 @@ export async function deleteOffer(req: AuthRequest, res: Response) {
     storeId: deleted.storeId,
   });
   res.json({ success: true, message: 'Offer deactivated' });
+}
+
+/** The offer when this person may change it (HQ: any; a store manager: their own stores'), or a reply already sent. */
+async function offerToChange(req: AuthRequest, res: Response) {
+  const offer = await prisma.offer.findUnique({ where: { id: req.params.offerId } });
+  if (!offer) { res.status(404).json({ success: false, error: 'That offer does not exist.' }); return null; }
+  if (req.user!.role === Role.STORE_MANAGER && !req.user!.storeIds?.includes(offer.storeId ?? '')) {
+    res.status(403).json({ success: false, error: 'You can only change offers for your store' });
+    return null;
+  }
+  return offer;
+}
+
+/** POST /offers/:offerId/image (multipart "image"): a new picture for an offer already posted (it is not announced again). */
+export async function setOfferImage(req: AuthRequest, res: Response) {
+  const offer = await offerToChange(req, res);
+  if (!offer) return;
+  if (!req.file) { res.status(400).json({ success: false, error: 'Choose a picture to upload.' }); return; }
+  if (!/^image\//.test(req.file.mimetype)) { res.status(400).json({ success: false, error: 'That file is not a picture. Use a JPG, PNG or WebP.' }); return; }
+  const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      { folder: 'luckystop/offers', resource_type: 'image' },
+      (err, r) => (err ? reject(err) : resolve(r as { secure_url: string }))
+    ).end(req.file!.buffer);
+  });
+  const updated = await prisma.offer.update({ where: { id: offer.id }, data: { imageUrl: result.secure_url } });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'UPDATE_OFFER', entity: 'offer', entityId: offer.id,
+    details: { title: offer.title, summary: `Offer "${offer.title}" ${offer.imageUrl ? 'picture changed' : 'picture added'}` },
+    storeId: offer.storeId,
+  });
+  res.json({ success: true, data: updated });
+}
+
+/** DELETE /offers/:offerId/image: the offer shows without a picture. */
+export async function removeOfferImage(req: AuthRequest, res: Response) {
+  const offer = await offerToChange(req, res);
+  if (!offer) return;
+  if (!offer.imageUrl) { res.json({ success: true, data: offer }); return; }
+  const updated = await prisma.offer.update({ where: { id: offer.id }, data: { imageUrl: null } });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'UPDATE_OFFER', entity: 'offer', entityId: offer.id,
+    details: { title: offer.title, summary: `Offer "${offer.title}" picture removed` },
+    storeId: offer.storeId,
+  });
+  res.json({ success: true, data: updated });
 }
 
 // Returns all past offers (expired or inactive) for the admin reuse panel

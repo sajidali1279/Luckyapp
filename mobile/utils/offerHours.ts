@@ -27,6 +27,7 @@ export function hoursText(o: OfferHours, t: TFunction): string | null {
     const run = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
     dayText = run && days.length >= 3 ? `${name(days[0])}-${name(days[days.length - 1])}` : days.map(name).join(', ');
   }
+  if (o.happyFrom === '00:00' && o.happyTo === '00:00') return t('offerHours.allDayOn', { days: dayText });   // all day on those days
   return t('offerHours.window', { days: dayText, from: clock(o.happyFrom!), to: clock(o.happyTo!) });
 }
 

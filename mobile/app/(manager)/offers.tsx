@@ -18,6 +18,7 @@ import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import OfferRequestsTab from '../../components/OfferRequestsTab';
+import { pctLabel } from '../../utils/offerRate';
 import { hoursText } from '../../utils/offerHours';
 
 interface Store { id: string; name: string }
@@ -157,7 +158,7 @@ export default function ManagerOffersScreen() {
     setEditForm({
       title: offer.title || '',
       description: offer.description || '',
-      bonusRate: offer.bonusRate ? String(Math.round(offer.bonusRate * 100)) : '',
+      bonusRate: offer.bonusRate ? pctLabel(offer.bonusRate) : '',   // 1.5% stays 1.5
       dealText: offer.dealText || '',
       category: offer.category || '',
       durationDays: '7',
@@ -262,7 +263,7 @@ export default function ManagerOffersScreen() {
                   </View>
                   {offer.bonusRate ? (
                     <View style={s.rateBadge}>
-                      <Text style={s.rateNum}>{Math.round(offer.bonusRate * 100)}</Text>
+                      <Text style={s.rateNum}>{pctLabel(offer.bonusRate)}</Text>
                       <Text style={s.ratePct}>%</Text>
                     </View>
                   ) : null}

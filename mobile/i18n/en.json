@@ -2312,7 +2312,8 @@
     "shelfDealNote": "In store while the shelf tag shows it",
     "happyHoursOnly": "Extra cashback only {{hours}}.",
     "onNowShort": "On now",
-    "notOnNowShort": "Not on now"
+    "notOnNowShort": "Not on now",
+    "offerForTiers": "For {{tiers}} members"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Free Fountain Drink",
@@ -2648,7 +2649,8 @@
     "fri": "Fri",
     "sat": "Sat",
     "everyDay": "Every day",
-    "window": "{{days}}, {{from}} to {{to}}"
+    "window": "{{days}}, {{from}} to {{to}}",
+    "allDayOn": "{{days}}, all day"
   },
   "offerRequests": {
     "intro": "Want extra cashback at your store? Ask HQ here. HQ sees what it would cost, may change it, and approves or declines it. You get a notification either way.",

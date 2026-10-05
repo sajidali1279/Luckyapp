@@ -2312,7 +2312,8 @@
     "shelfDealNote": "En la tienda mientras la etiqueta del estante la muestre",
     "happyHoursOnly": "Reembolso extra solo {{hours}}.",
     "onNowShort": "Activa ahora",
-    "notOnNowShort": "No activa ahora"
+    "notOnNowShort": "No activa ahora",
+    "offerForTiers": "Para miembros {{tiers}}"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Refresco de Fuente Gratis",
@@ -2648,7 +2649,8 @@
     "fri": "vie",
     "sat": "sáb",
     "everyDay": "Todos los días",
-    "window": "{{days}}, de {{from}} a {{to}}"
+    "window": "{{days}}, de {{from}} a {{to}}",
+    "allDayOn": "{{days}}, todo el día"
   },
   "offerRequests": {
     "intro": "¿Quiere más reembolso en su tienda? Pídalo a HQ aquí. HQ ve cuánto costaría, puede cambiarlo y lo aprueba o lo rechaza. Usted recibe una notificación en ambos casos.",

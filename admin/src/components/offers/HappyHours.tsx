@@ -5,6 +5,9 @@ import { C, FONT, INPUT } from '../../lib/theme';
 
 export type HappyHours = { days: number[]; from: string; to: string };   // days 0 = Sunday .. 6 = Saturday; [] = every day
 export const NO_HOURS: HappyHours = { days: [], from: '', to: '' };
+/** All day on the chosen days (Taco Tuesday): 00:00 to 00:00, which the server reads as the whole day. */
+export const ALL_DAY = '00:00';
+export const isDaysOnly = (h: { from?: string | null; to?: string | null }) => h.from === ALL_DAY && h.to === ALL_DAY;
 
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const WEEK = [1, 2, 3, 4, 5, 6, 0];   // shown Monday first
@@ -23,6 +26,7 @@ export function hoursPayload(h: HappyHours) {
 export function hoursProblem(h: HappyHours): string | null {
   if (!h.from && !h.to) return null;
   if (!h.from || !h.to) return 'Give the happy hour both a start and an end time, or clear both for all day.';
+  if (isDaysOnly(h)) return h.days.length === 0 ? 'Pick the days it runs on.' : null;
   if (h.from === h.to) return 'The happy hour starts and ends at the same time. Clear both for all day.';
   return null;
 }
@@ -41,11 +45,13 @@ export function hoursLabel(o: { happyDays?: number[] | null; happyFrom?: string 
     const run = days.every((d, i) => i === 0 || d === days[i - 1] + 1);
     dayText = run && days.length >= 3 ? `${DAY_SHORT[days[0]]}-${DAY_SHORT[days[days.length - 1]]}` : days.map((d) => DAY_SHORT[d]).join(', ');
   }
+  if (o.happyFrom === ALL_DAY && o.happyTo === ALL_DAY) return `${dayText}, all day`;
   return `${dayText}, ${twelve(o.happyFrom)} to ${twelve(o.happyTo)}`;
 }
 
 export function HappyHoursField({ value, onChange, idPrefix }: { value: HappyHours; onChange: (h: HappyHours) => void; idPrefix: string }) {
-  const on = !!(value.from || value.to);
+  const daysOnly = isDaysOnly(value);
+  const on = !!(value.from || value.to) && !daysOnly;
   // No days stored means every day, so the first click on one leaves that day out; picking all seven goes back to "every day"
   const toggleDay = (d: number) => {
     const current = value.days.length === 0 ? WEEK : value.days;
@@ -59,9 +65,23 @@ export function HappyHoursField({ value, onChange, idPrefix }: { value: HappyHou
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        <Chip selected={!on} onClick={() => onChange(NO_HOURS)}>All day</Chip>
+        <Chip selected={!on && !daysOnly} onClick={() => onChange(NO_HOURS)}>Every day, all day</Chip>
+        <Chip selected={daysOnly} onClick={() => { if (!daysOnly) onChange({ days: [2], from: ALL_DAY, to: ALL_DAY }); }}>Only on certain days</Chip>
         <Chip selected={on} onClick={() => { if (!on) onChange({ days: [], from: '15:00', to: '18:00' }); }}>Only at certain hours</Chip>
       </div>
+      {daysOnly && (
+        <>
+          <div role="group" aria-label="Days it runs" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {WEEK.map((d) => (
+              <Chip key={d} selected={value.days.includes(d)} aria-label={`Runs on ${DAY_SHORT[d]}`}
+                onClick={() => { const next = value.days.includes(d) ? value.days.filter((x) => x !== d) : [...value.days, d]; onChange({ ...value, days: next }); }}>{DAY_SHORT[d]}</Chip>
+            ))}
+          </div>
+          <div style={{ fontSize: FONT.small, color: problem ? C.danger : C.muted, lineHeight: 1.5 }}>
+            {problem ?? <>Customers see it all week with <strong style={{ color: C.text2 }}>{label}</strong>. The bonus is paid only on those days.</>}
+          </div>
+        </>
+      )}
       {on && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

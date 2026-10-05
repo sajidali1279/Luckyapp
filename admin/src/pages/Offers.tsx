@@ -20,7 +20,8 @@ import CostEstimate, { type EstimateInput } from '../components/offers/CostEstim
 import OfferRequestsPanel from '../components/offers/OfferRequestsPanel';
 import OfferCalendar from '../components/offers/OfferCalendar';
 import ShelfDealsSection from '../components/offers/ShelfDealsSection';
-import { HappyHoursField, LastDayToggle, NO_HOURS, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
+import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
+import { ImagePick } from '../components/offers/ImagePick';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -28,59 +29,60 @@ type Template = {
   icon: string;
   group: string;
   title: string;
-  description: string;
+  description: string;   // {bonus} becomes the percentage ("3%"): the words never promise more than the promotion pays
   bonusRate: string;
   category: string;
+  hours?: HappyHours;    // the days (all day on them) or hours it pays in
+  length?: number | 'month';   // how many days it runs from today (default a month)
 };
 
+// Days 0 = Sunday .. 6 = Saturday. "Every Tuesday" templates pay only on Tuesdays (all day), "3 to 6 PM" ones only then.
+const onDays = (...days: number[]): HappyHours => ({ days, from: ALL_DAY, to: ALL_DAY });
+const between = (from: string, to: string): HappyHours => ({ days: [], from, to });
+
 const TEMPLATES: Template[] = [
-  // ⛽ Gas & Diesel
-  { icon: '⛽', group: 'Gas & Diesel', title: 'Double Gas Points Weekend', description: 'Earn 2x cashback on all gas purchases this weekend. Fill up and save more at Lucky Stop!', bonusRate: '3', category: 'GAS' },
-  { icon: '⛽', group: 'Gas & Diesel', title: 'Full Tank Friday', description: 'Fill up on Friday and earn double credits on every gallon. More gas, more rewards.', bonusRate: '3', category: 'GAS' },
-  { icon: '⛽', group: 'Gas & Diesel', title: 'Gas Saver Monday', description: 'Kick off the week with 3x points on all gas purchases every Monday.', bonusRate: '6', category: 'GAS' },
-  { icon: '🚛', group: 'Gas & Diesel', title: 'Diesel Driver Deal', description: 'Truckers and fleet drivers earn bonus cashback on every diesel fill. Valid all week.', bonusRate: '3', category: 'DIESEL' },
-  { icon: '🚛', group: 'Gas & Diesel', title: 'Diesel Double Up Week', description: 'Earn 6% cashback on all diesel fills this week. A special thank-you to our big rig regulars.', bonusRate: '3', category: 'DIESEL' },
-  // 🌮 Hot Foods
-  { icon: '🌮', group: 'Hot Foods', title: 'Hot Food Happy Hour', description: 'Double points on all hot food purchases, all day, every day this week.', bonusRate: '7', category: 'HOT_FOODS' },
-  { icon: '☕', group: 'Hot Foods', title: 'Morning Commuter Special', description: 'Earn 10% cashback on hot coffee and breakfast items. Start your day rewarded.', bonusRate: '3', category: 'HOT_FOODS' },
-  { icon: '🌮', group: 'Hot Foods', title: 'Taco Tuesday', description: 'Double cashback on all hot foods every Tuesday. Make Tuesday your Lucky Stop day!', bonusRate: '7', category: 'HOT_FOODS' },
-  { icon: '🌮', group: 'Hot Foods', title: 'Lunch Rush Deal', description: 'Grab lunch and earn bonus credits on all hot food items, all day this week.', bonusRate: '7', category: 'HOT_FOODS' },
-  { icon: '❄️', group: 'Hot Foods', title: 'Cold Weather Comfort', description: 'Warm up and earn more. Double points on all hot foods and hot beverages this week.', bonusRate: '7', category: 'HOT_FOODS' },
-  // 🛒 Groceries
-  { icon: '🛒', group: 'Groceries', title: 'Weekend Grocery Bonus', description: 'Double credits on all grocery purchases Saturday and Sunday. Stock up and save.', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🛒', group: 'Groceries', title: 'Stock Up & Save', description: 'Earn 8% cashback on grocery orders this week. Every item counts toward your balance.', bonusRate: '3', category: 'GROCERIES' },
-  { icon: '🥗', group: 'Groceries', title: 'Fresh Food Friday', description: 'Double cashback on all fresh produce and fresh foods every Friday.', bonusRate: '5', category: 'FRESH_FOODS' },
-  { icon: '🧊', group: 'Groceries', title: 'Frozen Food Frenzy', description: 'Earn 10% on all frozen food items this week. Great deals on freezer favorites.', bonusRate: '5', category: 'FROZEN_FOODS' },
-  { icon: '🥗', group: 'Groceries', title: 'Healthy Choice Week', description: 'Earn bonus credits on all fresh and frozen foods. Eating well pays off at Lucky Stop.', bonusRate: '5', category: 'FRESH_FOODS' },
-  // 🎉 Seasonal
-  { icon: '☀️', group: 'Seasonal', title: 'Summer Road Trip Bonus', description: 'All summer long - earn double points on gas. Hit the road and rack up rewards at Lucky Stop.', bonusRate: '3', category: 'GAS' },
-  { icon: '🎄', group: 'Seasonal', title: 'Holiday Bonus Weekend', description: 'Earn 2x on all purchases during the holiday weekend. Happy holidays from Lucky Stop!', bonusRate: '5', category: '' },
-  { icon: '🎓', group: 'Seasonal', title: 'Back to School Special', description: 'Extra credits on snacks, drinks, and groceries all August. Fuel up for the school year!', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🎆', group: 'Seasonal', title: 'Fourth of July Flash Sale', description: '3x points on all purchases on July 4th only. Celebrate and save at Lucky Stop!', bonusRate: '10', category: '' },
-  { icon: '🏈', group: 'Seasonal', title: 'Game Day Double Points', description: 'Double points on all snacks and beverages on game day. Score big rewards at Lucky Stop.', bonusRate: '5', category: 'HOT_FOODS' },
-  { icon: '🎊', group: 'Seasonal', title: 'New Year Triple Points', description: 'Start the new year right - triple points on all purchases for the first 3 days of January.', bonusRate: '10', category: '' },
-  // 💎 Loyalty
-  { icon: '💎', group: 'Loyalty', title: 'Thank You Month', description: 'Every purchase earns 2x cashback this month. Our way of saying thank you to our loyal customers.', bonusRate: '5', category: '' },
-  { icon: '⚡', group: 'Loyalty', title: 'Flash 24-Hour Sale', description: "Triple points for exactly 24 hours - today only! Don't miss this limited-time Lucky Stop deal.", bonusRate: '10', category: '' },
-  { icon: '💰', group: 'Loyalty', title: 'Big Spender Bonus', description: 'Earn 3x points on every purchase this week. The more you shop, the more you earn.', bonusRate: '10', category: '' },
-  { icon: '🌟', group: 'Loyalty', title: 'Weekend Double Points', description: 'Every Saturday and Sunday, earn double cashback on all purchases store-wide.', bonusRate: '5', category: '' },
-  { icon: '🎁', group: 'Loyalty', title: 'Surprise Bonus Week', description: 'Surprise! All customers earn extra cashback on every purchase this week. No limits, no exclusions.', bonusRate: '5', category: '' },
-  // 🥤 Products (category-wide, not brand-specific: the system applies a promotion to a whole category, not one product)
-  { icon: '🥤', group: 'Products', title: 'Cold Drinks Double Points Day', description: 'Earn double cashback on cold drinks today. Grab your favorite and get rewarded at Lucky Stop!', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🥤', group: 'Products', title: 'Soda Six-Pack Bonus', description: 'Pick up a six-pack of soda and earn 2x points. Any brand, any flavor, all count.', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🔵', group: 'Products', title: 'Soda Fiesta Week', description: 'Earn double cashback on soda purchases this week. Stock up and save.', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '🔵', group: 'Products', title: 'Weekend Soda Rush', description: 'Grab a cold soda this weekend and earn 3x points. The refreshing choice that keeps on rewarding.', bonusRate: '7', category: 'GROCERIES' },
-  { icon: '🟢', group: 'Products', title: 'Energy Drink Madness', description: 'Fuel your day with an energy drink and earn triple cashback. Any brand, every can.', bonusRate: '10', category: 'GROCERIES' },
-  { icon: '🟢', group: 'Products', title: 'Energy Drink Monday Boost', description: 'Start your week with an energy drink and earn 3x points every Monday. Stay charged, stay rewarded.', bonusRate: '10', category: 'GROCERIES' },
-  { icon: '🐂', group: 'Products', title: 'Energy Drink Week', description: 'Energy drinks earn you double cashback all week long. Pick up your favorite and soar with rewards.', bonusRate: '7', category: 'GROCERIES' },
-  { icon: '🐂', group: 'Products', title: 'Energy Drink Multi-Pack Bonus', description: 'Buy a multi-pack of energy drinks and earn 3x points. The more cans, the more credits back in your Lucky Stop wallet.', bonusRate: '10', category: 'GROCERIES' },
-  { icon: '🟡', group: 'Products', title: 'Snack Attack', description: 'Double points on snack purchases this week. Chips, pretzels, and more. Snack big, earn big!', bonusRate: '7', category: 'GROCERIES' },
-  { icon: '🟡', group: 'Products', title: 'Game Day Snack Bundle', description: 'Stock up on snacks for game day and earn 2x cashback. Snack smarter at Lucky Stop.', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '☕', group: 'Products', title: 'Coffee Lover Bonus', description: 'Earn 3x points on all hot coffee purchases this week. Whether it\'s your morning cup or afternoon pick-me-up - you\'re covered.', bonusRate: '10', category: 'HOT_FOODS' },
-  { icon: '☕', group: 'Products', title: 'Coffee Double Points Days', description: 'Coffee earns double cashback every day this week. Wake up and earn at Lucky Stop.', bonusRate: '7', category: 'HOT_FOODS' },
-  { icon: '💧', group: 'Products', title: 'Hydration Rewards Week', description: 'Earn double cashback on all bottled water purchases. Any brand, stay hydrated and rewarded.', bonusRate: '5', category: 'GROCERIES' },
-  { icon: '💧', group: 'Products', title: 'Water Case Bonus', description: 'Buy a case of water and earn 3x points instantly. Stock up at Lucky Stop and save big on your balance.', bonusRate: '10', category: 'GROCERIES' },
+  // Gas & Diesel
+  { icon: '⛽', group: 'Gas & Diesel', title: 'Weekend Gas Bonus', description: 'Earn an extra {bonus} cashback on gas every Saturday and Sunday. Fill up and save at Lucky Stop!', bonusRate: '3', category: 'GAS', hours: onDays(6, 0) },
+  { icon: '⛽', group: 'Gas & Diesel', title: 'Full Tank Friday', description: 'Fill up on a Friday and earn an extra {bonus} cashback on gas.', bonusRate: '3', category: 'GAS', hours: onDays(5) },
+  { icon: '⛽', group: 'Gas & Diesel', title: 'Gas Saver Monday', description: 'Start the week with an extra {bonus} cashback on gas every Monday.', bonusRate: '3', category: 'GAS', hours: onDays(1) },
+  { icon: '🚛', group: 'Gas & Diesel', title: 'Diesel Driver Deal', description: 'Truckers and fleet drivers earn an extra {bonus} cashback on every diesel fill.', bonusRate: '3', category: 'DIESEL' },
+  { icon: '🚛', group: 'Gas & Diesel', title: 'Diesel Week', description: 'An extra {bonus} cashback on all diesel this week. A thank-you to our big rig regulars.', bonusRate: '3', category: 'DIESEL', length: 7 },
+  // Hot Foods
+  { icon: '🌮', group: 'Hot Foods', title: 'Hot Food Happy Hour', description: 'Earn an extra {bonus} cashback on hot food from 3 to 6 PM.', bonusRate: '5', category: 'HOT_FOODS', hours: between('15:00', '18:00') },
+  { icon: '☕', group: 'Hot Foods', title: 'Morning Commuter Special', description: 'Earn an extra {bonus} cashback on hot food and coffee from 5 to 10 AM. Start your day rewarded.', bonusRate: '5', category: 'HOT_FOODS', hours: between('05:00', '10:00') },
+  { icon: '🌮', group: 'Hot Foods', title: 'Taco Tuesday', description: 'An extra {bonus} cashback on hot food every Tuesday. Make Tuesday your Lucky Stop day!', bonusRate: '5', category: 'HOT_FOODS', hours: onDays(2) },
+  { icon: '🌮', group: 'Hot Foods', title: 'Lunch Rush Deal', description: 'Grab lunch and earn an extra {bonus} cashback on hot food from 11 AM to 2 PM.', bonusRate: '5', category: 'HOT_FOODS', hours: between('11:00', '14:00') },
+  { icon: '❄️', group: 'Hot Foods', title: 'Cold Weather Comfort', description: 'Warm up and earn an extra {bonus} cashback on hot food and hot drinks this week.', bonusRate: '5', category: 'HOT_FOODS', length: 7 },
+  // Groceries
+  { icon: '🛒', group: 'Groceries', title: 'Weekend Grocery Bonus', description: 'An extra {bonus} cashback on groceries every Saturday and Sunday. Stock up and save.', bonusRate: '3', category: 'GROCERIES', hours: onDays(6, 0) },
+  { icon: '🛒', group: 'Groceries', title: 'Stock Up & Save', description: 'An extra {bonus} cashback on groceries all week. Every item counts toward your balance.', bonusRate: '3', category: 'GROCERIES', length: 7 },
+  { icon: '🥗', group: 'Groceries', title: 'Fresh Food Friday', description: 'An extra {bonus} cashback on fresh food every Friday.', bonusRate: '5', category: 'FRESH_FOODS', hours: onDays(5) },
+  { icon: '🧊', group: 'Groceries', title: 'Frozen Food Week', description: 'An extra {bonus} cashback on frozen food all week. Great savings on freezer favorites.', bonusRate: '5', category: 'FROZEN_FOODS', length: 7 },
+  { icon: '🥗', group: 'Groceries', title: 'Healthy Choice Week', description: 'An extra {bonus} cashback on fresh food all week. Eating well pays off at Lucky Stop.', bonusRate: '5', category: 'FRESH_FOODS', length: 7 },
+  // Seasonal
+  { icon: '☀️', group: 'Seasonal', title: 'Summer Road Trip Bonus', description: 'All summer long, an extra {bonus} cashback on gas. Hit the road and rack up rewards at Lucky Stop.', bonusRate: '3', category: 'GAS' },
+  { icon: '🎄', group: 'Seasonal', title: 'Holiday Weekend Bonus', description: 'An extra {bonus} cashback on every purchase over the holiday weekend. Happy holidays from Lucky Stop!', bonusRate: '5', category: '', length: 3 },
+  { icon: '🎓', group: 'Seasonal', title: 'Back to School Special', description: 'An extra {bonus} cashback on groceries, snacks and drinks included. Fuel up for the school year!', bonusRate: '3', category: 'GROCERIES' },
+  { icon: '🎆', group: 'Seasonal', title: 'Fourth of July Bonus', description: 'An extra {bonus} cashback on every purchase, July 4th only. Celebrate and save at Lucky Stop!', bonusRate: '5', category: '', length: 1 },
+  { icon: '🏈', group: 'Seasonal', title: 'Game Day Bonus', description: 'An extra {bonus} cashback on hot food on game day. Score big at Lucky Stop.', bonusRate: '5', category: 'HOT_FOODS', length: 1 },
+  { icon: '🎊', group: 'Seasonal', title: 'New Year Bonus', description: 'Start the year right: an extra {bonus} cashback on every purchase for the first 3 days of January.', bonusRate: '5', category: '', length: 3 },
+  // Loyalty
+  { icon: '💎', group: 'Loyalty', title: 'Thank You Month', description: 'An extra {bonus} cashback on every purchase this month. Our way of saying thank you.', bonusRate: '3', category: '', length: 'month' },
+  { icon: '⚡', group: 'Loyalty', title: 'Flash Sale', description: "Today only: an extra {bonus} cashback on every purchase. Don't miss it!", bonusRate: '5', category: '', length: 1 },
+  { icon: '🌟', group: 'Loyalty', title: 'Weekend Bonus', description: 'An extra {bonus} cashback on every purchase, every Saturday and Sunday.', bonusRate: '3', category: '', hours: onDays(6, 0) },
+  { icon: '🎁', group: 'Loyalty', title: 'Surprise Bonus Week', description: 'Surprise! An extra {bonus} cashback on every purchase this week.', bonusRate: '3', category: '', length: 7 },
+  // Products: a promotion pays on a whole category, so these name the category and say the product is in it
+  { icon: '🥤', group: 'Products', title: 'Cold Drinks Day', description: 'An extra {bonus} cashback on groceries today, cold drinks and sodas included.', bonusRate: '5', category: 'GROCERIES', length: 1 },
+  { icon: '🟢', group: 'Products', title: 'Energy Drink Monday', description: 'An extra {bonus} cashback on groceries every Monday, energy drinks included. Stay charged, stay rewarded.', bonusRate: '5', category: 'GROCERIES', hours: onDays(1) },
+  { icon: '🟡', group: 'Products', title: 'Snack Attack Week', description: 'An extra {bonus} cashback on groceries this week, chips and snacks included.', bonusRate: '5', category: 'GROCERIES', length: 7 },
+  { icon: '☕', group: 'Products', title: 'Coffee Lover Week', description: 'An extra {bonus} cashback on hot food and coffee this week.', bonusRate: '5', category: 'HOT_FOODS', length: 7 },
+  { icon: '💧', group: 'Products', title: 'Hydration Week', description: 'An extra {bonus} cashback on groceries this week, bottled water included.', bonusRate: '3', category: 'GROCERIES', length: 7 },
 ];
+
+/** The words with the template's own percentage in them ("an extra 3% cashback"). */
+const templateText = (tm: Template, rate = tm.bonusRate) => tm.description.replace('{bonus}', `${rate}%`);
+/** "Sat, Sun, all day · 1 month" for the template list. */
+const templateWhen = (tm: Template) => [tm.hours ? hoursLabel(hoursPayload(tm.hours)) : null, tm.length === 1 ? 'Today only' : typeof tm.length === 'number' ? `${tm.length} days` : '1 month'].filter(Boolean).join(' · ');
 
 const TEMPLATE_GROUPS = [...new Set(TEMPLATES.map((t) => t.group))];
 
@@ -164,7 +166,6 @@ export default function Offers() {
   const [dealEndDate, setDealEndDate] = useState(defaultEndStr());
   const [dealImageFile, setDealImageFile] = useState<File | null>(null);
   const [dealRequires21, setDealRequires21] = useState(false);
-  const dealFileRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [bonusRate, setBonusRate] = useState('');
@@ -179,7 +180,6 @@ export default function Offers() {
   const [startDate, setStartDate] = useState(todayStr());
   const [endDate, setEndDate] = useState(defaultEndStr());
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [hours, setHours] = useState<HappyHours>(NO_HOURS);
   const [lastDayReminder, setLastDayReminder] = useState(true);
 
@@ -228,7 +228,12 @@ export default function Offers() {
   });
 
   const editMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: object }) => offersApi.update(id, data),
+    mutationFn: async ({ id, data, picture }: { id: string; data: object; picture?: { file: File | null; remove: boolean } }) => {
+      const res = await offersApi.update(id, data);
+      if (picture?.file) await offersApi.setImage(id, picture.file);
+      else if (picture?.remove) await offersApi.removeImage(id);
+      return res;
+    },
     onSuccess: (_r, v) => {
       toast.success((v.data as any).ending ? 'Offer ended' : 'Offer saved');
       qc.invalidateQueries({ queryKey: ['offers'] }); qc.invalidateQueries({ queryKey: ['offers-history'] });
@@ -239,7 +244,7 @@ export default function Offers() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => offersApi.delete(id),
-    onSuccess: () => { toast.success('Offer removed'); qc.invalidateQueries({ queryKey: ['offers'] }); qc.invalidateQueries({ queryKey: ['offers-history'] }); },
+    onSuccess: () => { toast.success('Scheduled offer cancelled'); qc.invalidateQueries({ queryKey: ['offers'] }); qc.invalidateQueries({ queryKey: ['offers-history'] }); },
     onError: (err) => toast.error(serverMessage(err, 'Failed to remove the offer')),
   });
 
@@ -250,7 +255,7 @@ export default function Offers() {
     setType('ALL_STORES'); setStoreId(''); setCategory(null); setGasBonusCpg(''); setGasBonusType('cpg');
     setStartDate(todayStr()); setEndDate(defaultEndStr()); setImageFile(null); setRequires21(false);
     setHours(NO_HOURS); setLastDayReminder(true);
-    if (fileRef.current) fileRef.current.value = '';
+
   }
 
   function resetQuick() {
@@ -261,10 +266,13 @@ export default function Offers() {
 
   function applyTemplate(t: Template) {
     setTitle(t.title);
-    setDescription(t.description);
+    setDescription(templateText(t));
     setBonusRate(t.bonusRate);
     setCategory(t.category || '');
     setGasBonusType('pct');
+    setHours(t.hours ?? NO_HOURS);
+    setStartDate(todayStr());
+    setEndDate(t.length === undefined || t.length === 'month' ? defaultEndStr() : addDays(storeToday(), t.length - 1));
     setShowForm(true);
     setShowTemplates(false);
     setTimeout(() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -298,6 +306,22 @@ export default function Offers() {
     toast.success(tiers && !keepTiers && !isCpg
       ? 'Form filled from past offer. Per-tier rates are not available for gas, so its highest rate is used - update the dates and submit'
       : 'Form filled from past offer - update the dates and submit');
+  }
+
+  // A deal again: the same product, deal text, words, category, stores and 21+, with new dates (the picture is chosen again)
+  function reuseDeal(offer: any) {
+    setDealTitle(offer.title ?? '');
+    setDealText(offer.dealText ?? '');
+    setDealDescription(offer.description && offer.description !== offer.dealText ? offer.description : '');
+    setDealCategory(offer.category ?? '');
+    setDealType(isStoreManager ? 'SPECIFIC_STORE' : (offer.type || 'ALL_STORES'));
+    setDealStoreId(offer.storeId || '');
+    setDealRequires21(!!offer.requires21);
+    setDealStartDate(todayStr()); setDealEndDate(defaultEndStr());
+    setDealImageFile(null);
+    setShowDealForm(true);
+    setTimeout(() => document.getElementById('deal-form')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    toast.success('Deal form filled in. Check the dates and post it.');
   }
 
   // ── Before anything goes to customers: say exactly what will happen ──────────
@@ -525,7 +549,7 @@ export default function Offers() {
     setDealCategory(''); setDealType('ALL_STORES'); setDealStoreId('');
     setDealStartDate(todayStr()); setDealEndDate(defaultEndStr());
     setDealImageFile(null); setDealRequires21(false);
-    if (dealFileRef.current) dealFileRef.current.value = '';
+
   }
 
   const groupedTemplates = TEMPLATES.filter((t) => t.group === activeGroup);
@@ -554,7 +578,7 @@ export default function Offers() {
           canEditHours={isHQ && !editing.dealText}
           saving={editMutation.isPending}
           onClose={() => setEditing(null)}
-          onSave={(data) => editMutation.mutate({ id: editing.id, data })}
+          onSave={(data, picture) => editMutation.mutate({ id: editing.id, data, picture })}
         />
       )}
       <ConfirmModal
@@ -568,9 +592,9 @@ export default function Offers() {
       />
       <ConfirmModal
         open={!!confirmDeleteId}
-        title="Remove this offer?"
-        message="It stops right away and customers will no longer see it. It stays under Past, where you can bring it back with Reuse."
-        confirmLabel="Remove"
+        title="Cancel this scheduled offer?"
+        message="It will not start and customers never see it. It stays under Past as Removed, where Reuse can bring it back."
+        confirmLabel="Cancel it"
         danger
         onConfirm={() => { if (confirmDeleteId) deleteMutation.mutate(confirmDeleteId); setConfirmDeleteId(null); }}
         onCancel={() => setConfirmDeleteId(null)}
@@ -601,7 +625,7 @@ export default function Offers() {
       <PageHeader
         title="Offers"
         description="Promotions add cashback automatically. Deals show price specials in the app."
-        actions={mainTab === 'requests' || mainTab === 'calendar' ? undefined : mainTab === 'promotions' ? (
+        actions={mainTab === 'requests' || mainTab === 'calendar' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
           <>
             <Button icon={<LayoutTemplate />} aria-pressed={showTemplates}
               onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); }}>
@@ -651,6 +675,7 @@ export default function Offers() {
                   { value: 'GROCERIES', label: 'Groceries' },
                   { value: 'FROZEN_FOODS', label: 'Frozen' },
                   { value: 'FRESH_FOODS', label: 'Fresh' },
+                  { value: 'OTHER', label: 'Other' },
                 ].map(c => (
                   <Chip key={c.value} selected={quickCategory === c.value}
                     onClick={() => {
@@ -743,7 +768,7 @@ export default function Offers() {
       {showTemplates && (
         <Card style={{ marginBottom: 24, maxWidth: 880 }}>
           <SectionTitle>Promotion templates</SectionTitle>
-          <p style={{ margin: '-4px 0 14px', color: C.muted, fontSize: FONT.body }}>Pick one to fill in the form. You set the dates and post it.</p>
+          <p style={{ margin: '-4px 0 14px', color: C.muted, fontSize: FONT.body }}>Pick one to fill in the form: the bonus, the days or hours it pays, and how long it runs. Change anything, then post it. If you change the bonus, check the description says the same.</p>
           <div style={{ ...s.chips, marginBottom: 14 }}>
             {TEMPLATE_GROUPS.map((g) => (
               <Chip key={g} selected={activeGroup === g} onClick={() => setActiveGroup(g)}>
@@ -756,10 +781,11 @@ export default function Offers() {
               <div key={i} style={{ ...s.templateRow, borderTop: i ? `1px solid ${C.border}` : 'none' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: FONT.body, color: C.text }}>{t.title}</div>
-                  <div style={{ fontSize: FONT.small, color: C.muted, lineHeight: 1.5, marginTop: 2 }}>{t.description}</div>
+                  <div style={{ fontSize: FONT.small, color: C.muted, lineHeight: 1.5, marginTop: 2 }}>{templateText(t)}</div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                     {t.bonusRate && <Badge tone="info">+{t.bonusRate}% bonus</Badge>}
-                    {t.category && <Badge>{catName(t.category)}</Badge>}
+                    <Badge>{t.category ? catName(t.category) : 'Store-wide'}</Badge>
+                    <Badge icon={<Clock size={12} />}>{templateWhen(t)}</Badge>
                   </div>
                 </div>
                 <Button size="sm" onClick={() => applyTemplate(t)}>Use</Button>
@@ -839,7 +865,7 @@ export default function Offers() {
                       <div style={s.inline}>
                         <input type="number" min="0" max={CASHBACK_CAP * 100} step="0.5" aria-label="Bonus percent, same for all tiers"
                           className="ui-input" style={{ ...INPUT, width: 120 }}
-                          value={bonusRate} onChange={e => setBonusRate(e.target.value)}
+                          value={bonusRate} onChange={e => { const v = e.target.value; if (bonusRate && description.includes(`extra ${bonusRate}% cashback`)) setDescription(description.replace(`extra ${bonusRate}% cashback`, `extra ${v || '?'}% cashback`)); setBonusRate(v); }}
                           placeholder="e.g. 3" />
                         <span style={s.unit}>% bonus, same for all tiers</span>
                       </div>
@@ -906,7 +932,7 @@ export default function Offers() {
                 <div style={s.stepLabel}>4. Title and image</div>
                 <input aria-label="Title" className="ui-input" style={INPUT} value={title} onChange={e => setTitle(e.target.value)} maxLength={100} placeholder="Leave blank to write one for you" />
                 <textarea aria-label="Description" className="ui-input" style={{ ...INPUT, height: 72, resize: 'vertical' }} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional, written for you if blank)" />
-                <input aria-label="Offer image (optional)" ref={fileRef} type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} style={s.file} />
+                <ImagePick id="offer-image" file={imageFile} onFile={setImageFile} />
               </div>
             )}
 
@@ -948,6 +974,11 @@ export default function Offers() {
       {/* Promotions */}
       {mainTab === 'promotions' && (
         <>
+          {isStoreManager && (
+            <Notice icon={<Info size={15} />} style={{ marginBottom: 18, maxWidth: 880 }}>
+              Cashback promotions are set by HQ. To ask for one for your store, open Offers in the Lucky Stop app and use Ask HQ. You can post a Deal (a price special) yourself on the Deals tab.
+            </Notice>
+          )}
           {isLoading ? (
             <CardSkeleton count={4} />
           ) : promotionOffers.length === 0 ? (
@@ -959,7 +990,7 @@ export default function Offers() {
                   <SectionTitle>Live Now ({livePromotions.length})</SectionTitle>
                   <div style={s.grid}>
                     {livePromotions.map((offer: any) => (
-                      <OfferCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} onResults={() => setResultsFor(offer)} onEdit={() => setEditing(offer)} onEndNow={() => setEndingNow(offer)} />
+                      <OfferCard key={offer.id} offer={offer} onReuse={isStoreManager ? undefined : () => reuseOffer(offer)} onResults={isHQ ? () => setResultsFor(offer) : undefined} onEdit={() => setEditing(offer)} onEndNow={() => setEndingNow(offer)} />
                     ))}
                   </div>
                 </>
@@ -971,7 +1002,7 @@ export default function Offers() {
                   <SectionTitle style={{ marginTop: 28 }}>Scheduled ({scheduledPromotions.length})</SectionTitle>
                   <div style={s.grid}>
                     {scheduledPromotions.map((offer: any) => (
-                      <OfferCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} onReuse={() => reuseOffer(offer)} onEdit={() => setEditing(offer)} />
+                      <OfferCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} onReuse={isStoreManager ? undefined : () => reuseOffer(offer)} onEdit={() => setEditing(offer)} />
                     ))}
                   </div>
                 </>
@@ -990,7 +1021,7 @@ export default function Offers() {
                   <p style={s.pastNote}>{pastPromotions.length} past promotions. Reuse fills in the form with any of them.</p>
                   <div style={s.grid}>
                     {pastPromotions.map((offer: any) => (
-                      <OfferCard key={offer.id} offer={offer} isPast onReuse={() => reuseOffer(offer)} onResults={() => setResultsFor(offer)} />
+                      <OfferCard key={offer.id} offer={offer} isPast onReuse={isStoreManager ? undefined : () => reuseOffer(offer)} onResults={isHQ ? () => setResultsFor(offer) : undefined} />
                     ))}
                   </div>
                 </>
@@ -1016,9 +1047,7 @@ export default function Offers() {
                 <Field label="Description (optional)" htmlFor="deal-desc">
                   <input id="deal-desc" className="ui-input" style={INPUT} value={dealDescription} onChange={(e) => setDealDescription(e.target.value)} placeholder="Any extra details about the deal" />
                 </Field>
-                <Field label="Image (optional)" htmlFor="deal-image">
-                  <input id="deal-image" ref={dealFileRef} type="file" accept="image/*" onChange={e => setDealImageFile(e.target.files?.[0] || null)} style={s.file} />
-                </Field>
+                <ImagePick id="deal-image" file={dealImageFile} onFile={setDealImageFile} />
                 <div style={s.twoCol}>
                   <Field label="Start date" htmlFor="deal-start" required>
                     <input id="deal-start" className="ui-input" style={INPUT} type="date" value={dealStartDate} onChange={(e) => setDealStartDate(e.target.value)} />
@@ -1078,7 +1107,7 @@ export default function Offers() {
                   <SectionTitle>Live Now ({liveDeals.length})</SectionTitle>
                   <div style={s.grid}>
                     {liveDeals.map((offer: any) => (
-                      <DealCard key={offer.id} offer={offer} onDelete={() => setConfirmDeleteId(offer.id)} onEdit={() => setEditing(offer)} onEndNow={() => setEndingNow(offer)} />
+                      <DealCard key={offer.id} offer={offer} onEdit={() => setEditing(offer)} onEndNow={() => setEndingNow(offer)} onReuse={() => reuseDeal(offer)} />
                     ))}
                   </div>
                 </>
@@ -1090,7 +1119,7 @@ export default function Offers() {
                   <SectionTitle style={{ marginTop: 28 }}>Scheduled ({scheduledDeals.length})</SectionTitle>
                   <div style={s.grid}>
                     {scheduledDeals.map((offer: any) => (
-                      <DealCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} onEdit={() => setEditing(offer)} />
+                      <DealCard key={offer.id} offer={offer} isScheduled onDelete={() => setConfirmDeleteId(offer.id)} onEdit={() => setEditing(offer)} onReuse={() => reuseDeal(offer)} />
                     ))}
                   </div>
                 </>
@@ -1108,7 +1137,7 @@ export default function Offers() {
               ) : (
                 <div style={{ ...s.grid, marginTop: 12 }}>
                   {pastDeals.map((offer: any) => (
-                    <DealCard key={offer.id} offer={offer} isPast />
+                    <DealCard key={offer.id} offer={offer} isPast onReuse={() => reuseDeal(offer)} />
                   ))}
                 </div>
               )
@@ -1163,13 +1192,13 @@ function bonusText(offer: any): string | null {
 }
 
 function OfferCard({ offer, onDelete, onReuse, onResults, onEdit, onEndNow, isPast, isScheduled }: {
-  offer: any; onDelete?: () => void; onReuse: () => void; onResults?: () => void; onEdit?: () => void; onEndNow?: () => void; isPast?: boolean; isScheduled?: boolean;
+  offer: any; onDelete?: () => void; onReuse?: () => void; onResults?: () => void; onEdit?: () => void; onEndNow?: () => void; isPast?: boolean; isScheduled?: boolean;
 }) {
   const bonus = bonusText(offer);
   const hours = offer.hoursText ?? hoursLabel(offer);
   return (
     <Card padding={0} style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} />}
+      {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
       <div style={s.cardBody}>
         <OfferTags offer={offer} isPast={isPast} isScheduled={isScheduled} />
         <h3 style={s.cardTitle}>{offer.title}</h3>
@@ -1186,21 +1215,21 @@ function OfferCard({ offer, onDelete, onReuse, onResults, onEdit, onEndNow, isPa
       </div>
       <div style={s.cardActions}>
         {onResults && !isScheduled && <Button size="sm" icon={<BarChart3 />} onClick={onResults} aria-label={`Results of ${offer.title}`}>Results</Button>}
-        <Button size="sm" icon={<RotateCcw />} onClick={onReuse}>Reuse</Button>
+        {onReuse && <Button size="sm" icon={<RotateCcw />} onClick={onReuse} aria-label={`Reuse ${offer.title}`}>Reuse</Button>}
         {!isPast && onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="ghost" icon={<Square />} onClick={onEndNow}>End now</Button>}
-          {!isPast && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete}>Delete</Button>}
+          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Square />} onClick={onEndNow} aria-label={`End ${offer.title} now`}>End now</Button>}
+          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} aria-label={`Cancel ${offer.title}`}>Cancel</Button>}
         </span>
       </div>
     </Card>
   );
 }
 
-function DealCard({ offer, onDelete, onEdit, onEndNow, isPast, isScheduled }: { offer: any; onDelete?: () => void; onEdit?: () => void; onEndNow?: () => void; isPast?: boolean; isScheduled?: boolean }) {
+function DealCard({ offer, onDelete, onEdit, onEndNow, onReuse, isPast, isScheduled }: { offer: any; onDelete?: () => void; onEdit?: () => void; onEndNow?: () => void; onReuse?: () => void; isPast?: boolean; isScheduled?: boolean }) {
   return (
     <Card padding={0} style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} />}
+      {offer.imageUrl && <img src={offer.imageUrl} alt={offer.title} style={s.img} onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
       <div style={s.cardBody}>
         <OfferTags offer={offer} isPast={isPast} isScheduled={isScheduled} />
         <div style={s.dealText}>{offer.dealText}</div>
@@ -1208,20 +1237,19 @@ function DealCard({ offer, onDelete, onEdit, onEndNow, isPast, isScheduled }: { 
         {offer.description && offer.description !== offer.dealText && <p style={s.cardDesc}>{offer.description}</p>}
         <div style={s.cardDate}>{fmtDate(offer.startDate)} to {fmtDate(offer.endDate)}</div>
       </div>
-      {!isPast && onDelete && (
-        <div style={s.cardActions}>
-          {onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-            {!isScheduled && onEndNow && <Button size="sm" variant="ghost" icon={<Square />} onClick={onEndNow}>End now</Button>}
-            <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete}>Delete</Button>
-          </span>
-        </div>
-      )}
+      <div style={s.cardActions}>
+        {onReuse && <Button size="sm" icon={<RotateCcw />} onClick={onReuse} aria-label={`Reuse ${offer.title}`}>Reuse</Button>}
+        {!isPast && onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Square />} onClick={onEndNow} aria-label={`End ${offer.title} now`}>End now</Button>}
+          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} aria-label={`Cancel ${offer.title}`}>Cancel</Button>}
+        </span>
+      </div>
     </Card>
   );
 }
 
-function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offer: any; saving: boolean; onClose: () => void; onSave: (data: object) => void; canEditHours?: boolean }) {
+function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offer: any; saving: boolean; onClose: () => void; onSave: (data: object, picture: { file: File | null; remove: boolean }) => void; canEditHours?: boolean }) {
   const started = new Date(offer.startDate).getTime() <= Date.now();
   const [title, setTitle] = useState<string>(offer.title ?? '');
   const [description, setDescription] = useState<string>(offer.description ?? '');
@@ -1229,23 +1257,25 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
   const [end, setEnd] = useState<string>(storeToday(new Date(offer.endDate)));
   const [hours, setHours] = useState<HappyHours>(hoursFrom(offer));
   const [lastDay, setLastDay] = useState<boolean>(offer.lastDayReminder !== false);
+  const [picture, setPicture] = useState<File | null>(null);
+  const [removePicture, setRemovePicture] = useState(false);
   const today = storeToday();
   const problem = !title.trim() ? 'Add a title.' : end < today ? 'The last day has already passed.' : end < start ? 'The last day is before the first day.'
     : canEditHours ? hoursProblem(hours) : null;
   const hoursChanged = canEditHours && hoursLabel(hoursPayload(hours)) !== hoursLabel(offer);
   return (
-    <Modal title={offer.dealText ? 'Edit deal' : 'Edit promotion'} subtitle={canEditHours ? 'Change the words, the dates and the hours. What a promotion pays stays as it was posted; to change that, End it and post a new one.' : 'Change the words and the dates. What a promotion pays stays as it was posted; to change that, End it and post a new one.'} onClose={onClose} busy={saving} maxWidth={560}>
+    <Modal title={offer.dealText ? 'Edit deal' : 'Edit promotion'} subtitle={offer.dealText ? 'Change the words, the picture and the dates.' : canEditHours ? 'Change the words, the picture, the dates and the hours. What a promotion pays stays as it was posted; to change that, End it and post a new one.' : 'Change the words, the picture and the dates. What a promotion pays stays as it was posted; to change that, End it and post a new one.'} onClose={onClose} busy={saving} maxWidth={560}>
       <form onSubmit={(e) => {
         e.preventDefault();
         if (problem) return;
         onSave({
           title: title.trim(),
-          ...(description.trim() ? { description: description.trim() } : {}),
+          description: description.trim(),   // empty clears it
           ...(!started ? { startDate: startOfStoreDay(start).toISOString() } : {}),
           endDate: endOfStoreDay(end).toISOString(),
           ...(hoursChanged ? hoursPayload(hours) : {}),
           ...(canEditHours && lastDay !== (offer.lastDayReminder !== false) ? { lastDayReminder: lastDay } : {}),
-        });
+        }, { file: picture, remove: removePicture });
       }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Field label="Title" htmlFor="edit-offer-title" required>
           <input id="edit-offer-title" className="ui-input" style={INPUT} value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
@@ -1253,6 +1283,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
         <Field label="Description" htmlFor="edit-offer-desc">
           <textarea id="edit-offer-desc" className="ui-input" style={{ ...INPUT, minHeight: 72, resize: 'vertical' }} value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
         </Field>
+        <ImagePick id="edit-offer-image" file={picture} onFile={setPicture} current={offer.imageUrl} removed={removePicture} onRemoveCurrent={setRemovePicture} label="Picture" />
         <div style={s.twoCol}>
           <Field label="First day" htmlFor="edit-offer-start" hint={started ? 'Already running.' : undefined}>
             <input id="edit-offer-start" className="ui-input" style={INPUT} type="date" value={start} disabled={started} min={today} onChange={(e) => setStart(e.target.value)} />

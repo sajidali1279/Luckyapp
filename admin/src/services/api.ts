@@ -115,6 +115,9 @@ export const offersApi = {
   create: (formData: FormData) => api.post('/offers', formData),
   update: (offerId: string, data: object) => api.patch(`/offers/${offerId}`, data),
   delete: (offerId: string) => api.delete(`/offers/${offerId}`),
+  /** A new picture for an offer already posted, or none. */
+  setImage: (offerId: string, file: File) => { const fd = new FormData(); fd.append('image', file); return api.post(`/offers/${offerId}/image`, fd); },
+  removeImage: (offerId: string) => api.delete(`/offers/${offerId}/image`),
   getActive: () => api.get('/offers'),
   /** Live promotions plus the ones switched on that start later (HQ only), so a scheduled promotion is not invisible. */
   getLiveAndScheduled: () => api.get('/offers?includeScheduled=1'),

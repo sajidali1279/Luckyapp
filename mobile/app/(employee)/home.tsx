@@ -21,6 +21,7 @@ import { NoticeStack, usePinnedNotices } from '../../components/NoticeBanner';
 import DashboardWatermark from '../../components/DashboardWatermark';
 import GasPriceCard from '../../components/GasPriceCard';
 import { useCurrentStoreId } from '../../utils/geo';
+import { pctLabel } from '../../utils/offerRate';
 
 function getGreeting(t: (key: string) => string) {
   const h = new Date().getHours();
@@ -389,7 +390,7 @@ export default function EmployeeHomeScreen() {
                     </>
                   ) : (
                     <>
-                      <Text style={s.promoBadgeRate}>{Math.round((p.bonusRate ?? 0) * 100)}</Text>
+                      <Text style={s.promoBadgeRate}>{pctLabel(p.bonusRate ?? 0)}</Text>
                       <Text style={s.promoBadgePct}>%</Text>
                     </>
                   )}
