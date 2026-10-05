@@ -2060,7 +2060,8 @@
     "similarPriceA11y": "Use ${{price}}, the price of {{count}} similar items like {{example}}",
     "similarDeal": "Same deal as similar items: {{deal}}",
     "similarLine": "Same product line: {{names}}",
-    "similarMaker": "Same brand: {{names}}"
+    "similarMaker": "Same brand: {{names}}",
+    "priceHqOnly": "The price for every store is set by HQ. To change it at your store, use Change price on the item."
   },
   "sharedScanner": {
     "titleScan": "Scan Barcode",

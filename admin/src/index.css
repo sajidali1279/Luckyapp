@@ -319,6 +319,8 @@
 .ui-tab:focus-visible { outline: 2px solid #1D3557; outline-offset: 2px; border-radius: 4px; }
 .ui-tab-count { font-size: 12px; font-weight: 600; color: #5a6472; background: #f1f3f6; border-radius: 999px; padding: 1px 7px; }
 .ui-tab[aria-selected="true"] .ui-tab-count, .ui-tab[aria-pressed="true"] .ui-tab-count { color: #1D3557; background: #eef2f7; }
+/* On a phone every tab shows: the row wraps instead of hiding the last tabs past the edge (the scrollbar is hidden) */
+@media (max-width: 640px) { .ui-tabs { flex-wrap: wrap; column-gap: 16px; overflow-x: visible; } }
 
 .ui-chip {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px;

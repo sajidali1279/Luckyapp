@@ -236,6 +236,9 @@ export default function LabelsScreen() {
   // else is limited to the stores they're assigned to. GPS still picks the
   // starting store; this is for going somewhere else on purpose.
   const isManagerPlus = isStoreManagerOrAbove(user?.role);
+  // What the server lets HQ only do (labelRules.ts): change an item's price for every store, and remove an item. Store managers and
+  // employees are not offered them here (they were refused on save); a store's own price is Change price on the item.
+  const isHQ = user?.role === 'SUPER_ADMIN' || user?.role === 'DEV_ADMIN';
   const { data: accessibleData } = useQuery({
     queryKey: ['accessible-stores'],
     queryFn: storesApi.accessible,
@@ -695,11 +698,12 @@ export default function LabelsScreen() {
   async function handleSave() {
     const productName = formProductName.trim();
     const priceText = formPriceText.trim();
+    const priceLocked = !!editingLabel && !isHQ;   // the chain price is HQ's: an edit here leaves it as it is
     const dealText = formDealText.trim() || null;
     const barcode = formBarcode?.trim() || null;
     const category = formCategory.trim() || null;
     const wasCreate = !editingLabel;
-    if (!productName || !priceText || saving) return;
+    if (!productName || (!priceText && !priceLocked) || saving) return;
     setSaving(true);
     // Silently submit a brand-new category for DevAdmin approval — same
     // pipeline BarcodeScannerModal/Order List/Stock Request already feed.
@@ -709,7 +713,7 @@ export default function LabelsScreen() {
     try {
       let createdId: string | null = null;
       if (editingLabel) {
-        await labelsApi.update(editingLabel.id, { productName, priceText, dealText, barcode, category, template: formTemplate });
+        await labelsApi.update(editingLabel.id, { productName, ...(priceLocked ? {} : { priceText }), dealText, barcode, category, template: formTemplate });
       } else {
         const res = await labelsApi.create({ productName, priceText, dealText, barcode, category, template: formTemplate, storeId });
         createdId = res.data?.data?.id ?? null;
@@ -994,7 +998,8 @@ export default function LabelsScreen() {
                 <Text style={s.priceInputDollar}>$</Text>
                 <TextInput
                   ref={priceRef}
-                  style={[s.fieldInput, s.priceInput]}
+                  style={[s.fieldInput, s.priceInput, !!editingLabel && !isHQ && { color: COLORS.textMuted }]}
+                  editable={!editingLabel || isHQ}
                   value={formPriceText}
                   onChangeText={text => setFormPriceText(text.replace(/[^0-9.]/g, ''))}
                   placeholder="3.99"
@@ -1003,6 +1008,7 @@ export default function LabelsScreen() {
                   maxLength={7}
                 />
               </View>
+              {!!editingLabel && !isHQ && <Text style={s.priceHqOnly}>{t('sharedLabels.priceHqOnly')}</Text>}
               {similarSugg && similarSugg.similar.length > 0 ? (
                 <View style={s.similarBox} accessibilityLiveRegion="polite">
                   {similarSugg.price && formPriceText === similarSugg.price ? (
@@ -1098,9 +1104,9 @@ export default function LabelsScreen() {
               </View>
 
               <TouchableOpacity
-                style={[s.saveBtn, { backgroundColor: accentColor }, (!formProductName.trim() || !formPriceText.trim() || saving) && s.saveBtnDim]}
+                style={[s.saveBtn, { backgroundColor: accentColor }, (!formProductName.trim() || (!formPriceText.trim() && !(editingLabel && !isHQ)) || saving) && s.saveBtnDim]}
                 onPress={handleSave}
-                disabled={!formProductName.trim() || !formPriceText.trim() || saving}
+                disabled={!formProductName.trim() || (!formPriceText.trim() && !(editingLabel && !isHQ)) || saving}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityLabel={t('sharedLabels.saveLabelA11y')}
@@ -1108,7 +1114,7 @@ export default function LabelsScreen() {
                 {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{editingLabel ? t('sharedLabels.saveChanges') : t('sharedLabels.addLabel')}</Text>}
               </TouchableOpacity>
 
-              {editingLabel && (
+              {editingLabel && isHQ && (
                 <TouchableOpacity
                   style={s.deleteBtn}
                   onPress={confirmDelete}
@@ -2026,6 +2032,7 @@ const s = StyleSheet.create({
   formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   formTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
   fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 8 },
+  priceHqOnly: { fontSize: 12, color: COLORS.textMuted, marginTop: 6, lineHeight: 17 },
   fieldLabelSub: { fontWeight: '400', color: COLORS.textMuted },
   expiryChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   expiryChip: {

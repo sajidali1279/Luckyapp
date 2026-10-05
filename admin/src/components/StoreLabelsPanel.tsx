@@ -15,6 +15,8 @@ import PrintTray from './PrintTray';
 import Modal from './Modal';
 import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, formatAge } from '../utils/labelStatus';
 import Glyph from '../components/Glyph';
+import LabelPrinterModal from './LabelPrinterModal';
+import { useAuthStore } from '../store/authStore';
 
 interface StoreLabel {
   id: string;
@@ -62,6 +64,9 @@ export default function StoreLabelsPanel() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const [storeId, setStoreId] = useState(() => searchParams.get('storeId') ?? '');
+  // The store's printer fine-tune for its phones (HQ sets it; also on Stores > Label Printer): here too, next to the store's printing
+  const isHQ = ['SUPER_ADMIN', 'DEV_ADMIN'].includes(useAuthStore((st) => st.user?.role ?? ''));
+  const [printerOpen, setPrinterOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -429,6 +434,14 @@ export default function StoreLabelsPanel() {
             <option key={st.id} value={st.id}>{st.name}</option>
           ))}
         </select>
+        {isHQ && storeId && (
+          <button type="button" style={s.printerBtn} onClick={() => setPrinterOpen(true)} title="How this store's phones place the labels on the sheet (the admin print page keeps its own, per computer)">
+            Phone printer settings
+          </button>
+        )}
+        {printerOpen && storeId && (
+          <LabelPrinterModal store={{ id: storeId, name: stores.find((st: any) => st.id === storeId)?.name ?? 'This store' }} onClose={() => setPrinterOpen(false)} />
+        )}
         {storeId && items.length > 0 && (
           <>
             <input
@@ -541,7 +554,7 @@ export default function StoreLabelsPanel() {
                       {item.hasOverride && item.storeLabelId && (
                         <button style={s.revertBtn} onClick={() => revertMutation.mutate(item.storeLabelId!)}>Use Base</button>
                       )}
-                      {item.storeLabelId && item.status === 'new' && (
+                      {isHQ && item.storeLabelId && item.status === 'new' && (   /* taking an item out of a store is HQ's */
                         <button style={s.revertBtn} onClick={() => setRemoving(item)} aria-label={`Remove ${item.productName} from this store`}>Remove</button>
                       )}
                     </div>
@@ -588,6 +601,7 @@ export default function StoreLabelsPanel() {
 const s: Record<string, CSSProperties> = {
   wrap: { display: 'flex', flexDirection: 'column', gap: 16 },
   pickerRow: { display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' },
+  printerBtn: { padding: '9px 14px', borderRadius: 8, border: '1px solid #d5dae1', background: '#fff', color: PRIMARY, fontWeight: 600, fontSize: 14, cursor: 'pointer' },
   storeSelect: {
     border: '1.5px solid #d5dae1', borderRadius: 10, padding: '9px 14px',
     fontSize: 14, background: '#fff', color: '#111827', cursor: 'pointer', minWidth: 220,

@@ -73,7 +73,10 @@ export default function Labels() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   type ViewMode = 'catalog' | 'store' | 'coverage' | 'health' | 'same' | 'deals';
-  const validTabs: ViewMode[] = ['catalog', 'store', 'coverage', 'health', 'same', 'deals'];
+  // A store manager uses this page too (on a PC). What the server keeps for HQ (a price for every store, removing an item, Coverage,
+  // Health, Same barcode, Deals, Import) is not offered to them: they get the Catalog (names, deals, designs) and By Store (their prices).
+  const isHQ = ['SUPER_ADMIN', 'DEV_ADMIN'].includes(useAuthStore(st => st.user?.role ?? ''));
+  const validTabs: ViewMode[] = isHQ ? ['catalog', 'store', 'coverage', 'health', 'same', 'deals'] : ['catalog', 'store'];
   const initialTab = searchParams.get('tab') as ViewMode | null;
   const [viewMode, setViewMode] = useState<ViewMode>(initialTab && validTabs.includes(initialTab) ? initialTab : 'catalog');
 
@@ -157,7 +160,7 @@ export default function Labels() {
   // A suggested deal for the item in the form, within HQ's limit for its category (Labels > Deals > Deal limits), sized the way the
   // category's deals are and the owner's changes to suggestions taught (lib/dealSuggest.ts). A different deal saved after a suggestion
   // was shown is sent with it, so the suggestions learn from it too.
-  const dealSettingsQuery = useQuery({ queryKey: ['deal-settings'], queryFn: () => labelsApi.getDealSettings(), enabled: showModal, staleTime: 60_000 });
+  const dealSettingsQuery = useQuery({ queryKey: ['deal-settings'], queryFn: () => labelsApi.getDealSettings(), enabled: showModal && isHQ, staleTime: 60_000 });
   const dealLimits: DealLimits = dealSettingsQuery.data?.data?.data?.limits ?? DEAL_LIMITS_DEFAULT;
   const dealStyles: Record<string, DealStyle> | undefined = dealSettingsQuery.data?.data?.data?.styles;
   const suggestionShown = useRef(false);
@@ -360,7 +363,7 @@ export default function Labels() {
     if (!coverage) toast.error(msg, { duration: 7000 }); else toast.success(msg, { duration: notes.length ? 7000 : 3000 });
   }
 
-  const { data: dupData } = useQuery({ queryKey: ['label-duplicates'], queryFn: () => labelsApi.getDuplicates(), staleTime: 60_000 });
+  const { data: dupData } = useQuery({ queryKey: ['label-duplicates'], queryFn: () => labelsApi.getDuplicates(), staleTime: 60_000, enabled: isHQ });
   const sameCount: number = (dupData?.data?.data ?? []).length;
 
   function refreshLabels() {
@@ -664,7 +667,7 @@ export default function Labels() {
   }
 
   function handleSaveClick() {
-    if (!formProductName.trim() || !priceOk || barcodeClash || saveMutation.isPending) return;
+    if (!formProductName.trim() || !priceOk || barcodeClash || (existingForNew && !isHQ) || saveMutation.isPending) return;
     setFormError('');
     if (existingForNew) {   // no second item: change that one's price (asked first), or nothing when it is already this price
       if (sameAsExisting || !typedPrice) return;
@@ -919,7 +922,8 @@ export default function Labels() {
             {existingForNew && (
               <div role="status" style={m.hint}>
                 This barcode is already "{existingForNew.productName}"{existingForNew.priceText ? ` at $${existingForNew.priceText}` : ', with no price yet'}. One barcode is one item, so no second item is made.
-                {sameAsExisting ? ' It already has this price.' : typedPrice ? ` Saving changes its price to $${typedPrice} for every store (a store with its own price keeps it).` : ''}
+                {!isHQ ? ' HQ sets its price for every store: to change the price at your store, find it on By Store.'
+                  : sameAsExisting ? ' It already has this price.' : typedPrice ? ` Saving changes its price to $${typedPrice} for every store (a store with its own price keeps it).` : ''}
               </div>
             )}
             <label style={m.label} htmlFor="lbl-category">Category (optional)</label>
@@ -980,8 +984,8 @@ export default function Labels() {
               <button type="button" style={m.cancelBtn} onClick={closeModal} disabled={saveMutation.isPending}>Cancel</button>
               <button
                 type="submit"
-                style={{ ...m.saveBtn, ...(!formProductName.trim() || !priceOk || !!barcodeClash || sameAsExisting || saveMutation.isPending ? m.saveBtnDim : {}) }}
-                disabled={!formProductName.trim() || !priceOk || !!barcodeClash || sameAsExisting || saveMutation.isPending}
+                style={{ ...m.saveBtn, ...(!formProductName.trim() || !priceOk || !!barcodeClash || sameAsExisting || (!!existingForNew && !isHQ) || saveMutation.isPending ? m.saveBtnDim : {}) }}
+                disabled={!formProductName.trim() || !priceOk || !!barcodeClash || sameAsExisting || (!!existingForNew && !isHQ) || saveMutation.isPending}
               >
                 {saveMutation.isPending ? 'Saving…' : existingForNew ? `Change its price` : 'Save Label'}
               </button>
@@ -1020,7 +1024,7 @@ export default function Labels() {
                 title="Download the items shown below as a spreadsheet (opens in Excel)">
                 {exporting ? 'Exporting…' : 'Export'}
               </Button>
-              <Button icon={<Upload />} onClick={() => setShowImport(true)} title="Bring back an edited export: see every change, then apply">Import</Button>
+              {isHQ && <Button icon={<Upload />} onClick={() => setShowImport(true)} title="Bring back an edited export: see every change, then apply">Import</Button>}
               <Button variant="primary" icon={<Plus />} onClick={openAddModal}>Add Label</Button>
             </>
           )}
@@ -1031,14 +1035,14 @@ export default function Labels() {
           ariaLabel="Labels view"
           value={viewMode}
           onChange={setViewMode}
-          tabs={[
+          tabs={([
             { value: 'catalog', label: 'Catalog' },
             { value: 'store', label: 'By Store' },
             { value: 'coverage', label: 'Coverage' },
             { value: 'health', label: 'Health' },
             { value: 'same', label: 'Same barcode', ...(sameCount ? { count: sameCount } : {}) },
             { value: 'deals', label: 'Deals' },
-          ]}
+          ] as { value: ViewMode; label: string; count?: number }[]).filter(tb => validTabs.includes(tb.value))}
         />
 
         {viewMode === 'store' ? (
@@ -1125,7 +1129,7 @@ export default function Labels() {
                         value: cellValue(label, field),
                         changed: isChanged(label, field),
                         savedText: showCell(field, label[field]),
-                        disabled: savingAll,
+                        disabled: savingAll || (field === 'priceText' && !isHQ),
                         onCommit: (next: string | null) => stage(label, field, next),
                         onRevert: () => revert(label, field),
                       });
@@ -1138,7 +1142,7 @@ export default function Labels() {
                               <span title="Set a price before this can be printed" style={{ color: TEXT_MUTED, fontSize: 16 }}>-</span>
                             )}
                           </TableCell>
-                          <TableCell style={{ ...s.td, minWidth: 190 }}>
+                          <TableCell style={{ ...s.td, minWidth: 250 }}>
                             <InlineText
                               {...cell('productName')} bold ariaLabel={`Name of ${label.productName}`} placeholder="Product name" maxLength={40}
                               normalize={v => (v.trim() ? { value: v.trim() } : { error: 'Enter the product name.' })}
@@ -1162,7 +1166,7 @@ export default function Labels() {
                                 normalize={v => { const c = canonicalPrice(v); return c ? { value: c } : { error: v.trim() ? (priceProblem(v) || 'Enter a price like 2.99') : 'A label needs a price to print.' }; }}
                               />
                             ) : (
-                              <QuickPrice
+                              !isHQ ? <span title="HQ sets the price for every store. Set your store's price on By Store." style={{ color: TEXT_MUTED, fontSize: 13 }}>No price yet</span> : <QuickPrice
                                 label={label}
                                 staged={cellValue(label, 'priceText')}
                                 disabled={savingAll}
@@ -1204,9 +1208,9 @@ export default function Labels() {
                               <button type="button" style={s.iconBtn} onClick={() => duplicateLabel(withEdits(label))} title="Duplicate" aria-label={`Duplicate ${label.productName}`}>
                                 <Copy size={16} strokeWidth={2} />
                               </button>
-                              <button type="button" style={{ ...s.iconBtn, color: '#c42130' }} onClick={() => setConfirmDelete(label)} title="Delete" aria-label={`Delete ${label.productName}`}>
+                              {isHQ && <button type="button" style={{ ...s.iconBtn, color: '#c42130' }} onClick={() => setConfirmDelete(label)} title="Delete" aria-label={`Delete ${label.productName}`}>
                                 <Trash2 size={16} strokeWidth={2} />
-                              </button>
+                              </button>}
                             </div>
                           </TableCell>
                         </TableRow>

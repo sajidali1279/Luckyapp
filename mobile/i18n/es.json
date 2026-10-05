@@ -2060,7 +2060,8 @@
     "similarPriceA11y": "Usar ${{price}}, el precio de {{count}} productos parecidos como {{example}}",
     "similarDeal": "La misma oferta que productos parecidos: {{deal}}",
     "similarLine": "Misma línea de productos: {{names}}",
-    "similarMaker": "Misma marca: {{names}}"
+    "similarMaker": "Misma marca: {{names}}",
+    "priceHqOnly": "El precio para todas las tiendas lo fija la oficina central. Para cambiarlo en su tienda, use Cambiar precio en el artículo."
   },
   "sharedScanner": {
     "titleScan": "Escanear Código de Barras",

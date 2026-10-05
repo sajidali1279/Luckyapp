@@ -183,8 +183,9 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
         onCancel={() => setResetCat(null)}
       />
       <p style={{ margin: 0, color: C.muted, fontSize: FONT.body, lineHeight: 1.5 }}>
-        Suggestions from the catalog itself: deals that need fixing, items missing their product line's deal, and ideas where most of a category is on a deal.
-        Sales are kept by category, not by product, so check an idea against what sells before you apply it.
+        Suggestions from the catalog itself: deals that need fixing, items missing their product line's deal, and a deal idea for every item without one,
+        within its category's limit. Change any suggestion before you apply it and the next ones learn from it. Sales are kept by category, not by product,
+        so check an idea against what sells before you apply it.
       </p>
       {isError ? <ErrorState message="Could not work out the recommendations." onRetry={refetch} /> : isLoading ? <CardSkeleton count={3} /> : (
         <>
@@ -393,7 +394,7 @@ function DealList({ labels }: { labels: Label[] }) {
 const PREVIEW_ROWS = 1000;   // the screen's preview; printing lists every one
 
 const s: Record<string, React.CSSProperties> = {
-  head: { display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: `1px solid ${C.border}`, background: C.subtle },
+  head: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '12px 16px', borderBottom: `1px solid ${C.border}`, background: C.subtle },
   row: { display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', padding: '10px 16px', borderBottom: `1px solid ${C.border}` },
   reason: { fontSize: FONT.small, color: C.muted, lineHeight: 1.45 },
   dealInput: { width: 128, padding: '4px 8px', fontWeight: 700, color: C.text },
