@@ -15,9 +15,10 @@ import { saveNotificationMany } from './push';
 import { sendExpoBatch } from './pushSend';
 import { offerUrl } from './notificationRoutes';
 
-export interface AnnounceableOffer { id: string; title: string; storeId: string | null; endDate: Date; createdAt: Date }
+export interface AnnounceableOffer { id: string; title: string; titleEs?: string | null; storeId: string | null; endDate: Date; createdAt: Date }
 
 const TITLE = '🎉 New Promotion!';
+const TITLE_ES = '🎉 ¡Nueva promoción!';
 
 export async function alreadyAnnounced(offer: AnnounceableOffer): Promise<boolean> {
   const found = await prisma.userNotification.findFirst({
@@ -39,9 +40,16 @@ export async function announceOffer(offer: AnnounceableOffer): Promise<number> {
   const members = await resolveAudience(offer.storeId ? 'STORE_CUSTOMERS' : 'ALL_CUSTOMERS', offer.storeId ?? undefined);
   if (members.length === 0) return 0;
   const url = offerUrl(offer.id);
-  const body = `${offer.title}. Check the Lucky Stop app for details.`;
-  await saveNotificationMany(members.map((m) => m.id), TITLE, body, 'OFFER', url, offer.endDate);
-  await sendExpoBatch(members.flatMap((m) => m.tokens), { title: TITLE, body, actionUrl: url });
+  // In each person's language: Spanish readers get the Spanish title (the English one when the offer has none)
+  const groups = [
+    { people: members.filter((m) => m.language !== 'es'), title: TITLE, body: `${offer.title}. Check the Lucky Stop app for details.` },
+    { people: members.filter((m) => m.language === 'es'), title: TITLE_ES, body: `${offer.titleEs?.trim() || offer.title}. Mira los detalles en la app de Lucky Stop.` },
+  ];
+  for (const g of groups) {
+    if (g.people.length === 0) continue;
+    await saveNotificationMany(g.people.map((m) => m.id), g.title, g.body, 'OFFER', url, offer.endDate);
+    await sendExpoBatch(g.people.flatMap((m) => m.tokens), { title: g.title, body: g.body, actionUrl: url });
+  }
   return members.length;
 }
 
@@ -50,7 +58,7 @@ export async function announceStartedOffers(now: Date = new Date()): Promise<num
   const since = new Date(now.getTime() - 14 * 86_400_000);
   const offers = await prisma.offer.findMany({
     where: { isActive: true, startDate: { lte: now, gte: since }, endDate: { gte: now } },
-    select: { id: true, title: true, storeId: true, endDate: true, createdAt: true },
+    select: { id: true, title: true, titleEs: true, storeId: true, endDate: true, createdAt: true },
   });
   let sent = 0;
   for (const offer of offers) sent += await announceOffer(offer);

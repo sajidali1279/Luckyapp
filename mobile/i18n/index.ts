@@ -34,6 +34,10 @@ export async function loadSavedLanguage(): Promise<void> {
 export async function setLanguage(code: LanguageCode): Promise<void> {
   await AsyncStorage.setItem(LANG_KEY, code);
   await i18n.changeLanguage(code);
+  // Promotion pushes come in this language: the server is told, when someone is signed in (a signed-out call would only fail)
+  import('../store/authStore')
+    .then(({ useAuthStore }) => (useAuthStore.getState().token ? import('../services/api').then(({ authApi }) => authApi.setLanguage(code)) : undefined))
+    .catch(() => {});
 }
 
 export function getLanguage(): LanguageCode {

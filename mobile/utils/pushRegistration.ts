@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { authApi } from '../services/api';
 import { EXPO_PROJECT_ID } from '../constants';
+import { getLanguage } from '../i18n';
 
 /**
  * Asks for notification permission (only if it has never been decided), creates the Android channel the server sends to
@@ -30,5 +31,5 @@ export async function registerPushToken() {
   const tokenData = await Notifications.getExpoPushTokenAsync({
     projectId: EXPO_PROJECT_ID,
   });
-  await authApi.registerPushToken(tokenData.data, Platform.OS);
+  await authApi.registerPushToken(tokenData.data, Platform.OS, getLanguage());   // promotion pushes come in the app's language
 }

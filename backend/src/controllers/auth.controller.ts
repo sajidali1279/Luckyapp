@@ -294,7 +294,7 @@ export async function getMe(req: AuthRequest, res: Response) {
 // ─── Register Push Token ──────────────────────────────────────────────────────
 
 export async function registerPushToken(req: AuthRequest, res: Response) {
-  const { token, platform } = req.body as { token: string; platform: string };
+  const { token, platform, language } = req.body as { token: string; platform: string; language?: string };
   if (!token || !platform) {
     res.status(400).json({ success: false, error: 'token and platform required' });
     return;
@@ -304,7 +304,16 @@ export async function registerPushToken(req: AuthRequest, res: Response) {
     update: { userId: req.user!.id },
     create: { userId: req.user!.id, token, platform },
   });
+  if (language === 'en' || language === 'es') await prisma.user.update({ where: { id: req.user!.id }, data: { language } });
   res.json({ success: true });
+}
+
+// PUT /auth/language { language: "en" | "es" }: the language this person uses the app in (promotion pushes follow it)
+export async function setLanguage(req: AuthRequest, res: Response) {
+  const language = (req.body as { language?: string })?.language;
+  if (language !== 'en' && language !== 'es') { res.status(400).json({ success: false, error: 'Choose English (en) or Spanish (es).' }); return; }
+  await prisma.user.update({ where: { id: req.user!.id }, data: { language } });
+  res.json({ success: true, data: { language } });
 }
 
 // ─── Remove Push Token (sign-out) ──────────────────────────────────────────────

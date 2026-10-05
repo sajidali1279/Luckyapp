@@ -20,7 +20,7 @@ export async function remindLastDays(now: Date = new Date()): Promise<number> {
       isActive: true, lastDayReminder: true, lastDayRemindedAt: null,
       startDate: { lte: now }, endDate: { gte: now, lte: storeDayEnd(now) },
     },
-    select: { id: true, title: true, storeId: true, startDate: true, endDate: true },
+    select: { id: true, title: true, titleEs: true, storeId: true, startDate: true, endDate: true },
   });
   let reminded = 0;
   for (const offer of offers) {
@@ -29,11 +29,17 @@ export async function remindLastDays(now: Date = new Date()): Promise<number> {
     if (count === 0) continue;   // another run got it
     const members = await resolveAudience(offer.storeId ? 'STORE_CUSTOMERS' : 'ALL_CUSTOMERS', offer.storeId ?? undefined);
     if (members.length === 0) continue;
-    const title = 'Last day!';
-    const body = `${offer.title} ends today. Check the Lucky Stop app.`;
     const url = `/(customer)/home?scrollTo=offers&lastDay=${offer.id}`;
-    await saveNotificationMany(members.map((m) => m.id), title, body, 'OFFER', url, offer.endDate);
-    await sendExpoBatch(members.flatMap((m) => m.tokens), { title, body, actionUrl: url });
+    // In each person's language (the English title when the offer has no Spanish one)
+    const groups = [
+      { people: members.filter((m) => m.language !== 'es'), title: 'Last day!', body: `${offer.title} ends today. Check the Lucky Stop app.` },
+      { people: members.filter((m) => m.language === 'es'), title: '¡Último día!', body: `${offer.titleEs?.trim() || offer.title} termina hoy. Mira la app de Lucky Stop.` },
+    ];
+    for (const g of groups) {
+      if (g.people.length === 0) continue;
+      await saveNotificationMany(g.people.map((m) => m.id), g.title, g.body, 'OFFER', url, offer.endDate);
+      await sendExpoBatch(g.people.flatMap((m) => m.tokens), { title: g.title, body: g.body, actionUrl: url });
+    }
     reminded += 1;
   }
   return reminded;

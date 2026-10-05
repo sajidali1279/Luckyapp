@@ -51,6 +51,10 @@ export const offerSchema = z.object({
   tierBonusRates: tierMapField.optional().nullable(),
   gasBonusCentsPerGallon: z.preprocess(blankToUndefined, cpgField.optional().nullable()),
   dealText: z.preprocess(blankToUndefined, z.string().trim().max(40, 'The deal text can be at most 40 characters.').optional()),
+  // The same in Spanish (optional): shown to customers who use the app in Spanish
+  titleEs: z.preprocess(blankToUndefined, z.string().trim().max(100, 'The Spanish title can be at most 100 characters.').optional()),
+  descriptionEs: z.preprocess(blankToUndefined, z.string().trim().max(500, 'The Spanish description can be at most 500 characters.').optional()),
+  dealTextEs: z.preprocess(blankToUndefined, z.string().trim().max(40, 'The Spanish deal text can be at most 40 characters.').optional()),
   requires21: z.preprocess(flag, z.boolean()).optional().default(false),
   startDate: z.string({ required_error: 'Choose a start date.' }).datetime({ message: 'Choose a start date.' }),
   endDate: z.string({ required_error: 'Choose an end date.' }).datetime({ message: 'Choose an end date.' }),
@@ -154,7 +158,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
   // Customers hear about it when it STARTS: now if it already has, otherwise the hourly job announces it on its first day. A single-store promotion goes
   // to that store's customers, not to everyone. The message expires when the promotion ends.
   if (offer.startDate.getTime() <= Date.now() + 60_000) {
-    announceOffer({ id: offer.id, title: offer.title, storeId: offer.storeId, endDate: offer.endDate, createdAt: offer.createdAt }).catch((e) => console.error('[offers] announcement failed:', e?.message ?? e));
+    announceOffer({ id: offer.id, title: offer.title, titleEs: offer.titleEs, storeId: offer.storeId, endDate: offer.endDate, createdAt: offer.createdAt }).catch((e) => console.error('[offers] announcement failed:', e?.message ?? e));
   }
 
   audit({
@@ -230,6 +234,10 @@ const updateOfferSchema = z.object({
   gasBonusCentsPerGallon: cpgField.nullable().optional(),
   dealText: z.string().min(1).max(40, 'The deal text can be at most 40 characters.').nullable().optional(),
   requires21: z.preprocess(flag, z.boolean()).optional(),   // "false" is false (z.coerce.boolean made any text true)
+  // Spanish words: empty takes them off (the English shows)
+  titleEs: z.string().trim().max(100, 'The Spanish title can be at most 100 characters.').transform((v) => v || null).nullable().optional(),
+  descriptionEs: z.string().trim().max(500, 'The Spanish description can be at most 500 characters.').transform((v) => v || null).nullable().optional(),
+  dealTextEs: z.string().trim().max(40, 'The Spanish deal text can be at most 40 characters.').transform((v) => v || null).nullable().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   isActive: z.boolean().optional(),
@@ -670,6 +678,45 @@ export async function estimateOfferCost(req: AuthRequest, res: Response) {
     startDate: new Date(d.startDate), endDate: new Date(d.endDate), ...hours.hours,
   });
   res.json({ success: true, data: est });
+}
+
+// ─── Spanish ──────────────────────────────────────────────────────────────────
+
+const translateSchema = z.object({
+  title: z.string().trim().max(100).optional().default(''),
+  description: z.string().trim().max(500).optional().default(''),
+  dealText: z.string().trim().max(40).optional().default(''),
+}).refine((d) => d.title || d.description || d.dealText, 'Write the English first.');
+
+/**
+ * POST /offers/translate (store manager and HQ): a suggested Spanish version of an offer's words, for HQ to read and change before
+ * posting. Uses Claude (the same key as the catalog photo import). Prices, "Lucky Stop" and product names stay as they are.
+ */
+export async function translateOffer(req: AuthRequest, res: Response) {
+  const parsed = translateSchema.safeParse(req.body ?? {});
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  if (!process.env.ANTHROPIC_API_KEY) { res.status(503).json({ success: false, error: 'Suggested translations are not set up on the server. Type the Spanish yourself.' }); return; }
+  const { title, description, dealText } = parsed.data;
+  try {
+    const { default: Anthropic } = await import('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      system: 'You translate short promotions for Lucky Stop, a chain of gas stations and convenience stores in Texas, into the everyday Spanish '
+        + 'its customers speak (US / Mexican Spanish, speaking to the customer as tú, as the rest of the app does). Keep the meaning exact: never promise more than the English. Keep prices, '
+        + 'percentages, numbers, "Lucky Stop" and brand or product names as they are. "2 for $5" is "2 por $5". Keep it as short as the English. '
+        + 'Answer with JSON only: {"title": "...", "description": "...", "dealText": "..."}, an empty string for any field you were not given.',
+      messages: [{ role: 'user', content: JSON.stringify({ title, description, dealText }) }],
+    });
+    const text = msg.content.map((c) => (c.type === 'text' ? c.text : '')).join('');
+    const json = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
+    const clip = (v: unknown, n: number) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+    res.json({ success: true, data: { titleEs: clip(json.title, 100), descriptionEs: clip(json.description, 500), dealTextEs: clip(json.dealText, 40) } });
+  } catch (e) {
+    console.error('[offers] translate failed:', (e as Error).message);
+    res.status(502).json({ success: false, error: 'Could not suggest a translation right now. Try again, or type the Spanish yourself.' });
+  }
 }
 
 // ─── Shelf deals (from Labels) ────────────────────────────────────────────────

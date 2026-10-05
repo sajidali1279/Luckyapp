@@ -51,8 +51,10 @@ export const authApi = {
   removeAvatar: () => api.delete('/auth/profile/avatar'),
   changePin: (currentPin: string, newPin: string) =>
     api.patch('/auth/pin', { currentPin, newPin }),
-  registerPushToken: (token: string, platform: string) =>
-    api.post('/auth/push-token', { token, platform }),
+  registerPushToken: (token: string, platform: string, language?: string) =>
+    api.post('/auth/push-token', { token, platform, language }),
+  /** The language the app is used in: promotion pushes come in it. */
+  setLanguage: (language: string) => api.put('/auth/language', { language }),
   // Sign-out: tell the server this device should stop getting this account's pushes. A best-effort call
   // (an axios instance-level failure here must never block the local sign-out itself).
   removePushToken: (token: string) => api.delete('/auth/push-token', { data: { token } }),

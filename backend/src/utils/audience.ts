@@ -12,10 +12,10 @@ export type BroadcastTarget = 'ALL_CUSTOMERS' | 'STORE_CUSTOMERS' | 'ALL_STAFF' 
 export const BROADCAST_TARGETS: BroadcastTarget[] = ['ALL_CUSTOMERS', 'STORE_CUSTOMERS', 'ALL_STAFF', 'STORE_STAFF'];
 export const CUSTOMER_RECENCY_MONTHS = 6;
 
-export interface AudienceMember { id: string; tokens: string[] }
+export interface AudienceMember { id: string; tokens: string[]; language?: string | null }
 
-const withTokens = { id: true, pushTokens: { select: { token: true } } } as const;
-const shape = (rows: { id: string; pushTokens: { token: string }[] }[]): AudienceMember[] => rows.map((r) => ({ id: r.id, tokens: r.pushTokens.map((t) => t.token) }));
+const withTokens = { id: true, language: true, pushTokens: { select: { token: true } } } as const;
+const shape = (rows: { id: string; language: string | null; pushTokens: { token: string }[] }[]): AudienceMember[] => rows.map((r) => ({ id: r.id, tokens: r.pushTokens.map((t) => t.token), language: r.language }));
 
 export async function resolveAudience(target: BroadcastTarget, storeId?: string, now: Date = new Date()): Promise<AudienceMember[]> {
   if (target === 'ALL_CUSTOMERS') {

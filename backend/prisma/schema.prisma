@@ -193,6 +193,8 @@ model User {
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  // The language the person uses the app in ("en" or "es"), sent by the app; promotion pushes use it. null = English.
+  language        String?
 
   // Auth — phone + PIN
   pinHash         String?
@@ -575,6 +577,11 @@ model Offer {
   tierBonusRates         Json?   // per-tier bonus override: {"BRONZE": 0.03, "GOLD": 0.01, ...} — wins over bonusRate per tier
   gasBonusCentsPerGallon Float?  // ¢/gallon bonus for GAS/DIESEL offers (used instead of bonusRate when in per-gallon mode)
   dealText               String? // price deal label e.g. "2 for $5" (display only)
+  // The same words in Spanish (2026-10-05): the app shows them to customers who use it in Spanish, and their pushes use titleEs.
+  // Optional: without them a Spanish reader sees the English.
+  titleEs                String?
+  descriptionEs          String?
+  dealTextEs             String?
   requires21  Boolean     @default(false) // blurred/hidden until the customer self-declares 21+
   startDate   DateTime
   endDate     DateTime

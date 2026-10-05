@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { clientKey } from '../utils/rateLimitKey';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, removePushToken, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, removePushToken, setLanguage, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -30,7 +30,7 @@ import {
 } from '../controllers/points.controller';
 import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem, customerInitiateRedemption, getMyRedemptions, cancelRedemption, getPendingRedemptionsForCustomer, confirmRedemption } from '../controllers/catalog.controller';
 import {
-  createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults, setOfferImage, removeOfferImage,
+  createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults, setOfferImage, removeOfferImage, translateOffer,
   createBanner, getActiveBanners, deleteBanner,
   estimateOfferCost,
   listShelfDeals,
@@ -239,6 +239,7 @@ router.patch('/auth/profile', authenticate, updateProfile);                     
 router.post('/auth/profile/avatar', authenticate, upload.single('avatar'), uploadAvatar); // Upload profile picture
 router.delete('/auth/profile/avatar', authenticate, deleteAvatar);                        // Remove profile picture
 router.post('/auth/push-token', authenticate, registerPushToken);
+router.put('/auth/language', authenticate, setLanguage);   // The app's language, for promotion pushes
 router.delete('/auth/push-token', authenticate, removePushToken);   // Sign-out: stop this device's pushes for this account
 router.get('/auth/me', authenticate, getMe);
 router.patch('/auth/email', authenticate, updateEmail);
@@ -313,7 +314,8 @@ router.get('/points/export', authenticate, requireRole(Role.STORE_MANAGER), expo
 // ─── Offers ───────────────────────────────────────────────────────────────────
 router.get('/offers', authenticate, getActiveOffers); // All authenticated users
 router.get('/offers/history', authenticate, requireRole(Role.STORE_MANAGER), getOffersHistory);
-router.post('/offers/estimate', authenticate, requireRole(Role.STORE_MANAGER), estimateOfferCost);                 // What a promotion would cost (last 4 weeks of sales)
+router.post('/offers/estimate', authenticate, requireRole(Role.STORE_MANAGER), estimateOfferCost);
+router.post('/offers/translate', authenticate, requireRole(Role.STORE_MANAGER), translateOffer); // A suggested Spanish version of an offer's words                 // What a promotion would cost (last 4 weeks of sales)
 router.get('/offers/shelf-deals', authenticate, requireRole(Role.SUPER_ADMIN), listShelfDeals);                    // Label deals shown in the app
 router.patch('/offers/shelf-deals/:labelId', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealHidden);     // Hide or show one
 router.post('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), createOfferRequest);                 // A manager asks HQ for a cashback promotion

@@ -22,6 +22,7 @@ import OfferCalendar from '../components/offers/OfferCalendar';
 import ShelfDealsSection from '../components/offers/ShelfDealsSection';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 import { ImagePick } from '../components/offers/ImagePick';
+import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from '../components/offers/SpanishFields';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -78,6 +79,40 @@ const TEMPLATES: Template[] = [
   { icon: '☕', group: 'Products', title: 'Coffee Lover Week', description: 'An extra {bonus} cashback on hot food and coffee this week.', bonusRate: '5', category: 'HOT_FOODS', length: 7 },
   { icon: '💧', group: 'Products', title: 'Hydration Week', description: 'An extra {bonus} cashback on groceries this week, bottled water included.', bonusRate: '3', category: 'GROCERIES', length: 7 },
 ];
+
+// Each template in Spanish: [title, description], {bonus} as in English
+const TEMPLATE_ES: Record<string, [string, string]> = {
+  'Weekend Gas Bonus': ['Bono de gasolina de fin de semana', 'Gana un {bonus} extra de reembolso en gasolina cada sábado y domingo. ¡Llena el tanque y ahorra en Lucky Stop!'],
+  'Full Tank Friday': ['Viernes de tanque lleno', 'Llena el tanque un viernes y gana un {bonus} extra de reembolso en gasolina.'],
+  'Gas Saver Monday': ['Lunes de ahorro en gasolina', 'Empieza la semana con un {bonus} extra de reembolso en gasolina cada lunes.'],
+  'Diesel Driver Deal': ['Oferta para conductores de diésel', 'Camioneros y flotillas ganan un {bonus} extra de reembolso en cada carga de diésel.'],
+  'Diesel Week': ['Semana del diésel', 'Un {bonus} extra de reembolso en todo el diésel esta semana. Un agradecimiento a nuestros clientes de siempre.'],
+  'Hot Food Happy Hour': ['Hora feliz de comida caliente', 'Gana un {bonus} extra de reembolso en comida caliente de 3 a 6 PM.'],
+  'Morning Commuter Special': ['Especial de la mañana', 'Gana un {bonus} extra de reembolso en comida caliente y café de 5 a 10 AM. Empieza tu día con premio.'],
+  'Taco Tuesday': ['Martes de Tacos', 'Un {bonus} extra de reembolso en comida caliente cada martes. ¡Haz del martes tu día de Lucky Stop!'],
+  'Lunch Rush Deal': ['Oferta de la hora del almuerzo', 'Compra tu almuerzo y gana un {bonus} extra de reembolso en comida caliente de 11 AM a 2 PM.'],
+  'Cold Weather Comfort': ['Calorcito para el frío', 'Caliéntate y gana un {bonus} extra de reembolso en comida caliente y bebidas calientes esta semana.'],
+  'Weekend Grocery Bonus': ['Bono de abarrotes de fin de semana', 'Un {bonus} extra de reembolso en abarrotes cada sábado y domingo. Surte tu despensa y ahorra.'],
+  'Stock Up & Save': ['Surte y ahorra', 'Un {bonus} extra de reembolso en abarrotes toda la semana. Cada artículo suma a tu saldo.'],
+  'Fresh Food Friday': ['Viernes de comida fresca', 'Un {bonus} extra de reembolso en comida fresca cada viernes.'],
+  'Frozen Food Week': ['Semana de congelados', 'Un {bonus} extra de reembolso en comida congelada toda la semana. Grandes ahorros en tus favoritos del congelador.'],
+  'Healthy Choice Week': ['Semana saludable', 'Un {bonus} extra de reembolso en comida fresca toda la semana. Comer bien vale la pena en Lucky Stop.'],
+  'Summer Road Trip Bonus': ['Bono de viaje de verano', 'Todo el verano, un {bonus} extra de reembolso en gasolina. Sal a la carretera y acumula premios en Lucky Stop.'],
+  'Holiday Weekend Bonus': ['Bono de fin de semana festivo', 'Un {bonus} extra de reembolso en todas tus compras el fin de semana festivo. ¡Felices fiestas de parte de Lucky Stop!'],
+  'Back to School Special': ['Especial de regreso a clases', 'Un {bonus} extra de reembolso en abarrotes, incluidos snacks y bebidas. ¡Prepárate para el año escolar!'],
+  'Fourth of July Bonus': ['Bono del 4 de julio', 'Un {bonus} extra de reembolso en todas tus compras, solo el 4 de julio. ¡Celebra y ahorra en Lucky Stop!'],
+  'Game Day Bonus': ['Bono de día de partido', 'Un {bonus} extra de reembolso en comida caliente el día del partido. Anota en grande en Lucky Stop.'],
+  'New Year Bonus': ['Bono de Año Nuevo', 'Empieza bien el año: un {bonus} extra de reembolso en todas tus compras los primeros 3 días de enero.'],
+  'Thank You Month': ['Mes de agradecimiento', 'Un {bonus} extra de reembolso en cada compra este mes. Nuestra forma de darte las gracias.'],
+  'Flash Sale': ['Venta relámpago', 'Solo hoy: un {bonus} extra de reembolso en todas tus compras. ¡No te lo pierdas!'],
+  'Weekend Bonus': ['Bono de fin de semana', 'Un {bonus} extra de reembolso en cada compra, cada sábado y domingo.'],
+  'Surprise Bonus Week': ['Semana de bono sorpresa', '¡Sorpresa! Un {bonus} extra de reembolso en cada compra esta semana.'],
+  'Cold Drinks Day': ['Día de bebidas frías', 'Un {bonus} extra de reembolso en abarrotes hoy, incluidas bebidas frías y refrescos.'],
+  'Energy Drink Monday': ['Lunes de bebidas energéticas', 'Un {bonus} extra de reembolso en abarrotes cada lunes, incluidas las bebidas energéticas. Mantente con energía y con premio.'],
+  'Snack Attack Week': ['Semana de antojos', 'Un {bonus} extra de reembolso en abarrotes esta semana, incluidas papitas y snacks.'],
+  'Coffee Lover Week': ['Semana del café', 'Un {bonus} extra de reembolso en comida caliente y café esta semana.'],
+  'Hydration Week': ['Semana de hidratación', 'Un {bonus} extra de reembolso en abarrotes esta semana, incluida el agua embotellada.'],
+};
 
 /** The words with the template's own percentage in them ("an extra 3% cashback"). */
 const templateText = (tm: Template, rate = tm.bonusRate) => tm.description.replace('{bonus}', `${rate}%`);
@@ -182,6 +217,8 @@ export default function Offers() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [hours, setHours] = useState<HappyHours>(NO_HOURS);
   const [lastDayReminder, setLastDayReminder] = useState(true);
+  const [spanish, setSpanish] = useState<SpanishWords>(NO_SPANISH);
+  const [dealSpanish, setDealSpanish] = useState<SpanishWords>(NO_SPANISH);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [resultsFor, setResultsFor] = useState<{ id: string; title: string } | null>(null);
@@ -254,7 +291,7 @@ export default function Offers() {
     setUseTierBonuses(false); setTierBonuses({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
     setType('ALL_STORES'); setStoreId(''); setCategory(null); setGasBonusCpg(''); setGasBonusType('cpg');
     setStartDate(todayStr()); setEndDate(defaultEndStr()); setImageFile(null); setRequires21(false);
-    setHours(NO_HOURS); setLastDayReminder(true);
+    setHours(NO_HOURS); setLastDayReminder(true); setSpanish(NO_SPANISH);
 
   }
 
@@ -267,6 +304,8 @@ export default function Offers() {
   function applyTemplate(t: Template) {
     setTitle(t.title);
     setDescription(templateText(t));
+    const es = TEMPLATE_ES[t.title];
+    setSpanish(es ? { titleEs: es[0], descriptionEs: es[1].replace('{bonus}', `${t.bonusRate}%`), dealTextEs: '' } : NO_SPANISH);
     setBonusRate(t.bonusRate);
     setCategory(t.category || '');
     setGasBonusType('pct');
@@ -298,6 +337,7 @@ export default function Offers() {
     setRequires21(!!offer.requires21);
     setHours(hoursFrom(offer));
     setLastDayReminder(offer.lastDayReminder !== false);
+    setSpanish(spanishFrom(offer));
     setStartDate(todayStr());
     setEndDate(defaultEndStr());
     setShowForm(true);
@@ -317,6 +357,7 @@ export default function Offers() {
     setDealType(isStoreManager ? 'SPECIFIC_STORE' : (offer.type || 'ALL_STORES'));
     setDealStoreId(offer.storeId || '');
     setDealRequires21(!!offer.requires21);
+    setDealSpanish(spanishFrom(offer));
     setDealStartDate(todayStr()); setDealEndDate(defaultEndStr());
     setDealImageFile(null);
     setShowDealForm(true);
@@ -402,6 +443,8 @@ export default function Offers() {
     const hp = hoursPayload(hours);
     if (hp.happyFrom) { fd.append('happyDays', JSON.stringify(hp.happyDays)); fd.append('happyFrom', hp.happyFrom); fd.append('happyTo', hp.happyTo); }
     fd.append('lastDayReminder', String(lastDayReminder));
+    if (spanish.titleEs.trim()) fd.append('titleEs', spanish.titleEs.trim());
+    if (spanish.descriptionEs.trim()) fd.append('descriptionEs', spanish.descriptionEs.trim());
 
     const draft: DraftPromo = {
       type, storeId: type === 'SPECIFIC_STORE' ? storeId : null, category: category || null,
@@ -540,6 +583,9 @@ export default function Offers() {
     if (dealCategory) fd.append('category', dealCategory);
     if (dealImageFile) fd.append('image', dealImageFile);
     if (dealRequires21) fd.append('requires21', 'true');
+    if (dealSpanish.titleEs.trim()) fd.append('titleEs', dealSpanish.titleEs.trim());
+    if (dealSpanish.dealTextEs.trim()) fd.append('dealTextEs', dealSpanish.dealTextEs.trim());
+    if (dealSpanish.descriptionEs.trim()) fd.append('descriptionEs', dealSpanish.descriptionEs.trim());
     askToPost(describePost('deal', fd, dealTitle.trim(), `${dealText.trim()} - ${dealTitle.trim()}`, null, whereText(dealType, dealStoreId), whenText(startMs, endMs, false)));
   }
 
@@ -548,7 +594,7 @@ export default function Offers() {
     setDealTitle(''); setDealText(''); setDealDescription('');
     setDealCategory(''); setDealType('ALL_STORES'); setDealStoreId('');
     setDealStartDate(todayStr()); setDealEndDate(defaultEndStr());
-    setDealImageFile(null); setDealRequires21(false);
+    setDealImageFile(null); setDealRequires21(false); setDealSpanish(NO_SPANISH);
 
   }
 
@@ -865,7 +911,7 @@ export default function Offers() {
                       <div style={s.inline}>
                         <input type="number" min="0" max={CASHBACK_CAP * 100} step="0.5" aria-label="Bonus percent, same for all tiers"
                           className="ui-input" style={{ ...INPUT, width: 120 }}
-                          value={bonusRate} onChange={e => { const v = e.target.value; if (bonusRate && description.includes(`extra ${bonusRate}% cashback`)) setDescription(description.replace(`extra ${bonusRate}% cashback`, `extra ${v || '?'}% cashback`)); setBonusRate(v); }}
+                          value={bonusRate} onChange={e => { const v = e.target.value; if (bonusRate && description.includes(`extra ${bonusRate}% cashback`)) setDescription(description.replace(`extra ${bonusRate}% cashback`, `extra ${v || '?'}% cashback`)); if (bonusRate && spanish.descriptionEs.includes(`${bonusRate}% extra`)) setSpanish({ ...spanish, descriptionEs: spanish.descriptionEs.replace(`${bonusRate}% extra`, `${v || '?'}% extra`) }); setBonusRate(v); }}
                           placeholder="e.g. 3" />
                         <span style={s.unit}>% bonus, same for all tiers</span>
                       </div>
@@ -932,6 +978,7 @@ export default function Offers() {
                 <div style={s.stepLabel}>4. Title and image</div>
                 <input aria-label="Title" className="ui-input" style={INPUT} value={title} onChange={e => setTitle(e.target.value)} maxLength={100} placeholder="Leave blank to write one for you" />
                 <textarea aria-label="Description" className="ui-input" style={{ ...INPUT, height: 72, resize: 'vertical' }} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional, written for you if blank)" />
+                <SpanishFields idPrefix="offer" value={spanish} onChange={setSpanish} english={{ title, description }} />
                 <ImagePick id="offer-image" file={imageFile} onFile={setImageFile} category={category || null} />
               </div>
             )}
@@ -1047,6 +1094,7 @@ export default function Offers() {
                 <Field label="Description (optional)" htmlFor="deal-desc">
                   <input id="deal-desc" className="ui-input" style={INPUT} value={dealDescription} onChange={(e) => setDealDescription(e.target.value)} placeholder="Any extra details about the deal" />
                 </Field>
+                <SpanishFields idPrefix="deal" value={dealSpanish} onChange={setDealSpanish} english={{ title: dealTitle, description: dealDescription, dealText }} withDeal />
                 <ImagePick id="deal-image" file={dealImageFile} onFile={setDealImageFile} category={dealCategory || null} />
                 <div style={s.twoCol}>
                   <Field label="Start date" htmlFor="deal-start" required>
@@ -1177,6 +1225,7 @@ function OfferTags({ offer, isPast, isScheduled }: { offer: any; isPast?: boolea
       </Badge>
       {offer.category && <Badge>{catName(offer.category)}</Badge>}
       {offer.requires21 && <Badge tone="warning">21+</Badge>}
+      {offer.titleEs && <Badge title={`In Spanish: ${offer.titleEs}`}>ES</Badge>}
     </div>
   );
 }
@@ -1258,6 +1307,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
   const [hours, setHours] = useState<HappyHours>(hoursFrom(offer));
   const [lastDay, setLastDay] = useState<boolean>(offer.lastDayReminder !== false);
   const [picture, setPicture] = useState<File | null>(null);
+  const [spanish, setSpanish] = useState<SpanishWords>(spanishFrom(offer));
   const [removePicture, setRemovePicture] = useState(false);
   const today = storeToday();
   const problem = !title.trim() ? 'Add a title.' : end < today ? 'The last day has already passed.' : end < start ? 'The last day is before the first day.'
@@ -1271,6 +1321,8 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
         onSave({
           title: title.trim(),
           description: description.trim(),   // empty clears it
+          titleEs: spanish.titleEs.trim(), descriptionEs: spanish.descriptionEs.trim(),   // empty takes the Spanish off
+          ...(offer.dealText ? { dealTextEs: spanish.dealTextEs.trim() } : {}),
           ...(!started ? { startDate: startOfStoreDay(start).toISOString() } : {}),
           endDate: endOfStoreDay(end).toISOString(),
           ...(hoursChanged ? hoursPayload(hours) : {}),
@@ -1283,6 +1335,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
         <Field label="Description" htmlFor="edit-offer-desc">
           <textarea id="edit-offer-desc" className="ui-input" style={{ ...INPUT, minHeight: 72, resize: 'vertical' }} value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
         </Field>
+        <SpanishFields idPrefix="edit-offer" value={spanish} onChange={setSpanish} english={{ title, description, dealText: offer.dealText ?? '' }} withDeal={!!offer.dealText} />
         <ImagePick id="edit-offer-image" file={picture} onFile={setPicture} current={offer.imageUrl} removed={removePicture} onRemoveCurrent={setRemovePicture} category={offer.category} label="Picture" />
         <div style={s.twoCol}>
           <Field label="First day" htmlFor="edit-offer-start" hint={started ? 'Already running.' : undefined}>

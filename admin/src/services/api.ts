@@ -118,6 +118,8 @@ export const offersApi = {
   /** A new picture for an offer already posted, or none. */
   setImage: (offerId: string, file: File) => { const fd = new FormData(); fd.append('image', file); return api.post(`/offers/${offerId}/image`, fd); },
   removeImage: (offerId: string) => api.delete(`/offers/${offerId}/image`),
+  /** A suggested Spanish version of an offer's words, to read and change. */
+  translate: (words: { title: string; description: string; dealText: string }) => api.post('/offers/translate', words),
   getActive: () => api.get('/offers'),
   /** Live promotions plus the ones switched on that start later (HQ only), so a scheduled promotion is not invisible. */
   getLiveAndScheduled: () => api.get('/offers?includeScheduled=1'),

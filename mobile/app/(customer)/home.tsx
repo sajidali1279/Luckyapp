@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offerBonusText } from '../../utils/offerRate';
+import { spanishOffer } from '../../utils/offerText';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
@@ -770,6 +771,8 @@ export default function CustomerHome() {
     queryKey: ['offers', nearestStore?.id],
     queryFn: () => offersApi.getActive(nearestStore?.id),
     enabled: locationReady,
+    // In Spanish, an offer's Spanish words where HQ wrote them (the English where it did not)
+    select: (res: any) => (i18n.language === 'es' ? { ...res, data: { ...res.data, data: (res.data?.data ?? []).map(spanishOffer) } } : res),
   });
 
   const { data: hotFoodData, refetch: refetchHotFoodMenu } = useQuery({
