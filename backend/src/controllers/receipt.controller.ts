@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { offerPaysAt } from '../utils/offerHours';
 import { forCustomer } from '../utils/offerAudience';
 import { hasLimits, promotionRoom, noteBudgetUse } from '../utils/offerBudget';
+import { creditChallenges, pushChallengeAwards } from '../utils/challenges';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
@@ -371,8 +372,14 @@ export async function selfGrant(req: AuthRequest, res: Response) {
     throw err;
   }
 
+  // Challenges: each approved line moves them on, one after the other (utils/challenges.ts)
+  const challengeAwards = [];
+  for (const line of transactions) challengeAwards.push(...await prisma.$transaction((db) => creditChallenges(db, line.id)));
+  const challengeExtra = challengeAwards.reduce((n, a) => n + a.reward, 0);
+  pushChallengeAwards(challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));
+
   // Recalculate tier after balance update
-  await updateCustomerTierIfNeeded(customer.id, updatedCustomer.periodPoints, updatedCustomer.tier);
+  await updateCustomerTierIfNeeded(customer.id, updatedCustomer.periodPoints + challengeExtra, updatedCustomer.tier);
 
   sendPushToUser(
     customer.id,

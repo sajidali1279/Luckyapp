@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { offerPaysAt } from '../utils/offerHours';
 import { forCustomer } from '../utils/offerAudience';
 import { promotionRoom, noteBudgetUse } from '../utils/offerBudget';
+import { pushChallengeAwards } from '../utils/challenges';
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
@@ -414,6 +415,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   const updatedTransaction = settled.sale;
   const updatedCustomer = settled.customer;
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
+  pushChallengeAwards(updatedCustomer.challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));   // a challenge this sale completed
 
   sendPushToUser(
     transaction.customerId,
@@ -663,6 +665,7 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
     return;
   }
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
+  pushChallengeAwards(updatedCustomer.challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));   // a challenge this sale completed
   sendPushToUser(transaction.customerId, '💰 Points Credited!', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was approved. ${Math.round(totalPoints * 100)} pts added.`, 'POINTS', pointsUrl(transactionId));
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'APPROVE_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
   res.json({ success: true, message: 'Flagged transaction approved and points credited' });

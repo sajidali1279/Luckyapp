@@ -70,6 +70,8 @@ export async function announceStartedOffers(now: Date = new Date()): Promise<num
 export function startOfferAnnounceCron() {
   cron.schedule('12 * * * *', () => {
     announceStartedOffers().catch((e) => console.error('[offer-announce] run failed:', e?.message ?? e));
+    // challenges that have started: announced the same way (lazy import: challenges.controller imports this file's neighbours)
+    import('../controllers/challenges.controller').then((m) => m.announceStartedChallenges()).catch((e) => console.error('[challenge-announce] run failed:', e?.message ?? e));
   }, { timezone: 'UTC' });
   setTimeout(() => {
     announceStartedOffers().catch((e) => console.error('[offer-announce] start-up run failed:', e?.message ?? e));

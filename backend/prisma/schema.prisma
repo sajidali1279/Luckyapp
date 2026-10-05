@@ -354,6 +354,7 @@ model Store {
   transactions      PointsTransaction[]
   creditRedemptions CreditRedemption[]
   offers            Offer[]
+  challenges        Challenge[]
   offerRequests     OfferRequest[]
   banners           Banner[]
   billing           BillingRecord[]
@@ -504,11 +505,16 @@ model PointsTransaction {
   // 10% ceiling. Recorded from 2026-09-28; older sales have neither.
   offerId           String?
   offerCashback     Float?
+  // A challenge reward (2026-10-05, utils/challenges.ts): the cashback a customer earned by completing a challenge, credited as its
+  // own approved line (no purchase), and the sale whose approval completed it. Voiding this line takes the reward back.
+  challengeId       String?
+  rewardForSaleId   String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   customer    User  @relation("PointsEarner", fields: [customerId], references: [id])
   offer       Offer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  challenge   Challenge? @relation(fields: [challengeId], references: [id], onDelete: SetNull)
   grantedBy   User  @relation("PointsGranter", fields: [grantedById], references: [id])
   store       Store @relation(fields: [storeId], references: [id])
   rating      EmployeeRating?
@@ -520,7 +526,61 @@ model PointsTransaction {
   @@index([createdAt])
   @@index([storeId, status, createdAt])
   @@index([offerId])
+  @@index([challengeId])
+  @@index([rewardForSaleId])
   @@map("points_transactions")
+}
+
+// A challenge (2026-10-05, utils/challenges.ts): "Spend $30 on groceries this week, get $3 back" (SPEND: target in dollars, once per
+// customer) or "Every 5th coffee earns $1" (VISITS: target purchases, each at least minPurchase; repeats). Only APPROVED sales count,
+// at the moment they are approved, so a sale later rejected never counts. The reward is credited as an approved PointsTransaction.
+model Challenge {
+  id            String           @id @default(uuid())
+  kind          String           // SPEND | VISITS
+  title         String
+  titleEs       String?
+  description   String           @default("")
+  descriptionEs String?
+  category      ProductCategory? // null = any purchase
+  storeId       String?          // null = every store
+  target        Float            // SPEND: dollars to spend; VISITS: how many purchases
+  minPurchase   Float?           // VISITS: a purchase counts when it is at least this
+  reward        Float            // dollars of cashback when it is reached
+  repeats       Boolean          @default(false)   // earn it again after each target (VISITS); SPEND is once
+  audience      String           @default("EVERYONE")   // as Offer (utils/offerAudience.ts)
+  audienceTier  Tier?
+  audienceDays  Int?
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean          @default(true)
+  announcedAt   DateTime?
+  createdById   String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  store         Store?              @relation(fields: [storeId], references: [id])
+  progress      ChallengeProgress[]
+  rewards       PointsTransaction[]
+
+  @@index([isActive, endDate])
+  @@map("challenges")
+}
+
+// One customer's way through a challenge: what counts since their last reward, and how many times they have earned it.
+model ChallengeProgress {
+  id          String    @id @default(uuid())
+  challengeId String
+  customerId  String    // a plain id: the customer's history stays with the challenge
+  progress    Float     @default(0)
+  timesEarned Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, customerId])
+  @@index([customerId])
+  @@map("challenge_progress")
 }
 
 // ─── Tier Cashback Rates (DevAdmin configurable) ─────────────────────────────

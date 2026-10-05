@@ -41,13 +41,13 @@ export function inAudience(o: Targeted, c: CustomerFacts, now: Date = new Date()
 }
 
 /** The facts for these customers: tier, when they joined, birthday month, and their last purchase (any sale not rejected). */
-export async function loadCustomerFacts(ids: string[], tierOverride?: Record<string, string>): Promise<Map<string, CustomerFacts>> {
+export async function loadCustomerFacts(ids: string[], tierOverride?: Record<string, string>, before?: Date): Promise<Map<string, CustomerFacts>> {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return new Map();
   const [users, last] = await Promise.all([
     prisma.user.findMany({ where: { id: { in: unique } }, select: { id: true, tier: true, createdAt: true, birthMonth: true } }),
     // a visit is any sale not rejected (one still waiting for its receipt counts: two sales on the day they come back are one return)
-    prisma.pointsTransaction.groupBy({ by: ['customerId'], where: { customerId: { in: unique }, status: { in: [TransactionStatus.APPROVED, TransactionStatus.PENDING, TransactionStatus.FLAGGED] } }, _max: { createdAt: true } }),
+    prisma.pointsTransaction.groupBy({ by: ['customerId'], where: { customerId: { in: unique }, status: { in: [TransactionStatus.APPROVED, TransactionStatus.PENDING, TransactionStatus.FLAGGED] }, ...(before ? { createdAt: { lt: before } } : {}) }, _max: { createdAt: true } }),
   ]);
   const lastBy = new Map(last.map((r) => [r.customerId, r._max.createdAt ?? null]));
   return new Map(users.map((u) => [u.id, {
@@ -55,10 +55,11 @@ export async function loadCustomerFacts(ids: string[], tierOverride?: Record<str
   }]));
 }
 
-/** The promotions this customer may have (the ones for everyone need no lookup). */
-export async function forCustomer<T extends Targeted>(offers: T[], customerId: string, now: Date = new Date(), tier?: string): Promise<T[]> {
+/** The promotions this customer may have (the ones for everyone need no lookup). `before`: only visits before it count (a sale
+ *  being approved is not its own "last visit": a win-back challenge is judged as of the purchase). */
+export async function forCustomer<T extends Targeted>(offers: T[], customerId: string, now: Date = new Date(), tier?: string, before?: Date): Promise<T[]> {
   if (offers.every(forEveryone)) return offers;
-  const facts = (await loadCustomerFacts([customerId], tier ? { [customerId]: tier } : undefined)).get(customerId);
+  const facts = (await loadCustomerFacts([customerId], tier ? { [customerId]: tier } : undefined, before)).get(customerId);
   return offers.filter((o) => forEveryone(o) || (!!facts && inAudience(o, facts, now)));
 }
 

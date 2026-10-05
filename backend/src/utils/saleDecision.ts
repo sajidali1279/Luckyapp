@@ -8,6 +8,7 @@
 import { Prisma, TransactionStatus } from '@prisma/client';
 import prisma from '../config/prisma';
 import { rollCustomerPeriod } from './tier';
+import { creditChallenges } from './challenges';
 
 export interface SaleToCredit {
   id: string;
@@ -16,7 +17,11 @@ export interface SaleToCredit {
   gasBonusPoints: number;
 }
 
-/** Moves the sale from `from` to APPROVED and credits the customer. Returns the updated customer, or null when the sale was no longer in `from`. */
+/**
+ * Moves the sale from `from` to APPROVED and credits the customer. Returns the updated customer, or null when the sale was no longer in
+ * `from`. The approved sale also moves the customer's challenges on (utils/challenges.ts), in the same transaction: a reward it completes
+ * is credited too, included in the balance returned, and listed in `challengeAwards` for the caller to push once this is saved.
+ */
 export async function approveAndCredit(
   db: Prisma.TransactionClient,
   sale: SaleToCredit,
@@ -31,10 +36,13 @@ export async function approveAndCredit(
   // If the half-year turned and the reset has not reached this customer yet, apply it first so these points count in the new period
   await rollCustomerPeriod(db, sale.customerId);
   const totalPoints = sale.pointsAwarded + sale.gasBonusPoints;
-  return db.user.update({
+  const user = await db.user.update({
     where: { id: sale.customerId },
     data: { pointsBalance: { increment: totalPoints }, periodPoints: { increment: totalPoints } },
   });
+  const challengeAwards = await creditChallenges(db, sale.id);
+  const extra = challengeAwards.reduce((n, a) => n + a.reward, 0);
+  return { ...user, pointsBalance: user.pointsBalance + extra, periodPoints: user.periodPoints + extra, challengeAwards };
 }
 
 /** Moves the sale from `from` to REJECTED. Returns false when the sale was no longer in `from`. */
