@@ -1025,6 +1025,8 @@ model RedemptionCatalogItem {
   // The Labels catalog item this reward is (2026-10-04): its points follow that item's chain price (price x 100, rounded up to the next
   // 25: utils/rewardPoints.ts). null = points set by hand (a fountain drink, coffee: things with no label). Removing the item unlinks it.
   labelId     String?
+  // false = HQ (or the store's manager) typed their own points: it stays linked (to see the item and its price) but no longer follows it
+  followPrice Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

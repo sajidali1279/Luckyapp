@@ -79,8 +79,10 @@ const rewardFields = {
   storeId: z.string().trim().nullable().transform((v) => v || null),
   // The Labels catalog item it is: its points follow that item's price. null (or empty) = points set by hand
   labelId: z.string().trim().max(64).nullable().transform((v) => v || null),
+  // false = the typed points stay (it no longer follows the item's price); true = the price decides
+  followPrice: z.boolean({ message: 'Follow the price must be true or false.' }),
 };
-const createRewardSchema = z.object({ ...rewardFields, description: rewardFields.description.optional(), emoji: rewardFields.emoji.optional(), sortOrder: rewardFields.sortOrder.optional(), isActive: rewardFields.isActive.optional(), chain: rewardFields.chain.optional(), category: rewardFields.category.optional(), storeId: rewardFields.storeId.optional(), labelId: rewardFields.labelId.optional() });
+const createRewardSchema = z.object({ ...rewardFields, description: rewardFields.description.optional(), emoji: rewardFields.emoji.optional(), sortOrder: rewardFields.sortOrder.optional(), isActive: rewardFields.isActive.optional(), chain: rewardFields.chain.optional(), category: rewardFields.category.optional(), storeId: rewardFields.storeId.optional(), labelId: rewardFields.labelId.optional(), followPrice: rewardFields.followPrice.optional() });
 
 /** The linked item, and the points its price makes; a 400 sentence when the item is gone. Points stay as asked when it has no price. */
 async function linkedPoints(labelId: string | null | undefined): Promise<{ error: string } | { points: number | null; label: { productName: string; priceText: string | null } | null }> {
@@ -112,14 +114,16 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
   }
   const link = await linkedPoints(d.labelId);
   if ('error' in link) { res.status(400).json({ success: false, error: link.error }); return; }
+  const follow = d.followPrice ?? true;
   const item = await prisma.redemptionCatalogItem.create({
     data: {
       storeId,
       labelId: d.labelId ?? null,
+      followPrice: follow,
       title: d.title,
       description: d.description ?? '',
       emoji: d.emoji || '🎁',
-      pointsCost: link.points ?? d.pointsCost,   // a linked item's price decides
+      pointsCost: follow && link.points != null ? link.points : d.pointsCost,   // a linked item's price decides, unless own points were typed
       sortOrder: d.sortOrder ?? 0,
       isActive: d.isActive ?? true,
       chain: d.chain || 'Lucky Stop',
@@ -129,7 +133,7 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CATALOG_ITEM_CREATE', entity: 'catalog_item', entityId: item.id,
-    details: { summary: `Reward added${item.storeId ? ` for ${(await storeName(item.storeId))}` : ' for every store'}: ${rewardWords(item)}${link.label ? `, linked to ${link.label.productName} ($${link.label.priceText ?? 'no price'})` : ''}` },
+    details: { summary: `Reward added${item.storeId ? ` for ${(await storeName(item.storeId))}` : ' for every store'}: ${rewardWords(item)}${link.label ? `, linked to ${link.label.productName} ($${link.label.priceText ?? 'no price'})${follow ? '' : ', own points (not following the price)'}` : ''}` },
     storeId: item.storeId, storeName: item.storeId ? await storeName(item.storeId) : undefined,
   });
   res.status(201).json({ success: true, data: item });
@@ -149,14 +153,16 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   if (nextStore && nextStore !== before.storeId && !(await prisma.store.findUnique({ where: { id: nextStore }, select: { id: true } }))) {
     res.status(400).json({ success: false, error: 'That store does not exist.' }); return;
   }
-  // Linked (now, or still): the item's price decides the points; a typed number is used only without a price
+  // Linked (now, or still) and following the price: the item's price decides the points. Own points typed (followPrice false) stay.
   const nextLabel = parsed.data.labelId === undefined ? before.labelId : parsed.data.labelId;
+  const follow = parsed.data.followPrice ?? before.followPrice;
   const link = await linkedPoints(nextLabel);
   if ('error' in link) { res.status(400).json({ success: false, error: link.error }); return; }
-  const data = { ...parsed.data, ...(link.points != null ? { pointsCost: link.points } : {}) };
+  const data = { ...parsed.data, ...(follow && link.points != null ? { pointsCost: link.points } : {}) };
   const item = await prisma.redemptionCatalogItem.update({ where: { id }, data });
   const changes: string[] = [];
   if (before.labelId !== item.labelId) changes.push(item.labelId ? `linked to ${link.label!.productName} ($${link.label!.priceText ?? 'no price'})` : 'unlinked from its catalog item (points set by hand)');
+  if (item.labelId && before.followPrice !== item.followPrice) changes.push(item.followPrice ? 'follows the price again' : `own points (the price would make ${link.points != null ? `${link.points.toLocaleString('en-US')} pts` : 'none'})`);
   if (before.title !== item.title) changes.push(`name "${before.title}" to "${item.title}"`);
   if (before.pointsCost !== item.pointsCost) changes.push(`${before.pointsCost.toLocaleString('en-US')} to ${item.pointsCost.toLocaleString('en-US')} pts`);
   if (before.isActive !== item.isActive) changes.push(item.isActive ? 'turned on' : 'turned off');

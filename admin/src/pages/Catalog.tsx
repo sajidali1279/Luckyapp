@@ -36,6 +36,8 @@ interface CatalogItem {
   /** The Labels catalog item it is: its points follow that item's price (shelf price x 100, rounded up to the next 25) */
   labelId?: string | null;
   label?: { id: string; productName: string; priceText: string | null; category: string | null } | null;
+  /** false = points typed by hand: still linked (to see the item), but they no longer follow its price */
+  followPrice?: boolean;
 }
 type StoreOption = { id: string; name: string; city?: string };
 
@@ -82,9 +84,13 @@ function CatalogModal({
   const [storeId, setStoreId]       = useState<string>(item ? (item.storeId ?? '') : isHQ ? '' : (stores[0]?.id ?? ''));
   // The Labels catalog item it is (its points then follow that item's price), found by name
   const [labelId, setLabelId]       = useState<string | null>(item?.labelId ?? null);
+  // Linked: the price sets the points until a number of your own is typed (then they stay yours until "Follow the price again")
+  const [followPrice, setFollowPrice] = useState<boolean>(item?.followPrice ?? true);
   const [find, setFind]             = useState('');
   const linked = labelId ? catalog.find(c => c.id === labelId) ?? (item?.label && item.label.id === labelId ? item.label : null) : null;
   const linkedPts = linked ? pointsForPrice(linked.priceText) : null;
+  const priceDecides = linkedPts != null && followPrice;
+  const shownPts = priceDecides ? String(linkedPts) : pointsCost;
   const found = useMemo(() => {
     const q = find.trim().toLowerCase();
     if (q) {
@@ -95,6 +101,7 @@ function CatalogModal({
   }, [find, catalog, title, labelId]);
   function link(c: RewardMatchItem) {
     setLabelId(c.id);
+    setFollowPrice(true);
     setFind('');
     if (!title.trim()) setTitle(c.productName.slice(0, 60));
     const pts = pointsForPrice(c.priceText);
@@ -106,7 +113,7 @@ function CatalogModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const pts = linkedPts ?? parseInt(pointsCost, 10);
+    const pts = priceDecides ? linkedPts! : parseInt(pointsCost, 10);
     if (!title.trim()) { toast.error('Title is required'); return; }
     if (isNaN(pts) || pts <= 0) { toast.error('Enter a valid points cost'); return; }
     if (!finalChain) { toast.error('Company name is required'); return; }
@@ -122,6 +129,7 @@ function CatalogModal({
       isActive,
       storeId: storeId || null,
       labelId,
+      followPrice: labelId ? followPrice : true,
     });
   }
 
@@ -164,7 +172,7 @@ function CatalogModal({
               <span style={{ fontWeight: 700, color: '#111827' }}>{linked.productName}</span>
               <span style={{ color: '#374151' }}>{linked.priceText ? `$${linked.priceText} = ${linkedPts!.toLocaleString()} pts` : 'no price yet: set the points by hand'}</span>
               <span style={{ flex: 1 }} />
-              <Button size="sm" onClick={() => setLabelId(null)}>Unlink</Button>
+              <Button size="sm" onClick={() => { setPointsCost(shownPts); setLabelId(null); setFollowPrice(true); }}>Unlink</Button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -214,9 +222,11 @@ function CatalogModal({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           <Field label="Points cost" htmlFor="reward-points" required
-            hint={linkedPts != null ? `Follows the price of ${linked!.productName}. Change the price in Labels to change it.` : `= $${(parseInt(pointsCost || '0') / 100).toFixed(2)} value`}>
-            <input id="reward-points" className="ui-input" style={{ ...INPUT, ...(linkedPts != null ? { background: '#f7f8fa', color: '#5a6472' } : {}) }}
-              value={linkedPts != null ? String(linkedPts) : pointsCost} onChange={e => setPointsCost(e.target.value)} disabled={linkedPts != null}
+            hint={priceDecides ? `Follows the price of ${linked!.productName}. Type your own number to set it yourself.`
+              : linkedPts != null ? <>Your own points ({`$${(parseInt(pointsCost || '0') / 100).toFixed(2)}`} value). The price makes {linkedPts.toLocaleString()} pts. <button type="button" onClick={() => setFollowPrice(true)} style={{ background: 'none', border: 'none', padding: 0, color: PRIMARY, fontWeight: 600, cursor: 'pointer', fontSize: 'inherit' }}>Follow the price again</button></>
+              : `= $${(parseInt(pointsCost || '0') / 100).toFixed(2)} value`}>
+            <input id="reward-points" className="ui-input" style={INPUT}
+              value={shownPts} onChange={e => { setPointsCost(e.target.value); if (linkedPts != null) setFollowPrice(false); }}
               placeholder="e.g. 400" type="number" min={1} />
           </Field>
           <Field label="Sort order" htmlFor="reward-sort" hint="Lower numbers show first">
@@ -300,7 +310,11 @@ function ChainSection({
                   <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description || ' - '}</span></TableCell>
                   <TableCell style={cs.td}>
                     <span style={cs.ptsBadge}>{item.pointsCost.toLocaleString()} pts</span>
-                    {item.label && <span style={{ display: 'block', fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>follows the price</span>}
+                    {item.label && (
+                      <span style={{ display: 'block', fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
+                        {item.followPrice === false ? `own points (price makes ${pointsForPrice(item.label.priceText)?.toLocaleString() ?? 'none'})` : 'follows the price'}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell style={cs.td}>
                     <span style={cs.valueBadge}>${(item.pointsCost / 100).toFixed(2)}</span>
@@ -441,7 +455,7 @@ export default function CatalogPage() {
         <div style={s.infoBanner}>
           <Glyph e="ℹ️" size={16} style={{ marginTop: 2 }} />
           <span style={s.infoText}>
-            100 pts = $1.00 value · a reward linked to a Labels item costs its shelf price in points, rounded up to the next 25 ($2.29 = 250 pts), and follows that price · cashback rate is tier-based (Bronze 1% → Platinum 5%) · cashiers process redemptions by scanning the customer's QR code
+            100 pts = $1.00 value · a reward linked to a Labels item costs its shelf price in points, rounded up to the next 25 ($2.29 = 250 pts), and follows that price unless you type your own points · cashback rate is tier-based (Bronze 1% → Platinum 5%) · cashiers process redemptions by scanning the customer's QR code
           </span>
         </div>
 
@@ -649,6 +663,7 @@ function MatchPanel({ items, catalog, onEdit }: { items: CatalogItem[]; catalog:
   const qc = useQueryClient();
   const [kept, setKept] = useState<string[]>(readKept);
   const [picked, setPicked] = useState<Record<string, string>>({});
+  const [own, setOwn] = useState<Record<string, string>>({});   // points typed over the price's, by reward
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
   const rows = useMemo(() => items
@@ -661,13 +676,20 @@ function MatchPanel({ items, catalog, onEdit }: { items: CatalogItem[]; catalog:
     return catalog.find(c => c.id === id) ?? null;
   };
   const sure = rows.filter(r => r.matches[0]?.score >= GOOD_MATCH && (picked[r.item.id] ?? r.matches[0].item.id));
+  // What Link sends: the item, and the points typed over the price's (then they stay, not following the price)
+  const body = (r: (typeof rows)[number], c: RewardMatchItem) => {
+    const typed = own[r.item.id]?.trim();
+    const n = typed ? parseInt(typed, 10) : NaN;
+    return Number.isFinite(n) && n > 0 && n !== pointsForPrice(c.priceText) ? { labelId: c.id, followPrice: false, pointsCost: n } : { labelId: c.id };
+  };
+  const ownOk = (r: (typeof rows)[number]) => { const v = own[r.item.id]?.trim(); return !v || (/^\d+$/.test(v) && Number(v) > 0 && Number(v) <= 100_000); };
   const keep = (id: string) => { const next = [...kept, id]; setKept(next); try { localStorage.setItem(KEPT_KEY, JSON.stringify(next)); } catch { /* kept for this visit */ } };
   async function link(r: (typeof rows)[number]) {
     const c = choice(r);
     if (!c) return;
     setBusy(r.item.id);
     try {
-      const res = await catalogApi.update(r.item.id, { labelId: c.id });
+      const res = await catalogApi.update(r.item.id, body(r, c));
       toast.success(`${r.item.title}: linked to ${c.productName}, ${(res.data?.data?.pointsCost ?? pointsForPrice(c.priceText) ?? r.item.pointsCost).toLocaleString()} pts.`);
       qc.invalidateQueries({ queryKey: ['catalog-all'] });
     } catch (e: any) { toast.error(e.response?.data?.error || 'Could not link it.'); }
@@ -686,7 +708,8 @@ function MatchPanel({ items, catalog, onEdit }: { items: CatalogItem[]; catalog:
     for (const r of sure) {
       const c = choice(r);
       if (!c) continue;
-      try { await catalogApi.update(r.item.id, { labelId: c.id }); done += 1; } catch { /* counted below */ }
+      if (!ownOk(r)) continue;
+      try { await catalogApi.update(r.item.id, body(r, c)); done += 1; } catch { /* counted below */ }
     }
     toast[done === sure.length ? 'success' : 'error'](`${done} of ${sure.length} rewards linked; their points follow the price now.`);
     qc.invalidateQueries({ queryKey: ['catalog-all'] });
@@ -705,7 +728,7 @@ function MatchPanel({ items, catalog, onEdit }: { items: CatalogItem[]; catalog:
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid #eef0f3', flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 260 }}>
           <div style={{ fontWeight: 700, color: '#111827', fontSize: 15 }}>Price rewards from the catalog <Badge>{rows.length}</Badge></div>
-          <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>These rewards have points set by hand. Link each to the item it is in Labels and it costs that item's shelf price in points, following any price change. Turn off the ones you do not sell; keep the ones with no label (fountain drinks, coffee) as they are.</div>
+          <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>These rewards have points set by hand. Link each to the item it is in Labels and it costs that item's shelf price in points, following any price change, or change the points first and they stay as you set them. Turn off the ones you do not sell; keep the ones with no label (fountain drinks, coffee) as they are.</div>
         </div>
         {sure.length > 0 && <Button variant="primary" disabled={busy !== null} onClick={() => setConfirmAll(true)}>Link every sure match ({sure.length})</Button>}
       </div>
@@ -726,9 +749,15 @@ function MatchPanel({ items, catalog, onEdit }: { items: CatalogItem[]; catalog:
                 {r.matches.map(m => <option key={m.item.id} value={m.item.id}>{m.item.productName}{m.item.priceText ? ` · $${m.item.priceText}` : ''}</option>)}
               </select>
             ) : <span style={{ flex: '1 1 240px', fontSize: 13, color: TEXT_MUTED }}>Find it with Edit, or keep the points set by hand.</span>}
-            <span style={{ minWidth: 120, fontSize: 13, color: '#111827' }}>{c ? (pts != null ? <>to <strong>{pts.toLocaleString()} pts</strong></> : 'no price in Labels') : ''}</span>
+            <span style={{ minWidth: 150, fontSize: 13, color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {c && (pts != null || own[r.item.id]) ? (
+                <>to <input className="ui-input" aria-label={`Points for ${r.item.title}`} inputMode="numeric" value={own[r.item.id] ?? String(pts ?? '')}
+                  onChange={e => setOwn(o => ({ ...o, [r.item.id]: e.target.value.replace(/[^0-9]/g, '') }))}
+                  style={{ ...INPUT, width: 80, padding: '4px 8px', fontWeight: 700, ...(own[r.item.id] && Number(own[r.item.id]) !== pts ? { borderColor: PRIMARY } : {}) }} /> pts</>
+              ) : c ? 'no price in Labels' : ''}
+            </span>
             <div style={{ display: 'flex', gap: 6 }}>
-              <Button size="sm" variant="primary" disabled={!c || busy !== null} onClick={() => link(r)} aria-label={`Link ${r.item.title}`}>{busy === r.item.id ? 'Saving…' : 'Link'}</Button>
+              <Button size="sm" variant="primary" disabled={!c || busy !== null || !ownOk(r)} onClick={() => link(r)} aria-label={`Link ${r.item.title}`}>{busy === r.item.id ? 'Saving…' : 'Link'}</Button>
               <Button size="sm" disabled={busy !== null} onClick={() => onEdit(r.item)}>Edit</Button>
               <Button size="sm" disabled={busy !== null} onClick={() => turnOff(r)} aria-label={`Turn off ${r.item.title}`}>Turn off</Button>
               <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => keep(r.item.id)} aria-label={`Keep ${r.item.title} as it is`}>Keep as is</Button>

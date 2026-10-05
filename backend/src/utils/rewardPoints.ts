@@ -3,7 +3,8 @@
 // numbers, and the owner never gives more than the shelf price ($2.29 = 250 pts, $1.99 = 200 pts).
 //
 // A reward linked to a Labels catalog item (RedemptionCatalogItem.labelId) follows that item's chain price: syncRewardPoints is called
-// wherever a chain price changes (Labels edit, import, merge). pointsForPrice is the same in admin/src/lib/rewardPoints.ts.
+// wherever a chain price changes (Labels edit, import, merge). Points typed by hand win (followPrice false): the reward stays linked but
+// keeps its own points until "Follow the price again". pointsForPrice is the same in admin/src/lib/rewardPoints.ts.
 
 import { Prisma, PrismaClient } from '@prisma/client';
 import { audit } from './audit';
@@ -26,7 +27,7 @@ type Db = PrismaClient | Prisma.TransactionClient;
 export async function syncRewardPoints(db: Db, labelIds: string[]): Promise<RewardPointChange[]> {
   if (!labelIds.length) return [];
   const rewards = await db.redemptionCatalogItem.findMany({
-    where: { labelId: { in: [...new Set(labelIds)] } },
+    where: { labelId: { in: [...new Set(labelIds)] }, followPrice: true },   // own points (typed by hand) stay
     select: { id: true, title: true, pointsCost: true, label: { select: { priceText: true } } },
   });
   const changes: RewardPointChange[] = [];
