@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { clientKey } from '../utils/rateLimitKey';
 
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
-import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, removePushToken, setLanguage, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
+import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, removePushToken, setLanguage, setBirthday, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
   initiateGrant,
   uploadReceiptAndApprove,
@@ -240,6 +240,7 @@ router.post('/auth/profile/avatar', authenticate, upload.single('avatar'), uploa
 router.delete('/auth/profile/avatar', authenticate, deleteAvatar);                        // Remove profile picture
 router.post('/auth/push-token', authenticate, registerPushToken);
 router.put('/auth/language', authenticate, setLanguage);   // The app's language, for promotion pushes
+router.put('/auth/birthday', authenticate, setBirthday);   // A customer's birthday (month and day), for birthday-month promotions
 router.delete('/auth/push-token', authenticate, removePushToken);   // Sign-out: stop this device's pushes for this account
 router.get('/auth/me', authenticate, getMe);
 router.patch('/auth/email', authenticate, updateEmail);

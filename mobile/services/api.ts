@@ -59,6 +59,8 @@ export const authApi = {
   // (an axios instance-level failure here must never block the local sign-out itself).
   removePushToken: (token: string) => api.delete('/auth/push-token', { data: { token } }),
   getMe: () => api.get('/auth/me'),
+  /** A customer's birthday, month and day only (both null takes it off), for birthday-month promotions. */
+  setBirthday: (month: number | null, day: number | null) => api.put('/auth/birthday', { month, day }),
   updateEmail: (email: string) => api.patch('/auth/email', { email }),
   verifyFirebaseReset: (firebaseToken: string) => api.post('/auth/verify-firebase-reset', { firebaseToken }),
   resetPin: (resetToken: string, newPin: string) => api.post('/auth/reset-pin', { resetToken, newPin }),

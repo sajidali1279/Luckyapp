@@ -19,7 +19,7 @@ import {
   EditIcon, LockClosedIcon, MailIcon, MegaphoneIcon, ShieldIcon, TrophyIcon,
   GiftIcon, MapPinIcon, BuildingIcon, PhoneIcon, ChevronRightIcon, ChevronDownIcon,
   CheckCircleIcon, RefreshIcon, Trash2Icon, ImageIcon, BookOpenIcon, CameraIcon,
-  GlobeIcon, BellIcon,
+  GlobeIcon, BellIcon, CalendarIcon,
 } from './Icons';
 import LegalDocModal from './LegalDocModal';
 import PromoteBusinessModal from './PromoteBusinessModal';
@@ -59,6 +59,27 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   }
   const [bioAvailable, setBioAvailable] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
+  // Birthday (customers): month and day only, for a birthday-month treat
+  const [showBday, setShowBday] = useState(false);
+  const [bdayMonth, setBdayMonth] = useState<number>(user?.birthMonth ?? 1);
+  const [bdayDay, setBdayDay] = useState<number>(user?.birthDay ?? 1);
+  const [savingBday, setSavingBday] = useState(false);
+  const daysIn = (m: number) => [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+  async function saveBirthday(remove: boolean) {
+    if (savingBday) return;
+    setSavingBday(true);
+    try {
+      const month = remove ? null : bdayMonth, day = remove ? null : Math.min(bdayDay, daysIn(bdayMonth));
+      await authApi.setBirthday(month, day);
+      useAuthStore.setState((st: any) => ({ user: st.user ? { ...st.user, birthMonth: month, birthDay: day } : st.user }));
+      Toast.show({ type: 'success', text1: t(remove ? 'birthday.removed' : 'birthday.saved') });
+      setShowBday(false);
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: t('birthday.failed'), text2: err?.response?.data?.error });
+    } finally {
+      setSavingBday(false);
+    }
+  }
   const [selectedLang, setSelectedLang] = useState<LanguageCode>(getLanguage());
 
   useEffect(() => {
@@ -456,6 +477,26 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           </View>
           <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
         </TouchableOpacity>
+
+        {/* Birthday - customers only */}
+        {isCustomer && (
+          <TouchableOpacity
+            style={s.settingRow}
+            onPress={() => { setBdayMonth(user?.birthMonth ?? 1); setBdayDay(user?.birthDay ?? 1); setShowBday(true); }}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('birthday.setA11y')}
+          >
+            <View style={[s.settingIconBg, { backgroundColor: '#E11D4818' }]}>
+              <CalendarIcon size={20} color="#E11D48" strokeWidth={1.75} />
+            </View>
+            <View style={s.settingBody}>
+              <Text style={s.settingTitle}>{t('birthday.title')}</Text>
+              <Text style={s.settingValue}>{user?.birthMonth && user?.birthDay ? t('birthday.value', { month: t(`birthday.m${user.birthMonth}`), day: user.birthDay }) : t('birthday.notSet')}</Text>
+            </View>
+            <ChevronRightIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />
+          </TouchableOpacity>
+        )}
 
         {/* Recovery Email - customers only */}
         {isCustomer && (
@@ -952,6 +993,46 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             >
               <Text style={s.langSaveBtnText}>{t('langModal.save')}</Text>
             </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+        <ModalToastHost />
+      </Modal>
+
+      {/* ── Birthday picker ── */}
+      <Modal visible={showBday} transparent animationType="fade" onRequestClose={() => setShowBday(false)}>
+        <TouchableOpacity style={s.deleteOverlay} activeOpacity={1} onPress={() => setShowBday(false)} accessibilityRole="button" accessibilityLabel={t('birthday.closeA11y')}>
+          <View style={s.langModalCard} onStartShouldSetResponder={() => true}>
+            <Text style={s.langModalTitle}>{t('birthday.modalTitle')}</Text>
+            <Text style={s.langModalSubtitle}>{t('birthday.modalSubtitle')}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <TouchableOpacity key={m} onPress={() => { setBdayMonth(m); setBdayDay((d) => Math.min(d, daysIn(m))); }}
+                  style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10, borderWidth: 1.5, borderColor: bdayMonth === m ? COLORS.primary : '#E5E7EB', backgroundColor: bdayMonth === m ? `${COLORS.primary}12` : '#fff' }}
+                  accessibilityRole="radio" accessibilityState={{ selected: bdayMonth === m }} accessibilityLabel={t(`birthday.m${m}`)}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: bdayMonth === m ? COLORS.primary : COLORS.text }}>{t(`birthday.m${m}`).slice(0, 3)}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, marginBottom: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.textMuted }}>{t('birthday.day')}</Text>
+              <TouchableOpacity onPress={() => setBdayDay((d) => Math.max(1, d - 1))} accessibilityRole="button" accessibilityLabel={t('birthday.dayLess')}
+                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F3F6', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: COLORS.text }}>−</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.text, minWidth: 36, textAlign: 'center' }}>{Math.min(bdayDay, daysIn(bdayMonth))}</Text>
+              <TouchableOpacity onPress={() => setBdayDay((d) => Math.min(daysIn(bdayMonth), d + 1))} accessibilityRole="button" accessibilityLabel={t('birthday.dayMore')}
+                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F3F6', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 20, fontWeight: '800', color: COLORS.text }}>+</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={[s.langSaveBtn, savingBday && { opacity: 0.6 }]} onPress={() => saveBirthday(false)} disabled={savingBday} activeOpacity={0.85} accessibilityRole="button">
+              <Text style={s.langSaveBtnText}>{t('birthday.save')}</Text>
+            </TouchableOpacity>
+            {!!user?.birthMonth && (
+              <TouchableOpacity onPress={() => saveBirthday(true)} disabled={savingBday} style={{ alignSelf: 'center', marginTop: 12, padding: 6 }} accessibilityRole="button">
+                <Text style={{ color: COLORS.textMuted, fontWeight: '700' }}>{t('birthday.remove')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
         <ModalToastHost />

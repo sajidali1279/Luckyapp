@@ -279,7 +279,7 @@ export async function getMe(req: AuthRequest, res: Response) {
   const [user, storeRoles] = await Promise.all([
     prisma.user.findUnique({
       where: { id: req.user!.id },
-      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true, avatarUrl: true, age21Confirmed: true, age21Declined: true },
+      select: { id: true, phone: true, name: true, role: true, qrCode: true, pointsBalance: true, isActive: true, tier: true, periodPoints: true, tierPeriod: true, avatarUrl: true, age21Confirmed: true, age21Declined: true, birthMonth: true, birthDay: true },
     }),
     prisma.userStoreRole.findMany({
       where: { userId: req.user!.id },
@@ -306,6 +306,25 @@ export async function registerPushToken(req: AuthRequest, res: Response) {
   });
   if (language === 'en' || language === 'es') await prisma.user.update({ where: { id: req.user!.id }, data: { language } });
   res.json({ success: true });
+}
+
+// PUT /auth/birthday { month, day } (or both null to take it off): a customer's birthday, month and day only (no year), for a
+// birthday-month treat. Optional, and only theirs to give.
+export async function setBirthday(req: AuthRequest, res: Response) {
+  const { month, day } = (req.body ?? {}) as { month?: unknown; day?: unknown };
+  if (month == null && day == null) {
+    await prisma.user.update({ where: { id: req.user!.id }, data: { birthMonth: null, birthDay: null } });
+    res.json({ success: true, data: { birthMonth: null, birthDay: null } });
+    return;
+  }
+  const m = Number(month), d = Number(day);
+  const inMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];   // 29 for February: a birthday on the 29th is kept
+  if (!Number.isInteger(m) || m < 1 || m > 12 || !Number.isInteger(d) || d < 1 || d > inMonth[m - 1]) {
+    res.status(400).json({ success: false, error: 'Choose a real month and day.' });
+    return;
+  }
+  await prisma.user.update({ where: { id: req.user!.id }, data: { birthMonth: m, birthDay: d } });
+  res.json({ success: true, data: { birthMonth: m, birthDay: d } });
 }
 
 // PUT /auth/language { language: "en" | "es" }: the language this person uses the app in (promotion pushes follow it)

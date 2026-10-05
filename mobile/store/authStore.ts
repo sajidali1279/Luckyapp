@@ -37,6 +37,8 @@ export interface AuthUser {
   avatarUrl?: string;
   age21Confirmed?: boolean;
   age21Declined?: boolean;
+  birthMonth?: number | null;   // the birthday they gave (month and day only), for birthday-month promotions
+  birthDay?: number | null;
 }
 
 interface AuthState {

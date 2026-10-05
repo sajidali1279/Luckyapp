@@ -2313,7 +2313,14 @@
     "happyHoursOnly": "Reembolso extra solo {{hours}}.",
     "onNowShort": "Activa ahora",
     "notOnNowShort": "No activa ahora",
-    "offerForTiers": "Para miembros {{tiers}}"
+    "offerForTiers": "Para miembros {{tiers}}",
+    "justForYou": "Solo para ti: {{who}}",
+    "audTier": "{{tier}} y superior",
+    "audTierTop": "miembros Platinum",
+    "audLapsed": "bienvenido de nuevo",
+    "audNew": "nuevo miembro",
+    "audBirthday": "tu mes de cumpleaños",
+    "dailyCap": "Hasta ${{amount}} al día"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Refresco de Fuente Gratis",
@@ -2714,5 +2721,34 @@
     "centsPerGallon": "+{{cents}}¢ por galón",
     "bonusOn": "{{amount}} en {{what}}",
     "bonusAll": "{{amount}} en todo"
+  },
+  "birthday": {
+    "title": "Cumpleaños",
+    "notSet": "Agrégalo para un regalo de cumpleaños",
+    "modalTitle": "Tu cumpleaños",
+    "modalSubtitle": "Solo mes y día. En el mes de tu cumpleaños podrías recibir un regalo de Lucky Stop.",
+    "day": "Día",
+    "save": "Guardar",
+    "remove": "Quitar",
+    "saved": "Cumpleaños guardado",
+    "removed": "Cumpleaños quitado",
+    "failed": "No se pudo guardar tu cumpleaños",
+    "value": "{{day}} de {{month}}",
+    "setA11y": "Agrega tu cumpleaños",
+    "dayLess": "Día anterior",
+    "dayMore": "Día siguiente",
+    "closeA11y": "Cerrar el selector de cumpleaños",
+    "m1": "enero",
+    "m2": "febrero",
+    "m3": "marzo",
+    "m4": "abril",
+    "m5": "mayo",
+    "m6": "junio",
+    "m7": "julio",
+    "m8": "agosto",
+    "m9": "septiembre",
+    "m10": "octubre",
+    "m11": "noviembre",
+    "m12": "diciembre"
   }
 }

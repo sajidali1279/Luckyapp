@@ -674,6 +674,8 @@ export default function CustomerHome() {
             avatarUrl: data.data.avatarUrl ?? u.avatarUrl,
             age21Confirmed: data.data.age21Confirmed,
             age21Declined: data.data.age21Declined,
+            birthMonth: data.data.birthMonth ?? null,   // the birthday they gave (Profile), for birthday-month promotions
+            birthDay: data.data.birthDay ?? null,
           }, t);
         }
       }).catch((err: any) => {
@@ -1959,15 +1961,25 @@ function priceText(p: string): string {
 function OfferHoursLine({ offer, compact }: { offer: any; compact?: boolean }) {
   const { t } = useTranslation();
   const hours = hoursText(offer, t);
-  if (!hours) return null;
+  // Who it is for (only they see it: utils offerAudience on the server), and the most one customer gets from it in a day
+  const who = offer.audience === 'TIER_UP' ? (offer.audienceTier === 'PLATINUM' ? t('customerHome.audTierTop') : t('customerHome.audTier', { tier: String(offer.audienceTier ?? 'GOLD').charAt(0) + String(offer.audienceTier ?? 'GOLD').slice(1).toLowerCase() }))
+    : offer.audience === 'LAPSED' ? t('customerHome.audLapsed') : offer.audience === 'NEW' ? t('customerHome.audNew') : offer.audience === 'BIRTHDAY' ? t('customerHome.audBirthday') : null;
+  const cap = offer.dailyCapPerCustomer != null ? t('customerHome.dailyCap', { amount: Number(offer.dailyCapPerCustomer).toFixed(2) }) : null;
+  if (!hours && !who && !cap) return null;
   const on = offer.onNow !== false;
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
-      <ClockIcon size={11} color={on ? COLORS.success : COLORS.textMuted} strokeWidth={2.5} />
-      <Text style={{ fontSize: 11, fontWeight: '700', color: on ? COLORS.success : COLORS.textMuted }} numberOfLines={compact ? 2 : undefined}>
-        {hours}{offer.onNow === true ? ` · ${t('customerHome.onNowShort')}` : offer.onNow === false ? ` · ${t('customerHome.notOnNowShort')}` : ''}
-      </Text>
-    </View>
+    <>
+      {hours && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+          <ClockIcon size={11} color={on ? COLORS.success : COLORS.textMuted} strokeWidth={2.5} />
+          <Text style={{ fontSize: 11, fontWeight: '700', color: on ? COLORS.success : COLORS.textMuted }} numberOfLines={compact ? 2 : undefined}>
+            {hours}{offer.onNow === true ? ` · ${t('customerHome.onNowShort')}` : offer.onNow === false ? ` · ${t('customerHome.notOnNowShort')}` : ''}
+          </Text>
+        </View>
+      )}
+      {who && <Text style={{ fontSize: 11, fontWeight: '700', color: COLORS.secondary, marginTop: 4 }} numberOfLines={1}>{t('customerHome.justForYou', { who })}</Text>}
+      {cap && <Text style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 2 }} numberOfLines={1}>{cap}</Text>}
+    </>
   );
 }
 

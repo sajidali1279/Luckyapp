@@ -2313,7 +2313,14 @@
     "happyHoursOnly": "Extra cashback only {{hours}}.",
     "onNowShort": "On now",
     "notOnNowShort": "Not on now",
-    "offerForTiers": "For {{tiers}} members"
+    "offerForTiers": "For {{tiers}} members",
+    "justForYou": "Just for you: {{who}}",
+    "audTier": "{{tier}} and above",
+    "audTierTop": "Platinum members",
+    "audLapsed": "welcome back",
+    "audNew": "new member",
+    "audBirthday": "your birthday month",
+    "dailyCap": "Up to ${{amount}} a day"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Free Fountain Drink",
@@ -2714,5 +2721,34 @@
     "centsPerGallon": "+{{cents}}¢ a gallon",
     "bonusOn": "{{amount}} on {{what}}",
     "bonusAll": "{{amount}} on everything"
+  },
+  "birthday": {
+    "title": "Birthday",
+    "notSet": "Add it for a birthday treat",
+    "modalTitle": "Your birthday",
+    "modalSubtitle": "Month and day only. In your birthday month you may get a treat from Lucky Stop.",
+    "day": "Day",
+    "save": "Save",
+    "remove": "Remove",
+    "saved": "Birthday saved",
+    "removed": "Birthday removed",
+    "failed": "Could not save your birthday",
+    "value": "{{month}} {{day}}",
+    "setA11y": "Set your birthday",
+    "dayLess": "Earlier day",
+    "dayMore": "Later day",
+    "closeA11y": "Close the birthday picker",
+    "m1": "January",
+    "m2": "February",
+    "m3": "March",
+    "m4": "April",
+    "m5": "May",
+    "m6": "June",
+    "m7": "July",
+    "m8": "August",
+    "m9": "September",
+    "m10": "October",
+    "m11": "November",
+    "m12": "December"
   }
 }

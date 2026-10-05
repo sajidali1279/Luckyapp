@@ -24,6 +24,7 @@ import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayl
 import { ImagePick } from '../components/offers/ImagePick';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from '../components/offers/SpanishFields';
 import { PhonePreview, type PreviewOffer } from '../components/offers/PhonePreview';
+import { AudienceLimitsField, NO_AUDIENCE, audienceFrom, audiencePayload, audienceProblem, audienceLabel, type AudienceLimitsValue } from '../components/offers/AudienceLimits';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -220,6 +221,7 @@ export default function Offers() {
   const [lastDayReminder, setLastDayReminder] = useState(true);
   const [spanish, setSpanish] = useState<SpanishWords>(NO_SPANISH);
   const [dealSpanish, setDealSpanish] = useState<SpanishWords>(NO_SPANISH);
+  const [aud, setAud] = useState<AudienceLimitsValue>(NO_AUDIENCE);
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [resultsFor, setResultsFor] = useState<{ id: string; title: string } | null>(null);
@@ -292,7 +294,7 @@ export default function Offers() {
     setUseTierBonuses(false); setTierBonuses({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
     setType('ALL_STORES'); setStoreId(''); setCategory(null); setGasBonusCpg(''); setGasBonusType('cpg');
     setStartDate(todayStr()); setEndDate(defaultEndStr()); setImageFile(null); setRequires21(false);
-    setHours(NO_HOURS); setLastDayReminder(true); setSpanish(NO_SPANISH);
+    setHours(NO_HOURS); setLastDayReminder(true); setSpanish(NO_SPANISH); setAud(NO_AUDIENCE);
 
   }
 
@@ -339,6 +341,7 @@ export default function Offers() {
     setHours(hoursFrom(offer));
     setLastDayReminder(offer.lastDayReminder !== false);
     setSpanish(spanishFrom(offer));
+    setAud(audienceFrom(offer));
     setStartDate(todayStr());
     setEndDate(defaultEndStr());
     setShowForm(true);
@@ -393,6 +396,8 @@ export default function Offers() {
     if (type === 'SPECIFIC_STORE' && !storeId) { toast.error('Select a store'); return; }
     const hoursIssue = hoursProblem(hours);
     if (hoursIssue) { toast.error(hoursIssue); return; }
+    const audIssue = audienceProblem(aud);
+    if (audIssue) { toast.error(audIssue); return; }
 
     const isGasDiesel = category === 'GAS' || category === 'DIESEL';
     const isCpg = isGasDiesel && gasBonusType === 'cpg';
@@ -444,6 +449,7 @@ export default function Offers() {
     const hp = hoursPayload(hours);
     if (hp.happyFrom) { fd.append('happyDays', JSON.stringify(hp.happyDays)); fd.append('happyFrom', hp.happyFrom); fd.append('happyTo', hp.happyTo); }
     fd.append('lastDayReminder', String(lastDayReminder));
+    for (const [k, v] of Object.entries(audiencePayload(aud))) if (v != null && v !== '') fd.append(k, String(v));
     if (spanish.titleEs.trim()) fd.append('titleEs', spanish.titleEs.trim());
     if (spanish.descriptionEs.trim()) fd.append('descriptionEs', spanish.descriptionEs.trim());
 
@@ -522,9 +528,10 @@ export default function Offers() {
     const startsNow = isNaN(startMs) || startMs <= Date.now() + 60_000;
     const single = fd.get('type') === 'SPECIFIC_STORE';
     const timing = startsNow ? 'right away' : `on its first day (${storeDayLong(new Date(startMs))})`;
+    const who = fd.get('audience') && fd.get('audience') !== 'EVERYONE' ? ` in its audience (${audienceLabel({ audience: String(fd.get('audience')), audienceTier: String(fd.get('audienceTier') ?? ''), audienceDays: String(fd.get('audienceDays') ?? '') })})` : '';
     const notify = single
-      ? `Customers of ${where} (an approved purchase there in the last 6 months) are notified ${timing}.`
-      : `Every customer is notified ${timing}.`;
+      ? `Customers of ${where}${who} (an approved purchase there in the last 6 months) are notified ${timing}.`
+      : who ? `Customers${who} are notified ${timing}.` : `Every customer is notified ${timing}.`;
     // What the customer's phone will show (the same words, picture and hours as the post)
     const str = (k: string) => String(fd.get(k) ?? '');
     const happyDays = fd.get('happyDays') ? JSON.parse(str('happyDays')) as number[] : [];
@@ -549,6 +556,7 @@ export default function Offers() {
       tierBonusRates: draft.tiers ?? undefined, gasBonusCentsPerGallon: draft.centsPerGallon ?? undefined,
       startDate: new Date(draft.startMs).toISOString(), endDate: new Date(draft.endMs).toISOString(),
       ...(fd?.get('happyFrom') ? { happyDays: JSON.parse(String(fd.get('happyDays') ?? '[]')), happyFrom: fd.get('happyFrom'), happyTo: fd.get('happyTo') } : {}),
+      ...Object.fromEntries(['audience', 'audienceTier', 'audienceDays', 'budgetCap', 'dailyCapPerCustomer'].filter((k) => fd?.get(k)).map((k) => [k, fd!.get(k)])),
     };
   }
 
@@ -556,7 +564,7 @@ export default function Offers() {
   function formEstimate(): EstimateInput {
     if (category === null || !startDate || !endDate || endDate < startDate || endDate < storeToday()) return null;
     if (type === 'SPECIFIC_STORE' && !storeId) return null;
-    if (hoursProblem(hours)) return null;
+    if (hoursProblem(hours) || audienceProblem(aud)) return null;
     const isGasDiesel = category === 'GAS' || category === 'DIESEL';
     const cpg = isGasDiesel && gasBonusType === 'cpg' ? parseFloat(gasBonusCpg) : NaN;
     let tiers: Record<string, number> | null = null;
@@ -573,6 +581,7 @@ export default function Offers() {
       ...(cpg > 0 ? { gasBonusCentsPerGallon: cpg } : tiers ? { tierBonusRates: tiers } : { bonusRate: frac(pct) }),
       startDate: startOfStoreDay(startDate).toISOString(), endDate: endOfStoreDay(endDate).toISOString(),
       ...(hp.happyFrom ? hp : {}),
+      ...Object.fromEntries(Object.entries(audiencePayload(aud)).filter(([, v]) => v != null)),
     };
   }
 
@@ -668,6 +677,8 @@ export default function Offers() {
           <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 340px', minWidth: 0 }}>
             <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>{pending.what}</div>
             <div><strong>Where:</strong> {pending.where}</div>
+            {pending.fd.get('audience') && pending.fd.get('audience') !== 'EVERYONE' && <div><strong>Who:</strong> {audienceLabel({ audience: String(pending.fd.get('audience')), audienceTier: String(pending.fd.get('audienceTier') ?? ''), audienceDays: String(pending.fd.get('audienceDays') ?? '') })}, only they see it, are told and get it</div>}
+            {(pending.fd.get('budgetCap') || pending.fd.get('dailyCapPerCustomer')) && <div><strong>Limits:</strong> {[pending.fd.get('budgetCap') ? `stops after $${Number(pending.fd.get('budgetCap')).toFixed(2)} of extra cashback` : null, pending.fd.get('dailyCapPerCustomer') ? `at most $${Number(pending.fd.get('dailyCapPerCustomer')).toFixed(2)} a customer a day` : null].filter(Boolean).join('; ')}</div>}
             <div><strong>When:</strong> {pending.when}</div>
             {pending.example && <div><strong>Example:</strong> {pending.example}</div>}
             {pending.clashes.map((c) => (
@@ -1017,7 +1028,14 @@ export default function Offers() {
 
             {category !== null && !isStoreManager && (
               <div style={s.formSection}>
-                <div style={s.stepLabel}>7. Reminder and cost</div>
+                <div style={s.stepLabel}>7. Who it's for, and limits <span style={{ color: C.muted, fontWeight: 400 }}>(optional)</span></div>
+                <AudienceLimitsField idPrefix="offer-aud" value={aud} onChange={setAud} />
+              </div>
+            )}
+
+            {category !== null && !isStoreManager && (
+              <div style={s.formSection}>
+                <div style={s.stepLabel}>8. Reminder and cost</div>
                 <LastDayToggle on={lastDayReminder} onToggle={() => setLastDayReminder(!lastDayReminder)} />
                 <CostEstimate input={formEstimate()} />
               </div>
@@ -1244,6 +1262,8 @@ function OfferTags({ offer, isPast, isScheduled }: { offer: any; isPast?: boolea
       {offer.category && <Badge>{catName(offer.category)}</Badge>}
       {offer.requires21 && <Badge tone="warning">21+</Badge>}
       {offer.titleEs && <Badge title={`In Spanish: ${offer.titleEs}`}>ES</Badge>}
+      {audienceLabel(offer) && <Badge tone="info">{audienceLabel(offer)}</Badge>}
+      {offer.budgetReachedAt && <Badge tone="warning">Budget used up</Badge>}
     </div>
   );
 }
@@ -1279,6 +1299,8 @@ function OfferCard({ offer, onDelete, onReuse, onResults, onEdit, onEndNow, isPa
         {offer.description && <p style={s.cardDesc}>{offer.description}</p>}
         <div style={s.cardDate}>{fmtDate(offer.startDate)} to {fmtDate(offer.endDate)}</div>
         {!isPast && offer.lastDayReminder === false && <div style={{ ...s.cardDate, marginTop: 4, display: 'flex', gap: 4, alignItems: 'center' }}><BellOff size={12} aria-hidden /> No last-day reminder</div>}
+        {offer.budgetCap != null && <BudgetBar spent={offer.budgetSpent ?? 0} cap={offer.budgetCap} reached={!!offer.budgetReachedAt} />}
+        {offer.dailyCapPerCustomer != null && <div style={{ ...s.cardDate, marginTop: 4 }}>At most ${Number(offer.dailyCapPerCustomer).toFixed(2)} a customer a day</div>}
       </div>
       <div style={s.cardActions}>
         {onResults && !isScheduled && <Button size="sm" icon={<BarChart3 />} onClick={onResults} aria-label={`Results of ${offer.title}`}>Results</Button>}
@@ -1326,10 +1348,12 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
   const [lastDay, setLastDay] = useState<boolean>(offer.lastDayReminder !== false);
   const [picture, setPicture] = useState<File | null>(null);
   const [spanish, setSpanish] = useState<SpanishWords>(spanishFrom(offer));
+  const [aud, setAud] = useState<AudienceLimitsValue>(audienceFrom(offer));
+  const audBefore = JSON.stringify(audiencePayload(audienceFrom(offer)));
   const [removePicture, setRemovePicture] = useState(false);
   const today = storeToday();
   const problem = !title.trim() ? 'Add a title.' : end < today ? 'The last day has already passed.' : end < start ? 'The last day is before the first day.'
-    : canEditHours ? hoursProblem(hours) : null;
+    : canEditHours ? (hoursProblem(hours) ?? audienceProblem(aud)) : null;
   const hoursChanged = canEditHours && hoursLabel(hoursPayload(hours)) !== hoursLabel(offer);
   return (
     <Modal title={offer.dealText ? 'Edit deal' : 'Edit promotion'} subtitle={offer.dealText ? 'Change the words, the picture and the dates.' : canEditHours ? 'Change the words, the picture, the dates and the hours. What a promotion pays stays as it was posted; to change that, End it and post a new one.' : 'Change the words, the picture and the dates. What a promotion pays stays as it was posted; to change that, End it and post a new one.'} onClose={onClose} busy={saving} maxWidth={560}>
@@ -1345,6 +1369,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
           endDate: endOfStoreDay(end).toISOString(),
           ...(hoursChanged ? hoursPayload(hours) : {}),
           ...(canEditHours && lastDay !== (offer.lastDayReminder !== false) ? { lastDayReminder: lastDay } : {}),
+          ...(canEditHours && JSON.stringify(audiencePayload(aud)) !== audBefore ? audiencePayload(aud) : {}),
         }, { file: picture, remove: removePicture });
       }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Field label="Title" htmlFor="edit-offer-title" required>
@@ -1369,6 +1394,10 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
               <HappyHoursField idPrefix="edit-offer-hours" value={hours} onChange={setHours} />
             </Field>
             <LastDayToggle on={lastDay} onToggle={() => setLastDay(!lastDay)} />
+            <Field label="Who it's for, and limits">
+              <AudienceLimitsField idPrefix="edit-offer-aud" value={aud} onChange={setAud} />
+            </Field>
+            {offer.budgetReachedAt && <Notice tone="warning" style={{ fontSize: FONT.small }}>Its budget is used up, so it has stopped. Raise the budget above the ${Number(offer.budgetSpent ?? 0).toFixed(2)} it has paid to start it again.</Notice>}
           </>
         )}
         {problem && <Notice tone="warning" style={{ fontSize: FONT.small }}>{problem}</Notice>}
@@ -1378,6 +1407,21 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** What a promotion with a budget has paid so far, of its budget. */
+function BudgetBar({ spent, cap, reached }: { spent: number; cap: number; reached: boolean }) {
+  const pct = Math.min(100, Math.round((spent / cap) * 100));
+  return (
+    <div style={{ marginTop: 8 }} aria-label={`Budget: $${spent.toFixed(2)} of $${cap.toFixed(2)} used`}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: FONT.caption, color: C.muted }}>
+        <span>Budget</span><span>${spent.toFixed(2)} of ${cap.toFixed(2)}{reached ? ', stopped' : ''}</span>
+      </div>
+      <div style={{ height: 6, borderRadius: 3, background: C.subtle, border: `1px solid ${C.border}`, overflow: 'hidden', marginTop: 3 }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: reached || pct >= 90 ? C.danger : C.primary }} />
+      </div>
+    </div>
   );
 }
 

@@ -28,7 +28,7 @@ export default function CostEstimate({ input, compact }: { input: EstimateInput;
   // Only a reply with the numbers is used (anything else reads as "no estimate", it must never take the form down)
   const raw = q.data?.data?.data;
   const e = raw && typeof raw.estimatedExtra === 'number' && typeof raw.basisSales === 'number'
-    ? raw as { basisDays: number; basisSales: number; basisAmount: number; days: number; estimatedExtra: number; perDay: number } : undefined;
+    ? raw as { basisDays: number; basisSales: number; basisAmount: number; days: number; estimatedExtra: number; perDay: number; cappedByBudget?: boolean; approximate?: boolean } : undefined;
   const waiting = q.isFetching || settled !== key;
 
   let body: React.ReactNode;
@@ -38,7 +38,8 @@ export default function CostEstimate({ input, compact }: { input: EstimateInput;
   else if (e.basisSales === 0) body = <span>No matching sales in the last {e.basisDays / 7} weeks, so there is nothing to estimate from.</span>;
   else body = (
     <>
-      <span>About <strong style={{ color: C.text }}>{usd(e.estimatedExtra)}</strong> extra cashback over {e.days} {e.days === 1 ? 'day' : 'days'} ({usd(e.perDay)} a day).</span>
+      <span>About <strong style={{ color: C.text }}>{usd(e.estimatedExtra)}</strong> extra cashback over {e.days} {e.days === 1 ? 'day' : 'days'}{e.cappedByBudget ? ': it would stop there, at its budget' : ` (${usd(e.perDay)} a day)`}.</span>
+      {e.approximate && <span style={{ display: 'block', color: C.muted, fontSize: FONT.small }}>A rough figure: who counts as "away" is worked out from the visits on record.</span>}
       {!compact && (
         <span style={{ display: 'block', color: C.muted, fontSize: FONT.small, marginTop: 4, lineHeight: 1.5 }}>
           From {e.basisSales.toLocaleString('en-US')} matching {e.basisSales === 1 ? 'sale' : 'sales'} ({usd(e.basisAmount)}) in the last {e.basisDays / 7} weeks.
