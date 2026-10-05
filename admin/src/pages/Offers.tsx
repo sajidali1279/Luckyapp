@@ -23,6 +23,7 @@ import ShelfDealsSection from '../components/offers/ShelfDealsSection';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 import { ImagePick } from '../components/offers/ImagePick';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from '../components/offers/SpanishFields';
+import { PhonePreview, type PreviewOffer } from '../components/offers/PhonePreview';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -144,7 +145,7 @@ function fmtDate(d: string) { return storeDayLong(d); }
 type PostKind = 'promo' | 'quick' | 'deal';
 type QuickDuration = 'today' | '3d' | '1w' | '2w' | '1m';
 /** Everything the "are you sure" box shows before a post goes to customers. */
-type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[]; notify: string; estimate: EstimateInput };
+type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[]; notify: string; estimate: EstimateInput; preview: PreviewOffer };
 type MainTab = 'promotions' | 'deals' | 'requests' | 'calendar';
 const MAIN_TABS: MainTab[] = ['promotions', 'deals', 'requests', 'calendar'];
 
@@ -524,7 +525,20 @@ export default function Offers() {
     const notify = single
       ? `Customers of ${where} (an approved purchase there in the last 6 months) are notified ${timing}.`
       : `Every customer is notified ${timing}.`;
-    return { kind, fd, title, what, where, when, example, notes, clashes, notify, estimate: draft ? estimateOf(draft, fd) : null };
+    // What the customer's phone will show (the same words, picture and hours as the post)
+    const str = (k: string) => String(fd.get(k) ?? '');
+    const happyDays = fd.get('happyDays') ? JSON.parse(str('happyDays')) as number[] : [];
+    const preview: PreviewOffer = {
+      kind: kind === 'deal' ? 'deal' : 'promo',
+      title: str('title'), description: str('description'), dealText: str('dealText') || undefined,
+      titleEs: str('titleEs') || undefined, descriptionEs: str('descriptionEs') || undefined, dealTextEs: str('dealTextEs') || undefined,
+      bonus: draft ? { pct: draft.centsPerGallon != null ? null : draft.percent, cents: draft.centsPerGallon, tiers: !!draft.tiers } : null,
+      hours: fd.get('happyFrom') ? { days: happyDays, from: str('happyFrom'), to: str('happyTo') } : null,
+      where: single ? where.replace(/ only$/, '') : 'All Lucky Stop stores',
+      image: (fd.get('image') as File | null) ?? null,
+      single,
+    };
+    return { kind, fd, title, what, where, when, example, notes, clashes, notify, estimate: draft ? estimateOf(draft, fd) : null, preview };
   }
 
   /** The promotion as the estimate takes it (the same fields the post sends). */
@@ -648,8 +662,10 @@ export default function Offers() {
       <ConfirmModal
         open={!!pending}
         title={pending?.kind === 'deal' ? 'Post this deal?' : 'Post this promotion?'}
+        maxWidth={820}
         message={pending && (
-          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 340px', minWidth: 0 }}>
             <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>{pending.what}</div>
             <div><strong>Where:</strong> {pending.where}</div>
             <div><strong>When:</strong> {pending.when}</div>
@@ -660,6 +676,8 @@ export default function Offers() {
             {pending.notes.map((n, i) => <Notice key={i} tone="neutral" icon={<Info size={15} />} style={{ marginTop: 6 }}>{n}</Notice>)}
             {pending.estimate && <div style={{ marginTop: 6 }}><CostEstimate input={pending.estimate} /></div>}
             <div style={{ marginTop: 8, fontWeight: 600, color: C.text }}>{pending.notify}</div>
+          </div>
+          <div style={{ flex: '0 0 auto', margin: '0 auto' }}><PhonePreview offer={pending.preview} /></div>
           </div>
         )}
         confirmLabel={createMutation.isPending ? 'Posting…' : 'Post now'}

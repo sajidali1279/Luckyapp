@@ -26,6 +26,8 @@ interface ConfirmModalProps {
   headingLevel?: 'h2' | 'h3';
   onConfirm: (inputValue?: string) => void;
   onCancel: () => void;
+  /** Wider than the usual 440 px (a box with a preview in it) */
+  maxWidth?: number;
 }
 
 export default function ConfirmModal({
@@ -34,6 +36,7 @@ export default function ConfirmModal({
   danger = false, busy = false, confirmDisabled = false,
   withInput = false, inputLabel, inputPlaceholder = '', inputRequired = false,
   headingLevel = 'h3',
+  maxWidth,
   onConfirm, onCancel,
 }: ConfirmModalProps) {
   const [inputValue, setInputValue] = useState('');
@@ -52,7 +55,7 @@ export default function ConfirmModal({
 
   return (
     <div style={s.overlay} onClick={busy ? undefined : onCancel}>
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} style={s.modal} onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} style={{ ...s.modal, ...(maxWidth ? { maxWidth } : {}) }} onClick={(e) => e.stopPropagation()}>
         <div style={s.body}>
           <div style={s.head}>
             {danger && <span style={s.dangerIcon} aria-hidden="true"><AlertTriangle size={18} /></span>}
@@ -104,8 +107,9 @@ const s: Record<string, CSSProperties> = {
     boxShadow: SHADOW.pop,
     width: '100%', maxWidth: 440,
     overflow: 'hidden',
+    maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column',   // a tall box scrolls inside instead of running off the screen
   },
-  body: { padding: '22px 24px 20px' },
+  body: { padding: '22px 24px 20px', overflowY: 'auto' },
   head: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 },
   dangerIcon: {
     width: 32, height: 32, borderRadius: 12, background: C.dangerTint, color: C.danger, flexShrink: 0,
