@@ -14,8 +14,9 @@ import { resolveAudience } from './audience';
 import { saveNotificationMany } from './push';
 import { sendExpoBatch } from './pushSend';
 import { offerUrl } from './notificationRoutes';
+import { membersInAudience } from './offerAudience';
 
-export interface AnnounceableOffer { id: string; title: string; titleEs?: string | null; storeId: string | null; endDate: Date; createdAt: Date }
+export interface AnnounceableOffer { id: string; title: string; titleEs?: string | null; storeId: string | null; endDate: Date; createdAt: Date; audience?: string | null; audienceTier?: string | null; audienceDays?: number | null }
 
 const TITLE = '🎉 New Promotion!';
 const TITLE_ES = '🎉 ¡Nueva promoción!';
@@ -37,7 +38,8 @@ export async function alreadyAnnounced(offer: AnnounceableOffer): Promise<boolea
 /** Sends the promotion's notification to its audience once. Returns how many people it went to (0 when it had already gone out or there is no one). */
 export async function announceOffer(offer: AnnounceableOffer): Promise<number> {
   if (await alreadyAnnounced(offer)) return 0;
-  const members = await resolveAudience(offer.storeId ? 'STORE_CUSTOMERS' : 'ALL_CUSTOMERS', offer.storeId ?? undefined);
+  // that store's customers or every customer, and of them only the promotion's audience (a tier and up, a win-back, ...)
+  const members = await membersInAudience(offer, await resolveAudience(offer.storeId ? 'STORE_CUSTOMERS' : 'ALL_CUSTOMERS', offer.storeId ?? undefined));
   if (members.length === 0) return 0;
   const url = offerUrl(offer.id);
   // In each person's language: Spanish readers get the Spanish title (the English one when the offer has none)
@@ -58,7 +60,7 @@ export async function announceStartedOffers(now: Date = new Date()): Promise<num
   const since = new Date(now.getTime() - 14 * 86_400_000);
   const offers = await prisma.offer.findMany({
     where: { isActive: true, startDate: { lte: now, gte: since }, endDate: { gte: now } },
-    select: { id: true, title: true, titleEs: true, storeId: true, endDate: true, createdAt: true },
+    select: { id: true, title: true, titleEs: true, storeId: true, endDate: true, createdAt: true, audience: true, audienceTier: true, audienceDays: true },
   });
   let sent = 0;
   for (const offer of offers) sent += await announceOffer(offer);

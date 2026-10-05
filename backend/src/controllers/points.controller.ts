@@ -1,5 +1,7 @@
 import { createHash } from 'crypto';
 import { offerPaysAt } from '../utils/offerHours';
+import { forCustomer } from '../utils/offerAudience';
+import { promotionRoom, noteBudgetUse } from '../utils/offerBudget';
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
@@ -68,8 +70,12 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     prisma.tierCashbackRate.findUnique({ where: { tier: customerTier } }),
     prisma.categoryRate.findUnique({ where: { category: category as any } }),
     prisma.offer.findMany({
-      where: { isActive: true, startDate: { lte: now }, endDate: { gte: now } },
-      select: { id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true, happyDays: true, happyFrom: true, happyTo: true },
+      // a promotion whose budget is used up pays no more (utils/offerBudget.ts)
+      where: { isActive: true, startDate: { lte: now }, endDate: { gte: now }, budgetReachedAt: null },
+      select: {
+        id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true,
+        happyDays: true, happyFrom: true, happyTo: true, audience: true, audienceTier: true, audienceDays: true, budgetCap: true, dailyCapPerCustomer: true,
+      },
     }),
     prisma.store.findUnique({ where: { id: storeId }, select: { name: true, isActive: true, transactionFeeRate: true, gasPricePerGallon: true, dieselPricePerGallon: true } }),
   ]);
@@ -104,8 +110,10 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
 
   const usePerGallonMode = isGasCategory && effectiveGallons != null && gasPerGallonRate != null && gasPerGallonRate > 0;
 
+  // Only the promotions this customer is in the audience of (a tier and up, a win-back, new customers, birthday month: utils/offerAudience.ts)
+  const customerOffers = await forCustomer(allStoreOffers, customer.id, now, customerTier);
   // Only one promotion applies to a sale; utils/offerPick.ts says which (same answer whatever order the rows come back in)
-  const activeOffer = pickOffer(allStoreOffers, { storeId, category, tier: customerTier, purchaseAmount, gallons: effectiveGallons });
+  const activeOffer = pickOffer(customerOffers, { storeId, category, tier: customerTier, purchaseAmount, gallons: effectiveGallons }) as (typeof customerOffers)[number] | null;
 
   let cashbackIssued: number;
   let effectiveCashbackRate: number;
@@ -138,6 +146,17 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     promotionCashback     = gasCpgBonus > 0 ? gasCpgBonus : parseFloat((purchaseAmount * promoBonus).toFixed(4));
     cashbackIssued        = parseFloat((pctCashback + gasCpgBonus).toFixed(4));
     effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
+  }
+
+  // A promotion with a budget or a daily limit per customer pays only what is left of them (utils/offerBudget.ts); the rest of the
+  // cashback (tier, category) is not touched
+  if (activeOffer && promotionCashback > 0) {
+    const room = await promotionRoom(activeOffer, customer.id, now);
+    if (room < promotionCashback) {
+      cashbackIssued        = parseFloat((cashbackIssued - (promotionCashback - room)).toFixed(4));
+      promotionCashback     = room;
+      effectiveCashbackRate = purchaseAmount > 0 ? parseFloat((cashbackIssued / purchaseAmount).toFixed(4)) : 0;
+    }
   }
 
   // ── Compound rate cap — hard ceiling to protect against misconfigured category/promo rates ──
@@ -239,6 +258,9 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       offerCashback,
     },
   });
+
+  // This sale may have used up the promotion's budget: then it stops, and HQ is told
+  if (promotionApplied && activeOffer?.budgetCap != null) noteBudgetUse(activeOffer, now).catch((e) => console.error('[offers] budget check failed:', e?.message ?? e));
 
   // Tell the people who can decide: this store's active managers and every active Super Admin (not every store's managers, and not anyone who has left)
   if (isFlagged) {

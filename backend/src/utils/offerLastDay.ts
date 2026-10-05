@@ -8,6 +8,7 @@ import { resolveAudience } from './audience';
 import { saveNotificationMany } from './push';
 import { sendExpoBatch } from './pushSend';
 import { storeHour, storeDayEnd } from './storeTime';
+import { membersInAudience } from './offerAudience';
 
 export const LAST_DAY_HOUR = 10;
 const MIN_LENGTH_MS = 3 * 86_400_000 - 60 * 60_000;   // 3 days (a Monday-to-Wednesday promotion counts)
@@ -17,17 +18,17 @@ export async function remindLastDays(now: Date = new Date()): Promise<number> {
   if (storeHour(now) < LAST_DAY_HOUR) return 0;
   const offers = await prisma.offer.findMany({
     where: {
-      isActive: true, lastDayReminder: true, lastDayRemindedAt: null,
+      isActive: true, lastDayReminder: true, lastDayRemindedAt: null, budgetReachedAt: null,   // a used-up budget: no "last day" for it
       startDate: { lte: now }, endDate: { gte: now, lte: storeDayEnd(now) },
     },
-    select: { id: true, title: true, titleEs: true, storeId: true, startDate: true, endDate: true },
+    select: { id: true, title: true, titleEs: true, storeId: true, startDate: true, endDate: true, audience: true, audienceTier: true, audienceDays: true },
   });
   let reminded = 0;
   for (const offer of offers) {
     if (offer.endDate.getTime() - offer.startDate.getTime() < MIN_LENGTH_MS) continue;
     const { count } = await prisma.offer.updateMany({ where: { id: offer.id, lastDayRemindedAt: null }, data: { lastDayRemindedAt: now } });
     if (count === 0) continue;   // another run got it
-    const members = await resolveAudience(offer.storeId ? 'STORE_CUSTOMERS' : 'ALL_CUSTOMERS', offer.storeId ?? undefined);
+    const members = await membersInAudience(offer, await resolveAudience(offer.storeId ? 'STORE_CUSTOMERS' : 'ALL_CUSTOMERS', offer.storeId ?? undefined));
     if (members.length === 0) continue;
     const url = `/(customer)/home?scrollTo=offers&lastDay=${offer.id}`;
     // In each person's language (the English title when the offer has no Spanish one)

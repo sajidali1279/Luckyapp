@@ -195,6 +195,9 @@ model User {
   updatedAt       DateTime @updatedAt
   // The language the person uses the app in ("en" or "es"), sent by the app; promotion pushes use it. null = English.
   language        String?
+  // Their birthday, month and day only (no year), if they gave it in the app: birthday-month promotions
+  birthMonth      Int?
+  birthDay        Int?
 
   // Auth — phone + PIN
   pinHash         String?
@@ -593,6 +596,17 @@ model Offer {
   // The 10 AM push on the last day to the people it was announced to (promotions of 3+ days); HQ can switch it off
   lastDayReminder   Boolean   @default(true)
   lastDayRemindedAt DateTime?
+  // Who it is for (2026-10-05, utils/offerAudience.ts): EVERYONE, TIER_UP (audienceTier and above), LAPSED (no approved purchase in
+  // audienceDays, default 30: win-back), NEW (joined within audienceDays, default 14) or BIRTHDAY (their birthday month). Only they see
+  // it, are told about it, and are paid it.
+  audience           String    @default("EVERYONE")
+  audienceTier       Tier?
+  audienceDays       Int?
+  // Limits (utils/offerBudget.ts): the most extra cashback it pays in all (dollars) and per customer per store day. When the budget is
+  // used up it stops paying and showing (budgetReachedAt), and HQ is told; raising the budget starts it again.
+  budgetCap           Float?
+  dailyCapPerCustomer Float?
+  budgetReachedAt     DateTime?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 

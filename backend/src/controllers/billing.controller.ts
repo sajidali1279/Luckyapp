@@ -1470,6 +1470,29 @@ export async function rewardChangeNotifications(now: Date) {
   });
 }
 
+/** Promotions that used up their budget in the last 14 days (they stopped paying): for HQ's notifications. */
+export async function promotionBudgetNotifications(now: Date) {
+  const rows = await Promise.resolve()
+    .then(() => prisma.offer.findMany({
+      where: { budgetReachedAt: { gte: new Date(now.getTime() - 14 * 86_400_000) } },
+      select: { id: true, title: true, budgetCap: true, budgetReachedAt: true, endDate: true },
+      orderBy: { budgetReachedAt: 'desc' }, take: 20,
+    }))
+    .catch(() => [] as { id: string; title: string; budgetCap: number | null; budgetReachedAt: Date | null; endDate: Date }[]);
+  return rows.map((o) => ({
+    id: `promotion-budget-${o.id}-${o.budgetReachedAt!.getTime()}`,
+    type: 'PLATFORM',
+    category: 'requests',
+    title: `Promotion budget used up: ${o.title}`,
+    message: `It paid its $${(o.budgetCap ?? 0).toFixed(2)} of extra cashback and stopped${o.endDate > now ? ' before its last day' : ''}. Raise the budget on the Offers page to start it again.`,
+    createdAt: o.budgetReachedAt!.toISOString(),
+    isRead: false,
+    severity: 'warning',
+    actionUrl: '/offers',
+    actionLabel: 'Open Offers',
+  }));
+}
+
 export async function getSuperAdminNotifications(_req: AuthRequest, res: Response) {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -1731,6 +1754,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   notifications.push(...await rewardChangeNotifications(now));
+  notifications.push(...await promotionBudgetNotifications(now));
   res.json({ success: true, data: await withSharedReads(notifications) });   // read by any HQ admin, on any computer
 }
 
@@ -1988,6 +2012,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
 
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   notifications.push(...await rewardChangeNotifications(now));
+  notifications.push(...await promotionBudgetNotifications(now));
   res.json({ success: true, data: await withSharedReads(notifications) });   // read by any HQ admin, on any computer
 }
 

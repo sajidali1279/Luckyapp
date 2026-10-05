@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { offerPaysAt } from '../utils/offerHours';
+import { forCustomer } from '../utils/offerAudience';
+import { hasLimits, promotionRoom, noteBudgetUse } from '../utils/offerBudget';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
@@ -99,13 +101,15 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
     prisma.categoryRate.findMany(),
     prisma.offer.findMany({
       where: {
-        isActive: true, startDate: { lte: now }, endDate: { gte: now },
+        isActive: true, startDate: { lte: now }, endDate: { gte: now }, budgetReachedAt: null,   // a used-up budget pays no more
         OR: [{ bonusRate: { not: null } }, { gasBonusCentsPerGallon: { not: null } }],
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { id: true, createdAt: true, type: true, storeId: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true, happyDays: true, happyFrom: true, happyTo: true },
-    }).then((rows) => rows.filter((o) => offerPaysAt(o, now))),   // a happy-hour promotion pays only inside its hours
+      select: { id: true, createdAt: true, type: true, storeId: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true, happyDays: true, happyFrom: true, happyTo: true,
+        audience: true, audienceTier: true, audienceDays: true, budgetCap: true, dailyCapPerCustomer: true },
+    }).then((rows) => rows.filter((o) => offerPaysAt(o, now)))   // a happy-hour promotion pays only inside its hours
+      .then((rows) => forCustomer(rows, req.user!.id, now, customerTier)),   // only the promotions this customer is in the audience of
   ]);
 
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
@@ -113,6 +117,16 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
   const categoryRateMap = Object.fromEntries(allCategoryRates.map(r => [r.category, r.cashbackRate]));
 
   const tierGasCpg = tierRate?.gasCentsPerGallon ?? null;
+
+
+  const rooms = new Map<string, number>();
+  for (const o of activeOffers) if (hasLimits(o)) rooms.set(o.id, await promotionRoom(o, req.user!.id, now));
+  const takeRoom = (o: { id?: string } | null, wanted: number) => {
+    if (!o?.id || !rooms.has(o.id)) return wanted;
+    const got = Math.max(0, Math.min(wanted, rooms.get(o.id)!));
+    rooms.set(o.id, rooms.get(o.id)! - got);
+    return got;
+  };
 
   let estimatedCashback = 0;
   const breakdown = items.map((item) => {
@@ -135,14 +149,15 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
     if (usePerGallon) {
       const baseCashback = parseFloat((estimatedGallons! * tierGasCpg! / 100).toFixed(4));
       // Only apply promo in per-gallon mode if it's also a cpg offer; ignore % offers to avoid mode mixing
-      const promoCashback = offer?.gasBonusCentsPerGallon != null
+      const promoCashback = takeRoom(offer, offer?.gasBonusCentsPerGallon != null
         ? parseFloat((estimatedGallons! * offer.gasBonusCentsPerGallon / 100).toFixed(4))
-        : 0;
+        : 0);   // within the promotion's budget and daily limit
       cashback = parseFloat((baseCashback + promoCashback).toFixed(2));
       effectiveRate = item.amount > 0 ? parseFloat((cashback / item.amount).toFixed(4)) : 0;
     } else {
-      effectiveRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
-      cashback = parseFloat((item.amount * effectiveRate).toFixed(2));
+      const promo = takeRoom(offer, item.amount * promoBonus);   // within the promotion's budget and daily limit
+      cashback = parseFloat((item.amount * (tierBaseRate + categoryBonus) + promo).toFixed(2));
+      effectiveRate = item.amount > 0 ? parseFloat((cashback / item.amount).toFixed(4)) : 0;
     }
 
     estimatedCashback += cashback;
@@ -220,19 +235,31 @@ export async function selfGrant(req: AuthRequest, res: Response) {
     prisma.categoryRate.findMany(),
     prisma.offer.findMany({
       where: {
-        isActive: true, startDate: { lte: now }, endDate: { gte: now },
+        isActive: true, startDate: { lte: now }, endDate: { gte: now }, budgetReachedAt: null,   // a used-up budget pays no more
         OR: [{ bonusRate: { not: null } }, { gasBonusCentsPerGallon: { not: null } }],
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { id: true, createdAt: true, type: true, storeId: true, title: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, happyDays: true, happyFrom: true, happyTo: true },
-    }).then((rows) => rows.filter((o) => offerPaysAt(o, now))),   // a happy-hour promotion pays only inside its hours
+      select: { id: true, createdAt: true, type: true, storeId: true, title: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, happyDays: true, happyFrom: true, happyTo: true,
+        audience: true, audienceTier: true, audienceDays: true, budgetCap: true, dailyCapPerCustomer: true },
+    }).then((rows) => rows.filter((o) => offerPaysAt(o, now)))   // a happy-hour promotion pays only inside its hours
+      .then((rows) => forCustomer(rows, customer.id, now, customerTier)),   // only the promotions this customer is in the audience of
   ]);
 
   const tierBaseRate = tierRate?.cashbackRate ?? DEFAULT_TIER_RATES[customerTier] ?? 0.01;
   const tierGasCpg = tierRate?.gasCentsPerGallon ?? null;
   const devCutRate = token.store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;
   const categoryRateMap = Object.fromEntries(allCategoryRates.map((r) => [r.category, r.cashbackRate]));
+
+
+  const rooms = new Map<string, number>();
+  for (const o of activeOffers) if (hasLimits(o)) rooms.set(o.id, await promotionRoom(o, customer.id, now));
+  const takeRoom = (o: { id?: string } | null, wanted: number) => {
+    if (!o?.id || !rooms.has(o.id)) return wanted;
+    const got = Math.max(0, Math.min(wanted, rooms.get(o.id)!));
+    rooms.set(o.id, rooms.get(o.id)! - got);
+    return got;
+  };
 
   let totalPointsAwarded = 0;
   let totalDevCut = 0;
@@ -260,16 +287,16 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       if (usePerGallon) {
         const baseCashback = parseFloat((estimatedGallons! * tierGasCpg! / 100).toFixed(4));
         // Only apply promo in per-gallon mode if it's also a cpg offer; ignore % offers to avoid mode mixing
-        const promoCashback = offer?.gasBonusCentsPerGallon != null
+        const promoCashback = takeRoom(offer, offer?.gasBonusCentsPerGallon != null
           ? parseFloat((estimatedGallons! * offer.gasBonusCentsPerGallon / 100).toFixed(4))
-          : 0;
+          : 0);   // within the promotion's budget and daily limit
         cashbackIssued = parseFloat((baseCashback + promoCashback).toFixed(4));
         cashbackRate = item.amount > 0 ? parseFloat((cashbackIssued / item.amount).toFixed(4)) : 0;
         offerAdded = promoCashback;
       } else {
-        cashbackRate = parseFloat((tierBaseRate + categoryBonus + promoBonus).toFixed(4));
-        cashbackIssued = parseFloat((item.amount * cashbackRate).toFixed(4));
-        offerAdded = parseFloat((item.amount * promoBonus).toFixed(4));
+        offerAdded = parseFloat(takeRoom(offer, item.amount * promoBonus).toFixed(4));   // within the promotion's budget and daily limit
+        cashbackIssued = parseFloat((item.amount * (tierBaseRate + categoryBonus) + offerAdded).toFixed(4));
+        cashbackRate = item.amount > 0 ? parseFloat((cashbackIssued / item.amount).toFixed(4)) : 0;
       }
       const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4)); // % of cashback, not purchase
       const pointsAwarded = cashbackIssued; // customer gets full cashback
@@ -307,6 +334,9 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       });
     })
   );
+
+  // A promotion whose budget this receipt used up stops, and HQ is told
+  for (const o of activeOffers) if (o.budgetCap != null && rooms.has(o.id)) noteBudgetUse(o, now).catch((e) => console.error('[receipt] budget check failed:', e?.message ?? e));
 
   // Round totals
   totalPointsAwarded = parseFloat(totalPointsAwarded.toFixed(2));

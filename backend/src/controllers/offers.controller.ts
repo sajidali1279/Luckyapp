@@ -15,6 +15,8 @@ import { checkHours, offerPaysAt, hoursText } from '../utils/offerHours';
 import { shelfDealsForStore } from '../utils/shelfDeals';
 import { estimateOffer } from '../utils/offerEstimate';
 import { isRestrictedCategory } from '../utils/dealSuggest';
+import { AUDIENCES, forCustomer, audienceText } from '../utils/offerAudience';
+import { budgetSpent, budgetSpentMany } from '../utils/offerBudget';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
@@ -56,6 +58,12 @@ export const offerSchema = z.object({
   descriptionEs: z.preprocess(blankToUndefined, z.string().trim().max(500, 'The Spanish description can be at most 500 characters.').optional()),
   dealTextEs: z.preprocess(blankToUndefined, z.string().trim().max(40, 'The Spanish deal text can be at most 40 characters.').optional()),
   requires21: z.preprocess(flag, z.boolean()).optional().default(false),
+  // Who it is for, and its limits (HQ)
+  audience: z.preprocess(blankToUndefined, z.enum(AUDIENCES, { message: 'Choose who the promotion is for.' }).optional()),
+  audienceTier: z.preprocess(blankToUndefined, z.nativeEnum(Tier, { message: 'Choose a tier.' }).optional()),
+  audienceDays: z.preprocess(blankToUndefined, z.coerce.number().int('Give whole days.').min(1, 'At least 1 day.').max(365, 'At most 365 days.').optional()),
+  budgetCap: z.preprocess(blankToUndefined, z.coerce.number().min(1, 'A budget of at least $1.').max(100_000, 'A budget of at most $100,000.').optional()),
+  dailyCapPerCustomer: z.preprocess(blankToUndefined, z.coerce.number().min(0.01, 'A daily limit of at least 1 cent.').max(1_000, 'A daily limit of at most $1,000.').optional()),
   startDate: z.string({ required_error: 'Choose a start date.' }).datetime({ message: 'Choose a start date.' }),
   endDate: z.string({ required_error: 'Choose an end date.' }).datetime({ message: 'Choose an end date.' }),
 }).superRefine((d, ctx) => {
@@ -64,6 +72,7 @@ export const offerSchema = z.object({
   if (!(start < end)) ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'The end date must be after the start date.' });
   else if (end <= Date.now()) ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'That end date has already passed.' });
   if (d.type === OfferType.SPECIFIC_STORE && !d.storeId) ctx.addIssue({ code: 'custom', path: ['storeId'], message: 'Choose which store this is for.' });
+  if (d.audience === 'TIER_UP' && !d.audienceTier) ctx.addIssue({ code: 'custom', path: ['audienceTier'], message: 'Choose the lowest tier it is for.' });
   const pays = (d.bonusRate ?? 0) > 0 || (d.gasBonusCentsPerGallon ?? 0) > 0 || Object.values(d.tierBonusRates ?? {}).some((v) => v > 0);
   if (!pays && !d.dealText) ctx.addIssue({ code: 'custom', path: ['bonusRate'], message: 'Add a bonus (a percentage or cents per gallon) or a deal text.' });
   if (d.gasBonusCentsPerGallon != null && d.category !== ProductCategory.GAS && d.category !== ProductCategory.DIESEL) {
@@ -81,6 +90,9 @@ export const offerSchema = z.object({
     data.bonusRate = Math.max(...Object.values(data.tierBonusRates));
   }
   if (data.type === OfferType.ALL_STORES) data.storeId = undefined;
+  // only the audience's own setting is kept (a tier for "tier and up", days for a win-back or new customers)
+  if (data.audience !== 'TIER_UP') data.audienceTier = undefined;
+  if (data.audience !== 'LAPSED' && data.audience !== 'NEW') data.audienceDays = undefined;
   return data;
 });
 
@@ -98,6 +110,10 @@ export async function createOffer(req: AuthRequest, res: Response) {
 
   // A store manager's promotion would go live at once for every customer and cost the store, so cashback is set by HQ
   // (a Deal, which changes no cashback, is still theirs to post)
+  if (isManager && (req.body?.audience && req.body.audience !== 'EVERYONE' || req.body?.budgetCap || req.body?.dailyCapPerCustomer)) {
+    res.status(403).json({ success: false, error: 'Who a promotion is for, and its limits, are set by HQ.' });
+    return;
+  }
   if (isManager && asksForCashback(req.body)) {
     res.status(403).json({ success: false, error: MANAGER_CASHBACK_MESSAGE });
     return;
@@ -158,7 +174,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
   // Customers hear about it when it STARTS: now if it already has, otherwise the hourly job announces it on its first day. A single-store promotion goes
   // to that store's customers, not to everyone. The message expires when the promotion ends.
   if (offer.startDate.getTime() <= Date.now() + 60_000) {
-    announceOffer({ id: offer.id, title: offer.title, titleEs: offer.titleEs, storeId: offer.storeId, endDate: offer.endDate, createdAt: offer.createdAt }).catch((e) => console.error('[offers] announcement failed:', e?.message ?? e));
+    announceOffer({ id: offer.id, title: offer.title, titleEs: offer.titleEs, storeId: offer.storeId, endDate: offer.endDate, createdAt: offer.createdAt, audience: offer.audience, audienceTier: offer.audienceTier, audienceDays: offer.audienceDays }).catch((e) => console.error('[offers] announcement failed:', e?.message ?? e));
   }
 
   audit({
@@ -168,6 +184,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
       title: offer.title, type: offer.type, category: offer.category, bonusRate: offer.bonusRate,
       gasBonusCentsPerGallon: offer.gasBonusCentsPerGallon, dealText: offer.dealText,
       startDate: offer.startDate, endDate: offer.endDate, happyHours: hoursText(offer),
+      audience: audienceText(offer), budgetCap: offer.budgetCap, dailyCapPerCustomer: offer.dailyCapPerCustomer,
     },
     storeId: offer.storeId,
   });
@@ -193,10 +210,11 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
     hideRestricted = !!me?.age21Declined && !me?.age21Confirmed;
   }
 
-  const offers = await prisma.offer.findMany({
+  let offers = await prisma.offer.findMany({
     where: {
       isActive: true,
       ...(withScheduled ? {} : { startDate: { lte: now } }),
+      ...(withScheduled ? {} : { budgetReachedAt: null }),   // a promotion whose budget is used up pays nothing, so it is not shown (HQ sees it)
       endDate: { gte: now },
       ...(hideRestricted ? { requires21: false } : {}),
       // With storeId (mobile): show ALL_STORES + that store's specific offers
@@ -212,8 +230,15 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
     include: { store: { select: { name: true, address: true, city: true, state: true, phone: true } } },
   });
 
+  // A customer sees only the promotions they are in the audience of (a tier and up, a win-back, new customers, birthday month)
+  if (req.user!.role === Role.CUSTOMER) offers = await forCustomer(offers, req.user!.id, now);
+  // HQ sees what each promotion with a budget has paid so far
+  const spent = withScheduled ? await budgetSpentMany(offers.filter((o) => o.budgetCap != null).map((o) => o.id)) : new Map<string, number>();
   // onNow: false only for a happy-hour promotion outside its hours (shown all day, pays in its hours); hoursText says when
-  const data: Record<string, unknown>[] = offers.map((o) => ({ ...o, onNow: offerPaysAt(o, now), hoursText: hoursText(o) }));
+  const data: Record<string, unknown>[] = offers.map((o) => ({
+    ...o, onNow: offerPaysAt(o, now), hoursText: hoursText(o),
+    ...(withScheduled ? { audienceText: audienceText(o), ...(o.budgetCap != null ? { budgetSpent: spent.get(o.id) ?? 0 } : {}) } : {}),
+  }));
   // A customer at a store also sees that store's shelf deals (labels with a deal, e.g. "2 for $5") in Today's Deals, as deals
   if (req.user!.role === Role.CUSTOMER && storeId) {
     try { data.push(...(await shelfDealsForStore(storeId, now))); } catch (e) { console.error('[offers] shelf deals failed:', (e as Error).message); }
@@ -241,6 +266,11 @@ const updateOfferSchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   isActive: z.boolean().optional(),
+  audience: z.enum(AUDIENCES, { message: 'Choose who the promotion is for.' }).optional(),
+  audienceTier: z.nativeEnum(Tier, { message: 'Choose a tier.' }).nullable().optional(),
+  audienceDays: z.coerce.number().int().min(1, 'At least 1 day.').max(365, 'At most 365 days.').nullable().optional(),
+  budgetCap: z.coerce.number().min(1, 'A budget of at least $1.').max(100_000, 'A budget of at most $100,000.').nullable().optional(),
+  dailyCapPerCustomer: z.coerce.number().min(0.01, 'A daily limit of at least 1 cent.').max(1_000, 'A daily limit of at most $1,000.').nullable().optional(),
 }).refine(d => {
   if (d.startDate && d.endDate) return new Date(d.startDate) < new Date(d.endDate);
   return true;
@@ -286,6 +316,8 @@ export async function updateOffer(req: AuthRequest, res: Response) {
     delete d.bonusRate;
     delete d.tierBonusRates;
     delete d.gasBonusCentsPerGallon;
+    // nor who it is for, or its limits (HQ's)
+    delete d.audience; delete d.audienceTier; delete d.audienceDays; delete d.budgetCap; delete d.dailyCapPerCustomer;
     if (existingHasCashback) delete d.category;
   }
 
@@ -321,6 +353,13 @@ export async function updateOffer(req: AuthRequest, res: Response) {
   if (next.gasBonusCentsPerGallon != null && next.category !== ProductCategory.GAS && next.category !== ProductCategory.DIESEL) {
     res.status(400).json({ success: false, error: 'A cents-per-gallon promotion must be for Gas or Diesel.' }); return;
   }
+  if (next.audience === 'TIER_UP' && !next.audienceTier) { res.status(400).json({ success: false, error: 'Choose the lowest tier it is for.' }); return; }
+  if (rest.audience && rest.audience !== 'TIER_UP') (rest as Record<string, unknown>).audienceTier = null;
+  if (rest.audience && rest.audience !== 'LAPSED' && rest.audience !== 'NEW') (rest as Record<string, unknown>).audienceDays = null;
+  // The budget: a stopped promotion starts again when it is raised above what it has paid, or taken off
+  if (rest.budgetCap !== undefined && before.budgetReachedAt) {
+    if (rest.budgetCap == null || rest.budgetCap > (await budgetSpent(offerId)) + 0.005) (rest as Record<string, unknown>).budgetReachedAt = null;
+  }
   // The dates it would have after this edit: the last day on or after the first, and not already over ("End now" sends now)
   const nextStart = startDate ? new Date(startDate) : before.startDate;
   const nextEnd = endDate ? new Date(endDate) : before.endDate;
@@ -349,6 +388,9 @@ export async function updateOffer(req: AuthRequest, res: Response) {
         if (+before.startDate !== +offer.startDate) changes.push(`now starts ${storeDateKey(offer.startDate)}`);
         if (+before.endDate !== +offer.endDate) changes.push(offer.endDate.getTime() <= Date.now() + 60_000 ? 'ended early' : `now ends ${storeDateKey(offer.endDate)}`);
         if (hoursText(before) !== hoursText(offer)) changes.push(hoursText(offer) ? `happy hours ${hoursText(offer)}` : 'happy hours removed (all day)');
+        if (audienceText(before) !== audienceText(offer)) changes.push(`now for ${audienceText(offer)}`);
+        if ((before.budgetCap ?? null) !== (offer.budgetCap ?? null)) changes.push(offer.budgetCap != null ? `budget $${offer.budgetCap.toFixed(2)}${before.budgetReachedAt && !offer.budgetReachedAt ? ' (started again)' : ''}` : 'no budget');
+        if ((before.dailyCapPerCustomer ?? null) !== (offer.dailyCapPerCustomer ?? null)) changes.push(offer.dailyCapPerCustomer != null ? `at most $${offer.dailyCapPerCustomer.toFixed(2)} a customer a day` : 'no daily limit');
         return `Offer "${offer.title}" ${changes.length ? changes.join(', ') : 'edited'}`;
       })(),
     },
@@ -676,6 +718,8 @@ export async function estimateOfferCost(req: AuthRequest, res: Response) {
     storeId: d.storeId ?? null, category: d.category ?? null, bonusRate: d.bonusRate ?? null,
     tierBonusRates: d.tierBonusRates ?? null, gasBonusCentsPerGallon: d.gasBonusCentsPerGallon ?? null,
     startDate: new Date(d.startDate), endDate: new Date(d.endDate), ...hours.hours,
+    audience: d.audience ?? null, audienceTier: d.audienceTier ?? null, audienceDays: d.audienceDays ?? null,
+    budgetCap: d.budgetCap ?? null, dailyCapPerCustomer: d.dailyCapPerCustomer ?? null,
   });
   res.json({ success: true, data: est });
 }
