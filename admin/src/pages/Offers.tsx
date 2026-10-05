@@ -932,7 +932,7 @@ export default function Offers() {
                 <div style={s.stepLabel}>4. Title and image</div>
                 <input aria-label="Title" className="ui-input" style={INPUT} value={title} onChange={e => setTitle(e.target.value)} maxLength={100} placeholder="Leave blank to write one for you" />
                 <textarea aria-label="Description" className="ui-input" style={{ ...INPUT, height: 72, resize: 'vertical' }} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional, written for you if blank)" />
-                <ImagePick id="offer-image" file={imageFile} onFile={setImageFile} />
+                <ImagePick id="offer-image" file={imageFile} onFile={setImageFile} category={category || null} />
               </div>
             )}
 
@@ -1047,7 +1047,7 @@ export default function Offers() {
                 <Field label="Description (optional)" htmlFor="deal-desc">
                   <input id="deal-desc" className="ui-input" style={INPUT} value={dealDescription} onChange={(e) => setDealDescription(e.target.value)} placeholder="Any extra details about the deal" />
                 </Field>
-                <ImagePick id="deal-image" file={dealImageFile} onFile={setDealImageFile} />
+                <ImagePick id="deal-image" file={dealImageFile} onFile={setDealImageFile} category={dealCategory || null} />
                 <div style={s.twoCol}>
                   <Field label="Start date" htmlFor="deal-start" required>
                     <input id="deal-start" className="ui-input" style={INPUT} type="date" value={dealStartDate} onChange={(e) => setDealStartDate(e.target.value)} />
@@ -1283,7 +1283,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
         <Field label="Description" htmlFor="edit-offer-desc">
           <textarea id="edit-offer-desc" className="ui-input" style={{ ...INPUT, minHeight: 72, resize: 'vertical' }} value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
         </Field>
-        <ImagePick id="edit-offer-image" file={picture} onFile={setPicture} current={offer.imageUrl} removed={removePicture} onRemoveCurrent={setRemovePicture} label="Picture" />
+        <ImagePick id="edit-offer-image" file={picture} onFile={setPicture} current={offer.imageUrl} removed={removePicture} onRemoveCurrent={setRemovePicture} category={offer.category} label="Picture" />
         <div style={s.twoCol}>
           <Field label="First day" htmlFor="edit-offer-start" hint={started ? 'Already running.' : undefined}>
             <input id="edit-offer-start" className="ui-input" style={INPUT} type="date" value={start} disabled={started} min={today} onChange={(e) => setStart(e.target.value)} />
