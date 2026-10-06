@@ -17,6 +17,8 @@ import { estimateOffer } from '../utils/offerEstimate';
 import { isRestrictedCategory } from '../utils/dealSuggest';
 import { AUDIENCES, forCustomer, audienceText } from '../utils/offerAudience';
 import { budgetSpent, budgetSpentMany } from '../utils/offerBudget';
+import { promotionIdeas } from '../utils/promotionIdeas';
+import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
 
 // ─── Offers ───────────────────────────────────────────────────────────────────
 
@@ -723,6 +725,14 @@ export async function estimateOfferCost(req: AuthRequest, res: Response) {
     budgetCap: d.budgetCap ?? null, dailyCapPerCustomer: d.dailyCapPerCustomer ?? null,
   });
   res.json({ success: true, data: est });
+}
+
+// ─── Ideas ────────────────────────────────────────────────────────────────────
+
+/** GET /offers/ideas (HQ): promotions worked out from the last 8 weeks of sales (utils/promotionIdeas.ts), each ready to post. */
+export async function getPromotionIdeas(_req: AuthRequest, res: Response) {
+  const data = await cachedAnalytics(`promotion-ideas:${bucketTime(new Date())}`, () => promotionIdeas());
+  res.json({ success: true, data });
 }
 
 // ─── Spanish ──────────────────────────────────────────────────────────────────
