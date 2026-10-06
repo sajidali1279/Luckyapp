@@ -2139,7 +2139,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
         // Seeded test sales never count toward revenue (the leaderboard already left them out)
         where: { status: 'APPROVED', isTestData: false, createdAt: { gte: fromDate, lte: toDate }, ...(storeId ? { storeId } : {}) },
         select: {
-          createdAt: true, purchaseAmount: true, pointsAwarded: true, cashbackRate: true, category: true, devCut: true,
+          createdAt: true, purchaseAmount: true, pointsAwarded: true, cashbackRate: true, category: true, devCut: true, challengeId: true,
           store: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'asc' },
@@ -2166,7 +2166,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     for (const tx of transactions) {
       const date = storeDateKey(tx.createdAt);
       if (!byDate[date]) byDate[date] = { date, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
-      byDate[date].transactions++;
+      if (!tx.challengeId) byDate[date].transactions++;   // a challenge reward is cashback, not a sale
       byDate[date].purchaseVolume = parseFloat((byDate[date].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
       byDate[date].pointsAwarded = parseFloat((byDate[date].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
       byDate[date].devCut = parseFloat((byDate[date].devCut + Number(tx.devCut)).toFixed(2));
@@ -2194,7 +2194,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     for (const tx of transactions) {
       const id = tx.store.id;
       if (!byStore[id]) byStore[id] = { storeId: id, storeName: tx.store.name, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, devCut: 0 };
-      byStore[id].transactions++;
+      if (!tx.challengeId) byStore[id].transactions++;
       byStore[id].purchaseVolume = parseFloat((byStore[id].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
       byStore[id].pointsAwarded = parseFloat((byStore[id].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
       byStore[id].devCut = parseFloat((byStore[id].devCut + Number(tx.devCut)).toFixed(2));
@@ -2211,7 +2211,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     for (const tx of transactions) {
       const cat = tx.category as string;
       if (!byCategory[cat]) byCategory[cat] = { category: cat, transactions: 0, purchaseVolume: 0, pointsAwarded: 0 };
-      byCategory[cat].transactions++;
+      if (!tx.challengeId) byCategory[cat].transactions++;
       byCategory[cat].purchaseVolume = parseFloat((byCategory[cat].purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
       byCategory[cat].pointsAwarded = parseFloat((byCategory[cat].pointsAwarded + Number(tx.pointsAwarded)).toFixed(2));
     }
@@ -2222,6 +2222,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const byWeekday = WEEKDAY_NAMES.map((label, weekday) => ({ weekday, label, transactions: 0, purchaseVolume: 0 }));
     for (const tx of transactions) {
+      if (tx.challengeId) continue;   // a reward is credited when the sale is approved, not when anyone shopped
       const h = byHour[storeHour(tx.createdAt)];
       h.transactions++; h.purchaseVolume = parseFloat((h.purchaseVolume + Number(tx.purchaseAmount)).toFixed(2));
       const w = byWeekday[storeWeekday(tx.createdAt)];
@@ -2237,7 +2238,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     })).map((o) => ({ id: o.id, title: o.title, date: storeDateKey(o.startDate), storeId: o.storeId }));
 
     const totals = {
-      transactions: transactions.length,
+      transactions: transactions.filter((t) => !t.challengeId).length,
       purchaseVolume: transactions.reduce((s, t) => parseFloat((s + Number(t.purchaseAmount)).toFixed(2)), 0),
       pointsAwarded: transactions.reduce((s, t) => parseFloat((s + Number(t.pointsAwarded)).toFixed(2)), 0),
       redemptions: redemptions.length,

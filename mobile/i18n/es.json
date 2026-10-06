@@ -368,7 +368,9 @@
     "disputeA11y": "Disputar esta transacción",
     "disputeBtn": "Disputar Esta Transacción",
     "closeA11y": "Cerrar detalles de la transacción",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "challengeReward": "Premio de reto",
+    "detailChallenge": "Reto"
   },
   "customerHotFood": {
     "estimatedMinutes": "~{{count}} min",

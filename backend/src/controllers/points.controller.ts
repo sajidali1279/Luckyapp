@@ -28,6 +28,9 @@ import { transactionSearchWhere } from '../utils/transactionSearch';
 import { lockCustomer, REPEAT_WINDOW_MS } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 
+// A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
+const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0); };
+
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
   customerQrCode: z.string(),
@@ -533,7 +536,7 @@ export async function getMyTransactions(req: AuthRequest, res: Response) {
       orderBy: { createdAt: 'desc' },
       skip,
       take: parseInt(limit),
-      include: { store: { select: { name: true } } },
+      include: { store: { select: { name: true } }, challenge: { select: { title: true, titleEs: true } } },   // a reward line names its challenge
     }),
     prisma.pointsTransaction.count({
       where: { customerId: req.user!.id },
@@ -758,13 +761,13 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
   const [todayStats, pendingCount, allTimeStats] = await prisma.$transaction([
     prisma.pointsTransaction.aggregate({
       where: { storeId, status: TransactionStatus.APPROVED, createdAt: { gte: todayStart } },
-      _count: true,
+      _count: { _all: true, challengeId: true },
       _sum: { pointsAwarded: true, purchaseAmount: true },
     }),
     prisma.pointsTransaction.count({ where: { storeId, status: TransactionStatus.PENDING } }),
     prisma.pointsTransaction.aggregate({
       where: { storeId, status: TransactionStatus.APPROVED },
-      _count: true,
+      _count: { _all: true, challengeId: true },
       _sum: { pointsAwarded: true, purchaseAmount: true },
     }),
   ]);
@@ -781,13 +784,13 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
     data: {
       store,
       today: {
-        transactions: todayStats._count,
+        transactions: saleCount(todayStats._count),
         pointsAwarded: todayStats._sum.pointsAwarded || 0,
         purchaseVolume: todayStats._sum.purchaseAmount || 0,
       },
       pending: pendingCount,
       allTime: {
-        transactions: allTimeStats._count,
+        transactions: saleCount(allTimeStats._count),
         pointsAwarded: allTimeStats._sum.pointsAwarded || 0,
         purchaseVolume: allTimeStats._sum.purchaseAmount || 0,
       },
@@ -835,29 +838,29 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
   const [todayStats, monthStats, pendingCount, flaggedCount, oldestReview, allTimeStats, perStore, lastSales, creditsOut, allStores] = await prisma.$transaction([
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED', createdAt: { gte: todayStart } },
-      _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
     }),
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED', createdAt: { gte: monthStart } },
-      _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
     }),
     prisma.pointsTransaction.count({ where: { status: 'PENDING' } }),
     prisma.pointsTransaction.count({ where: { status: 'FLAGGED' } }),
     prisma.pointsTransaction.aggregate({ where: { status: { in: ['PENDING', 'FLAGGED'] } }, _min: { createdAt: true } }),
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED' },
-      _count: true, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
     }),
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
       where: { status: 'APPROVED', createdAt: { gte: monthStart } },
-      _count: true,
+      _count: { _all: true, challengeId: true },
       _sum: { purchaseAmount: true, pointsAwarded: true },
       orderBy: { _sum: { purchaseAmount: 'desc' } },
     }),
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
-      where: { status: 'APPROVED' },
+      where: { status: 'APPROVED', challengeId: null },
       _max: { createdAt: true },
       orderBy: { storeId: 'asc' },
     }),
@@ -878,7 +881,7 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
         id: s.id,
         name: s.name,
         city: s.city,
-        transactions: m?._count ?? 0,
+        transactions: m ? saleCount(m._count) : 0,
         purchaseVolume: parseFloat(((m?._sum?.purchaseAmount) ?? 0).toFixed(2)),
         cashbackIssued: parseFloat(((m?._sum?.pointsAwarded) ?? 0).toFixed(2)),
         lastSaleAt: lastSaleByStore.get(s.id)?.toISOString() ?? null,
@@ -890,12 +893,12 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
     success: true,
     data: {
       today: {
-        transactions: todayStats._count,
+        transactions: saleCount(todayStats._count),
         purchaseVolume: parseFloat((todayStats._sum.purchaseAmount ?? 0).toFixed(2)),
         cashbackIssued: parseFloat((todayStats._sum.pointsAwarded ?? 0).toFixed(2)),
       },
       thisMonth: {
-        transactions: monthStats._count,
+        transactions: saleCount(monthStats._count),
         purchaseVolume: parseFloat((monthStats._sum.purchaseAmount ?? 0).toFixed(2)),
         cashbackIssued: parseFloat((monthStats._sum.pointsAwarded ?? 0).toFixed(2)),
       },
@@ -903,7 +906,7 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
       flagged: flaggedCount,   // fraud-flagged, also waiting on a reviewer (the sidebar badge counts both)
       oldestReviewAt: oldestReview._min?.createdAt?.toISOString() ?? null, // when the longest-waiting pending or flagged item arrived
       allTime: {
-        transactions: allTimeStats._count,
+        transactions: saleCount(allTimeStats._count),
         purchaseVolume: parseFloat((allTimeStats._sum.purchaseAmount ?? 0).toFixed(2)),
         cashbackIssued: parseFloat((allTimeStats._sum.pointsAwarded ?? 0).toFixed(2)),
       },
@@ -922,7 +925,7 @@ export async function getPlatformTrend(req: AuthRequest, res: Response) {
 
   const rows = await prisma.pointsTransaction.findMany({
     where: { status: 'APPROVED', createdAt: { gte: startOfStoreDate(firstKey) } },
-    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, challengeId: true },
   });
 
   const byDate: Record<string, { date: string; transactions: number; purchaseVolume: number; cashbackIssued: number }> = {};
@@ -933,7 +936,7 @@ export async function getPlatformTrend(req: AuthRequest, res: Response) {
   for (const r of rows) {
     const b = byDate[storeDateKey(r.createdAt)];
     if (!b) continue;
-    b.transactions++;
+    if (!r.challengeId) b.transactions++;
     b.purchaseVolume += r.purchaseAmount;
     b.cashbackIssued += r.pointsAwarded;
   }
@@ -957,7 +960,7 @@ export async function getPlatformCompare(req: AuthRequest, res: Response) {
 
   const rows = await prisma.pointsTransaction.findMany({
     where: { status: 'APPROVED', createdAt: { gte: w.previous.start, lte: now } },
-    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, challengeId: true },
   });
 
   res.json({
@@ -981,12 +984,12 @@ export async function getStoreHealth(_req: AuthRequest, res: Response) {
 
   const [stores, today, lastWeek, month, ratio, waiting, last] = await Promise.all([
     prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true, city: true } }),
-    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: todayStart } }, _count: true, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: todayStart } }, _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
     prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: lastWeekStart, lte: lastWeekEnd } }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
-    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: monthStart } }, _count: true, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: monthStart } }, _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
     prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: thirtyDaysAgo } }, _sum: { purchaseAmount: true, pointsAwarded: true }, orderBy: { storeId: 'asc' } }),
     prisma.pointsTransaction.groupBy({ by: ['storeId', 'status'], where: { status: { in: [TransactionStatus.PENDING, TransactionStatus.FLAGGED] } }, _count: true, orderBy: [{ storeId: 'asc' }, { status: 'asc' }] }),
-    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: approved, _max: { createdAt: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, challengeId: null }, _max: { createdAt: true }, orderBy: { storeId: 'asc' } }),
   ]);
 
   const byStore = <T extends { storeId: string }>(rows: T[]) => new Map(rows.map((r) => [r.storeId, r]));
@@ -1024,8 +1027,8 @@ export async function getStoreHealth(_req: AuthRequest, res: Response) {
 
     return {
       id: s.id, name: s.name, city: s.city,
-      todayTransactions: t?._count ?? 0, todayVolume, lastWeekVolume,
-      monthTransactions: m?._count ?? 0, monthVolume: r2(m?._sum?.purchaseAmount ?? 0),
+      todayTransactions: t ? saleCount(t._count) : 0, todayVolume, lastWeekVolume,
+      monthTransactions: m ? saleCount(m._count) : 0, monthVolume: r2(m?._sum?.purchaseAmount ?? 0),
       cashbackRatio30d, pending, flagged,
       lastSaleAt: lastSaleAt ? lastSaleAt.toISOString() : null,
       hoursSinceLastSale: hoursSince == null ? null : Math.floor(hoursSince),

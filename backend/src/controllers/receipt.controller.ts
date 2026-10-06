@@ -217,7 +217,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   // Daily self-grant cap — limits abuse if a store API key is compromised
   const todayStart = storeDayStart();
   const todaySelfGrantCount = await prisma.pointsTransaction.count({
-    where: { customerId: customer.id, grantedById: customer.id, createdAt: { gte: todayStart } },
+    where: { customerId: customer.id, grantedById: customer.id, challengeId: null, createdAt: { gte: todayStart } },   // a challenge reward is not a scan
   });
   if (todaySelfGrantCount >= 15) {
     res.status(429).json({ success: false, error: 'Daily receipt scan limit reached. Visit the store cashier to claim additional points.' });

@@ -561,7 +561,7 @@ export async function listCustomers(req: AuthRequest, res: Response) {
   const customerIds = customers.map((c) => c.id);
   const txStats = await prisma.pointsTransaction.groupBy({
     by: ['customerId'],
-    where: { customerId: { in: customerIds }, status: 'APPROVED' },
+    where: { customerId: { in: customerIds }, status: 'APPROVED', challengeId: null },   // sales, not challenge rewards
     _count: { id: true },
     _sum: { purchaseAmount: true },
   });
@@ -615,7 +615,7 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
   const customerIds = customers.map((c) => c.id);
   const txStats = await prisma.pointsTransaction.groupBy({
     by: ['customerId'],
-    where: { customerId: { in: customerIds }, status: 'APPROVED' },
+    where: { customerId: { in: customerIds }, status: 'APPROVED', challengeId: null },   // sales, not challenge rewards
     _count: { id: true },
     _sum: { purchaseAmount: true },
   });
@@ -680,7 +680,7 @@ export async function getCustomerDetail(req: AuthRequest, res: Response) {
       take: 15,
     }),
     prisma.pointsTransaction.aggregate({
-      where: { customerId: userId, status: 'APPROVED' },
+      where: { customerId: userId, status: 'APPROVED', challengeId: null },
       _count: { id: true },
       _sum: { purchaseAmount: true },
     }),

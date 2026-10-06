@@ -614,7 +614,9 @@ export default function Transactions() {
                     <div style={{ fontWeight: 600 }}>{tx.customer?.name || ' - '}</div>
                     <div style={{ fontSize: 13, color: TEXT_MUTED }}>{tx.customer?.phone}</div>
                   </TableCell>
-                  <TableCell style={s.td}><strong>{fmt$(tx.purchaseAmount)}</strong></TableCell>
+                  <TableCell style={s.td}>{tx.challengeId
+                    ? <span title={tx.notes || undefined} style={{ fontWeight: 600 }}>Challenge reward</span>   /* no purchase: the cashback a challenge paid */
+                    : <strong>{fmt$(tx.purchaseAmount)}</strong>}</TableCell>
                   <TableCell style={s.td}>
                     <span
                       style={{
@@ -715,7 +717,7 @@ export default function Transactions() {
 
             <div style={s.panelBody}>
               <div style={s.panelSummary}>
-                <span style={{ fontWeight: 700, fontSize: 18 }}>{fmt$(panelTx.purchaseAmount)}</span>
+                <span style={{ fontWeight: 700, fontSize: 18 }}>{panelTx.challengeId ? (panelTx.notes || 'Challenge reward') : fmt$(panelTx.purchaseAmount)}</span>
                 <span style={{ ...s.badge, background: STATUS_COLORS[panelTx.status] || '#e4e7ec', color: badgeInk(STATUS_COLORS[panelTx.status] || '#e4e7ec') }}>
                   {statusLabel(panelTx.status)}
                 </span>

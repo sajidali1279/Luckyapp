@@ -368,7 +368,9 @@
     "transactionCount_other": "{{count}} transactions",
     "emptyTitle": "No transactions yet",
     "emptySubtitle": "Visit a Lucky Stop and show your QR code to earn your first credits!",
-    "pointsValue": "+{{points}} pts"
+    "pointsValue": "+{{points}} pts",
+    "challengeReward": "Challenge reward",
+    "detailChallenge": "Challenge"
   },
   "customerHotFood": {
     "justNow": "just now",

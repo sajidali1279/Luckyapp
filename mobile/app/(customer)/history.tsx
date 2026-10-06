@@ -21,7 +21,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default function HistoryScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [selected, setSelected] = useState<any>(null);
   const [disputeTarget, setDisputeTarget] = useState<any>(null);
 
@@ -122,8 +122,9 @@ export default function HistoryScreen() {
                 : null
           }
           renderItem={({ item }) => {
-            const icon = CATEGORY_ICONS[item.category] || '🏪';
-            const catLabel = item.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory');
+            // A challenge's reward is its own line: no purchase, so it says what it is (and is not a purchase to report)
+            const icon = item.challengeId ? '🏆' : CATEGORY_ICONS[item.category] || '🏪';
+            const catLabel = item.challengeId ? t('customerHistory.challengeReward') : item.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory');
             const storeName = item.store?.name || t('customerHistory.defaultStoreName');
             return (
               <PulseHighlight active={item.id === pulseId}>
@@ -168,21 +169,30 @@ export default function HistoryScreen() {
           <View style={d.overlay}>
             <View style={d.sheet}>
               <View style={d.iconBg}>
-                <Text style={d.icon}>{CATEGORY_ICONS[selected.category] || '🏪'}</Text>
+                <Text style={d.icon}>{selected.challengeId ? '🏆' : CATEGORY_ICONS[selected.category] || '🏪'}</Text>
               </View>
               <Text style={d.storeName}>{selected.store?.name || t('customerHistory.defaultStoreName')}</Text>
               <Text style={d.date}>{format(new Date(selected.createdAt), 'EEEE, MMM d yyyy · h:mm a')}</Text>
 
               <View style={d.divider} />
 
-              <View style={d.row}>
-                <Text style={d.rowLabel}>{t('customerHistory.detailCategory')}</Text>
-                <Text style={d.rowValue}>{selected.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory')}</Text>
-              </View>
-              <View style={d.row}>
-                <Text style={d.rowLabel}>{t('customerHistory.detailPurchaseAmount')}</Text>
-                <Text style={d.rowValue}>${Number(selected.purchaseAmount || 0).toFixed(2)}</Text>
-              </View>
+              {selected.challengeId ? (
+                <View style={d.row}>
+                  <Text style={d.rowLabel}>{t('customerHistory.detailChallenge')}</Text>
+                  <Text style={d.rowValue}>{(i18n.language === 'es' && selected.challenge?.titleEs) || selected.challenge?.title || t('customerHistory.challengeReward')}</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={d.row}>
+                    <Text style={d.rowLabel}>{t('customerHistory.detailCategory')}</Text>
+                    <Text style={d.rowValue}>{selected.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory')}</Text>
+                  </View>
+                  <View style={d.row}>
+                    <Text style={d.rowLabel}>{t('customerHistory.detailPurchaseAmount')}</Text>
+                    <Text style={d.rowValue}>${Number(selected.purchaseAmount || 0).toFixed(2)}</Text>
+                  </View>
+                </>
+              )}
               <View style={d.row}>
                 <Text style={d.rowLabel}>{t('customerHistory.detailPointsEarned')}</Text>
                 <Text style={[d.rowValue, { color: COLORS.success, fontWeight: '900' }]}>
@@ -197,7 +207,7 @@ export default function HistoryScreen() {
                   </Text>
                 </View>
               )}
-              {selected.notes ? (
+              {selected.notes && !selected.challengeId ? (
                 <View style={d.row}>
                   <Text style={d.rowLabel}>{t('customerHistory.detailNotes')}</Text>
                   <Text style={d.rowValue}>{selected.notes}</Text>
@@ -208,14 +218,14 @@ export default function HistoryScreen() {
                 <Image source={{ uri: selected.receiptImageUrl }} style={d.receiptImg} contentFit="cover" />
               ) : null}
 
-              <TouchableOpacity
+              {!selected.challengeId && <TouchableOpacity
                 style={d.disputeBtn}
                 onPress={() => { setDisputeTarget(selected); setSelected(null); }}
                 accessibilityRole="button"
                 accessibilityLabel={t('customerHistory.disputeA11y')}
               >
                 <Text style={d.disputeBtnText}>{t('customerHistory.disputeBtn')}</Text>
-              </TouchableOpacity>
+              </TouchableOpacity>}
 
               <TouchableOpacity
                 style={d.closeBtn}

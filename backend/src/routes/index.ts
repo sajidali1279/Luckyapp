@@ -316,13 +316,13 @@ router.get('/points/export', authenticate, requireRole(Role.STORE_MANAGER), expo
 // ─── Offers ───────────────────────────────────────────────────────────────────
 router.get('/offers', authenticate, getActiveOffers); // All authenticated users
 router.get('/offers/history', authenticate, requireRole(Role.STORE_MANAGER), getOffersHistory);
-router.post('/offers/estimate', authenticate, requireRole(Role.STORE_MANAGER), estimateOfferCost);
+router.post('/offers/estimate', authenticate, requireRole(Role.STORE_MANAGER), estimateOfferCost);                 // What a promotion would cost (last 4 weeks of sales)
 router.post('/offers/translate', authenticate, requireRole(Role.STORE_MANAGER), translateOffer); // A suggested Spanish version of an offer's words
 // Challenges: spend or visit targets with a reward (utils/challenges.ts)
 router.get('/challenges/mine', authenticate, myChallenges);                                   // A customer's own, with their progress
 router.get('/challenges', authenticate, requireRole(Role.SUPER_ADMIN), listChallenges);        // HQ: all, with what each paid
 router.post('/challenges', authenticate, requireRole(Role.SUPER_ADMIN), createChallenge);
-router.patch('/challenges/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateChallenge); // Words, last day, End now                 // What a promotion would cost (last 4 weeks of sales)
+router.patch('/challenges/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateChallenge); // Words, last day, End now
 router.get('/offers/shelf-deals', authenticate, requireRole(Role.SUPER_ADMIN), listShelfDeals);                    // Label deals shown in the app
 router.patch('/offers/shelf-deals/:labelId', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealHidden);     // Hide or show one
 router.post('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), createOfferRequest);                 // A manager asks HQ for a cashback promotion

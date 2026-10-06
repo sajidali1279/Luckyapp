@@ -658,6 +658,7 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
   const categoryWhere = {
     status: 'APPROVED' as const,
     isTestData: false,
+    challengeId: null,   // a challenge's reward is not a sale
     ...(offer.storeId ? { storeId: offer.storeId } : {}),
     ...(offer.category ? { category: offer.category } : {}),
   };
