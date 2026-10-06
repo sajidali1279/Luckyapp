@@ -111,6 +111,13 @@ export const billingApi = {
   getPendingCount: () => api.get('/billing/pending-count'),
 };
 
+/** Challenges: spend or visit targets that pay a reward (HQ). */
+export const challengesApi = {
+  list: () => api.get('/challenges'),
+  create: (data: object) => api.post('/challenges', data),
+  update: (id: string, data: object) => api.patch(`/challenges/${id}`, data),
+};
+
 export const offersApi = {
   create: (formData: FormData) => api.post('/offers', formData),
   update: (offerId: string, data: object) => api.patch(`/offers/${offerId}`, data),

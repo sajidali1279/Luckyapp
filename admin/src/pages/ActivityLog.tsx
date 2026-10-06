@@ -59,6 +59,9 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   OFFER_REQUEST_APPROVED:    { label: 'Promotion Request Approved', color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
   OFFER_REQUEST_DECLINED:    { label: 'Promotion Request Declined', color: '#c42130', bg: '#E6394618', icon: '❌' },
   OFFER_REQUEST_WITHDRAWN:   { label: 'Promotion Request Withdrawn', color: '#5a6472', bg: '#6c757d18', icon: '↩️' },
+  PROMOTION_BUDGET_USED:     { label: 'Promotion Budget Used Up', color: '#c42130', bg: '#E6394618', icon: '💸' },
+  CHALLENGE_CREATE:          { label: 'Challenge Posted',       color: '#8a5300', bg: '#F4A26118', icon: '🏆' },
+  CHALLENGE_UPDATE:          { label: 'Challenge Changed',      color: '#8a5300', bg: '#F4A26118', icon: '✏️' },
   SHELF_DEAL_VISIBILITY:     { label: 'Shelf Deal Shown/Hidden', color: '#3c6e8f', bg: '#457b9d18', icon: '🏷️' },
   CREATE_BANNER:             { label: 'Create Banner',          color: '#8a5300', bg: '#F4A26118', icon: '🖼️' },
   DELETE_BANNER:             { label: 'Delete Banner',          color: '#c42130', bg: '#E6394618', icon: '🗑️' },
@@ -285,7 +288,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Offers & Banners ──">
-            {['CREATE_OFFER','UPDATE_OFFER','DELETE_OFFER','OFFER_REQUESTED','OFFER_REQUEST_APPROVED','OFFER_REQUEST_DECLINED','OFFER_REQUEST_WITHDRAWN','SHELF_DEAL_VISIBILITY','CREATE_BANNER','DELETE_BANNER'].map(k => (
+            {['CREATE_OFFER','UPDATE_OFFER','DELETE_OFFER','OFFER_REQUESTED','OFFER_REQUEST_APPROVED','OFFER_REQUEST_DECLINED','OFFER_REQUEST_WITHDRAWN','SHELF_DEAL_VISIBILITY','CREATE_BANNER','DELETE_BANNER','PROMOTION_BUDGET_USED','CHALLENGE_CREATE','CHALLENGE_UPDATE'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

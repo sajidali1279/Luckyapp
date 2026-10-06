@@ -18,6 +18,7 @@ import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offerBonusText } from '../../utils/offerRate';
 import { spanishOffer } from '../../utils/offerText';
+import ChallengesSection from '../../components/ChallengesSection';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
@@ -632,11 +633,12 @@ export default function CustomerHome() {
   const scrollViewRef = useRef<ScrollView>(null);
   const gasSectionRef = useRef<View>(null);
   const offersSectionRef = useRef<View>(null);
+  const challengesSectionRef = useRef<View>(null);
   const { scrollTo, lastDay } = useLocalSearchParams<{ scrollTo?: string; lastDay?: string }>();
 
   useFocusEffect(useCallback(() => {
     if (!scrollTo) return;
-    const sectionRef = scrollTo === 'gas' ? gasSectionRef : scrollTo === 'offers' ? offersSectionRef : null;
+    const sectionRef = scrollTo === 'gas' ? gasSectionRef : scrollTo === 'offers' ? offersSectionRef : scrollTo === 'challenges' ? challengesSectionRef : null;
     if (!sectionRef) return;
     const t = setTimeout(() => {
       sectionRef.current?.measureLayout(
@@ -866,6 +868,7 @@ export default function CustomerHome() {
     refetchHotFoodMenu();
     refetchCatalog();
     qc.invalidateQueries({ queryKey: ['welcome-bonus'] });
+    qc.invalidateQueries({ queryKey: ['my-challenges'] });
   }
 
   async function placeHotFoodOrder() {
@@ -1194,6 +1197,11 @@ export default function CustomerHome() {
           )
         }
       </Animated.View>
+
+      {/* ── Challenges: the customer's own, with their progress ── */}
+      <View ref={challengesSectionRef}>
+        <ChallengesSection storeId={nearestStore?.id} enabled={locationReady} />
+      </View>
 
       {/* ── Active Promotions ── */}
       <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>

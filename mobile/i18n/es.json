@@ -2750,5 +2750,27 @@
     "m10": "octubre",
     "m11": "noviembre",
     "m12": "diciembre"
+  },
+  "challenges": {
+    "title": "Retos",
+    "spendRule": "Gasta ${{target}}{{cat}} y recibe ${{reward}} de vuelta",
+    "visitsRepeat": "Cada {{n}} compras{{cat}} te dan ${{reward}}",
+    "visitsOnce": "Haz {{n}} compras{{cat}} y recibe ${{reward}}",
+    "minEach": "Cada compra de ${{min}} o más",
+    "on": " en {{cat}}",
+    "progressSpend": "${{done}} de ${{target}}",
+    "progressVisits": "{{done}} de {{target}}",
+    "done": "¡Listo! ${{reward}} agregados",
+    "earned": "Ganado {{count}} veces hasta ahora",
+    "endsOn": "Termina el {{date}}",
+    "store": "En {{store}}",
+    "cat_GROCERIES": "abarrotes",
+    "cat_FROZEN_FOODS": "congelados",
+    "cat_FRESH_FOODS": "comida fresca",
+    "cat_GAS": "gasolina",
+    "cat_DIESEL": "diésel",
+    "cat_HOT_FOODS": "comida caliente",
+    "cat_OTHER": "otros artículos",
+    "a11y": "{{title}}: {{progress}}"
   }
 }

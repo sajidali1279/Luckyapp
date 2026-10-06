@@ -48,7 +48,7 @@ export function audienceLabel(o: { audience?: string | null; audienceTier?: stri
   }
 }
 
-export function AudienceLimitsField({ idPrefix, value, onChange }: { idPrefix: string; value: AudienceLimitsValue; onChange: (v: AudienceLimitsValue) => void }) {
+export function AudienceLimitsField({ idPrefix, value, onChange, noLimits }: { idPrefix: string; value: AudienceLimitsValue; onChange: (v: AudienceLimitsValue) => void; noLimits?: boolean }) {
   const set = (p: Partial<AudienceLimitsValue>) => onChange({ ...value, ...p });
   const problem = audienceProblem(value);
   return (
@@ -78,7 +78,7 @@ export function AudienceLimitsField({ idPrefix, value, onChange }: { idPrefix: s
         {value.audience === 'NEW' && 'Customers who joined in that many days. Only they see it and are told.'}
         {value.audience === 'BIRTHDAY' && 'Customers whose birthday is this month, from the birthday they gave in the app (optional, in Profile). Only they see it and are told.'}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+      {!noLimits && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
         <Field label="Budget (optional)" htmlFor={`${idPrefix}-budget`} hint="It stops when its extra cashback reaches this, and HQ is told.">
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ color: C.muted }}>$</span>
@@ -91,8 +91,8 @@ export function AudienceLimitsField({ idPrefix, value, onChange }: { idPrefix: s
             <input id={`${idPrefix}-daily`} className="ui-input" style={INPUT} inputMode="decimal" value={value.dailyCapPerCustomer} placeholder="No limit" onChange={(e) => set({ dailyCapPerCustomer: e.target.value.replace(/[^0-9.]/g, '') })} />
           </div>
         </Field>
-      </div>
-      {value.budgetCap.trim() && <div style={{ fontSize: FONT.caption, color: C.muted }}>Two sales at the very same moment can pass the budget by at most one sale's bonus.</div>}
+      </div>}
+      {!noLimits && value.budgetCap.trim() && <div style={{ fontSize: FONT.caption, color: C.muted }}>Two sales at the very same moment can pass the budget by at most one sale's bonus.</div>}
       {problem && <div role="alert" style={{ fontSize: FONT.small, color: C.danger }}>{problem}</div>}
     </div>
   );

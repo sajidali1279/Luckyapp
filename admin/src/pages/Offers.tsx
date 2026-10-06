@@ -20,6 +20,7 @@ import CostEstimate, { type EstimateInput } from '../components/offers/CostEstim
 import OfferRequestsPanel from '../components/offers/OfferRequestsPanel';
 import OfferCalendar from '../components/offers/OfferCalendar';
 import ShelfDealsSection from '../components/offers/ShelfDealsSection';
+import ChallengesPanel from '../components/offers/ChallengesPanel';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 import { ImagePick } from '../components/offers/ImagePick';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from '../components/offers/SpanishFields';
@@ -147,8 +148,8 @@ type PostKind = 'promo' | 'quick' | 'deal';
 type QuickDuration = 'today' | '3d' | '1w' | '2w' | '1m';
 /** Everything the "are you sure" box shows before a post goes to customers. */
 type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[]; notify: string; estimate: EstimateInput; preview: PreviewOffer };
-type MainTab = 'promotions' | 'deals' | 'requests' | 'calendar';
-const MAIN_TABS: MainTab[] = ['promotions', 'deals', 'requests', 'calendar'];
+type MainTab = 'promotions' | 'deals' | 'challenges' | 'requests' | 'calendar';
+const MAIN_TABS: MainTab[] = ['promotions', 'deals', 'challenges', 'requests', 'calendar'];
 
 const BONUS_TOO_BIG = `A bonus can be at most ${CASHBACK_CAP * 100}%, because total cashback is capped at ${CASHBACK_CAP * 100}% of a sale.`;
 /** A percentage typed as 7.5 as the fraction the server stores (0.075), without 0.07500000000000001. */
@@ -700,7 +701,7 @@ export default function Offers() {
       <PageHeader
         title="Offers"
         description="Promotions add cashback automatically. Deals show price specials in the app."
-        actions={mainTab === 'requests' || mainTab === 'calendar' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
+        actions={mainTab === 'requests' || mainTab === 'calendar' || mainTab === 'challenges' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
           <>
             <Button icon={<LayoutTemplate />} aria-pressed={showTemplates}
               onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); }}>
@@ -729,6 +730,7 @@ export default function Offers() {
         tabs={[
           { value: 'promotions', label: 'Promotions', count: promotionOffers.length },
           { value: 'deals', label: 'Deals', count: dealOffers.length },
+          ...(isHQ ? [{ value: 'challenges' as const, label: 'Challenges' }] : []),
           ...(isHQ ? [{ value: 'requests' as const, label: 'Requests', count: waitingRequests || undefined }] : []),
           { value: 'calendar', label: 'Calendar' },
         ]}
@@ -1052,6 +1054,7 @@ export default function Offers() {
       )}
 
       {mainTab === 'requests' && isHQ && <OfferRequestsPanel />}
+      {mainTab === 'challenges' && isHQ && <ChallengesPanel />}
       {mainTab === 'calendar' && <OfferCalendar offers={offers} past={pastOffers} stores={stores} />}
 
       {/* Promotions */}

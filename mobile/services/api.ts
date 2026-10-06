@@ -116,6 +116,11 @@ export const receiptApi = {
   selfGrant: (tokenId: string) => api.post('/points/self-grant', { tokenId }),
 };
 
+/** Challenges: the customer's own, with their progress (spend or visit targets that pay a reward). */
+export const challengesApi = {
+  mine: (storeId?: string) => api.get(`/challenges/mine${storeId ? `?storeId=${storeId}` : ''}`),
+};
+
 export const offersApi = {
   getActive:   (storeId?: string) => api.get(`/offers${storeId ? `?storeId=${storeId}` : ''}`),
   getBanners:  (storeId?: string) => api.get(`/banners${storeId ? `?storeId=${storeId}` : ''}`),
