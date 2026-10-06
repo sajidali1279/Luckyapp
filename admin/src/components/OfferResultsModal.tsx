@@ -8,7 +8,8 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 
 // What one promotion did: the sales it raised (each sale records the promotion that applied to it and how much cashback it
 // added, after the 10% ceiling), the customers, the extra cashback, and the category's sales while it ran against the same length
-// of time just before it.
+// of time just before it. "Did it bring extra sales?" sets that change against sales it did not touch (other stores, or other
+// categories) over the same two stretches, and says how much in sales each $1 of extra cashback came with (backend getOfferResults).
 
 interface Results {
   scheduled: boolean;
@@ -27,6 +28,11 @@ interface Results {
   waitingForApproval: number;
   byStore: { name: string; sales: number; extraCashback: number }[];
   categorySales: { during: { sales: number; amount: number }; before: { sales: number; amount: number } };
+  lift?: {
+    control: 'OTHER_STORES' | 'OTHER_CATEGORIES' | 'NONE'; controlText: string | null; hereChangePct: number | null; controlChangePct: number | null;
+    expected: number; extraSales: number; perDollar: number | null; tooFewToTell: boolean;
+  };
+  firstTimers?: number;
 }
 
 const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -71,8 +77,10 @@ export default function OfferResultsModal({ offer, onClose }: { offer: { id: str
             </p>
           )}
           {r.waitingForApproval > 0 && <p style={x.note}>{plural(r.waitingForApproval, 'more sale is', 'more sales are')} waiting for a receipt or a manager's approval.</p>}
+          {(r.firstTimers ?? 0) > 0 && <p style={x.note}>{plural(r.firstTimers!, 'customer', 'customers')} made their first purchase in the app with it.</p>}
 
           <CategoryCompare r={r} />
+          <Lift r={r} />
 
           {r.byStore.length > 1 && (
             <div>
@@ -126,6 +134,43 @@ function CategoryCompare({ r }: { r: Results }) {
           : `${change >= 0 ? '+' : ''}${change}% against the same length of time just before.`}
         {' '}Other things move sales too (weather, paydays, holidays), so read this as a pointer, not proof.
       </p>
+    </div>
+  );
+}
+
+const signed = (n: number | null) => (n == null ? 'no change we can measure' : `${n >= 0 ? 'up' : 'down'} ${Math.abs(n)}%`);
+
+// Did it bring extra sales: the change here against sales it did not touch over the same two stretches
+function Lift({ r }: { r: Results }) {
+  const l = r.lift;
+  if (!l) return null;
+  const what = r.category ? `${catWords(r.category).toLowerCase()} sales` : 'sales';
+  const where = r.where === 'All stores' ? 'at all stores' : `at ${r.where}`;
+  const took = r.categorySales.during.amount;
+  return (
+    <div style={x.compare} data-testid="offer-lift">
+      <div style={x.head}>Did it bring extra sales?</div>
+      {l.tooFewToTell ? (
+        <p style={{ ...x.note, marginTop: 8 }}>
+          Too few sales yet to tell. It needs at least 20 sales in the time just before{l.control !== 'NONE' ? `, here and at ${l.controlText}` : ''}.
+        </p>
+      ) : (
+        <>
+          <div style={{ ...x.tiles, marginTop: 8 }}>
+            <Tile label="Extra sales" value={usd(Math.max(0, l.extraSales))} strong />
+            <Tile label="Sales per $1 of extra cashback" value={l.perDollar != null ? usd(l.perDollar) : 'None paid yet'} />
+          </div>
+          <p style={{ ...x.note, marginTop: 10 }}>
+            {l.control === 'NONE'
+              ? `Every store and category was in it, so there is nothing it left out to compare with: this is against the same time just before. About ${usd(l.expected)} was expected; it took ${usd(took)}.`
+              : `${catWords(what)} ${where} went ${signed(l.hereChangePct)}. Over the same time, ${l.controlText} went ${signed(l.controlChangePct)}, so about ${usd(l.expected)} was expected without it; it took ${usd(took)}.`}
+            {l.extraSales > 0
+              ? ` That is about ${usd(l.extraSales)} more${l.perDollar != null ? `: ${usd(l.perDollar)} of sales for every $1 of extra cashback` : ''}.`
+              : ' No extra sales showed up.'}
+          </p>
+          <p style={{ ...x.note, marginTop: 6, color: TEXT_MUTED, fontSize: 12.5 }}>Extra sales are not profit: the store keeps its margin on them. Read it as a pointer, not proof.</p>
+        </>
+      )}
     </div>
   );
 }

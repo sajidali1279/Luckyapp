@@ -612,9 +612,16 @@ export async function deleteBanner(req: AuthRequest, res: Response) {
 export const OFFER_RECORDING_START = startOfStoreDate('2026-09-28');
 
 const money = (n: number) => Math.round(n * 100) / 100;
+export const LIFT_MIN_SALES = 20;
 
 // GET /offers/:offerId/results (HQ) — what a promotion did: the sales it raised, the customers, the extra cashback it paid, and the
 // category's sales while it ran against the same length of time just before it. A deal changes no cashback, so it has no results.
+//
+// Did it bring extra sales (lift)? The sales it touched were compared with sales it did not touch over the same two stretches: a
+// one-store promotion with the other open stores (same category), an all-store promotion for a category with the other categories.
+// What the control did is what was expected here without the promotion; the difference is the extra sales, and those over the extra
+// cashback paid is the return on it. A store-wide promotion at every store has nothing it did not touch, so it is compared with the
+// time before only. Too few sales before (under LIFT_MIN_SALES on either side) and it says it cannot tell yet.
 export async function getOfferResults(req: AuthRequest, res: Response) {
   const { offerId } = req.params;
   const offer = await prisma.offer.findUnique({
@@ -664,10 +671,51 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
     ...(offer.storeId ? { storeId: offer.storeId } : {}),
     ...(offer.category ? { category: offer.category } : {}),
   };
+  const duringAt = { gte: start, lt: end };
+  const beforeAt = { gte: new Date(start.getTime() - lengthMs), lt: start };
   const [during, before] = await Promise.all([
-    prisma.pointsTransaction.aggregate({ where: { ...categoryWhere, createdAt: { gte: start, lt: end } }, _count: true, _sum: { purchaseAmount: true } }),
-    prisma.pointsTransaction.aggregate({ where: { ...categoryWhere, createdAt: { gte: new Date(start.getTime() - lengthMs), lt: start } }, _count: true, _sum: { purchaseAmount: true } }),
+    prisma.pointsTransaction.aggregate({ where: { ...categoryWhere, createdAt: duringAt }, _count: true, _sum: { purchaseAmount: true } }),
+    prisma.pointsTransaction.aggregate({ where: { ...categoryWhere, createdAt: beforeAt }, _count: true, _sum: { purchaseAmount: true } }),
   ]);
+
+  // The control: the sales the promotion did not touch, over the same two stretches
+  const sale = { status: 'APPROVED' as const, isTestData: false, challengeId: null };
+  let control: { kind: 'OTHER_STORES' | 'OTHER_CATEGORIES'; text: string; where: Prisma.PointsTransactionWhereInput } | null = null;
+  if (offer.storeId) {
+    const others = await prisma.store.count({ where: { isActive: true, id: { not: offer.storeId } } });
+    if (others > 0) control = { kind: 'OTHER_STORES', text: `the other ${others} store${others === 1 ? '' : 's'}${offer.category ? ', same category' : ''}`,
+      where: { ...sale, storeId: { not: offer.storeId }, store: { isActive: true }, ...(offer.category ? { category: offer.category } : {}) } };
+  } else if (offer.category) {
+    control = { kind: 'OTHER_CATEGORIES', text: 'the other categories at the same stores', where: { ...sale, store: { isActive: true }, category: { not: offer.category } } };
+  }
+  const [cDuring, cBefore] = control ? await Promise.all([
+    prisma.pointsTransaction.aggregate({ where: { ...control.where, createdAt: duringAt }, _count: true, _sum: { purchaseAmount: true } }),
+    prisma.pointsTransaction.aggregate({ where: { ...control.where, createdAt: beforeAt }, _count: true, _sum: { purchaseAmount: true } }),
+  ]) : [null, null];
+  const hereBefore = before._sum.purchaseAmount ?? 0, hereDuring = during._sum.purchaseAmount ?? 0;
+  const cB = cBefore?._sum.purchaseAmount ?? 0, cD = cDuring?._sum.purchaseAmount ?? 0;
+  const controlRatio = control && cB > 0 ? cD / cB : null;
+  const expected = hereBefore * (controlRatio ?? 1);
+  const extraCashbackPaid = approved.reduce((n, s) => n + (s.offerCashback ?? 0), 0);
+  const extraSales = hereDuring - expected;
+  const pct = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : null);
+  const lift = {
+    control: control?.kind ?? 'NONE',
+    controlText: control?.text ?? null,
+    hereChangePct: pct(hereDuring, hereBefore),
+    controlChangePct: control ? pct(cD, cB) : null,
+    expected: money(expected),
+    extraSales: money(extraSales),
+    perDollar: extraCashbackPaid > 0 ? money(Math.max(0, extraSales) / extraCashbackPaid) : null,   // fewer sales than expected is $0 per $1, not less
+    tooFewToTell: before._count < LIFT_MIN_SALES || (control != null && (cBefore?._count ?? 0) < LIFT_MIN_SALES),
+  };
+
+  // Customers whose first purchase ever was while it ran, with it
+  const users = [...new Set(approved.map((s) => s.customerId))];
+  const firsts = users.length ? await prisma.pointsTransaction.groupBy({
+    by: ['customerId'], where: { customerId: { in: users }, status: { not: 'REJECTED' }, challengeId: null }, _min: { createdAt: true },
+  }) : [];
+  const firstTimers = firsts.filter((f) => f._min.createdAt && f._min.createdAt >= start).length;
 
   res.json({
     success: true,
@@ -692,6 +740,8 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
         during: { sales: during._count, amount: money(during._sum.purchaseAmount ?? 0) },
         before: { sales: before._count, amount: money(before._sum.purchaseAmount ?? 0) },
       },
+      lift,
+      firstTimers,
     },
   });
 }
