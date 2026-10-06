@@ -125,6 +125,8 @@ export const offersApi = {
   /** A new picture for an offer already posted, or none. */
   setImage: (offerId: string, file: File) => { const fd = new FormData(); fd.append('image', file); return api.post(`/offers/${offerId}/image`, fd); },
   removeImage: (offerId: string) => api.delete(`/offers/${offerId}/image`),
+  /** Promotion ideas from the last 8 weeks of sales (HQ), each ready to fill in the form. */
+  ideas: () => api.get('/offers/ideas'),
   /** A suggested Spanish version of an offer's words, to read and change. */
   translate: (words: { title: string; description: string; dealText: string }) => api.post('/offers/translate', words),
   getActive: () => api.get('/offers'),

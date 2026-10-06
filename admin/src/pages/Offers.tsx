@@ -9,7 +9,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { C, FONT, RADIUS, INPUT } from '../lib/theme';
 import { Page, PageHeader, SectionTitle, Tabs, Button, Chip, Card, Badge, Notice, EmptyState, Field } from '../components/kit';
-import { LayoutTemplate, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2, Pencil, Square, Clock, BellOff } from 'lucide-react';
+import { LayoutTemplate, Lightbulb, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2, Pencil, Square, Clock, BellOff } from 'lucide-react';
 import Modal from '../components/Modal';
 import { serverMessage } from '../lib/apiError';
 import OfferResultsModal from '../components/OfferResultsModal';
@@ -21,6 +21,7 @@ import OfferRequestsPanel from '../components/offers/OfferRequestsPanel';
 import OfferCalendar from '../components/offers/OfferCalendar';
 import ShelfDealsSection from '../components/offers/ShelfDealsSection';
 import ChallengesPanel from '../components/offers/ChallengesPanel';
+import IdeasPanel, { type IdeaOffer } from '../components/offers/IdeasPanel';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 import { ImagePick } from '../components/offers/ImagePick';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from '../components/offers/SpanishFields';
@@ -183,6 +184,7 @@ export default function Offers() {
   const [showForm, setShowForm] = useState(false);
   const [showQuick, setShowQuick] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showIdeas, setShowIdeas] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [activeGroup, setActiveGroup] = useState(TEMPLATE_GROUPS[0]);
 
@@ -351,6 +353,33 @@ export default function Offers() {
     toast.success(tiers && !keepTiers && !isCpg
       ? 'Form filled from past offer. Per-tier rates are not available for gas, so its highest rate is used - update the dates and submit'
       : 'Form filled from past offer - update the dates and submit');
+  }
+
+  // Fill the form from a promotion idea (Ideas): its words in both languages, bonus, hours, audience and dates, to change and post
+  function applyIdea(o: IdeaOffer) {
+    const cents = o.gasBonusCentsPerGallon != null;
+    setTitle(o.title);
+    setDescription(o.description);
+    setSpanish({ titleEs: o.titleEs, descriptionEs: o.descriptionEs, dealTextEs: '' });
+    setUseTierBonuses(false);
+    setTierBonuses({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
+    setBonusRate(!cents && o.bonusRate != null ? pctText(o.bonusRate) : '');
+    setGasBonusCpg(cents ? String(o.gasBonusCentsPerGallon) : '');
+    setGasBonusType(cents ? 'cpg' : 'pct');
+    setCategory(o.category || '');
+    setType(o.storeId ? 'SPECIFIC_STORE' : 'ALL_STORES');
+    setStoreId(o.storeId || '');
+    setRequires21(false);
+    setHours(hoursFrom(o));
+    setLastDayReminder(true);
+    setAud(audienceFrom({ audience: o.audience, audienceDays: o.audienceDays }));
+    setImageFile(null);
+    setStartDate(o.startDate);
+    setEndDate(o.endDate);
+    setShowForm(true);
+    setShowIdeas(false); setShowQuick(false); setShowTemplates(false);
+    setTimeout(() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    toast.success('Form filled in from the idea. Check it, add a picture if you like, and post it.');
   }
 
   // A deal again: the same product, deal text, words, category, stores and 21+, with new dates (the picture is chosen again)
@@ -703,16 +732,20 @@ export default function Offers() {
         description="Promotions add cashback automatically. Deals show price specials in the app."
         actions={mainTab === 'requests' || mainTab === 'calendar' || mainTab === 'challenges' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
           <>
+            <Button icon={<Lightbulb />} aria-pressed={showIdeas}
+              onClick={() => { setShowIdeas(!showIdeas); setShowForm(false); setShowQuick(false); setShowTemplates(false); }}>
+              Ideas
+            </Button>
             <Button icon={<LayoutTemplate />} aria-pressed={showTemplates}
-              onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); }}>
+              onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); setShowIdeas(false); }}>
               Templates
             </Button>
             <Button icon={<Zap />} aria-pressed={showQuick}
-              onClick={() => { setShowQuick(!showQuick); setShowForm(false); setShowTemplates(false); }}>
+              onClick={() => { setShowQuick(!showQuick); setShowForm(false); setShowTemplates(false); setShowIdeas(false); }}>
               Quick post
             </Button>
             <Button variant={showForm ? 'secondary' : 'primary'} icon={showForm ? <X /> : <Plus />}
-              onClick={() => { setShowForm(!showForm); setShowTemplates(false); setShowQuick(false); }}>
+              onClick={() => { setShowForm(!showForm); setShowTemplates(false); setShowQuick(false); setShowIdeas(false); }}>
               {showForm ? 'Cancel' : 'New promotion'}
             </Button>
           </>
@@ -726,7 +759,7 @@ export default function Offers() {
       <Tabs
         ariaLabel="Offer type"
         value={mainTab}
-        onChange={(v) => { setMainTab(v); if (v !== 'deals') setShowDealForm(false); if (v !== 'promotions') { setShowForm(false); setShowTemplates(false); setShowQuick(false); } }}
+        onChange={(v) => { setMainTab(v); if (v !== 'deals') setShowDealForm(false); if (v !== 'promotions') { setShowForm(false); setShowTemplates(false); setShowQuick(false); setShowIdeas(false); } }}
         tabs={[
           { value: 'promotions', label: 'Promotions', count: promotionOffers.length },
           { value: 'deals', label: 'Deals', count: dealOffers.length },
@@ -842,6 +875,8 @@ export default function Offers() {
       )}
 
       {/* Templates */}
+      {showIdeas && isHQ && mainTab === 'promotions' && <IdeasPanel onUse={applyIdea} />}
+
       {showTemplates && (
         <Card style={{ marginBottom: 24, maxWidth: 880 }}>
           <SectionTitle>Promotion templates</SectionTitle>
