@@ -13,7 +13,7 @@ type Challenge = { id: string; kind: 'SPEND' | 'VISITS'; title: string; titleEs:
 
 const money = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 // HQ often uses the rule itself as the title ("Spend $30.00 on groceries, get $3.00 back"); then the rule line would just repeat it
-const same = (a: string, b: string) => { const k = (x: string) => x.toLowerCase().replace(/\.00/g, '').replace(/[^a-z0-9]/g, ''); return k(a) === k(b); };
+const same = (a: string, b: string) => { const k = (x: string) => x.toLowerCase().replace(/\.00\b/g, '').replace(/[^a-z0-9]/g, ''); return k(a) === k(b); };
 
 export default function ChallengesSection({ storeId, enabled }: { storeId?: string; enabled: boolean }) {
   const { t, i18n } = useTranslation();
