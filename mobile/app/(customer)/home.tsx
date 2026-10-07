@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
   Pressable,
   BackHandler,
+  Platform,
 } from 'react-native';
 import { Text, TextInput } from '../../components/ScaledText';
 import RefreshControl from '../../components/AppRefreshControl';
@@ -50,6 +51,7 @@ import DashboardWatermark from '../../components/DashboardWatermark';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { haptic } from '../../utils/haptics';
+import * as Brightness from 'expo-brightness';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -635,6 +637,16 @@ export default function CustomerHome() {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
 
   const [showQR, setShowQR] = useState(false);
+  useEffect(() => {
+    if (!showQR) return;
+    let before: number | null = null;
+    Brightness.getBrightnessAsync().then((b) => { before = b; return Brightness.setBrightnessAsync(1); }).catch(() => {});
+    return () => {
+      // Android: hand brightness back to the phone (auto brightness included); iPhone: put back the level it had
+      if (Platform.OS === 'android') Brightness.restoreSystemBrightnessAsync().catch(() => {});
+      else if (before != null) Brightness.setBrightnessAsync(before).catch(() => {});
+    };
+  }, [showQR]);
 
   // Scroll-to-section support (triggered from notification taps)
   const scrollViewRef = useRef<ScrollView>(null);

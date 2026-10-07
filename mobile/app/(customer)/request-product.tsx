@@ -141,7 +141,7 @@ export default function RequestProductScreen() {
               accessibilityLabel={t('customerRequestProduct.newRequestA11y')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={styles.newBtnText} maxFontSizeMultiplier={1.2}>+ {t('customerRequestProduct.newBtn')}</Text>
+              <Text style={styles.newBtnText} maxFontSizeMultiplier={1.2}>{t('customerRequestProduct.newBtn')}</Text>
             </TouchableOpacity>
           }
         />

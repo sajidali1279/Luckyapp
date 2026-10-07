@@ -9,6 +9,7 @@ import { MAX_FONT_SCALE } from './ScaledText';
 // from useLargeTitleScroll() to both this header and its list.
 const TITLE = 52;   // the large-title row at rest
 const SUB = 22;     // room for an optional subtitle under it
+const SUB2 = 38;    // ... when it needs two lines
 const BAR = 44;     // the slim bar, always there (iOS standard height)
 
 export function useLargeTitleScroll() {
@@ -32,7 +33,8 @@ export default function LargeTitleHeader({
 }) {
   const plain = tone === 'plain';
   const ink = plain ? COLORS.text : '#fff';
-  const large = TITLE + (subtitle ? SUB : 0);
+  const twoLines = !!subtitle && subtitle.length > 40;
+  const large = TITLE + (subtitle ? (twoLines ? SUB2 : SUB) : 0);
   const clamp = 'clamp' as const;
   const largeHeight = scrollY.interpolate({ inputRange: [0, large], outputRange: [large, 0], extrapolate: clamp });
   const largeOpacity = scrollY.interpolate({ inputRange: [0, large * 0.6], outputRange: [1, 0], extrapolate: clamp });
@@ -56,7 +58,7 @@ export default function LargeTitleHeader({
           </Animated.Text>
         </View>
         {subtitle ? (
-          <Animated.Text style={[s.subtitle, { color: plain ? COLORS.textMuted : 'rgba(255,255,255,0.72)' }]} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+          <Animated.Text style={[s.subtitle, { height: twoLines ? SUB2 : SUB, color: plain ? COLORS.textMuted : 'rgba(255,255,255,0.72)' }]} numberOfLines={twoLines ? 2 : 1} maxFontSizeMultiplier={1.2}>
             {subtitle}
           </Animated.Text>
         ) : null}
@@ -73,6 +75,6 @@ const s = StyleSheet.create({
   smallTitle: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700' },
   largeRow: { height: TITLE, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20 },
   largeTitle: { flex: 1, fontSize: 32, fontWeight: '800', letterSpacing: -0.6 },
-  subtitle: { fontSize: 13, fontWeight: '600', paddingHorizontal: 20, marginTop: -6, height: SUB },
+  subtitle: { fontSize: 13, lineHeight: 17, fontWeight: '600', paddingHorizontal: 20, marginTop: -6 },
   hairline: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border },
 });

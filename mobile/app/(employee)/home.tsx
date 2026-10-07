@@ -29,6 +29,7 @@ import DashboardWatermark from '../../components/DashboardWatermark';
 import GasPriceCard from '../../components/GasPriceCard';
 import { useCurrentStoreId } from '../../utils/geo';
 import { pctLabel } from '../../utils/offerRate';
+import { roleName } from '../../utils/roleName';
 
 function getGreeting(t: (key: string) => string) {
   const h = new Date().getHours();
@@ -193,7 +194,7 @@ export default function EmployeeHomeScreen() {
                 onPress={() => router.push('/(employee)/notifications')}
                 style={s.bellBtn}
                 accessibilityRole="button"
-                accessibilityLabel={`View notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+                accessibilityLabel={unreadCount > 0 ? t('customerHome.notificationsUnreadA11y', { count: unreadCount }) : t('customerHome.notificationsA11y')}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <BellIcon size={20} color="#fff" strokeWidth={2} />
@@ -251,7 +252,7 @@ export default function EmployeeHomeScreen() {
           <View style={s.pillRow}>
             <View style={s.statusPill}>
               <View style={s.statusDot} />
-              <Text style={s.statusText}>{t('employeeHome.onDutyStatus', { role: user?.role?.replace(/_/g, ' ') })}</Text>
+              <Text style={s.statusText}>{t('employeeHome.onDutyStatus', { role: roleName(user?.role, t) })}</Text>
             </View>
             {isOffTomorrow && (
               <View style={s.statusPill}>

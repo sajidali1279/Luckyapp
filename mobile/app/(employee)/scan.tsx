@@ -28,6 +28,7 @@ import {
   CameraIcon, XIcon, ReceiptIcon, CreditCardIcon, GiftIcon, ClockIcon,
 } from '../../components/Icons';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import { roleName } from '../../utils/roleName';
 
 type Step =
   | 'scan' | 'mode'
@@ -745,7 +746,7 @@ export default function EmployeeScanScreen() {
         <View style={s.headerRow}>
           <View>
             <Text style={s.headerStore}>Lucky Stop</Text>
-            <Text style={s.headerSub}>{user?.name || user?.phone} · {user?.role?.replace(/_/g, ' ')}</Text>
+            <Text style={s.headerSub}>{user?.name || user?.phone} · {roleName(user?.role, t)}</Text>
           </View>
           {step !== 'scan' && (
             <TouchableOpacity

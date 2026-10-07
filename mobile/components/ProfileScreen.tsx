@@ -39,6 +39,7 @@ import KeyboardSafe from './KeyboardSafe';
 import ModalToastHost from './ModalToastHost';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { haptic } from '../utils/haptics';
+import { roleName } from '../utils/roleName';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -223,7 +224,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   }
 
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
-  const roleLabel = user?.role?.replace(/_/g, ' ') ?? '';
+  const roleLabel = roleName(user?.role, t);
   const headerBg = isCustomer ? COLORS.primary
     : user?.role === 'STORE_MANAGER' ? COLORS.managerPrimary
     : COLORS.secondary;
