@@ -2,6 +2,10 @@ export const API_URL = 'https://api.luckystop.cliffindus.com/api';
 
 // Was duplicated inline in _layout.tsx's push registration; also needed at sign-out (authStore.ts) to
 // re-derive the same device token so it can be unregistered.
+// Customers claiming points by scanning the QR on their own receipt. Off until the store receipt printers are in (the screen
+// stays in the app; only the way in is hidden). Turn on when the receipt-QR system goes live.
+export const RECEIPT_QR_LIVE = false;
+
 export const EXPO_PROJECT_ID = 'c13d7114-4241-4e51-ad30-d69096d570ee';
 
 export const COLORS = {

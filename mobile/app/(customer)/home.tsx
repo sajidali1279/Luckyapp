@@ -39,7 +39,7 @@ import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
 import ErrorState from '../../components/ErrorState';
 import PromoFlipCard from '../../components/PromoFlipCard';
-import { COLORS } from '../../constants';
+import { COLORS, RECEIPT_QR_LIVE } from '../../constants';
 import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon,
@@ -1974,15 +1974,17 @@ export default function CustomerHome() {
               </View>
             )}
             <Text style={styles.qrHint}>{t('customerHome.qrUnique')}</Text>
-            <TouchableOpacity
-              style={styles.scanReceiptLink}
-              onPress={() => { setShowQR(false); router.push('/(customer)/scan-receipt'); }}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={t('customerHome.scanReceiptA11y')}
-            >
-              <Text style={styles.scanReceiptLinkText}>{t('customerHome.scanReceiptLink')}</Text>
-            </TouchableOpacity>
+            {RECEIPT_QR_LIVE && (
+              <TouchableOpacity
+                style={styles.scanReceiptLink}
+                onPress={() => { setShowQR(false); router.push('/(customer)/scan-receipt'); }}
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={t('customerHome.scanReceiptA11y')}
+              >
+                <Text style={styles.scanReceiptLinkText}>{t('customerHome.scanReceiptLink')}</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.qrModalClose}
               onPress={() => setShowQR(false)}
