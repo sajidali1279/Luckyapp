@@ -825,7 +825,9 @@ export default function CustomerHome() {
   // this is just belt-and-suspenders for the current session's cache.
   const allOffers = allOffersRaw.filter((o: any) => !(o.requires21 && user?.age21Declined && !user?.age21Confirmed));
   const isOfferLocked = (offer: any) => offer.requires21 && !user?.age21Confirmed;
-  const promotions = allOffers.filter((o: any) => o.bonusRate && o.gasBonusCentsPerGallon == null);
+  // Every cashback promotion is listed here, gas ones included (they are also the banner by the gas prices): a gas promotion
+  // posted in admin was otherwise only visible down in the gas section, and looked missing
+  const promotions = allOffers.filter((o: any) => !o.dealText && (o.bonusRate || o.gasBonusCentsPerGallon != null || (o.tierBonusRates && Object.keys(o.tierBonusRates).length > 0)));
   const gasOffers  = allOffers.filter((o: any) => o.gasBonusCentsPerGallon != null);
   // A chain-wide gas promotion is shown once above the stores; one for a single store is a tag inside that store's card
   // (it used to sit beside every store, squeezing the prices, even at stores it does not pay at)
