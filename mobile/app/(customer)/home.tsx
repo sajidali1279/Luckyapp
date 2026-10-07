@@ -49,6 +49,7 @@ import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../
 import DashboardWatermark from '../../components/DashboardWatermark';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
+import { haptic } from '../../utils/haptics';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -535,59 +536,51 @@ const CAT_FALLBACK_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#6366F
 const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any[]; userPts: number }) {
   const { t } = useTranslation();
   if (items.length === 0) return null;
-
-  // Derive category order from actual data so new categories appear automatically
-  const seenKeys: string[] = [];
-  items.forEach((i: any) => { if (i.category && !seenKeys.includes(i.category)) seenKeys.push(i.category); });
-
-  const sections = seenKeys.map((key, idx) => {
-    const cfg = CAT_DISPLAY[key] ?? {
-      label: key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-      emoji: '🏷️',
-      color: CAT_FALLBACK_COLORS[idx % CAT_FALLBACK_COLORS.length],
-    };
-    return { key, ...cfg, items: items.filter((i: any) => i.category === key).slice(0, 2) };
-  }).filter(s => s.items.length > 0);
-  if (sections.length === 0) return null;
+  // One scrolling row: what the customer can redeem now first (cheapest first), then the closest ones to reach
+  const sorted = [...items].sort((a: any, b: any) => {
+    const ra = userPts >= a.pointsCost ? 0 : 1, rb = userPts >= b.pointsCost ? 0 : 1;
+    return ra - rb || a.pointsCost - b.pointsCost;
+  }).slice(0, 10);
+  const colorOf = (key: string, idx: number) => (CAT_DISPLAY[key]?.color ?? CAT_FALLBACK_COLORS[idx % CAT_FALLBACK_COLORS.length]);
   return (
-    <View style={rs.root}>
-      {sections.map(section => (
-        <View key={section.key} style={rs.section}>
-          <View style={[rs.catHeader, { backgroundColor: section.color + '18' }]}>
-            <Text style={rs.catEmoji}>{section.emoji}</Text>
-            <Text style={[rs.catLabel, { color: section.color }]}>{CAT_LABEL_KEYS[section.key] ? t(CAT_LABEL_KEYS[section.key]) : section.label}</Text>
-          </View>
-          <View style={rs.tileRow}>
-            {section.items.map((item: any) => {
-              const canAfford = userPts >= item.pointsCost;
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[rs.tile, canAfford && { borderColor: section.color + '55' }]}
-                  onPress={() => router.push('/(customer)/rewards')}
-                  activeOpacity={0.82}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('customerHome.rewardTileA11y', { title: item.title, points: item.pointsCost.toLocaleString() })}
-                >
-                  <View style={[rs.tileIconWrap, { backgroundColor: section.color + '18' }]}>
-                    <Text style={rs.tileEmoji}>{item.emoji || '🎁'}</Text>
-                  </View>
-                  <Text style={rs.tileName} numberOfLines={2}>{item.title}</Text>
-                  <View style={[rs.ptsBadge, canAfford && { backgroundColor: section.color }]}>
-                    <Text style={[rs.ptsText, !canAfford && { color: COLORS.textMuted }]}>
-                      {t('customerHome.ptsSuffix', { pts: item.pointsCost.toLocaleString() })}
-                    </Text>
-                  </View>
-                  {!canAfford && (
-                    <Text style={rs.shortage}>−{(item.pointsCost - userPts).toLocaleString()}</Text>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      ))}
-    </View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={rs.row} decelerationRate="fast" snapToInterval={146} snapToAlignment="start">
+      {sorted.map((item: any, idx: number) => {
+        const color = colorOf(item.category, idx);
+        const canAfford = userPts >= item.pointsCost;
+        const progress = Math.max(0.04, Math.min(1, userPts / Math.max(1, item.pointsCost)));
+        return (
+          <TouchableOpacity
+            key={item.id}
+            style={rs.card}
+            onPress={() => { haptic.tap(); router.push({ pathname: '/(customer)/rewards', params: { redeem: item.id } }); }}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={t('customerHome.rewardTileA11y', { title: item.title, points: item.pointsCost.toLocaleString() })}
+          >
+            <View style={[rs.iconWrap, { backgroundColor: color + '1A' }]}>
+              <Text style={rs.emoji}>{item.emoji || '🎁'}</Text>
+            </View>
+            <Text style={rs.name} numberOfLines={2}>{item.title}</Text>
+            <Text style={[rs.pts, { color: canAfford ? color : COLORS.text }]}>{t('customerHome.ptsSuffix', { pts: item.pointsCost.toLocaleString() })}</Text>
+            <View style={rs.track}><View style={[rs.fill, { width: `${progress * 100}%`, backgroundColor: canAfford ? color : '#C9CED6' }]} /></View>
+            <Text style={[rs.status, canAfford && { color, fontWeight: '800' }]} numberOfLines={1}>
+              {canAfford ? t('customerHome.shelfReady') : t('customerHome.shelfToGo', { pts: (item.pointsCost - userPts).toLocaleString() })}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+      <TouchableOpacity
+        style={[rs.card, rs.seeAll]}
+        onPress={() => router.push('/(customer)/rewards')}
+        activeOpacity={0.85}
+        accessibilityRole="link"
+        accessibilityLabel={t('customerHome.seeAllRewardsA11y')}
+      >
+        <View style={rs.seeAllCircle}><ChevronRightIcon size={22} color="#fff" strokeWidth={2.5} /></View>
+        <Text style={rs.seeAllText}>{t('customerHome.shelfSeeAll')}</Text>
+        <Text style={rs.status}>{t('customerHome.shelfSeeAllSub', { count: items.length })}</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 });
 
@@ -1088,15 +1081,147 @@ export default function CustomerHome() {
         <WelcomeBonusCard />
       </Animated.View>
 
-      {/* ── Promo Slideshow ── */}
-      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <SectionTitle icon={<StarIcon size={17} color={COLORS.primary} strokeWidth={2} />} label={t('customerHome.whyLuckyStop')} />
-          </View>
-          <PromoSlideshow />
-        </View>
+      {/* ── Active Promotions ── */}
+      <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>
+        {contentLoading
+          ? (
+            <View style={styles.section}>
+              <View style={styles.sectionRow}>
+                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
+              </View>
+              <SkeletonOfferCard />
+              <SkeletonOfferCard />
+            </View>
+          )
+          : offersIsError
+          ? (
+            <View style={styles.section}>
+              <View style={styles.sectionRow}>
+                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
+              </View>
+              <ErrorState message={t('customerHome.loadPromotionsFailed')} onRetry={() => refetchOffers()} />
+            </View>
+          )
+          : promotions.length > 0 && (
+            <View ref={offersSectionRef} style={styles.section}>
+              <View style={styles.sectionRow}>
+                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
+                {promotions.length > 2 && (
+                  <Text style={styles.sectionCount}>{t('customerHome.offersCount', { count: promotions.length })}</Text>
+                )}
+              </View>
+              {promotions.length <= 2 ? (
+                promotions.map((offer: any, idx: number) => (
+                  <StaggeredFadeIn key={offer.id} index={idx}>
+                  <PressScale
+                    style={styles.offerCard}
+                    onPress={() => onOfferPress(offer)}
+                    accessibilityRole="button"
+                    accessibilityLabel={isOfferLocked(offer) ? t('customerHome.ageRestrictedOfferA11y', { title: offer.title }) : t('customerHome.viewPromotionA11y', { title: offer.title })}
+                  >
+                    <View style={styles.offerCardClip}>
+                      {isOfferLocked(offer) && <AgeGateOverlay />}
+                      {offer.imageUrl
+                        ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} contentFit="cover" />
+                        : <OfferPlaceholder isGas={offer.gasBonusCentsPerGallon != null} />
+                      }
+                      <View style={styles.offerContent}>
+                        <Text style={styles.offerTitle}>{offer.title}</Text>
+                        {!nearestStore && (
+                          <View style={styles.offerStoreBadge}>
+                            {offer.store
+                              ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
+                              : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
+                            }
+                            <Text style={styles.offerStoreText}>
+                              {offer.store ? `${offer.store.name}` : t('customerHome.allLuckyStopStores')}
+                            </Text>
+                          </View>
+                        )}
+                        <Text style={styles.offerDesc}>{offer.description}</Text>
+                        <View style={styles.offerBonusPill}>
+                          {offer.gasBonusCentsPerGallon != null
+                            ? <GasPumpIcon size={11} color="#fff" strokeWidth={2.5} />
+                            : <PercentIcon size={11} color="#fff" strokeWidth={2.5} />
+                          }
+                          <Text style={styles.offerBonusText}>
+                            {offer.gasBonusCentsPerGallon != null
+                              ? t('customerHome.bonusPerGal', { cents: offer.gasBonusCentsPerGallon })
+                              : offerBonusText(offer, t, 'cashbackPill')}
+                          </Text>
+                        </View>
+                        <OfferHoursLine offer={offer} />
+                      </View>
+                      <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={2.5} />
+                    </View>
+                  </PressScale>
+                  </StaggeredFadeIn>
+                ))
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
+                  {promotions.map((offer: any, idx: number) => (
+                    <StaggeredFadeIn key={offer.id} index={idx}>
+                    <PressScale
+                      style={styles.offerSlideCard}
+                      onPress={() => onOfferPress(offer)}
+                      accessibilityRole="button"
+                      accessibilityLabel={isOfferLocked(offer) ? t('customerHome.ageRestrictedOfferA11y', { title: offer.title }) : t('customerHome.viewPromotionA11y', { title: offer.title })}
+                    >
+                      <View style={styles.offerSlideClip}>
+                        {isOfferLocked(offer) && <AgeGateOverlay />}
+                        {offer.imageUrl
+                          ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} contentFit="cover" />
+                          : (
+                            <View style={[styles.offerSlidePlaceholder, { backgroundColor: offer.gasBonusCentsPerGallon != null ? '#fff7ed' : COLORS.primary + '0f' }]}>
+                              {offer.gasBonusCentsPerGallon != null
+                                ? <GasPumpIcon size={32} color={COLORS.accent} strokeWidth={1.5} />
+                                : <FlameIcon size={32} color={COLORS.primary} strokeWidth={1.5} />
+                              }
+                            </View>
+                          )
+                        }
+                        <View style={styles.offerSlideContent}>
+                          <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
+                          {!nearestStore && (
+                            <View style={styles.offerStoreBadge}>
+                              {offer.store
+                                ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
+                                : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
+                              }
+                              <Text style={styles.offerStoreText} numberOfLines={1}>
+                                {offer.store ? offer.store.name : t('customerHome.allStores')}
+                              </Text>
+                            </View>
+                          )}
+                          <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
+                          <View style={[styles.offerBonusPill, { alignSelf: 'flex-start' }]}>
+                            {offer.gasBonusCentsPerGallon != null
+                              ? <GasPumpIcon size={10} color="#fff" strokeWidth={2.5} />
+                              : <PercentIcon size={10} color="#fff" strokeWidth={2.5} />
+                            }
+                            <Text style={styles.offerBonusText}>
+                              {offer.gasBonusCentsPerGallon != null
+                                ? `+${offer.gasBonusCentsPerGallon}¢/gal`
+                                : offerBonusText(offer, t)}
+                            </Text>
+                          </View>
+                          <OfferHoursLine offer={offer} compact />
+                        </View>
+                      </View>
+                    </PressScale>
+                    </StaggeredFadeIn>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          )
+        }
       </Animated.View>
+
+      {/* ── Challenges: the customer's own, with their progress ── */}
+      <View ref={challengesSectionRef}>
+        <ChallengesSection storeId={nearestStore?.id} enabled={locationReady} />
+      </View>
 
       {/* ── Redeem with Points ── */}
       {catalogItems.length > 0 && (
@@ -1234,146 +1359,14 @@ export default function CustomerHome() {
         }
       </Animated.View>
 
-      {/* ── Challenges: the customer's own, with their progress ── */}
-      <View ref={challengesSectionRef}>
-        <ChallengesSection storeId={nearestStore?.id} enabled={locationReady} />
-      </View>
-
-      {/* ── Active Promotions ── */}
-      <Animated.View style={{ opacity: fadeAnims[5], transform: [{ translateY: slideAnims[5] }] }}>
-        {contentLoading
-          ? (
-            <View style={styles.section}>
-              <View style={styles.sectionRow}>
-                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
-              </View>
-              <SkeletonOfferCard />
-              <SkeletonOfferCard />
-            </View>
-          )
-          : offersIsError
-          ? (
-            <View style={styles.section}>
-              <View style={styles.sectionRow}>
-                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
-              </View>
-              <ErrorState message={t('customerHome.loadPromotionsFailed')} onRetry={() => refetchOffers()} />
-            </View>
-          )
-          : promotions.length > 0 && (
-            <View ref={offersSectionRef} style={styles.section}>
-              <View style={styles.sectionRow}>
-                <SectionTitle icon={<FlameIcon size={17} color={COLORS.primary} />} label={t('customerHome.activePromotions')} />
-                {promotions.length > 2 && (
-                  <Text style={styles.sectionCount}>{t('customerHome.offersCount', { count: promotions.length })}</Text>
-                )}
-              </View>
-              {promotions.length <= 2 ? (
-                promotions.map((offer: any, idx: number) => (
-                  <StaggeredFadeIn key={offer.id} index={idx}>
-                  <PressScale
-                    style={styles.offerCard}
-                    onPress={() => onOfferPress(offer)}
-                    accessibilityRole="button"
-                    accessibilityLabel={isOfferLocked(offer) ? t('customerHome.ageRestrictedOfferA11y', { title: offer.title }) : t('customerHome.viewPromotionA11y', { title: offer.title })}
-                  >
-                    <View style={styles.offerCardClip}>
-                      {isOfferLocked(offer) && <AgeGateOverlay />}
-                      {offer.imageUrl
-                        ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} contentFit="cover" />
-                        : <OfferPlaceholder isGas={offer.gasBonusCentsPerGallon != null} />
-                      }
-                      <View style={styles.offerContent}>
-                        <Text style={styles.offerTitle}>{offer.title}</Text>
-                        {!nearestStore && (
-                          <View style={styles.offerStoreBadge}>
-                            {offer.store
-                              ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
-                              : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
-                            }
-                            <Text style={styles.offerStoreText}>
-                              {offer.store ? `${offer.store.name}` : t('customerHome.allLuckyStopStores')}
-                            </Text>
-                          </View>
-                        )}
-                        <Text style={styles.offerDesc}>{offer.description}</Text>
-                        <View style={styles.offerBonusPill}>
-                          {offer.gasBonusCentsPerGallon != null
-                            ? <GasPumpIcon size={11} color="#fff" strokeWidth={2.5} />
-                            : <PercentIcon size={11} color="#fff" strokeWidth={2.5} />
-                          }
-                          <Text style={styles.offerBonusText}>
-                            {offer.gasBonusCentsPerGallon != null
-                              ? t('customerHome.bonusPerGal', { cents: offer.gasBonusCentsPerGallon })
-                              : offerBonusText(offer, t, 'cashbackPill')}
-                          </Text>
-                        </View>
-                        <OfferHoursLine offer={offer} />
-                      </View>
-                      <ChevronRightIcon size={20} color={COLORS.border} strokeWidth={2.5} />
-                    </View>
-                  </PressScale>
-                  </StaggeredFadeIn>
-                ))
-              ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sliderRow}>
-                  {promotions.map((offer: any, idx: number) => (
-                    <StaggeredFadeIn key={offer.id} index={idx}>
-                    <PressScale
-                      style={styles.offerSlideCard}
-                      onPress={() => onOfferPress(offer)}
-                      accessibilityRole="button"
-                      accessibilityLabel={isOfferLocked(offer) ? t('customerHome.ageRestrictedOfferA11y', { title: offer.title }) : t('customerHome.viewPromotionA11y', { title: offer.title })}
-                    >
-                      <View style={styles.offerSlideClip}>
-                        {isOfferLocked(offer) && <AgeGateOverlay />}
-                        {offer.imageUrl
-                          ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} contentFit="cover" />
-                          : (
-                            <View style={[styles.offerSlidePlaceholder, { backgroundColor: offer.gasBonusCentsPerGallon != null ? '#fff7ed' : COLORS.primary + '0f' }]}>
-                              {offer.gasBonusCentsPerGallon != null
-                                ? <GasPumpIcon size={32} color={COLORS.accent} strokeWidth={1.5} />
-                                : <FlameIcon size={32} color={COLORS.primary} strokeWidth={1.5} />
-                              }
-                            </View>
-                          )
-                        }
-                        <View style={styles.offerSlideContent}>
-                          <Text style={styles.offerTitle} numberOfLines={2}>{offer.title}</Text>
-                          {!nearestStore && (
-                            <View style={styles.offerStoreBadge}>
-                              {offer.store
-                                ? <MapPinIcon size={10} color={COLORS.secondary} strokeWidth={2.5} />
-                                : <GlobeIcon size={10} color={COLORS.textMuted} strokeWidth={2.5} />
-                              }
-                              <Text style={styles.offerStoreText} numberOfLines={1}>
-                                {offer.store ? offer.store.name : t('customerHome.allStores')}
-                              </Text>
-                            </View>
-                          )}
-                          <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
-                          <View style={[styles.offerBonusPill, { alignSelf: 'flex-start' }]}>
-                            {offer.gasBonusCentsPerGallon != null
-                              ? <GasPumpIcon size={10} color="#fff" strokeWidth={2.5} />
-                              : <PercentIcon size={10} color="#fff" strokeWidth={2.5} />
-                            }
-                            <Text style={styles.offerBonusText}>
-                              {offer.gasBonusCentsPerGallon != null
-                                ? `+${offer.gasBonusCentsPerGallon}¢/gal`
-                                : offerBonusText(offer, t)}
-                            </Text>
-                          </View>
-                          <OfferHoursLine offer={offer} compact />
-                        </View>
-                      </View>
-                    </PressScale>
-                    </StaggeredFadeIn>
-                  ))}
-                </ScrollView>
-              )}
-            </View>
-          )
-        }
+      {/* ── Promo Slideshow ── */}
+      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <SectionTitle icon={<StarIcon size={17} color={COLORS.primary} strokeWidth={2} />} label={t('customerHome.whyLuckyStop')} />
+          </View>
+          <PromoSlideshow />
+        </View>
       </Animated.View>
 
       {/* ── Hot Food ── */}
@@ -2370,25 +2363,21 @@ const ds = StyleSheet.create({
 });
 
 const rs = StyleSheet.create({
-  root:         { gap: 14 },
-  section:      { gap: 0 },
-  catHeader:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 8, alignSelf: 'flex-start' },
-  catEmoji:     { fontSize: 13 },
-  catLabel:     { fontSize: 12, fontWeight: '800' },
-  tileRow:      { flexDirection: 'row', gap: 10 },
-  tile: {
-    flex: 1, backgroundColor: COLORS.white, borderRadius: 14, padding: 12,
-    borderWidth: 1.5, borderColor: COLORS.border,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 5, elevation: 2,
-    gap: 6,
+  row:      { gap: 10, paddingRight: 16 },
+  card: {
+    width: 136, backgroundColor: COLORS.white, borderRadius: 18, padding: 12, gap: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
-  tileIconWrap: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  tileEmoji:    { fontSize: 20 },
-  tileName:     { fontSize: 12, fontWeight: '700', color: COLORS.text, lineHeight: 16 },
-  ptsBadge:     { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: COLORS.border, alignSelf: 'flex-start' },
-  ptsText:      { fontSize: 11, fontWeight: '800', color: '#fff' },
-  shortage:     { fontSize: 10, fontWeight: '600', color: '#E63946', marginTop: -2 },
+  iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  emoji:    { fontSize: 24 },
+  name:     { fontSize: 13, fontWeight: '700', color: COLORS.text, lineHeight: 17, height: 34 },
+  pts:      { fontSize: 15, fontWeight: '900' },
+  track:    { height: 5, borderRadius: 3, backgroundColor: '#EEF0F3', overflow: 'hidden' },
+  fill:     { height: 5, borderRadius: 3 },
+  status:   { fontSize: 11, fontWeight: '600', color: COLORS.textMuted },
+  seeAll:   { alignItems: 'center', justifyContent: 'center', backgroundColor: '#F7F8FA' },
+  seeAllCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  seeAllText:   { fontSize: 14, fontWeight: '800', color: COLORS.text, marginTop: 4 },
 });
 
 const gp = StyleSheet.create({

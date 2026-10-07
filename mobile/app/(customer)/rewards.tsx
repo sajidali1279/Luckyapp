@@ -26,6 +26,8 @@ import PulseHighlight from '../../components/PulseHighlight';
 import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import { haptic } from '../../utils/haptics';
+import { useLocalSearchParams } from 'expo-router';
 
 
 
@@ -177,43 +179,49 @@ function ActiveRedemptionBanner({ redemption, onCancel }: { redemption: any; onC
 }
 
 // ─── Catalog tile ──────────────────────────────────────────────────────────────
+// Every tile the same height: the icon, a two-line title, one line of detail, the cost with a bar of how close the customer is,
+// and one full-width button. A tile the customer can afford opens the redeem sheet from anywhere on it.
 function CatalogTile({ item, pts, onRedeem }: { item: any; pts: number; onRedeem: (item: any) => void }) {
   const { t } = useTranslation();
   const catCfg = getCatCfg(item.category, t);
   const canAfford = pts >= item.pointsCost;
   const shortage = item.pointsCost - pts;
+  const progress = Math.max(0.04, Math.min(1, pts / Math.max(1, item.pointsCost)));
+  const open = () => { if (canAfford) { haptic.tap(); onRedeem(item); } };
   return (
-    <View style={[ct.tile, canAfford && { borderColor: catCfg.color + '40' }, !canAfford && ct.tileLocked]}>
-      <View style={[ct.catTag, { backgroundColor: catCfg.color + '15' }]}>
-        <Text style={[ct.catTagText, { color: catCfg.color }]}>{catCfg.emoji} {catCfg.label}</Text>
+    <TouchableOpacity
+      style={[ct.tile, canAfford && { borderColor: catCfg.color + '55' }]}
+      onPress={open}
+      activeOpacity={canAfford ? 0.85 : 1}
+      disabled={!canAfford}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !canAfford }}
+      accessibilityLabel={canAfford
+        ? t('customerRewards.redeemItemA11y', { title: item.title, points: item.pointsCost.toLocaleString() })
+        : `${item.title}, ${t('customerRewards.shortagePts', { points: shortage.toLocaleString() })}`}
+    >
+      <View style={[ct.top, { backgroundColor: catCfg.color + '14' }]}>
+        <Text style={[ct.catTagText, { color: catCfg.color }]} numberOfLines={1}>{catCfg.emoji} {catCfg.label}</Text>
+        <View style={ct.emojiRing}><Text style={ct.emoji}>{item.emoji || '🎁'}</Text></View>
       </View>
-      <View style={[ct.emojiRing, { backgroundColor: catCfg.color + (canAfford ? '20' : '0d') }]}>
-        <Text style={ct.emoji}>{item.emoji || '🎁'}</Text>
-      </View>
-      <Text style={ct.title} numberOfLines={2}>{item.title}</Text>
-      {item.description ? <Text style={ct.desc} numberOfLines={2}>{item.description}</Text> : null}
-      {item.category === 'HOT_FOODS' && <Text style={ct.locationNote}>{t('customerRewards.selectLocationsNote')}</Text>}
-      <View style={ct.footer}>
-        <View style={[ct.costBadge, canAfford && { backgroundColor: catCfg.color }]}>
-          <Text style={[ct.costPts, !canAfford && { color: COLORS.textMuted }]}>{item.pointsCost.toLocaleString()}</Text>
-          <Text style={[ct.costLabel, !canAfford && { color: COLORS.textMuted }]}>{t('customerRewards.pts')}</Text>
+      <View style={ct.body}>
+        <Text style={ct.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={ct.desc} numberOfLines={1}>
+          {item.category === 'HOT_FOODS' ? t('customerRewards.selectLocationsNote') : (item.description || ' ')}
+        </Text>
+        <View style={ct.costRow}>
+          <Text style={[ct.costPts, { color: canAfford ? catCfg.color : COLORS.text }]}>{item.pointsCost.toLocaleString()}</Text>
+          <Text style={ct.costLabel}>{t('customerRewards.pts')}</Text>
+          {!canAfford && <Text style={ct.toGo} numberOfLines={1}>{t('customerRewards.toGoShort', { points: shortage.toLocaleString() })}</Text>}
         </View>
-        {canAfford ? (
-          <TouchableOpacity
-            style={[ct.redeemBtn, { backgroundColor: catCfg.color }]}
-            onPress={() => onRedeem(item)}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={t('customerRewards.redeemItemA11y', { title: item.title, points: item.pointsCost.toLocaleString() })}
-            hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-          >
-            <Text style={ct.redeemBtnText}>{t('customerRewards.redeemBtn')}</Text>
-          </TouchableOpacity>
-        ) : (
-          <Text style={ct.shortage}>{t('customerRewards.shortagePts', { points: shortage.toLocaleString() })}</Text>
-        )}
+        <View style={ct.track}><View style={[ct.fill, { width: `${progress * 100}%`, backgroundColor: canAfford ? catCfg.color : '#C9CED6' }]} /></View>
+        <View style={[ct.btn, canAfford ? { backgroundColor: catCfg.color } : ct.btnLocked]}>
+          <Text style={[ct.btnText, !canAfford && { color: COLORS.textMuted }]}>
+            {canAfford ? t('customerRewards.redeemBtn') : t('customerRewards.lockedBtn')}
+          </Text>
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -417,10 +425,25 @@ export default function RewardsScreen() {
   const categoryKeys = Array.from(new Set(allItems.map((i: any) => i.category).filter(Boolean))) as string[];
   const categories = [
     { key: 'ALL', label: t('customerRewards.allCategoriesLabel'), emoji: '🏷️', color: COLORS.secondary },
+    { key: 'READY', label: t('customerRewards.readyNow'), emoji: '✅', color: COLORS.success },
     ...categoryKeys.map((key, idx) => ({ key, ...getCatCfg(key, t, idx) })),
   ];
 
-  const filtered = activeCategory === 'ALL' ? allItems : allItems.filter(i => i.category === activeCategory);
+  // Redeemable first (cheapest first), then the closest to reach
+  const sortedItems = [...allItems].sort((a: any, b: any) => (pts >= a.pointsCost ? 0 : 1) - (pts >= b.pointsCost ? 0 : 1) || a.pointsCost - b.pointsCost);
+  const readyItems = sortedItems.filter((i: any) => pts >= i.pointsCost);
+  const nextItem = sortedItems.find((i: any) => pts < i.pointsCost);
+  const filtered = activeCategory === 'READY' ? readyItems : activeCategory === 'ALL' ? sortedItems : sortedItems.filter(i => i.category === activeCategory);
+
+  // From Home's rewards row: open that reward's redeem sheet straight away when the customer can afford it
+  const { redeem: redeemParam } = useLocalSearchParams<{ redeem?: string }>();
+  const openedParamRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!redeemParam || openedParamRef.current === redeemParam || allItems.length === 0) return;
+    openedParamRef.current = redeemParam;
+    const it = allItems.find((i: any) => i.id === redeemParam);
+    if (it && pts >= it.pointsCost) setSelectedItem(it);
+  }, [redeemParam, allItems.length]);
   const now = new Date();
   const pendingRedemptions: any[] = (redemptionsData?.data?.data || [])
     .filter((r: any) => r.status === 'PENDING' && new Date(r.expiresAt) > now);
@@ -527,18 +550,22 @@ export default function RewardsScreen() {
                 <TagIcon size={16} color={COLORS.text} strokeWidth={2} />
                 <Text style={r.redeemTitle}>{t('customerRewards.redeemRewardsTitle')}</Text>
               </View>
-              <Text style={r.redeemSub}>{t('customerRewards.redeemRewardsSub')}</Text>
+              <Text style={r.redeemSub}>
+                {readyItems.length > 0
+                  ? t('customerRewards.readySummary', { count: readyItems.length })
+                  : nextItem ? t('customerRewards.readySummaryNone', { points: (nextItem.pointsCost - pts).toLocaleString() }) : t('customerRewards.redeemRewardsSub')}
+              </Text>
             </View>
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={r.catRow}>
               {categories.map(cat => {
                 const active = activeCategory === cat.key;
-                const count = cat.key === 'ALL' ? allItems.length : allItems.filter(i => i.category === cat.key).length;
+                const count = cat.key === 'ALL' ? allItems.length : cat.key === 'READY' ? readyItems.length : allItems.filter(i => i.category === cat.key).length;
                 return (
                   <TouchableOpacity
                     key={cat.key}
                     style={[r.catPill, active && { backgroundColor: cat.color, borderColor: cat.color }]}
-                    onPress={() => setActiveCategory(cat.key)}
+                    onPress={() => { if (!active) haptic.select(); setActiveCategory(cat.key); }}
                     activeOpacity={0.75}
                     accessibilityRole="tab"
                     accessibilityLabel={active ? t('customerRewards.filterByCategorySelectedA11y', { category: cat.label }) : t('customerRewards.filterByCategoryA11y', { category: cat.label })}
@@ -570,11 +597,11 @@ export default function RewardsScreen() {
               <ErrorState message={t('customerRewards.loadError')} onRetry={() => refetch()} />
             ) : (
               <View style={r.emptyBox}>
-                <Text style={r.emptyEmoji}>{activeCategory === 'ALL' ? '🏷️' : getCatCfg(activeCategory, t).emoji}</Text>
+                <Text style={r.emptyEmoji}>{activeCategory === 'ALL' || activeCategory === 'READY' ? '🏷️' : getCatCfg(activeCategory, t).emoji}</Text>
                 <Text style={r.emptyTitle}>
-                  {activeCategory === 'ALL' ? t('customerRewards.emptyTitleAll') : t('customerRewards.emptyTitleCategory', { category: getCatCfg(activeCategory, t).label })}
+                  {activeCategory === 'READY' ? t('customerRewards.emptyReady') : activeCategory === 'ALL' ? t('customerRewards.emptyTitleAll') : t('customerRewards.emptyTitleCategory', { category: getCatCfg(activeCategory, t).label })}
                 </Text>
-                <Text style={r.emptySub}>{t('customerRewards.emptySubtitle')}</Text>
+                <Text style={r.emptySub}>{activeCategory === 'READY' ? t('customerRewards.emptyReadySub') : t('customerRewards.emptySubtitle')}</Text>
               </View>
             )
           ) : null
@@ -781,27 +808,27 @@ const r = StyleSheet.create({
 
 const ct = StyleSheet.create({
   tile: {
-    flex: 1, backgroundColor: COLORS.white, borderRadius: 18,
-    padding: 14, borderWidth: 1.5, borderColor: COLORS.border,
-    gap: 8, alignItems: 'flex-start',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 6, elevation: 2,
+    flex: 1, backgroundColor: COLORS.white, borderRadius: 20, overflow: 'hidden',
+    borderWidth: 1.5, borderColor: COLORS.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
-  tileLocked: { opacity: 0.65 },
-  catTag: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start' },
-  catTagText: { fontSize: 10, fontWeight: '800' },
-  emojiRing: { width: 54, height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
-  emoji: { fontSize: 28 },
-  title: { fontSize: 14, fontWeight: '800', color: COLORS.text, lineHeight: 19, width: '100%' },
-  desc: { fontSize: 11, color: COLORS.textMuted, lineHeight: 15, width: '100%' },
-  locationNote: { fontSize: 10, color: '#E65100', fontWeight: '700' },
-  footer: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
-  costBadge: { backgroundColor: COLORS.border, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4, alignItems: 'center' },
-  costPts: { fontSize: 13, fontWeight: '900', color: '#fff' },
-  costLabel: { fontSize: 8, fontWeight: '700', color: 'rgba(255,255,255,0.75)' },
-  redeemBtn: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7 },
-  redeemBtnText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  shortage: { fontSize: 11, color: COLORS.error, fontWeight: '700' },
+  top: { alignItems: 'center', paddingTop: 10, paddingBottom: 12, gap: 8 },
+  catTagText: { fontSize: 10.5, fontWeight: '800', alignSelf: 'flex-start', marginLeft: 12 },
+  emojiRing: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 1 },
+  emoji: { fontSize: 30 },
+  body: { padding: 12, paddingTop: 10, gap: 6 },
+  title: { fontSize: 14, fontWeight: '800', color: COLORS.text, lineHeight: 18, height: 36 },
+  desc: { fontSize: 11, color: COLORS.textMuted, lineHeight: 15 },
+  costRow: { flexDirection: 'row', alignItems: 'baseline', gap: 3, marginTop: 2 },
+  costPts: { fontSize: 18, fontWeight: '900' },
+  costLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
+  toGo: { flex: 1, textAlign: 'right', fontSize: 10.5, fontWeight: '700', color: COLORS.textMuted },
+  track: { height: 5, borderRadius: 3, backgroundColor: '#EEF0F3', overflow: 'hidden' },
+  fill: { height: 5, borderRadius: 3 },
+  btn: { marginTop: 4, borderRadius: 12, paddingVertical: 9, alignItems: 'center' },
+  btnLocked: { backgroundColor: '#F1F3F6' },
+  btnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
 });
 
 const md = StyleSheet.create({

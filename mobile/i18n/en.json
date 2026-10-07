@@ -651,7 +651,15 @@
     "benefitGasBonus": "+{{cents}}¢ bonus per gallon on gas",
     "categoryInStore": "In-Store",
     "categoryGas": "Gas",
-    "categoryHotFoods": "Hot Foods"
+    "categoryHotFoods": "Hot Foods",
+    "readyNow": "Ready now",
+    "toGoShort": "{{points}} to go",
+    "lockedBtn": "Keep earning",
+    "readySummary_one": "You can redeem {{count}} reward now",
+    "readySummary_other": "You can redeem {{count}} rewards now",
+    "readySummaryNone": "Earn {{points}} more points for your next reward",
+    "emptyReady": "Nothing to redeem yet",
+    "emptyReadySub": "Keep earning: your closest reward is in All."
   },
   "employeeDailyReport": {
     "title": "Daily Report",
@@ -2324,7 +2332,11 @@
     "audBirthday": "your birthday month",
     "dailyCap": "Up to ${{amount}} a day",
     "gasPromoAllStores": "Added automatically at the pump, at every store",
-    "gasPromoHere": "+{{cents}}¢/gal promo here"
+    "gasPromoHere": "+{{cents}}¢/gal promo here",
+    "shelfReady": "Ready to redeem",
+    "shelfToGo": "{{pts}} pts to go",
+    "shelfSeeAll": "See all",
+    "shelfSeeAllSub": "{{count}} rewards"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Free Fountain Drink",

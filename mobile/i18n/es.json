@@ -651,7 +651,15 @@
     "loadError": "No se pudieron cargar las recompensas.",
     "emptySubtitle": "Vuelve pronto - se agregan nuevas recompensas regularmente",
     "closeBenefitsInfoA11y": "Cerrar información de beneficios",
-    "gotIt": "Entendido"
+    "gotIt": "Entendido",
+    "readyNow": "Listos ya",
+    "toGoShort": "Faltan {{points}}",
+    "lockedBtn": "Sigue sumando",
+    "readySummary_one": "Puedes canjear {{count}} premio ahora",
+    "readySummary_other": "Puedes canjear {{count}} premios ahora",
+    "readySummaryNone": "Gana {{points}} puntos más para tu próximo premio",
+    "emptyReady": "Aún no hay nada para canjear",
+    "emptyReadySub": "Sigue sumando: tu premio más cercano está en Todos."
   },
   "employeeDailyReport": {
     "loadFailed": "No se pudo cargar",
@@ -2324,7 +2332,11 @@
     "audBirthday": "tu mes de cumpleaños",
     "dailyCap": "Hasta ${{amount}} al día",
     "gasPromoAllStores": "Se aplica automáticamente en la bomba, en todas las tiendas",
-    "gasPromoHere": "+{{cents}}¢/gal de promoción aquí"
+    "gasPromoHere": "+{{cents}}¢/gal de promoción aquí",
+    "shelfReady": "Listo para canjear",
+    "shelfToGo": "Faltan {{pts}} pts",
+    "shelfSeeAll": "Ver todo",
+    "shelfSeeAllSub": "{{count}} premios"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Refresco de Fuente Gratis",
