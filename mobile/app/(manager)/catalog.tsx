@@ -1,9 +1,18 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, TextInput,
-  ScrollView, ActivityIndicator, Alert, RefreshControl,
-  Platform, Modal, Keyboard, useWindowDimensions,
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Modal,
+  Keyboard,
+  useWindowDimensions,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { Image } from 'expo-image';
 import { CameraView } from 'expo-camera';
 import { useCameraAccess } from '../../hooks/useCameraAccess';

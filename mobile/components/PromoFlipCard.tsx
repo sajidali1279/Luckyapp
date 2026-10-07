@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Animated, View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { Animated, View, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { Text } from './ScaledText';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';

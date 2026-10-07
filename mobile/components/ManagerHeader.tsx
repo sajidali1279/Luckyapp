@@ -1,9 +1,11 @@
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, StatusBar, type Animated } from 'react-native';
+import { Text } from './ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
 import { COLORS } from '../constants';
 import { ChevronLeftIcon } from './Icons';
+import LargeTitleHeader from './LargeTitleHeader';
 
 type Size = 'lg' | 'md' | 'sm';
 
@@ -17,6 +19,8 @@ interface ManagerHeaderProps {
   rightSlot?: ReactNode;
   paddingHorizontal?: number;
   children?: ReactNode;
+  /** Pass the list's scroll position (useLargeTitleScroll) for the iPhone large title that shrinks as the list scrolls. */
+  scrollY?: Animated.Value;
 }
 
 // Shared header for Manager-role screens. Centralizing this also fixes a
@@ -26,8 +30,27 @@ interface ManagerHeaderProps {
 // carries the managerPrimary background.
 export default function ManagerHeader({
   title, eyebrow, subtitle, size = 'md', showBack = false, icon, rightSlot,
-  paddingHorizontal = 20, children,
+  paddingHorizontal = 20, children, scrollY,
 }: ManagerHeaderProps) {
+  if (scrollY) {
+    return (
+      <LargeTitleHeader
+        title={title}
+        subtitle={subtitle ?? eyebrow}
+        scrollY={scrollY}
+        color={COLORS.managerPrimary}
+        icon={icon}
+        left={showBack ? (
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
+          </TouchableOpacity>
+        ) : undefined}
+        right={rightSlot}
+      >
+        {children}
+      </LargeTitleHeader>
+    );
+  }
   return (
     <SafeAreaView style={s.headerBg} edges={['top']}>
       <StatusBar barStyle="light-content" />

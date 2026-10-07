@@ -1,9 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ActivityIndicator, ScrollView, StatusBar, FlatList,
-  Animated, Easing, Alert,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+  StatusBar,
+  FlatList,
+  Animated,
+  Easing,
+  Alert,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';

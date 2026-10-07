@@ -1,9 +1,18 @@
 import { useState, useEffect, ReactNode, useCallback } from 'react';
 import { router } from 'expo-router';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  ScrollView, StatusBar, ActivityIndicator, Switch, Modal, Platform, Alert,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  ActivityIndicator,
+  Switch,
+  Modal,
+  Platform,
+  Alert,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
@@ -28,6 +37,8 @@ import { useNotificationPermission } from '../hooks/useNotificationPermission';
 import { LANGUAGES, setLanguage, getLanguage, type LanguageCode } from '../i18n';
 import KeyboardSafe from './KeyboardSafe';
 import ModalToastHost from './ModalToastHost';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { haptic } from '../utils/haptics';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -39,7 +50,7 @@ interface Props {
 }
 
 export default function ProfileScreen({ isCustomer = false }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const notif = useNotificationPermission();
   const { user, token, logout, setAuth, biometricEnabled, setBiometricEnabled, setAge21Confirmed } = useAuthStore();
   const [confirmingAge21, setConfirmingAge21] = useState(false);
@@ -1004,6 +1015,21 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <View style={s.langModalCard} onStartShouldSetResponder={() => true}>
             <Text style={s.langModalTitle}>{t('birthday.modalTitle')}</Text>
             <Text style={s.langModalSubtitle}>{t('birthday.modalSubtitle')}</Text>
+            {Platform.OS === 'ios' ? (
+              // iPhone: the native date wheel (a leap year, so Feb 29 is there); only month and day are kept
+              <View style={{ marginBottom: 12 }}>
+                <DateTimePicker
+                  value={new Date(2000, bdayMonth - 1, Math.min(bdayDay, daysIn(bdayMonth)))}
+                  mode="date"
+                  display="spinner"
+                  themeVariant="light"
+                  locale={i18n.language === 'es' ? 'es-US' : 'en-US'}
+                  onChange={(_e, d) => { if (d) { haptic.select(); setBdayMonth(d.getMonth() + 1); setBdayDay(d.getDate()); } }}
+                  style={{ alignSelf: 'stretch' }}
+                />
+                <Text style={{ fontSize: 12, color: COLORS.textMuted, textAlign: 'center' }}>{t('birthday.yearIgnored')}</Text>
+              </View>
+            ) : (<>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <TouchableOpacity key={m} onPress={() => { setBdayMonth(m); setBdayDay((d) => Math.min(d, daysIn(m))); }}
@@ -1025,6 +1051,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 <Text style={{ fontSize: 20, fontWeight: '800', color: COLORS.text }}>+</Text>
               </TouchableOpacity>
             </View>
+            </>)}
             <TouchableOpacity style={[s.langSaveBtn, savingBday && { opacity: 0.6 }]} onPress={() => saveBirthday(false)} disabled={savingBday} activeOpacity={0.85} accessibilityRole="button">
               <Text style={s.langSaveBtnText}>{t('birthday.save')}</Text>
             </TouchableOpacity>

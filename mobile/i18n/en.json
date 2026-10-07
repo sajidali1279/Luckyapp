@@ -2322,7 +2322,9 @@
     "audLapsed": "welcome back",
     "audNew": "new member",
     "audBirthday": "your birthday month",
-    "dailyCap": "Up to ${{amount}} a day"
+    "dailyCap": "Up to ${{amount}} a day",
+    "gasPromoAllStores": "Added automatically at the pump, at every store",
+    "gasPromoHere": "+{{cents}}¢/gal promo here"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Free Fountain Drink",
@@ -2751,7 +2753,8 @@
     "m9": "September",
     "m10": "October",
     "m11": "November",
-    "m12": "December"
+    "m12": "December",
+    "yearIgnored": "Only the month and day are kept; the year is not saved."
   },
   "challenges": {
     "title": "Challenges",

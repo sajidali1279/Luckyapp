@@ -1,8 +1,15 @@
 import { useCallback, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, Alert,
-  StyleSheet, StatusBar, ActivityIndicator, RefreshControl,
+  View,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  StatusBar,
+  ActivityIndicator,
 } from 'react-native';
+import { Text } from './ScaledText';
+import RefreshControl from './AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +26,7 @@ import {
   CalendarIcon, ClockIcon, ClipboardIcon, PackageIcon, AlertTriangleIcon,
   BriefcaseIcon,
 } from './Icons';
+import LargeTitleHeader, { useLargeTitleScroll } from './LargeTitleHeader';
 
 const TYPE_CONFIG: Record<string, { color: string }> = {
   GAS_PRICE_UPDATE:  { color: '#f97316' },
@@ -82,6 +90,7 @@ interface Notification {
 
 export default function NotificationsScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -210,24 +219,23 @@ export default function NotificationsScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={[s.header, { backgroundColor: headerBg }]}>
-        <Text style={s.headerTitle}>{t('sharedNotifications.title')}</Text>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {unreadCount > 0 && (
-            <TouchableOpacity
-              style={s.headerBtn}
-              onPress={() => markAllMutation.mutate()}
-              disabled={markAllMutation.isPending}
-              accessibilityRole="button"
-              accessibilityLabel={t('sharedNotifications.markAllReadA11y')}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Text style={s.headerBtnText}>{t('sharedNotifications.markReadButton')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </SafeAreaView>
+      <LargeTitleHeader
+        title={t('sharedNotifications.title')}
+        scrollY={largeTitle.scrollY}
+        color={headerBg}
+        right={unreadCount > 0 ? (
+          <TouchableOpacity
+            style={s.headerBtn}
+            onPress={() => markAllMutation.mutate()}
+            disabled={markAllMutation.isPending}
+            accessibilityRole="button"
+            accessibilityLabel={t('sharedNotifications.markAllReadA11y')}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Text style={s.headerBtnText} maxFontSizeMultiplier={1.2}>{t('sharedNotifications.markReadButton')}</Text>
+          </TouchableOpacity>
+        ) : undefined}
+      />
 
       <NotificationsOffBanner />
 
@@ -247,6 +255,8 @@ export default function NotificationsScreen() {
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={s.list}
+              onScroll={largeTitle.onScroll}
+              scrollEventThrottle={largeTitle.scrollEventThrottle}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />
               }

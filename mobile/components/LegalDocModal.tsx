@@ -1,8 +1,15 @@
 import { useRef, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Modal, Animated, StatusBar, SafeAreaView,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  Animated,
+  StatusBar,
+  SafeAreaView,
 } from 'react-native';
+import { Text } from './ScaledText';
 import Markdown from 'react-native-markdown-display';
 import { COLORS } from '../constants';
 import { TERMS_OF_SERVICE } from '../constants/termsOfService';

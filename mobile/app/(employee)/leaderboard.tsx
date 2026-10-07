@@ -1,4 +1,6 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import { Text } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';

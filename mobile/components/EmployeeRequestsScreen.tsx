@@ -1,7 +1,15 @@
 import {
-  View, Text, TouchableOpacity, FlatList, TextInput,
-  StyleSheet, ScrollView, ActivityIndicator, Modal, Alert, RefreshControl,
+  View,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Modal,
+  Alert,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
+import RefreshControl from './AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +23,7 @@ import { useHighlightParam } from '../hooks/useHighlightParam';
 import { usePullRefresh } from '../hooks/usePullRefresh';
 import ErrorState from './ErrorState';
 import KeyboardSafe from './KeyboardSafe';
+import LargeTitleHeader, { useLargeTitleScroll } from './LargeTitleHeader';
 
 const PRIORITY_COLORS: Record<string, string> = {
   HIGH: '#E63946', MEDIUM: '#f59e0b', LOW: '#2DC653',
@@ -48,6 +57,7 @@ function formatTime(iso: string) {
 
 export default function EmployeeRequestsScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
 
   const REQUEST_TYPES = [
@@ -171,12 +181,12 @@ export default function EmployeeRequestsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>{t('sharedEmployeeRequests.headerEyebrow')}</Text>
-            <Text style={s.headerTitle}>{t('sharedEmployeeRequests.headerTitle')}</Text>
-          </View>
+      <LargeTitleHeader
+        title={t('sharedEmployeeRequests.headerTitle')}
+        subtitle={t('sharedEmployeeRequests.headerEyebrow')}
+        scrollY={largeTitle.scrollY}
+        color="#1D3557"
+        right={
           <TouchableOpacity
             style={s.newBtn}
             onPress={() => setShowForm(true)}
@@ -184,9 +194,10 @@ export default function EmployeeRequestsScreen() {
             accessibilityLabel={t('sharedEmployeeRequests.newAlertA11y')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={s.newBtnText}>{t('sharedEmployeeRequests.newAlertButton')}</Text>
+            <Text style={s.newBtnText} maxFontSizeMultiplier={1.2}>{t('sharedEmployeeRequests.newAlertButton')}</Text>
           </TouchableOpacity>
-        </View>
+        }
+      >
 
         {/* Stats pills */}
         <View style={s.statsRow}>
@@ -203,7 +214,7 @@ export default function EmployeeRequestsScreen() {
             <Text style={[s.statLbl, { color: '#2DC653' }]}>{t('sharedEmployeeRequests.statDone')}</Text>
           </View>
         </View>
-      </SafeAreaView>
+      </LargeTitleHeader>
 
       {/* ── List ── */}
       {isLoading ? (
@@ -233,6 +244,8 @@ export default function EmployeeRequestsScreen() {
             renderItem={renderRequest}
             contentContainerStyle={s.list}
             showsVerticalScrollIndicator={false}
+            onScroll={largeTitle.onScroll}
+            scrollEventThrottle={largeTitle.scrollEventThrottle}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           />
         </FadeSlideIn>

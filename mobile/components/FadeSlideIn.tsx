@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleProp, ViewStyle } from 'react-native';
+import { Animated, StyleProp, View, ViewStyle } from 'react-native';
+import { useReduceMotion } from '../utils/motion';
 
 export default function FadeSlideIn({
   children,
@@ -15,8 +16,10 @@ export default function FadeSlideIn({
   style?: StyleProp<ViewStyle>;
 }) {
   const progress = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
+    if (reduceMotion) return;
     const anim = Animated.timing(progress, {
       toValue: 1,
       duration,
@@ -25,7 +28,9 @@ export default function FadeSlideIn({
     });
     anim.start();
     return () => anim.stop();
-  }, []);
+  }, [reduceMotion]);
+
+  if (reduceMotion) return <View style={style}>{children}</View>;   // Reduce Motion: just appear
 
   return (
     <Animated.View

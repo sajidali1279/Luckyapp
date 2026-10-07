@@ -1,9 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Platform,
-  ScrollView, ActivityIndicator, StatusBar, Keyboard,
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  StatusBar,
+  Keyboard,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { router } from 'expo-router';

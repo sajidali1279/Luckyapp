@@ -1,7 +1,14 @@
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Modal, Alert, RefreshControl,
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Modal,
+  Alert,
 } from 'react-native';
+import { Text } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +26,7 @@ import {
   SHIFT_ORDER, SHIFT_COLORS, SHIFT_LABELS as SHIFT_LABELS_TYPED,
   getTodayDayKey as getTodayKey, getCurrentWeekDates, fmtDateFull, formatShiftTime,
 } from '../../utils/schedule';
+import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 // This file indexes SHIFT_LABELS/SHIFT_TIMES with untyped strings from API
 // responses (e.g. req.shiftType), so both are re-typed loosely here rather
@@ -38,6 +46,7 @@ interface Store { id: string; name: string; shiftsPerDay?: number }
 
 export default function ManagerScheduleScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const todayKey = getTodayKey();
@@ -139,6 +148,7 @@ export default function ManagerScheduleScreen() {
     <View style={s.root}>
       {/* ── Header ── */}
       <ManagerHeader
+        scrollY={largeTitle.scrollY}
         eyebrow={t('managerSchedule.eyebrow')}
         title={t('managerSchedule.title')}
         size="lg"
@@ -207,6 +217,8 @@ export default function ManagerScheduleScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.body}
+        onScroll={largeTitle.onScroll}
+        scrollEventThrottle={largeTitle.scrollEventThrottle}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh}
             tintColor={COLORS.primary} colors={[COLORS.primary]} />

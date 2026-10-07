@@ -1,5 +1,6 @@
 import { Component, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { Text } from './ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import i18n from '../i18n';
 

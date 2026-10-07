@@ -1,8 +1,16 @@
 import { useCallback, useState } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, StatusBar, ScrollView,
-  ActivityIndicator, RefreshControl, TouchableOpacity, Linking,
+  View,
+  FlatList,
+  StyleSheet,
+  StatusBar,
+  ScrollView,
+  ActivityIndicator,
+  TouchableOpacity,
+  Linking,
 } from 'react-native';
+import { Text } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -15,6 +23,7 @@ import ErrorState from '../../components/ErrorState';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import PromoteBusinessModal from '../../components/PromoteBusinessModal';
 import { MegaphoneIcon, BuildingIcon, GlobeIcon, MapPinIcon } from '../../components/Icons';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 interface Ad {
   id: string;
@@ -42,6 +51,7 @@ function timeAgo(dateStr: string, t: (key: string, options?: Record<string, unkn
 
 export default function AdsScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [showPromoteModal, setShowPromoteModal] = useState(false);
@@ -189,11 +199,12 @@ export default function AdsScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={s.header}>
-        <Text style={s.headerTitle}>{t('customerAds.headerTitle')}</Text>
-        <Text style={s.headerSub}>{t('customerAds.headerSub')}</Text>
-      </SafeAreaView>
+      <LargeTitleHeader
+        title={t('customerAds.headerTitle')}
+        subtitle={t('customerAds.headerSub')}
+        scrollY={largeTitle.scrollY}
+        color={COLORS.secondary}
+      />
 
       {isLoading ? (
         <View style={s.center}>
@@ -202,7 +213,7 @@ export default function AdsScreen() {
       ) : isError ? (
         <ErrorState message={t('customerAds.loadError')} onRetry={() => refetch()} />
       ) : ads.length === 0 ? (
-        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false} onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle}>
           <PromoteCta />
           <EmptyState
             icon={<MegaphoneIcon size={52} color="#C4CAD4" strokeWidth={1.25} />}
@@ -217,6 +228,8 @@ export default function AdsScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             contentContainerStyle={s.list}
+            onScroll={largeTitle.onScroll}
+            scrollEventThrottle={largeTitle.scrollEventThrottle}
             ListHeaderComponent={
               <>
                 <PromoteCta />

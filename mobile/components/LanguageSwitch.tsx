@@ -1,6 +1,7 @@
 // English | Español, for the screens before sign-in. The app starts in English and the language was only in Profile, so a
 // Spanish-speaking customer met the welcome slides and the sign-in screen in English. The choice is saved, as Profile saves it.
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { Text } from './ScaledText';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGES, setLanguage, type LanguageCode } from '../i18n';
 

@@ -1,7 +1,14 @@
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, StatusBar, ActivityIndicator, Animated,
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  ActivityIndicator,
+  Animated,
 } from 'react-native';
+import { Text } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';

@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  View, Text, ScrollView, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Modal, Platform, TextInput, RefreshControl,
+  View,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  Modal,
+  Platform,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
@@ -18,6 +25,7 @@ import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 const DESC_MIN = 10;
 const DESC_MAX = 500;
@@ -158,6 +166,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
 
 export default function MyDisputesScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const highlightedId = useHighlightParam();
   const [showReportModal, setShowReportModal] = useState(false);
   const { data, isLoading, isError, refetch } = useQuery({
@@ -169,20 +178,24 @@ export default function MyDisputesScreen() {
   const { refreshing, onRefresh } = usePullRefresh([() => refetch()]);
 
   return (
-    <SafeAreaView style={s.root} edges={['top']}>
-      <View style={s.header}>
-        <BackButton />
-        <Text style={s.title}>{t('customerMyDisputes.headerTitle')}</Text>
-        <TouchableOpacity
-          style={s.newBtn}
-          onPress={() => setShowReportModal(true)}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel={t('customerMyDisputes.reportMissingPointsA11y')}
-        >
-          <Text style={s.newBtnText}>+ {t('disputeModal.newReport')}</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={s.root} edges={[]}>
+      <LargeTitleHeader
+        title={t('customerMyDisputes.headerTitle')}
+        scrollY={largeTitle.scrollY}
+        tone="plain"
+        left={<BackButton />}
+        right={
+          <TouchableOpacity
+            style={s.newBtn}
+            onPress={() => setShowReportModal(true)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('customerMyDisputes.reportMissingPointsA11y')}
+          >
+            <Text style={s.newBtnText} maxFontSizeMultiplier={1.2}>+ {t('disputeModal.newReport')}</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {isLoading ? (
         <View style={s.center}><ActivityIndicator color={COLORS.primary} /></View>
@@ -204,7 +217,7 @@ export default function MyDisputesScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
+        <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false} onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
           {disputes.map((d, index) => (
             <FadeSlideIn key={d.id} delay={Math.min(index * 40, 200)}>
               <PulseHighlight active={d.id === highlightedId} style={s.card}>

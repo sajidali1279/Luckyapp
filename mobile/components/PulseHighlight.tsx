@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleProp, ViewStyle } from 'react-native';
 import { COLORS } from '../constants';
+import { useReduceMotion } from '../utils/motion';
 
 export default function PulseHighlight({
   active,
@@ -12,9 +13,10 @@ export default function PulseHighlight({
   style?: StyleProp<ViewStyle>;
 }) {
   const progress = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || reduceMotion) return;   // Reduce Motion: no pulse
     progress.setValue(0);
     const anim = Animated.timing(progress, {
       toValue: 1,
@@ -23,7 +25,7 @@ export default function PulseHighlight({
     });
     anim.start();
     return () => anim.stop();
-  }, [active]);
+  }, [active, reduceMotion]);
 
   const shadowOpacity = progress.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.55, 0] });
   const borderColor = progress.interpolate({ inputRange: [0, 0.15, 1], outputRange: ['rgba(0,0,0,0)', COLORS.accent, 'rgba(0,0,0,0)'] });

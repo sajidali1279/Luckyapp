@@ -1,8 +1,15 @@
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, Platform, ActivityIndicator,
-  Animated, Modal, ScrollView,
+  View,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Platform,
+  ActivityIndicator,
+  Animated,
+  Modal,
+  ScrollView,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';

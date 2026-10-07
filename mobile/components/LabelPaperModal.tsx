@@ -1,5 +1,6 @@
 import { ReactElement, useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { Modal, View, TouchableOpacity, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants';

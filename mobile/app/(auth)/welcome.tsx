@@ -1,8 +1,15 @@
 import { useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Dimensions, FlatList, Animated, StatusBar,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+  FlatList,
+  Animated,
+  StatusBar,
 } from 'react-native';
+import { Text } from '../../components/ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';

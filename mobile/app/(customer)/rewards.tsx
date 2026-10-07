@@ -1,8 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  StatusBar, FlatList, ActivityIndicator, Modal, Alert, Animated,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
+  FlatList,
+  ActivityIndicator,
+  Modal,
+  Alert,
+  Animated,
 } from 'react-native';
+import { Text } from '../../components/ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
@@ -16,6 +25,7 @@ import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
 import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import ModalToastHost from '../../components/ModalToastHost';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 
 
@@ -342,6 +352,7 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function RewardsScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const highlightedId = useHighlightParam();
@@ -427,20 +438,18 @@ export default function RewardsScreen() {
 
   return (
     <View style={r.root}>
-      <StatusBar barStyle="light-content" />
 
-      {/* ── Header ── */}
-      <SafeAreaView style={r.headerBg}>
-        <View style={r.headerInner}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <StarIcon size={20} color="rgba(255,255,255,0.85)" strokeWidth={1.75} />
-            <Text style={r.headerTitle}>{t('customerRewards.headerTitle')}</Text>
-          </View>
+      {/* ── Header: iPhone-style large title that shrinks as the list scrolls ── */}
+      <LargeTitleHeader
+        title={t('customerRewards.headerTitle')}
+        scrollY={largeTitle.scrollY}
+        icon={<StarIcon size={24} color="rgba(255,255,255,0.85)" strokeWidth={1.75} />}
+        right={
           <View style={[r.ptsPill, { backgroundColor: tierCfg.color }]}>
-            <Text style={r.ptsPillText}>{t('customerRewards.ptsValue', { points: pts.toLocaleString() })}</Text>
+            <Text style={r.ptsPillText} maxFontSizeMultiplier={1.2}>{t('customerRewards.ptsValue', { points: pts.toLocaleString() })}</Text>
           </View>
-        </View>
-      </SafeAreaView>
+        }
+      />
 
       <FlatList
         data={filtered}
@@ -451,6 +460,8 @@ export default function RewardsScreen() {
         onRefresh={refetch}
         refreshing={isRefetching}
         showsVerticalScrollIndicator={false}
+        onScroll={largeTitle.onScroll}
+        scrollEventThrottle={largeTitle.scrollEventThrottle}
         ListHeaderComponent={
           <>
             {/* ── Balance card + tier ── */}

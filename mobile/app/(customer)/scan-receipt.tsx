@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, StatusBar, Animated,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  StatusBar,
+  Animated,
 } from 'react-native';
+import { Text } from '../../components/ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CameraView } from 'expo-camera';

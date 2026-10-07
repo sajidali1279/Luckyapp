@@ -1,10 +1,16 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, FlatList,
-  Modal, ActivityIndicator,
-  RefreshControl, ScrollView, TextInput,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  Modal,
+  ActivityIndicator,
+  ScrollView,
   Alert,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +25,7 @@ import ModalCloseButton from '../../components/ModalCloseButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -456,8 +463,10 @@ function OrderSuccessSheet({ onClose }: { onClose: () => void }) {
 
 export default function CustomerHotFoodScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
+  const setTab = (v: Tab) => { largeTitle.scrollY.setValue(0); setTabState(v); };
   const qc = useQueryClient();
-  const [tab, setTab] = useState<Tab>('menu');
+  const [tab, setTabState] = useState<Tab>('menu');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -581,33 +590,26 @@ export default function CustomerHotFoodScreen() {
   return (
     <View style={s.root}>
       {/* Header */}
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={s.headerLeft}>
-            <View style={s.flameBadge}>
-              <FlameIcon size={18} color="#fff" />
-            </View>
-            <View>
-              <Text style={s.headerTitle}>{t('customerHotFood.headerTitle')}</Text>
-              <Text style={s.headerSub}>{t('customerHotFood.headerSub')}</Text>
-            </View>
-          </View>
-
-          {/* Active order indicator */}
-          {hasActive && (
-            <TouchableOpacity
-              style={s.activePill}
-              onPress={() => setTab('orders')}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={t('customerHotFood.activeOrdersA11y', { count: activeOrders.length })}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-            >
-              <View style={s.activeDot} />
-              <Text style={s.activePillText}>{t('customerHotFood.activeCount', { count: activeOrders.length })}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+      <LargeTitleHeader
+        title={t('customerHotFood.headerTitle')}
+        subtitle={t('customerHotFood.headerSub')}
+        scrollY={largeTitle.scrollY}
+        color={COLORS.primary}
+        icon={<View style={s.flameBadge}><FlameIcon size={18} color="#fff" /></View>}
+        right={hasActive ? (
+          <TouchableOpacity
+            style={s.activePill}
+            onPress={() => setTab('orders')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('customerHotFood.activeOrdersA11y', { count: activeOrders.length })}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+          >
+            <View style={s.activeDot} />
+            <Text style={s.activePillText} maxFontSizeMultiplier={1.2}>{t('customerHotFood.activeCount', { count: activeOrders.length })}</Text>
+          </TouchableOpacity>
+        ) : undefined}
+      >
 
         {/* Tab bar */}
         <View style={s.tabs}>
@@ -632,7 +634,7 @@ export default function CustomerHotFoodScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </SafeAreaView>
+      </LargeTitleHeader>
 
       {/* ── MENU TAB ── */}
       {tab === 'menu' && (
@@ -692,6 +694,8 @@ export default function CustomerHotFoodScreen() {
                 data={menuItems}
                 keyExtractor={item => item.id}
                 contentContainerStyle={s.menuList}
+                onScroll={largeTitle.onScroll}
+                scrollEventThrottle={largeTitle.scrollEventThrottle}
                 refreshControl={
                   <RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />
                 }
@@ -735,6 +739,8 @@ export default function CustomerHotFoodScreen() {
             data={[...activeOrders, ...pastOrders]}
             keyExtractor={o => o.id}
             contentContainerStyle={s.ordersList}
+            onScroll={largeTitle.onScroll}
+            scrollEventThrottle={largeTitle.scrollEventThrottle}
             refreshControl={
               <RefreshControl refreshing={ordersRefetching} onRefresh={refetchOrders} tintColor={COLORS.primary} colors={[COLORS.primary]} />
             }

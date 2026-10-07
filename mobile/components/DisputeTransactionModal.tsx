@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, ActivityIndicator,
-  TouchableOpacity, Modal, Platform, TextInput,
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  Modal,
+  Platform,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { format } from 'date-fns';

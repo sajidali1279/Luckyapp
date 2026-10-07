@@ -1,8 +1,16 @@
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, StatusBar, Modal,
-  TextInput, RefreshControl, Alert, Platform,
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  StatusBar,
+  Modal,
+  Alert,
+  Platform,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +29,7 @@ import {
 } from '../../utils/schedule';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ErrorState from '../../components/ErrorState';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 // This file indexes SHIFT_COLORS/SHIFT_LABELS/SHIFT_TIMES with untyped
 // strings from API responses, so all three are re-typed loosely here rather
@@ -38,6 +47,7 @@ const SHIFT_TIMES: Record<string, string> = {
 
 export default function ScheduleScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const todayKey = getTodayDayKey();
@@ -177,17 +187,18 @@ export default function ScheduleScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.headerEyebrow}>{t('employeeSchedule.headerEyebrow')}</Text>
-            <Text style={s.headerTitle}>{t('employeeSchedule.headerTitle')}</Text>
-          </View>
+      <LargeTitleHeader
+        title={t('employeeSchedule.headerTitle')}
+        subtitle={t('employeeSchedule.headerEyebrow')}
+        scrollY={largeTitle.scrollY}
+        color={COLORS.secondary}
+        right={
           <View style={s.scheduleSummary}>
-            <Text style={s.summaryNum}>{scheduledDays}</Text>
-            <Text style={s.summaryLbl}>{t('employeeSchedule.shiftsPerWeek')}</Text>
+            <Text style={s.summaryNum} maxFontSizeMultiplier={1.15}>{scheduledDays}</Text>
+            <Text style={s.summaryLbl} maxFontSizeMultiplier={1.15}>{t('employeeSchedule.shiftsPerWeek')}</Text>
           </View>
-        </View>
+        }
+      >
 
         {/* ── Week Toggle ── */}
         <View style={s.weekToggle}>
@@ -259,11 +270,13 @@ export default function ScheduleScreen() {
             })}
           </View>
         )}
-      </SafeAreaView>
+      </LargeTitleHeader>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.body}
+        onScroll={largeTitle.onScroll}
+        scrollEventThrottle={largeTitle.scrollEventThrottle}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />
         }

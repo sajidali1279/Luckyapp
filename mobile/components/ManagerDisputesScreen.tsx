@@ -1,7 +1,15 @@
 import {
-  View, Text, TouchableOpacity, FlatList, ScrollView,
-  StyleSheet, ActivityIndicator, TextInput, Modal, Alert, RefreshControl,
+  View,
+  TouchableOpacity,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Modal,
+  Alert,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
+import RefreshControl from './AppRefreshControl';
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +24,7 @@ import { AlertTriangleIcon, BuildingIcon, CheckCircleIcon, XIcon, InboxIcon } fr
 import { useHighlightParam } from '../hooks/useHighlightParam';
 import PulseHighlight from './PulseHighlight';
 import KeyboardSafe from './KeyboardSafe';
+import { useLargeTitleScroll } from './LargeTitleHeader';
 
 interface Dispute {
   id: string;
@@ -38,6 +47,7 @@ interface Store { id: string; name: string }
 
 export default function ManagerDisputesScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const qc = useQueryClient();
 
@@ -174,6 +184,7 @@ export default function ManagerDisputesScreen() {
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* ── Header ── */}
       <ManagerHeader
+        scrollY={largeTitle.scrollY}
         eyebrow={t('managerDisputes.eyebrow')}
         title={t('managerDisputes.title')}
         size="lg"
@@ -261,6 +272,8 @@ export default function ManagerDisputesScreen() {
             keyExtractor={d => d.id}
             renderItem={renderItem}
             contentContainerStyle={s.list}
+            onScroll={largeTitle.onScroll}
+            scrollEventThrottle={largeTitle.scrollEventThrottle}
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
             onScrollToIndexFailed={(info) => {

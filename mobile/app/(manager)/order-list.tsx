@@ -1,8 +1,16 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  RefreshControl, Modal, Alert, Platform, ActivityIndicator,
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  Alert,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { useTranslation } from 'react-i18next';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
@@ -24,6 +32,7 @@ import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
+import { showActionSheet } from '../../utils/actionSheet';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1579,7 +1588,7 @@ export default function ManagerOrderListScreen() {
 
   const showPrintOptions = () => {
     if (!activeList || items.length === 0) return;
-    Alert.alert(t('managerOrderList.printOrderListTitle'), t('managerOrderList.chooseHowToExport'), [
+    showActionSheet(t('managerOrderList.printOrderListTitle'), t('managerOrderList.chooseHowToExport'), [
       { text: t('managerOrderList.cancel'), style: 'cancel' },
       { text: t('managerOrderList.printDirectly'), onPress: () => doPrint(false) },
       { text: t('managerOrderList.shareAsPdf'), onPress: () => doPrint(true) },

@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from './ScaledText';
 import { ReactNode } from 'react';
 import { COLORS } from '../constants';
 import { InboxIcon } from './Icons';

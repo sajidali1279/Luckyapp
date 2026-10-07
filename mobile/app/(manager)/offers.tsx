@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  TextInput, RefreshControl,
-  ActivityIndicator, Alert, Modal,
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Modal,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +26,8 @@ import ModalToastHost from '../../components/ModalToastHost';
 import OfferRequestsTab from '../../components/OfferRequestsTab';
 import { pctLabel } from '../../utils/offerRate';
 import { hoursText } from '../../utils/offerHours';
+import { SHEET_HEADER_TOP } from '../../utils/sheetInsets';
+import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 interface Store { id: string; name: string }
 
@@ -45,6 +53,7 @@ function blankForm() {
 
 export default function ManagerOffersScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -176,6 +185,7 @@ export default function ManagerOffersScreen() {
   return (
     <View style={s.root}>
       <ManagerHeader
+        scrollY={largeTitle.scrollY}
         title={t('managerOffers.title')}
         subtitle={t('managerOffers.subtitle')}
         rightSlot={tab === 'requests' ? undefined : (
@@ -228,6 +238,8 @@ export default function ManagerOffersScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={s.body}
+        onScroll={largeTitle.onScroll}
+        scrollEventThrottle={largeTitle.scrollEventThrottle}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
       >
         {tab === 'requests' ? (
@@ -580,7 +592,7 @@ const s = StyleSheet.create({
   modal: { flex: 1, backgroundColor: COLORS.background },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: 20, paddingTop: 52, backgroundColor: COLORS.managerPrimary,
+    padding: 20, paddingTop: SHEET_HEADER_TOP, backgroundColor: COLORS.managerPrimary,
   },
   modalTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
   modalCloseBtn: {

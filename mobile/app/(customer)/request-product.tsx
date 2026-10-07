@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  Modal, ActivityIndicator, Alert, Platform, RefreshControl,
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  ActivityIndicator,
+  Alert,
+  Platform,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +24,7 @@ import { useHighlightParam } from '../../hooks/useHighlightParam';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 const STATUS_CONFIG = {
   PENDING:  { labelKey: 'customerRequestProduct.statusPending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
@@ -60,6 +69,7 @@ interface ProductRequest {
 
 export default function RequestProductScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
   const highlightedId = useHighlightParam();
   const [showForm, setShowForm] = useState(false);
@@ -116,26 +126,27 @@ export default function RequestProductScreen() {
   const resolved = myRequests.filter((r) => r.status !== 'PENDING');
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       <KeyboardSafe style={{ flex: 1 }}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerTextWrap}>
-            <Text style={styles.headerTitle}>{t('customerRequestProduct.headerTitle')}</Text>
-            <Text style={styles.headerSub}>{t('customerRequestProduct.headerSub')}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.newBtn}
-            onPress={() => { setShowForm(true); setSubmitted(false); }}
-            accessibilityRole="button"
-            accessibilityLabel={t('customerRequestProduct.newRequestA11y')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Text style={styles.newBtnText}>+ {t('customerRequestProduct.newBtn')}</Text>
-          </TouchableOpacity>
-        </View>
+        <LargeTitleHeader
+          title={t('customerRequestProduct.headerTitle')}
+          subtitle={t('customerRequestProduct.headerSub')}
+          scrollY={largeTitle.scrollY}
+          color={COLORS.primary}
+          right={
+            <TouchableOpacity
+              style={styles.newBtn}
+              onPress={() => { setShowForm(true); setSubmitted(false); }}
+              accessibilityRole="button"
+              accessibilityLabel={t('customerRequestProduct.newRequestA11y')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.newBtnText} maxFontSizeMultiplier={1.2}>+ {t('customerRequestProduct.newBtn')}</Text>
+            </TouchableOpacity>
+          }
+        />
 
-        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
+        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
           {isLoading ? (
             <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
           ) : isError ? (

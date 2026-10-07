@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import Toast from 'react-native-toast-message';
+import { toastConfig } from './toastConfig';
 
 // Put this as the last child of a <Modal> so its toasts show on top of it.
 //
@@ -44,5 +45,5 @@ export default function ModalToastHost() {
     };
   }, []);
 
-  return <Toast />;
+  return <Toast config={toastConfig} />;
 }

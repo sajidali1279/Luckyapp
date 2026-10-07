@@ -1,8 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Platform, ScrollView, StatusBar, Animated, Keyboard,
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  StatusBar,
+  Animated,
+  Keyboard,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
 import { Image } from 'expo-image';
 import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';

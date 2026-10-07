@@ -1,6 +1,7 @@
 // The customer's challenges on the home screen (backend utils/challenges.ts): each with its rule, their progress and the reward. Only
 // approved sales count, so a purchase shows here once its receipt is approved. In Spanish where HQ wrote it.
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from './ScaledText';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { challengesApi } from '../services/api';
@@ -11,6 +12,8 @@ type Challenge = { id: string; kind: 'SPEND' | 'VISITS'; title: string; titleEs:
   store: string | null; target: number; minPurchase: number | null; reward: number; repeats: boolean; endDate: string; progress: number; timesEarned: number; done: boolean };
 
 const money = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+// HQ often uses the rule itself as the title ("Spend $30.00 on groceries, get $3.00 back"); then the rule line would just repeat it
+const same = (a: string, b: string) => { const k = (x: string) => x.toLowerCase().replace(/\.00/g, '').replace(/[^a-z0-9]/g, ''); return k(a) === k(b); };
 
 export default function ChallengesSection({ storeId, enabled }: { storeId?: string; enabled: boolean }) {
   const { t, i18n } = useTranslation();
@@ -32,7 +35,7 @@ export default function ChallengesSection({ storeId, enabled }: { storeId?: stri
         return (
           <View key={c.id} style={s.card} accessible accessibilityLabel={t('challenges.a11y', { title, progress: c.done ? t('challenges.done', { reward: money(c.reward) }) : progressText })}>
             <Text style={s.title} numberOfLines={2}>{title}</Text>
-            <Text style={s.rule}>{rule}</Text>
+            {!same(title, rule) && <Text style={s.rule}>{rule}</Text>}
             {c.kind === 'VISITS' && c.minPurchase ? <Text style={s.small}>{t('challenges.minEach', { min: money(c.minPurchase) })}</Text> : null}
             <View style={s.barBg}><View style={[s.bar, { width: `${pct}%` }, c.done && { backgroundColor: COLORS.success }]} /></View>
             <View style={s.row}>

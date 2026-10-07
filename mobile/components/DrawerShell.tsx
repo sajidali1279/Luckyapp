@@ -1,7 +1,14 @@
 import {
-  View, Text, TouchableOpacity, Animated, StyleSheet,
-  Dimensions, Pressable, ScrollView, Alert,
+  View,
+  TouchableOpacity,
+  Animated,
+  StyleSheet,
+  Dimensions,
+  Pressable,
+  ScrollView,
+  Alert,
 } from 'react-native';
+import { Text } from './ScaledText';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, router } from 'expo-router';
@@ -10,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import { MenuIcon, XIcon, LogOutIcon } from './Icons';
+import { haptic } from '../utils/haptics';
 
 const SCREEN_W = Dimensions.get('window').width;
 const DRAWER_W = Math.min(SCREEN_W * 0.78, 300);
@@ -108,7 +116,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
             <TouchableOpacity
               key={item.route}
               style={s.bottomBtn}
-              onPress={() => router.navigate(item.route as any)}
+              onPress={() => { if (!active) haptic.select(); router.navigate(item.route as any); }}
               activeOpacity={0.7}
               accessibilityRole="tab"
               accessibilityLabel={item.label}
@@ -117,10 +125,10 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
               <View style={[s.bottomIconWrap, active && { backgroundColor: bgColor + '20' }]}>
                 {item.icon({ color: active ? bgColor : COLORS.textMuted, size: 22 })}
                 {item.badge != null && item.badge > 0 && (
-                  <View style={s.badge}><Text style={s.badgeText}>{item.badge > 99 ? '99+' : item.badge}</Text></View>
+                  <View style={s.badge}><Text style={s.badgeText} maxFontSizeMultiplier={1}>{item.badge > 99 ? '99+' : item.badge}</Text></View>
                 )}
               </View>
-              <Text style={[s.bottomLabel, active && { color: bgColor, fontWeight: '800' }]}>
+              <Text style={[s.bottomLabel, active && { color: bgColor, fontWeight: '800' }]} maxFontSizeMultiplier={1.15} numberOfLines={1}>
                 {item.label}
               </Text>
             </TouchableOpacity>
@@ -130,7 +138,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
         {/* Menu button */}
         <TouchableOpacity
           style={s.bottomBtn}
-          onPress={openDrawer}
+          onPress={() => { haptic.tap(); openDrawer(); }}
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel={`${t('nav.menu')}${drawerBadgeTotal > 0 ? `, ${drawerBadgeTotal} unread` : ''}`}
@@ -138,10 +146,10 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
           <View style={s.bottomIconWrap}>
             <MenuIcon size={22} color={COLORS.textMuted} strokeWidth={2} />
             {drawerBadgeTotal > 0 && (
-              <View style={s.badge}><Text style={s.badgeText}>{drawerBadgeTotal > 99 ? '99+' : drawerBadgeTotal}</Text></View>
+              <View style={s.badge}><Text style={s.badgeText} maxFontSizeMultiplier={1}>{drawerBadgeTotal > 99 ? '99+' : drawerBadgeTotal}</Text></View>
             )}
           </View>
-          <Text style={s.bottomLabel}>{t('nav.menu')}</Text>
+          <Text style={s.bottomLabel} maxFontSizeMultiplier={1.15} numberOfLines={1}>{t('nav.menu')}</Text>
         </TouchableOpacity>
       </View>
       )}

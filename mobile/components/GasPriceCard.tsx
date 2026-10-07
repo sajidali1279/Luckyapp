@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated } from 'react-native';
+import { Text } from './ScaledText';
 import { useEffect, useRef } from 'react';
 import { GasPumpIcon, TruckIcon } from './Icons';
 import { useRecentlyChanged } from '../utils/geo';

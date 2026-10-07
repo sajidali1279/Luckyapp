@@ -1,8 +1,16 @@
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity,
-  RefreshControl, Alert, ActivityIndicator, Modal,
-  TextInput, ScrollView, Platform,
+  View,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  Platform,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
@@ -26,6 +34,7 @@ import { useHighlightParam } from '../../hooks/useHighlightParam';
 import PulseHighlight from '../../components/PulseHighlight';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
+import { showActionSheet } from '../../utils/actionSheet';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,7 +167,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
   }
 
   function showPhotoOptions() {
-    Alert.alert(t('employeeHotFood.itemPhotoTitle'), undefined, [
+    showActionSheet(t('employeeHotFood.itemPhotoTitle'), undefined, [
       { text: t('employeeHotFood.takePhoto'),        onPress: takePhoto },
       { text: t('employeeHotFood.chooseFromLibrary'), onPress: pickImage },
       ...(imageUri ? [{ text: t('employeeHotFood.removePhoto'), style: 'destructive' as const, onPress: () => setImageUri(null) }] : []),
@@ -682,7 +691,7 @@ export default function HotFoodOrders() {
   function handleUpdateStatus(orderId: string, status: OrderStatus, reason?: string) {
     if (updatingId) return;
     if (status === 'ACCEPTED') {
-      Alert.alert(
+      showActionSheet(
         t('employeeHotFood.acceptOrderTitle'),
         t('employeeHotFood.acceptOrderBody'),
         [

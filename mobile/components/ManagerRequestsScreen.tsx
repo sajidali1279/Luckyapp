@@ -1,7 +1,15 @@
 import {
-  View, Text, TouchableOpacity, FlatList, ScrollView,
-  StyleSheet, ActivityIndicator, TextInput, Modal, Alert, RefreshControl,
+  View,
+  TouchableOpacity,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+  Modal,
+  Alert,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
+import RefreshControl from './AppRefreshControl';
 import { useState, useCallback, type ReactElement } from 'react';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -19,6 +27,7 @@ import {
 import { useHighlightParam } from '../hooks/useHighlightParam';
 import PulseHighlight from './PulseHighlight';
 import KeyboardSafe from './KeyboardSafe';
+import { useLargeTitleScroll } from './LargeTitleHeader';
 
 export function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
   const p = { size, color, strokeWidth: 1.75 };
@@ -80,6 +89,7 @@ type MainTab = 'alerts' | 'stock' | 'products';
 
 export default function ManagerRequestsScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
 
   const TYPE_LABELS: Record<string, string> = {
@@ -492,6 +502,7 @@ export default function ManagerRequestsScreen() {
     <View style={{ flex: 1, backgroundColor: '#f8fafc' }}>
       {/* ── Header ── */}
       <ManagerHeader
+        scrollY={largeTitle.scrollY}
         eyebrow={
           mainTab === 'alerts' ? t('sharedManagerRequests.alertsEyebrow')
             : mainTab === 'stock' ? t('sharedManagerRequests.stockEyebrow')
@@ -683,6 +694,7 @@ export default function ManagerRequestsScreen() {
             <FlatList
               data={displayed} keyExtractor={r => r.id} renderItem={renderAlertItem}
               contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
+              onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle}
               refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
             />
           </FadeSlideIn>
@@ -703,6 +715,7 @@ export default function ManagerRequestsScreen() {
             <FlatList
               data={displayedEmp} keyExtractor={r => r.id} renderItem={renderEmpItem}
               contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
+              onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle}
               refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
             />
           </FadeSlideIn>
@@ -727,6 +740,7 @@ export default function ManagerRequestsScreen() {
             <FlatList
               data={displayedProducts} keyExtractor={r => r.id} renderItem={renderProductItem}
               contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
+              onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle}
               refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
             />
           </FadeSlideIn>

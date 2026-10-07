@@ -2,7 +2,8 @@
 // with its cost, can change it, then approves it (it goes live for the store's customers) or declines it with a reason; the manager gets a
 // push either way and sees the answer here. A waiting request can be withdrawn. (backend offerRequests.controller.ts)
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Modal, ScrollView } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
@@ -14,6 +15,7 @@ import ErrorState from './ErrorState';
 import KeyboardSafe from './KeyboardSafe';
 import ModalToastHost from './ModalToastHost';
 import { HHMM, hoursText, dayShort } from '../utils/offerHours';
+import { SHEET_HEADER_TOP } from '../utils/sheetInsets';
 
 // No tobacco or alcohol: cashback on those is on hold (store policy)
 const CATEGORIES = [
@@ -341,7 +343,7 @@ const s = StyleSheet.create({
   withdrawText: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
 
   modal: { flex: 1, backgroundColor: COLORS.background },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingTop: 52, backgroundColor: COLORS.managerPrimary },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', padding: 20, paddingTop: SHEET_HEADER_TOP, backgroundColor: COLORS.managerPrimary },
   modalTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
   modalSub: { color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 2 },
   modalClose: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet, StatusBar, Easing } from 'react-native';
+import { View, Animated, StyleSheet, StatusBar, Easing } from 'react-native';
+import { Text } from './ScaledText';
 import { Image } from 'expo-image';
 
 // Colors extracted from the physical Lucky Stop sign

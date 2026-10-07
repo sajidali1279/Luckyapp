@@ -1,9 +1,15 @@
 import { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Modal, TextInput, ActivityIndicator,
-  Platform, Alert,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  ActivityIndicator,
+  Platform,
+  Alert,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
@@ -23,6 +29,8 @@ import ErrorState from '../../components/ErrorState';
 import { useCurrentStoreId } from '../../utils/geo';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
+import { showActionSheet } from '../../utils/actionSheet';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -251,7 +259,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
   }
 
   function showPhotoOptions() {
-    Alert.alert(t('employeeDailyReport.attachPhotoTitle'), undefined, [
+    showActionSheet(t('employeeDailyReport.attachPhotoTitle'), undefined, [
       { text: t('employeeDailyReport.takePhoto'),          onPress: takePhoto },
       { text: t('employeeDailyReport.chooseFromLibrary'), onPress: pickImage },
       ...(imageUri ? [{ text: t('employeeDailyReport.remove'), style: 'destructive' as const, onPress: () => setImageUri(null) }] : []),
@@ -517,6 +525,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
 
 export default function DailyReportScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -553,21 +562,15 @@ export default function DailyReportScreen() {
 
   return (
     <View style={s.root}>
-      <SafeAreaView style={s.headerBg} edges={['top']}>
-        <View style={s.headerRow}>
-          <View style={s.headerLeft}>
-            <View style={s.headerIcon}>
-              <FileCheckIcon size={20} color="#fff" strokeWidth={2} />
-            </View>
-            <View>
-              <Text style={s.headerTitle}>{t('employeeDailyReport.headerTitle')}</Text>
-              <Text style={s.headerSub}>{fmtDate()}</Text>
-            </View>
-          </View>
-        </View>
-      </SafeAreaView>
+      <LargeTitleHeader
+        title={t('employeeDailyReport.headerTitle')}
+        subtitle={fmtDate()}
+        scrollY={largeTitle.scrollY}
+        color={COLORS.secondary}
+        icon={<View style={s.headerIcon}><FileCheckIcon size={20} color="#fff" strokeWidth={2} /></View>}
+      />
 
-      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false} onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle}>
         <FadeSlideIn style={{ gap: 12 }}>
           {/* Task Box */}
           <TaskBox

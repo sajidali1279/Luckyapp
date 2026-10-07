@@ -1,4 +1,6 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import { Text } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -12,12 +14,14 @@ import BackButton from '../../components/BackButton';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { useCurrentStoreId } from '../../utils/geo';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const PODIUM_COLORS: Record<number, string> = { 1: '#D4A017', 2: '#78828E', 3: '#B5651D' };
 
 export default function CustomerLeaderboardScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const [tab, setTab] = useState<'chain' | 'store'>('chain');
   const [manualStoreId, setManualStoreId] = useState<string | null>(null);
@@ -85,26 +89,19 @@ export default function CustomerLeaderboardScreen() {
 
   return (
     <View style={st.root}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={{ backgroundColor: COLORS.secondary }}>
-        <View style={st.header}>
-          <BackButton variant="light" />
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TrophyIcon size={18} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />
-              <Text style={st.headerTitle}>{t('customerLeaderboard.headerTitle')}</Text>
-            </View>
-            <Text style={st.headerSub}>
-            {tab === 'chain' ? t('customerLeaderboard.topCustomers') : (stores.find(s => s.id === selectedStoreId)?.name ?? t('customerLeaderboard.storeRankings'))}
-          </Text>
+      <LargeTitleHeader
+        title={t('customerLeaderboard.headerTitle')}
+        subtitle={tab === 'chain' ? t('customerLeaderboard.topCustomers') : (stores.find(s => s.id === selectedStoreId)?.name ?? t('customerLeaderboard.storeRankings'))}
+        scrollY={largeTitle.scrollY}
+        icon={<TrophyIcon size={24} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />}
+        left={<BackButton variant="light" />}
+        right={myRank ? (
+          <View style={st.myRankPill}>
+            <Text style={st.myRankLabel} maxFontSizeMultiplier={1.15}>{t('customerLeaderboard.yourRank')}</Text>
+            <Text style={st.myRankNum} maxFontSizeMultiplier={1.15}>#{myRank}</Text>
           </View>
-          {myRank && (
-            <View style={st.myRankPill}>
-              <Text style={st.myRankLabel}>{t('customerLeaderboard.yourRank')}</Text>
-              <Text style={st.myRankNum}>#{myRank}</Text>
-            </View>
-          )}
-        </View>
+        ) : undefined}
+      >
 
         {/* Tab bar */}
         <View style={st.tabBar}>
@@ -147,7 +144,7 @@ export default function CustomerLeaderboardScreen() {
             ))}
           </ScrollView>
         )}
-      </SafeAreaView>
+      </LargeTitleHeader>
 
       {activeQuery.isLoading ? (
         <View style={st.center}>
@@ -170,6 +167,8 @@ export default function CustomerLeaderboardScreen() {
             keyExtractor={(item) => item.customerId}
             contentContainerStyle={st.list}
             showsVerticalScrollIndicator={false}
+            onScroll={largeTitle.onScroll}
+            scrollEventThrottle={largeTitle.scrollEventThrottle}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
             ListHeaderComponent={
               <View style={st.podium}>

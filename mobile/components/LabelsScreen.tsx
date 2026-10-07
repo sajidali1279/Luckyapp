@@ -1,9 +1,18 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, TextInput,
-  FlatList, ActivityIndicator, Modal, ScrollView, Alert,
-  Platform, Keyboard, useWindowDimensions,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  Alert,
+  Platform,
+  Keyboard,
+  useWindowDimensions,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';

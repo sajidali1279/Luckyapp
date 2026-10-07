@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
-  StatusBar, TextInput, Platform, ScrollView, Alert,
+  Modal,
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  StatusBar,
+  Platform,
+  ScrollView,
+  Alert,
 } from 'react-native';
+import { Text, TextInput } from './ScaledText';
 import { CameraView } from 'expo-camera';
 import { useCameraAccess } from '../hooks/useCameraAccess';
 import { SafeAreaView } from 'react-native-safe-area-context';

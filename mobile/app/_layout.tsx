@@ -3,6 +3,7 @@ import { Stack, router } from 'expo-router';
 import type { Href } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
+import { toastConfig } from '../components/toastConfig';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -110,7 +111,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <Stack screenOptions={{ headerShown: false }} />
         {(isLoading || showLoader) && <AppLoader />}
-        <Toast />
+        <Toast config={toastConfig} />
       </QueryClientProvider>
     </ErrorBoundary>
   );

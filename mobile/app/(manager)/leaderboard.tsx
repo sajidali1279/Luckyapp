@@ -1,7 +1,13 @@
 import {
-  View, Text, FlatList, StyleSheet, ActivityIndicator,
-  TouchableOpacity, ScrollView, RefreshControl,
+  View,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+  ScrollView,
 } from 'react-native';
+import { Text } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +19,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import ErrorState from '../../components/ErrorState';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import ManagerHeader from '../../components/ManagerHeader';
+import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 interface Store { id: string; name: string }
 
@@ -32,6 +39,7 @@ function Stars({ rating }: { rating: number }) {
 
 export default function ManagerLeaderboardScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const [tab, setTab] = useState<Tab>('customers');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -72,6 +80,7 @@ export default function ManagerLeaderboardScreen() {
   return (
     <View style={s.root}>
       <ManagerHeader
+        scrollY={largeTitle.scrollY}
         title={t('managerLeaderboard.title')}
         subtitle={storeName || stores.find(st => st.id === storeId)?.name || t('managerLeaderboard.yourStore')}
         showBack
@@ -130,6 +139,8 @@ export default function ManagerLeaderboardScreen() {
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
+          onScroll={largeTitle.onScroll}
+          scrollEventThrottle={largeTitle.scrollEventThrottle}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           ListEmptyComponent={
             <View style={s.centered}>
@@ -165,6 +176,8 @@ export default function ManagerLeaderboardScreen() {
           keyExtractor={(item: any) => item.id}
           contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
+          onScroll={largeTitle.onScroll}
+          scrollEventThrottle={largeTitle.scrollEventThrottle}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           ListEmptyComponent={
             <View style={s.centered}>

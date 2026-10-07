@@ -1,8 +1,22 @@
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  StatusBar, RefreshControl, FlatList, Dimensions, Modal, Animated, Linking,
-  TextInput, Alert, Easing, useWindowDimensions, Pressable, BackHandler,
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  FlatList,
+  Dimensions,
+  Modal,
+  Animated,
+  Linking,
+  Alert,
+  Easing,
+  useWindowDimensions,
+  Pressable,
+  BackHandler,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -813,7 +827,11 @@ export default function CustomerHome() {
   const isOfferLocked = (offer: any) => offer.requires21 && !user?.age21Confirmed;
   const promotions = allOffers.filter((o: any) => o.bonusRate && o.gasBonusCentsPerGallon == null);
   const gasOffers  = allOffers.filter((o: any) => o.gasBonusCentsPerGallon != null);
-  const bestGasOffer: any | null = gasOffers[0] ?? null;
+  // A chain-wide gas promotion is shown once above the stores; one for a single store is a tag inside that store's card
+  // (it used to sit beside every store, squeezing the prices, even at stores it does not pay at)
+  const byCents = (a: any, b: any) => (b.gasBonusCentsPerGallon ?? 0) - (a.gasBonusCentsPerGallon ?? 0);
+  const chainGasOffer: any | null = [...gasOffers].filter((o: any) => !o.storeId).sort(byCents)[0] ?? null;
+  const storeGasOffer = (storeId: string): any | null => [...gasOffers].filter((o: any) => o.storeId === storeId).sort(byCents)[0] ?? null;
   const deals = allOffers.filter((o: any) => o.dealText);
   const isRefreshing = bannersRefetching || offersRefetching;
   const contentLoading = !locationReady || offersLoading;
@@ -1114,19 +1132,32 @@ export default function CustomerHome() {
             <View ref={gasSectionRef} style={styles.section}>
               <View style={styles.sectionRow}>
                 <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label={t('customerHome.todaysGasPrices')} />
-                {bestGasOffer && (
-                  <View style={gp.sectionOfferChip}>
-                    <GasPumpIcon size={10} color="#F4A226" strokeWidth={2.5} />
-                    <Text style={gp.sectionOfferChipText}>{t('customerHome.gasOfferActive')}</Text>
-                  </View>
-                )}
               </View>
+              {chainGasOffer && (
+                <PressScale
+                  style={gp.promoBanner}
+                  onPress={() => onOfferPress(chainGasOffer)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('customerHome.viewGasOfferA11y', { title: chainGasOffer.title })}
+                >
+                  <View style={gp.promoIcon}><GasPumpIcon size={18} color="#fff" strokeWidth={2} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={gp.promoTitle} numberOfLines={2}>{chainGasOffer.title}</Text>
+                    <Text style={gp.promoSub} numberOfLines={2}>{t('customerHome.gasPromoAllStores')}</Text>
+                  </View>
+                  <View style={gp.promoAmount}>
+                    <Text style={gp.promoBonus}>+{chainGasOffer.gasBonusCentsPerGallon}¢</Text>
+                    <Text style={gp.promoUnit}>{t('customerHome.perGallon')}</Text>
+                  </View>
+                </PressScale>
+              )}
               {gasPrices.some((store: any) => store.todayHours) && (
                 <Text style={gp.hoursDisclaimer}>{t('customerHome.hoursDisclaimer')}</Text>
               )}
-              {gasPrices.map((store: any) => (
+              {gasPrices.map((store: any) => {
+                const hereOffer = storeGasOffer(store.id);
+                return (
                 <View key={store.id} style={gp.row}>
-                  {/* ─ Price card ─ */}
                   <View style={gp.priceCard}>
                     <Text style={gp.storeName} numberOfLines={1}>{store.name}</Text>
                     {!nearestStore && store.address && (
@@ -1147,52 +1178,55 @@ export default function CustomerHome() {
                         <Text style={styles.gasStorePhone}>📞 {store.phone}</Text>
                       </TouchableOpacity>
                     )}
+                    {/* Gas and diesel side by side, so each price has room */}
                     <View style={gp.priceLines}>
                       {store.gasPricePerGallon != null && categoryEnabled(store, 'GAS') && (
-                        <View style={gp.priceLine}>
-                          <GasPumpIcon size={13} color={COLORS.accent} strokeWidth={2} />
-                          <Text style={gp.priceLabel}>{t('customerHome.gas')}</Text>
-                          <Text style={gp.priceVal}>${Number(store.gasPricePerGallon).toFixed(3)}</Text>
-                          <Text style={gp.priceUnit}>/gal</Text>
+                        <View style={gp.priceTile}>
+                          <View style={gp.priceTileHead}>
+                            <GasPumpIcon size={13} color={COLORS.accent} strokeWidth={2} />
+                            <Text style={gp.priceLabel}>{t('customerHome.gas')}</Text>
+                          </View>
+                          <Text style={gp.priceVal} adjustsFontSizeToFit numberOfLines={1}>
+                            ${Number(store.gasPricePerGallon).toFixed(3)}<Text style={gp.priceUnit}> /gal</Text>
+                          </Text>
                         </View>
                       )}
                       {store.dieselPricePerGallon != null && categoryEnabled(store, 'DIESEL') && (
-                        <View style={gp.priceLine}>
-                          <TruckIcon size={13} color={COLORS.secondary} strokeWidth={2} />
-                          <Text style={gp.priceLabel}>{t('customerHome.diesel')}</Text>
-                          <Text style={gp.priceVal}>${Number(store.dieselPricePerGallon).toFixed(3)}</Text>
-                          <Text style={gp.priceUnit}>/gal</Text>
+                        <View style={gp.priceTile}>
+                          <View style={gp.priceTileHead}>
+                            <TruckIcon size={13} color={COLORS.secondary} strokeWidth={2} />
+                            <Text style={gp.priceLabel}>{t('customerHome.diesel')}</Text>
+                          </View>
+                          <Text style={gp.priceVal} adjustsFontSizeToFit numberOfLines={1}>
+                            ${Number(store.dieselPricePerGallon).toFixed(3)}<Text style={gp.priceUnit}> /gal</Text>
+                          </Text>
                         </View>
                       )}
                     </View>
-                    {store.gasPriceUpdatedAt && (
-                      <Text style={gp.updatedAt}>
-                        {t('customerHome.updatedOn', { date: new Date(store.gasPriceUpdatedAt).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' }) })}
-                      </Text>
-                    )}
+                    <View style={gp.cardFoot}>
+                      {store.gasPriceUpdatedAt ? (
+                        <Text style={gp.updatedAt}>
+                          {t('customerHome.updatedOn', { date: new Date(store.gasPriceUpdatedAt).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' }) })}
+                        </Text>
+                      ) : <View />}
+                      {hereOffer && (
+                        <TouchableOpacity
+                          onPress={() => onOfferPress(hereOffer)}
+                          style={gp.herePill}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('customerHome.viewGasOfferA11y', { title: hereOffer.title })}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <GasPumpIcon size={11} color="#92400E" strokeWidth={2.5} />
+                          <Text style={gp.herePillText}>{t('customerHome.gasPromoHere', { cents: hereOffer.gasBonusCentsPerGallon })}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
 
-                  {/* ─ Gas offer tile ─ */}
-                  {bestGasOffer && (
-                    <PressScale
-                      style={gp.offerCard}
-                      onPress={() => onOfferPress(bestGasOffer)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('customerHome.viewGasOfferA11y', { title: bestGasOffer.title })}
-                    >
-                      <View style={gp.offerIconWrap}>
-                        <GasPumpIcon size={18} color="#fff" strokeWidth={2} />
-                      </View>
-                      <Text style={gp.offerBonus}>+{bestGasOffer.gasBonusCentsPerGallon}¢</Text>
-                      <Text style={gp.offerUnit}>{t('customerHome.perGallon')}</Text>
-                      <Text style={gp.offerTitle} numberOfLines={2}>{bestGasOffer.title}</Text>
-                      <View style={gp.autoAppliedBadge}>
-                        <Text style={gp.autoAppliedText}>{t('customerHome.autoApplied')}</Text>
-                      </View>
-                    </PressScale>
-                  )}
                 </View>
-              ))}
+                );
+              })}
             </View>
           )
         }
@@ -2356,11 +2390,24 @@ const rs = StyleSheet.create({
 });
 
 const gp = StyleSheet.create({
-  row:               { flexDirection: 'row', gap: 10, marginBottom: 6 },
-  sectionOfferChip:  { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF3C7', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  sectionOfferChipText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
+  row:               { marginBottom: 10 },
+  promoBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#1D3557', borderRadius: 18, padding: 14, marginBottom: 12,
+    shadowColor: '#1D3557', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
+  },
+  promoIcon:   { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  promoTitle:  { color: '#fff', fontSize: 14, fontWeight: '800' },
+  promoSub:    { color: 'rgba(255,255,255,0.72)', fontSize: 11.5, fontWeight: '600', marginTop: 2 },
+  promoAmount: { alignItems: 'flex-end' },
+  promoBonus:  { color: '#F4A226', fontSize: 24, fontWeight: '900', lineHeight: 28 },
+  promoUnit:   { color: 'rgba(255,255,255,0.65)', fontSize: 10.5, fontWeight: '700' },
+  priceTile:     { flex: 1, backgroundColor: '#F7F8FA', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, gap: 4 },
+  priceTileHead: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  cardFoot:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 8 },
+  herePill:      { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF3C7', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  herePillText:  { fontSize: 11, fontWeight: '800', color: '#92400E' },
   priceCard: {
-    flex: 1, backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
+    backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
     borderTopWidth: 3, borderTopColor: '#f97316',
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
@@ -2369,25 +2416,11 @@ const gp = StyleSheet.create({
   storeAddr:   { fontSize: 11, color: COLORS.textMuted, marginBottom: 5 },
   storeHours:  { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, marginBottom: 5 },
   hoursDisclaimer: { fontSize: 11, fontStyle: 'italic', color: COLORS.textMuted, marginBottom: 8, paddingHorizontal: 2 },
-  priceLines:  { gap: 6, marginBottom: 2 },
-  priceLine:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  priceLabel:  { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', flex: 1 },
-  priceVal:    { fontSize: 20, fontWeight: '900', color: COLORS.text },
+  priceLines:  { flexDirection: 'row', gap: 10, marginTop: 4 },
+  priceLabel:  { fontSize: 12, color: COLORS.textMuted, fontWeight: '700' },
+  priceVal:    { fontSize: 22, fontWeight: '900', color: COLORS.text },
   priceUnit:   { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
-  updatedAt:   { fontSize: 10, color: COLORS.border, marginTop: 8, fontWeight: '600' },
-  offerCard: {
-    width: 128, backgroundColor: '#1D3557', borderRadius: 18, padding: 14,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#1D3557', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
-    gap: 3,
-  },
-  offerIconWrap:    { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  offerBonus:       { color: '#fff', fontSize: 28, fontWeight: '900', lineHeight: 32 },
-  offerUnit:        { color: 'rgba(255,255,255,0.58)', fontSize: 11, fontWeight: '600' },
-  offerTitle:       { color: '#fff', fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 4, lineHeight: 14 },
-  autoAppliedBadge: { backgroundColor: '#F4A226', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 6 },
-  autoAppliedText:  { color: '#fff', fontSize: 10, fontWeight: '800' },
+  updatedAt:   { fontSize: 10.5, color: COLORS.textMuted, fontWeight: '600' },
 });
 
 const ti = StyleSheet.create({

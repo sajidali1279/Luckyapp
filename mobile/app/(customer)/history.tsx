@@ -1,4 +1,5 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity, Modal } from 'react-native';
+import { View, FlatList, StyleSheet, ActivityIndicator, StatusBar, TouchableOpacity, Modal } from 'react-native';
+import { Text } from '../../components/ScaledText';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { FlatList as FlatListType } from 'react-native';
@@ -14,6 +15,7 @@ import { ReceiptIcon, ClipboardIcon, ChevronRightIcon } from '../../components/I
 import PulseHighlight from '../../components/PulseHighlight';
 import DisputeTransactionModal from '../../components/DisputeTransactionModal';
 import { format } from 'date-fns';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 const CATEGORY_ICONS: Record<string, string> = {
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', GROCERIES: '🛒',
@@ -22,6 +24,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 export default function HistoryScreen() {
   const { t, i18n } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const [selected, setSelected] = useState<any>(null);
   const [disputeTarget, setDisputeTarget] = useState<any>(null);
 
@@ -78,20 +81,16 @@ export default function HistoryScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
-      <SafeAreaView style={s.headerBg}>
-        <View style={s.headerInner}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <ClipboardIcon size={20} color="#fff" strokeWidth={2} />
-              <Text style={s.headerTitle}>{t('customerHistory.headerTitle')}</Text>
-            </View>
-          {!isLoading && (
-            <View style={s.countPill}>
-              <Text style={s.countPillText}>{t('customerHistory.transactionCount', { count: transactions.length })}</Text>
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
+      <LargeTitleHeader
+        title={t('customerHistory.headerTitle')}
+        scrollY={largeTitle.scrollY}
+        icon={<ClipboardIcon size={24} color="#fff" strokeWidth={2} />}
+        right={!isLoading ? (
+          <View style={s.countPill}>
+            <Text style={s.countPillText} maxFontSizeMultiplier={1.2}>{t('customerHistory.transactionCount', { count: transactions.length })}</Text>
+          </View>
+        ) : undefined}
+      />
 
       {isLoading ? (
         <View style={s.center}>
@@ -107,6 +106,8 @@ export default function HistoryScreen() {
           contentContainerStyle={transactions.length === 0 ? s.emptyContainer : s.list}
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.3}
+          onScroll={largeTitle.onScroll}
+          scrollEventThrottle={largeTitle.scrollEventThrottle}
           showsVerticalScrollIndicator={false}
           onScrollToIndexFailed={(info) => {
             setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);

@@ -2322,7 +2322,9 @@
     "audLapsed": "bienvenido de nuevo",
     "audNew": "nuevo miembro",
     "audBirthday": "tu mes de cumpleaños",
-    "dailyCap": "Hasta ${{amount}} al día"
+    "dailyCap": "Hasta ${{amount}} al día",
+    "gasPromoAllStores": "Se aplica automáticamente en la bomba, en todas las tiendas",
+    "gasPromoHere": "+{{cents}}¢/gal de promoción aquí"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Refresco de Fuente Gratis",
@@ -2751,7 +2753,8 @@
     "m9": "septiembre",
     "m10": "octubre",
     "m11": "noviembre",
-    "m12": "diciembre"
+    "m12": "diciembre",
+    "yearIgnored": "Solo se guardan el mes y el día; el año no se guarda."
   },
   "challenges": {
     "title": "Retos",

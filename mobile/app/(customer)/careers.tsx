@@ -1,8 +1,17 @@
 import { useState, useCallback } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput,
-  StatusBar, ActivityIndicator, Modal, Platform, Alert, RefreshControl,
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  StatusBar,
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Alert,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ScaledText';
+import RefreshControl from '../../components/AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -15,6 +24,7 @@ import ErrorState from '../../components/ErrorState';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import KeyboardSafe from '../../components/KeyboardSafe';
+import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 const POSITION_META: Record<string, { emoji: string; descKey: string }> = {
   CASHIER:           { emoji: '🧾', descKey: 'customerCareers.positionDescCashier' },
@@ -79,6 +89,7 @@ interface FormState {
 
 export default function CareersScreen() {
   const { t } = useTranslation();
+  const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const [selectedPosition, setSelectedPosition] = useState<string | null>(null);
   const [selectedOpeningId, setSelectedOpeningId] = useState<string | null>(null);
@@ -155,17 +166,16 @@ export default function CareersScreen() {
     : '';
 
   return (
-    <SafeAreaView style={st.safe}>
-      <StatusBar barStyle="light-content" />
-
-      {/* Header */}
-      <View style={st.header}>
-        <Text style={st.headerTitle}>{t('customerCareers.headerTitle')}</Text>
-        <Text style={st.headerSub}>{t('customerCareers.headerSub')}</Text>
-      </View>
+    <SafeAreaView style={st.safe} edges={['left', 'right']}>
+      <LargeTitleHeader
+        title={t('customerCareers.headerTitle')}
+        subtitle={t('customerCareers.headerSub')}
+        scrollY={largeTitle.scrollY}
+        color={COLORS.primary}
+      />
 
       <FadeSlideIn style={{ flex: 1 }}>
-      <ScrollView style={st.scroll} contentContainerStyle={st.content} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
+      <ScrollView style={st.scroll} contentContainerStyle={st.content} showsVerticalScrollIndicator={false} onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
 
         {/* Hero */}
         <View style={st.hero}>
@@ -367,7 +377,7 @@ export default function CareersScreen() {
 }
 
 const st = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.primary },
+  safe: { flex: 1, backgroundColor: '#f5f7fa' },   // the red is the header's own band now
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
   headerTitle: { fontSize: 26, fontWeight: '800', color: '#fff' },
   headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
