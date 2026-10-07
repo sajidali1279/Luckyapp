@@ -34,6 +34,7 @@
       "@react-native-firebase/app",
       "./plugins/withFirebaseAppDelegateFix",
       "./plugins/withIosCaptchaOpenUrlFix",
+      "./plugins/withIosPhoneAuthUrlScheme",
       "expo-router",
       "expo-image",
       "./plugins/withPodfileStaticFrameworks",
