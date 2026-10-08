@@ -10,8 +10,15 @@ import {
 import { inventoryAnalyticsApi, storesApi, orderCategoriesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader, Button } from '../components/kit';
+import { PageHeader, Button, Tabs } from '../components/kit';
+import { RestockTab, DemandTab, RewardsHotFoodTab } from '../components/analytics/InventoryTabs';
 import { RefreshCw } from 'lucide-react';
+
+type Tab = 'orders' | 'restock' | 'demand' | 'rewards';
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'orders', label: 'Order history' }, { value: 'restock', label: 'Restock speed' },
+  { value: 'demand', label: 'What people ask for' }, { value: 'rewards', label: 'Rewards & hot food' },
+];
 
 const PERIODS = [
   { value: '7',   label: '7 days'   },
@@ -46,6 +53,7 @@ export default function InventoryAnalytics() {
   const [storeId,  setStoreId]  = useState('');
   const [period,   setPeriod]   = useState('30');
   const [category, setCategory] = useState('');
+  const [tab, setTab] = useState<Tab>('orders');
 
   // Stores list for filter — getAccessible() scopes to just a Store
   // Manager's own store instead of 403ing (getAll() is SuperAdmin+ only).
@@ -55,6 +63,10 @@ export default function InventoryAnalytics() {
     staleTime: 5 * 60 * 1000,
   });
   const stores: { id: string; name: string }[] = storesData?.data?.data || [];
+  // A manager with more than one store gets the store picker too (the server limits it to their own stores)
+  const showStorePicker = isAdmin || stores.length > 1;
+  // Where "Add to order list" goes: the store picked, or a manager's only store
+  const addStoreId = storeId || (!isAdmin && stores.length === 1 ? stores[0].id : null);
 
   // Categories for filter
   const { data: catData } = useQuery({
@@ -87,7 +99,7 @@ export default function InventoryAnalytics() {
     <div style={s.page}>
       <PageHeader
         title="Inventory Intelligence"
-        description={`Order history across ${stores.length} stores - ${totalItems} items tracked.`}
+        description={`Order history across ${stores.length} store${stores.length === 1 ? '' : 's'} - ${totalItems} item${totalItems === 1 ? '' : 's'} tracked.`}
         actions={<Button icon={<RefreshCw />} onClick={() => refetch()} aria-label="Refresh analytics data">Refresh</Button>}
       />
 
@@ -110,8 +122,8 @@ export default function InventoryAnalytics() {
           </div>
         </div>
 
-        {/* Store filter (admin only) */}
-        {isAdmin && (
+        {/* Store filter (HQ, or a manager with more than one store) */}
+        {showStorePicker && (
           <div style={s.filterGroup}>
             <label style={s.filterLabel}>Store</label>
             <select style={s.select} value={storeId} onChange={e => setStoreId(e.target.value)}>
@@ -123,8 +135,8 @@ export default function InventoryAnalytics() {
           </div>
         )}
 
-        {/* Category filter */}
-        <div style={s.filterGroup}>
+        {/* Category filter (order history only) */}
+        {tab === 'orders' && <div style={s.filterGroup}>
           <label style={s.filterLabel}>Category</label>
           <select style={s.select} value={category} onChange={e => setCategory(e.target.value)}>
             <option value="">All categories</option>
@@ -132,10 +144,15 @@ export default function InventoryAnalytics() {
               <option key={c.id} value={c.name}>{c.name}</option>
             ))}
           </select>
-        </div>
+        </div>}
       </div>
 
-      {isError ? (
+      <Tabs ariaLabel="Inventory views" tabs={TABS} value={tab} onChange={setTab} />
+
+      {tab === 'restock' ? <RestockTab params={{ storeId: storeId || undefined, period }} showStores={showStorePicker && !storeId} />
+      : tab === 'demand' ? <DemandTab params={{ storeId: storeId || undefined, period }} addStoreId={addStoreId} />
+      : tab === 'rewards' ? <RewardsHotFoodTab params={{ storeId: storeId || undefined, period }} />
+      : isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
         <CardSkeleton count={4} />
@@ -251,7 +268,7 @@ export default function InventoryAnalytics() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '24px 32px' },
+  page: { padding: 'clamp(16px, 3vw, 24px) clamp(16px, 3.5vw, 32px)' },
   header: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
   title:  { margin: 0, fontSize: 26, fontWeight: 700, color: '#111827' },
   sub:    { margin: '4px 0 0', fontSize: 15, color: TEXT_MUTED },
@@ -259,12 +276,12 @@ const s: Record<string, React.CSSProperties> = {
     padding: '8px 16px', borderRadius: 8, border: '1px solid #e4e7ec',
     backgroundColor: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600, color: '#374151',
   },
-  filterBar:   { display: 'flex', gap: 24, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end' },
-  filterGroup: { display: 'flex', flexDirection: 'column', gap: 6 },
+  filterBar:   { display: 'flex', gap: 24, marginBottom: 24, flexWrap: 'wrap', alignItems: 'flex-end', minWidth: 0 },
+  filterGroup: { display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, maxWidth: '100%' },
   filterLabel: { fontSize: 14, fontWeight: 600, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.05em' },
-  segmented: { display: 'flex', borderRadius: 8, border: '1px solid #e4e7ec', overflow: 'hidden' },
+  segmented: { display: 'flex', borderRadius: 8, border: '1px solid #e4e7ec', overflowX: 'auto', maxWidth: '100%' },   // scrolls inside itself on a phone
   seg: {
-    padding: '7px 14px', border: 'none', backgroundColor: '#fff',
+    padding: '7px 14px', border: 'none', backgroundColor: '#fff', whiteSpace: 'nowrap', flexShrink: 0,
     cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 500,
     borderRight: '1px solid #e4e7ec',
   },
@@ -274,7 +291,7 @@ const s: Record<string, React.CSSProperties> = {
     backgroundColor: '#fff', fontSize: 15, color: '#374151', minWidth: 160,
   },
   loading: { textAlign: 'center', padding: 60, color: TEXT_MUTED, fontSize: 15 },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 20 },
   card: {
     backgroundColor: '#fff', borderRadius: 12, border: '1px solid #e4e7ec',
     padding: '20px 24px',

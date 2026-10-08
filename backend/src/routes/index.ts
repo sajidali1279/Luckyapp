@@ -76,6 +76,8 @@ import {
   adminDeleteCategory,
 } from '../controllers/orderCategory.controller';
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
+import { getRestockInsights, getDemandInsights, getRewardsHotFoodInsights } from '../controllers/inventoryInsights.controller';
+import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
@@ -382,6 +384,13 @@ router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllS
 router.get('/billing/revenue', authenticate, requireRole(Role.DEV_ADMIN), getDevRevenue);
 router.get('/billing/analytics', authenticate, requireRole(Role.DEV_ADMIN), getAnalytics);
 router.get('/billing/analytics/export', authenticate, requireRole(Role.DEV_ADMIN), exportAnalyticsCsv);
+router.get('/analytics/customers',  authenticate, requireRole(Role.DEV_ADMIN), getCustomerInsights);   // Active, new, repeat, cohorts, lapsed
+router.get('/analytics/promotions', authenticate, requireRole(Role.DEV_ADMIN), getPromotionInsights);  // Per promotion sales + lift, challenges
+router.get('/analytics/points',     authenticate, requireRole(Role.DEV_ADMIN), getPointsInsights);     // Earned vs redeemed, outstanding
+router.get('/analytics/staff',      authenticate, requireRole(Role.DEV_ADMIN), getStaffInsights);      // Per cashier, disputes per store
+router.get('/analytics/heatmap',    authenticate, requireRole(Role.DEV_ADMIN), getHeatmap);            // Weekday x hour
+router.get('/analytics/forecast',   authenticate, requireRole(Role.DEV_ADMIN), getForecast);           // Next 7 store days
+router.get('/analytics/scorecards', authenticate, requireRole(Role.DEV_ADMIN), getScorecards);         // Every store, last 30 days vs the 30 before
 router.get('/billing/cashback-health', authenticate, requireRole(Role.DEV_ADMIN), getCashbackHealth);
 router.patch('/billing/stores/:storeId', authenticate, requireRole(Role.DEV_ADMIN), updateStoreBilling);
 router.post('/billing/stores/:storeId/records', authenticate, requireRole(Role.DEV_ADMIN), createBillingRecord);
@@ -607,6 +616,9 @@ router.delete('/store-labels/:storeLabelId', authenticate, requireRole(Role.SUPE
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison
+router.get('/inventory/analytics/restock', authenticate, requireRole(Role.STORE_MANAGER), getRestockInsights);      // Order list speed, fill rate, stuck items
+router.get('/inventory/analytics/demand',  authenticate, requireRole(Role.STORE_MANAGER), getDemandInsights);       // Customer + staff asks, scanned items not in Labels
+router.get('/inventory/analytics/rewards-hotfood', authenticate, requireRole(Role.STORE_MANAGER), getRewardsHotFoodInsights);   // Rewards taken, hot food orders
 
 // ─── Order Categories ─────────────────────────────────────────────────────────
 router.get('/order-categories',          authenticate, requireRole(Role.EMPLOYEE),     getOrderCategories);    // Approved categories for dropdown

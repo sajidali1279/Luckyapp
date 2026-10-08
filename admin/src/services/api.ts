@@ -589,7 +589,22 @@ export const dailyTaskApi = {
   copyMiddle: (storeId: string, to: 'OPENING' | 'CLOSING') => api.post('/admin/daily-tasks/copy-middle', { storeId, to }),
 };
 
+// Analytics tabs (Dev Admin): the same window as the Analytics page (range, or from/to) and an optional store
+export type InsightParams = { from?: string; to?: string; range?: string; storeId?: string };
+export const insightsApi = {
+  customers:  (params: InsightParams) => api.get('/analytics/customers', { params }),
+  promotions: (params: InsightParams) => api.get('/analytics/promotions', { params }),
+  points:     (params: InsightParams) => api.get('/analytics/points', { params }),
+  staff:      (params: InsightParams) => api.get('/analytics/staff', { params }),
+  heatmap:    (params: InsightParams) => api.get('/analytics/heatmap', { params }),
+  forecast:   (params: { storeId?: string }) => api.get('/analytics/forecast', { params }),
+  scorecards: () => api.get('/analytics/scorecards'),
+};
+
 export const inventoryAnalyticsApi = {
+  restock:        (params: { storeId?: string; period: string }) => api.get('/inventory/analytics/restock', { params }),
+  demand:         (params: { storeId?: string; period: string }) => api.get('/inventory/analytics/demand', { params }),
+  rewardsHotFood: (params: { storeId?: string; period: string }) => api.get('/inventory/analytics/rewards-hotfood', { params }),
   get: (params?: { storeId?: string; period?: string; category?: string }) => {
     const q = Object.entries(params || {}).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v as string)}`).join('&');
     return api.get(`/inventory/analytics${q ? `?${q}` : ''}`);

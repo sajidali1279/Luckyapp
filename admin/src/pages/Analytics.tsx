@@ -12,7 +12,8 @@ import {
 import { billingApi, storesApi } from '../services/api';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { storeToday, isRealDate, daysBetween, dayLabel } from '../lib/storeDates';
-import { PageHeader, Button, Chip } from '../components/kit';
+import { PageHeader, Button, Chip, Tabs } from '../components/kit';
+import { CustomersTab, PromotionsTab, PointsTab, StaffTab, BusyTab, ScorecardsTab } from '../components/analytics/InsightTabs';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -20,6 +21,11 @@ type Range = '7d' | '30d' | '90d' | 'custom';
 const RANGE_LABEL: Record<Range, string> = { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', custom: 'Custom' };
 const RANGE_PREV_LABEL: Record<Exclude<Range, 'custom'>, string> = { '7d': 'the previous 7 days', '30d': 'the previous 30 days', '90d': 'the previous 90 days' };
 const MAX_CUSTOM_DAYS = 366;
+type Tab = 'overview' | 'customers' | 'promotions' | 'points' | 'staff' | 'busy' | 'stores';
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'overview', label: 'Overview' }, { value: 'customers', label: 'Customers' }, { value: 'promotions', label: 'Promotions' },
+  { value: 'points', label: 'Points' }, { value: 'staff', label: 'Staff' }, { value: 'busy', label: 'Busy hours & forecast' }, { value: 'stores', label: 'Store scorecards' },
+];
 
 /** A whole-number percent change, "+12%"/"-8%"/"no change", never a stray "Infinity%" from a $0 base. */
 function pctChange(now: number, prev: number): string | null {
@@ -101,6 +107,7 @@ function buildStoreRows(byStore: any[], allStores: any[]) {
 
 export default function Analytics() {
   const [range, setRange] = useState<Range>('30d');
+  const [tab, setTab] = useState<Tab>('overview');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   // Drill down to one store: cleared automatically on a range change so a stale filter never silently follows
@@ -201,7 +208,7 @@ export default function Analytics() {
             {(['7d', '30d', '90d', 'custom'] as Range[]).map((r) => (
               <Chip key={r} selected={range === r} onClick={() => setRange(r)}>{RANGE_LABEL[r]}</Chip>
             ))}
-            {analytics && (
+            {analytics && tab === 'overview' && (
               <Button icon={<Download />} onClick={handleExportCsv} disabled={exporting} title="Download what is on screen as CSV">
                 {exporting ? 'Exporting…' : 'Export CSV'}
               </Button>
@@ -231,9 +238,18 @@ export default function Analytics() {
         </div>
       )}
 
-      {range === 'custom' && !ready ? (
+      <Tabs ariaLabel="Analytics views" tabs={TABS} value={tab} onChange={setTab} />
+
+      {tab === 'stores' ? (
+        <ScorecardsTab onPickStore={(id) => { setStoreId(id); setTab('overview'); }} />
+      ) : range === 'custom' && !ready ? (
         <div style={s.loading}>{custom.prompt ?? 'Fix the dates above to see the charts.'}</div>
-      ) : isError ? (
+      ) : tab === 'customers' ? <CustomersTab params={queryParams} enabled={ready} />
+        : tab === 'promotions' ? <PromotionsTab params={queryParams} enabled={ready} />
+        : tab === 'points' ? <PointsTab params={queryParams} enabled={ready} />
+        : tab === 'staff' ? <StaffTab params={queryParams} enabled={ready} />
+        : tab === 'busy' ? <BusyTab params={queryParams} enabled={ready} />
+        : isError ? (
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
         <CardSkeleton count={5} />

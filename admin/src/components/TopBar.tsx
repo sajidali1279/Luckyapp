@@ -123,7 +123,7 @@ export default function TopBar() {
         <kbd style={s.kbd}>{navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl K'}</kbd>
       </button>
       <div style={s.right}>
-        <span style={s.freshness}>Updated {timeAgo(refreshedAt)}</span>
+        {!isMobile && <span style={s.freshness}>Updated {timeAgo(refreshedAt)}</span>}
         <button type="button" style={s.iconBtn} aria-label="Refresh the counts on this page" onClick={refresh} disabled={refreshing}>
           <RotateCw size={15} style={refreshing ? s.spin : undefined} aria-hidden="true" />
         </button>
@@ -140,7 +140,8 @@ const s: Record<string, React.CSSProperties> = {
     padding: '8px 16px', background: '#fff', borderBottom: '1px solid #e4e7ec', minHeight: 52,
   },
   trigger: { color: '#374151', flexShrink: 0 },
-  title: { margin: 0, fontSize: 15, fontWeight: 600, color: '#111827', flexShrink: 0, whiteSpace: 'nowrap' as const },
+  // A long page name (Inventory Intelligence) gives way with an ellipsis instead of pushing the bell off a phone screen
+  title: { margin: 0, fontSize: 15, fontWeight: 600, color: '#111827', flexShrink: 1, minWidth: 0, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
   searchBtn: {
     display: 'flex', alignItems: 'center', gap: 8, marginLeft: 4, padding: '6px 10px', borderRadius: 8,
     border: '1px solid #e4e7ec', background: '#f6f7f9', color: TEXT_MUTED, cursor: 'pointer', fontSize: 13.5,
@@ -148,8 +149,9 @@ const s: Record<string, React.CSSProperties> = {
   },
   searchBtnText: { flex: 1, textAlign: 'left' as const, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const },
   kbd: { fontSize: 10.5, fontWeight: 700, color: TEXT_MUTED, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 4, padding: '1px 5px', flexShrink: 0 },
-  // Can shrink (only the freshness text gives way): at phone width the fixed group overflowed the bar by a few pixels
-  right: { display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 1, minWidth: 0 },
+  // Never shrinks: its two buttons cannot, so a shrinking group spilled them past a phone's edge. The freshness text is hidden on a
+  // phone instead, and the page name and the search button give way.
+  right: { display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto', flexShrink: 0 },
   freshness: { fontSize: 12, color: TEXT_MUTED, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 },
   iconBtn: {
     position: 'relative', width: 34, height: 34, flexShrink: 0, borderRadius: 8, border: '1px solid transparent', background: 'transparent',
