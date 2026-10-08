@@ -52,6 +52,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { haptic } from '../../utils/haptics';
 import * as Brightness from 'expo-brightness';
+import { sized } from '../../utils/imageUrl';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -127,7 +128,7 @@ const BannerCarousel = memo(function BannerCarousel({ banners, onSelect }: { ban
       accessibilityLabel={item.title ? `View banner: ${item.title}` : 'View banner'}
     >
       <View style={bc.slideClip}>
-        <Image source={{ uri: item.imageUrl }} style={bc.image} contentFit="cover" />
+        <Image source={{ uri: sized(item.imageUrl) }} style={bc.image} contentFit="cover" />
         {item.title ? (
           <View style={bc.titleBar}>
             <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
@@ -466,7 +467,7 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
         <View style={[ds.slideClip, !item.imageUrl && { backgroundColor: palette.bg }]}>
           {item.imageUrl ? (
             <>
-              <Image source={{ uri: item.imageUrl }} style={ds.slideImage} contentFit="cover" />
+              <Image source={{ uri: sized(item.imageUrl) }} style={ds.slideImage} contentFit="cover" />
               <View style={ds.imageScrim} />
             </>
           ) : (
@@ -1134,7 +1135,7 @@ export default function CustomerHome() {
                     <View style={styles.offerCardClip}>
                       {isOfferLocked(offer) && <AgeGateOverlay />}
                       {offer.imageUrl
-                        ? <Image source={{ uri: offer.imageUrl }} style={styles.offerImage} contentFit="cover" />
+                        ? <Image source={{ uri: sized(offer.imageUrl) }} style={styles.offerImage} contentFit="cover" />
                         : <OfferPlaceholder isGas={offer.gasBonusCentsPerGallon != null} />
                       }
                       <View style={styles.offerContent}>
@@ -1182,7 +1183,7 @@ export default function CustomerHome() {
                       <View style={styles.offerSlideClip}>
                         {isOfferLocked(offer) && <AgeGateOverlay />}
                         {offer.imageUrl
-                          ? <Image source={{ uri: offer.imageUrl }} style={styles.offerSlideImage} contentFit="cover" />
+                          ? <Image source={{ uri: sized(offer.imageUrl) }} style={styles.offerSlideImage} contentFit="cover" />
                           : (
                             <View style={[styles.offerSlidePlaceholder, { backgroundColor: offer.gasBonusCentsPerGallon != null ? '#fff7ed' : COLORS.primary + '0f' }]}>
                               {offer.gasBonusCentsPerGallon != null
@@ -1401,7 +1402,7 @@ export default function CustomerHome() {
                 >
                   <View style={styles.hotFoodClip}>
                     {item.imageUrl
-                      ? <Image source={{ uri: item.imageUrl }} style={styles.hotFoodImg} contentFit="cover" />
+                      ? <Image source={{ uri: sized(item.imageUrl, 200) }} style={styles.hotFoodImg} contentFit="cover" />
                       : (
                         <View style={styles.hotFoodImgPlaceholder}>
                           <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
@@ -1490,7 +1491,7 @@ export default function CustomerHome() {
             {selectedFoodItem && (
               <>
                 {selectedFoodItem.imageUrl
-                  ? <Image source={{ uri: selectedFoodItem.imageUrl }} style={hf.itemImg} contentFit="cover" />
+                  ? <Image source={{ uri: sized(selectedFoodItem.imageUrl) }} style={hf.itemImg} contentFit="cover" />
                   : (
                     <View style={hf.itemImgPlaceholder}>
                       <FlameIcon size={40} color="#EA580C" strokeWidth={1.5} />
@@ -1679,7 +1680,7 @@ export default function CustomerHome() {
         <Modal transparent animationType="slide" onRequestClose={() => setSelectedBanner(null)}>
           <View style={om.overlay}>
             <View style={[om.sheet, { maxHeight: sheetMaxHeight }]}>
-              <Image source={{ uri: selectedBanner.imageUrl }} style={[om.image, { height: modalImageHeight }]} contentFit="cover" />
+              <Image source={{ uri: sized(selectedBanner.imageUrl) }} style={[om.image, { height: modalImageHeight }]} contentFit="cover" />
               <ScrollView
                 style={om.bodyScroll}
                 contentContainerStyle={[om.bodyContent, { paddingBottom: 20 + insets.bottom }]}
@@ -1854,7 +1855,7 @@ export default function CustomerHome() {
               </View>
             ) : null}
             {selectedOffer.imageUrl ? (
-              <Image source={{ uri: selectedOffer.imageUrl }} style={[om.image, { height: modalImageHeight }]} contentFit="cover" />
+              <Image source={{ uri: sized(selectedOffer.imageUrl) }} style={[om.image, { height: modalImageHeight }]} contentFit="cover" />
             ) : null}
             {/* om.bodyScroll's flex:1 needs a definite-height ancestor, which a real
                 <Modal> window used to seed for free. This overlay's sheet is sized

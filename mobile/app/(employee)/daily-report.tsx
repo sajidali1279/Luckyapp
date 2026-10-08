@@ -31,6 +31,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { showActionSheet } from '../../utils/actionSheet';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import { sized } from '../../utils/imageUrl';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -192,7 +193,7 @@ function ReportCard({ report }: { report: DailyReport }) {
           {/* Image */}
           {report.imageUrl && !imgErr && (
             <Image
-              source={{ uri: report.imageUrl }}
+              source={{ uri: sized(report.imageUrl) }}
               style={rc.image}
               onError={() => setImgErr(true)}
               contentFit="cover"

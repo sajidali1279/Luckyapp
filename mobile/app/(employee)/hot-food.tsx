@@ -35,6 +35,7 @@ import PulseHighlight from '../../components/PulseHighlight';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { showActionSheet } from '../../utils/actionSheet';
+import { sized } from '../../utils/imageUrl';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -528,7 +529,7 @@ function MenuItemCard({
     <View style={s.menuCard}>
       {/* Photo thumbnail */}
       {item.imageUrl && !imgErr ? (
-        <Image source={{ uri: item.imageUrl }} style={s.menuThumb} onError={() => setImgErr(true)} />
+        <Image source={{ uri: sized(item.imageUrl, 120) }} style={s.menuThumb} onError={() => setImgErr(true)} />
       ) : (
         <View style={[s.menuThumb, s.menuThumbPlaceholder]}>
           <FlameIcon size={18} color="#CBD5E1" />

@@ -26,6 +26,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { SHEET_HEADER_TOP } from '../../utils/sheetInsets';
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import { sized } from '../../utils/imageUrl';
 
 interface Store { id: string; name: string }
 
@@ -203,7 +204,7 @@ export default function ManagerBannersScreen() {
               <FadeSlideIn key={banner.id} delay={Math.min(bannerIndex * 40, 200)}>
               <View style={s.bannerCard}>
                 {banner.imageUrl ? (
-                  <Image source={{ uri: banner.imageUrl }} style={s.bannerImg} contentFit="cover" />
+                  <Image source={{ uri: sized(banner.imageUrl) }} style={s.bannerImg} contentFit="cover" />
                 ) : (
                   <View style={[s.bannerImg, s.bannerPlaceholder]}>
                     <ImageIcon size={36} color={COLORS.textMuted} strokeWidth={1.5} />

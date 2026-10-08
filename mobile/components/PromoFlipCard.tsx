@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants';
 import { BuildingIcon, MapPinIcon, GlobeIcon, MegaphoneIcon } from './Icons';
+import { sized } from '../utils/imageUrl';
 
 interface Ad {
   id: string;
@@ -88,7 +89,7 @@ export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
     >
       <Animated.View style={[s.face, { opacity: frontOpacity, transform: [{ rotateY: frontInterpolate }] }]}>
         {ad.adImageUrl ? (
-          <Image source={{ uri: ad.adImageUrl }} style={s.frontImage} contentFit="cover" />
+          <Image source={{ uri: sized(ad.adImageUrl) }} style={s.frontImage} contentFit="cover" />
         ) : (
           <View style={[s.frontImage, s.frontImagePlaceholder]}>
             <BuildingIcon size={32} color={COLORS.primary} strokeWidth={1.5} />

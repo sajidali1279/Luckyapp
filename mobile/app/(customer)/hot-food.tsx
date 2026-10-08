@@ -26,6 +26,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import { sized } from '../../utils/imageUrl';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ function MenuCard({ item, qty, onAdd, onRemove, closed = false }: {
       <View style={mc.left}>
         {item.imageUrl && !imgErr ? (
           <Image
-            source={{ uri: item.imageUrl }}
+            source={{ uri: sized(item.imageUrl, 200) }}
             style={mc.itemImage}
             onError={() => setImgErr(true)}
           />

@@ -24,6 +24,7 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import PromoteBusinessModal from '../../components/PromoteBusinessModal';
 import { MegaphoneIcon, BuildingIcon, GlobeIcon, MapPinIcon } from '../../components/Icons';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import { sized } from '../../utils/imageUrl';
 
 interface Ad {
   id: string;
@@ -105,7 +106,7 @@ export default function AdsScreen() {
         </View>
 
         {item.adImageUrl ? (
-          <Image source={{ uri: item.adImageUrl }} style={s.adImage} contentFit="cover" />
+          <Image source={{ uri: sized(item.adImageUrl) }} style={s.adImage} contentFit="cover" />
         ) : null}
         <Text style={s.adTitle}>{item.adTitle}</Text>
         <Text style={s.adBody}>{item.adBody}</Text>
