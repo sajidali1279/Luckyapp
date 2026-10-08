@@ -2789,5 +2789,15 @@
     "cat_HOT_FOODS": "comida caliente",
     "cat_OTHER": "otros artículos",
     "a11y": "{{title}}: {{progress}}"
+  },
+  "phoneAuthError": {
+    "invalidNumber": "Ese número no parece correcto. Revísalo e inténtalo de nuevo.",
+    "tooMany": "Demasiados intentos desde este teléfono. Espera unos minutos e inténtalo de nuevo.",
+    "quota": "No podemos enviar códigos ahora. Inténtalo más tarde.",
+    "network": "Sin conexión a internet. Revisa tu conexión e inténtalo de nuevo.",
+    "cancelled": "La verificación se cerró antes de terminar. Toca Enviar código para intentarlo de nuevo.",
+    "verification": "No pudimos confirmar este dispositivo para enviar el código. Inténtalo de nuevo o llama a tu tienda.",
+    "notAllowed": "El inicio con teléfono no está disponible ahora. Llama a tu tienda.",
+    "generic": "Revisa el número e inténtalo de nuevo."
   }
 }

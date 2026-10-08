@@ -2789,5 +2789,15 @@
     "cat_HOT_FOODS": "hot food",
     "cat_OTHER": "other items",
     "a11y": "{{title}}: {{progress}}"
+  },
+  "phoneAuthError": {
+    "invalidNumber": "That phone number does not look right. Check it and try again.",
+    "tooMany": "Too many tries from this phone. Wait a few minutes, then try again.",
+    "quota": "We cannot send codes right now. Please try again later.",
+    "network": "No internet connection. Check your connection and try again.",
+    "cancelled": "The check was closed before it finished. Tap Send code to try again.",
+    "verification": "We could not confirm this device to send the code. Please try again, or call your store.",
+    "notAllowed": "Phone sign-in is not available right now. Please call your store.",
+    "generic": "Check the number and try again."
   }
 }

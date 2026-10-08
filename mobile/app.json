@@ -15,7 +15,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.luckystop.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification", "fetch"]
       }
     },
     "android": {

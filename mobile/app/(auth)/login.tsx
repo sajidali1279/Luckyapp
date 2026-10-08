@@ -25,6 +25,7 @@ import { COLORS } from '../../constants';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import LanguageSwitch from '../../components/LanguageSwitch';
 import { useTranslation } from 'react-i18next';
+import { phoneAuthErrorText } from '../../utils/phoneAuthError';
 
 type Screen = 'quick' | 'login' | 'register' | 'verify-phone';
 
@@ -196,12 +197,17 @@ export default function LoginScreen() {
   }
 
   // Step 1: validate form then send OTP via Firebase
+  // One code request at a time, set on the first tap: a second request while one is running can hang on iOS (fixed only in
+  // Firebase iOS SDK 13), and the auto-send on the 4th PIN digit can land together with a tap
+  const otpBusyRef = useRef(false);
   async function handleRegister() {
+    if (otpBusyRef.current) return;
     if (!name.trim()) { Toast.show({ type: 'error', text1: t('auth.enterName') }); return; }
     if (rawPhone().length < 10) { Toast.show({ type: 'error', text1: t('auth.enterValidPhone') }); return; }
     if (pin.length !== 4) { Toast.show({ type: 'error', text1: t('auth.pinMust4') }); return; }
     if (pin !== confirmPin) { Toast.show({ type: 'error', text1: t('auth.pinsNoMatch') }); return; }
     setSendingOtp(true);
+    otpBusyRef.current = true;
     try {
       const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
       setConfirmation(result);
@@ -209,8 +215,9 @@ export default function LoginScreen() {
       setResendCooldown(60);
       setScreen('verify-phone');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: t('auth.couldNotSendCode'), text2: err.message || t('auth.checkPhoneTryAgain') });
+      Toast.show({ type: 'error', text1: t('auth.couldNotSendCode'), text2: phoneAuthErrorText(err, t) });
     } finally {
+      otpBusyRef.current = false;
       setSendingOtp(false);
     }
   }
@@ -242,6 +249,8 @@ export default function LoginScreen() {
   }
 
   async function handleResendOtp() {
+    if (otpBusyRef.current) return;
+    otpBusyRef.current = true;
     setResending(true);
     try {
       const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
@@ -249,9 +258,10 @@ export default function LoginScreen() {
       setOtp('');
       setResendCooldown(60);
       Toast.show({ type: 'success', text1: t('auth.newCodeSent') });
-    } catch {
-      Toast.show({ type: 'error', text1: t('auth.resendFailed') });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: t('auth.resendFailed'), text2: phoneAuthErrorText(err, t) });
     } finally {
+      otpBusyRef.current = false;
       setResending(false);
     }
   }
@@ -411,7 +421,9 @@ export default function LoginScreen() {
               style={[styles.input, vp.otpInput, focusedInput === 'otp' && styles.inputFocused]}
               placeholder="••••••"
               placeholderTextColor={COLORS.textMuted}
-              keyboardType="number-pad"
+keyboardType="number-pad"
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
               value={otp}
               onChangeText={setOtp}
               maxLength={6}
@@ -515,6 +527,8 @@ export default function LoginScreen() {
             placeholder="(555) 000-0000"
             placeholderTextColor={COLORS.textMuted}
             keyboardType="phone-pad"
+            textContentType="telephoneNumber"
+            autoComplete="tel"
             value={phone}
             onChangeText={(t) => setPhone(formatPhone(t))}
             returnKeyType="next"

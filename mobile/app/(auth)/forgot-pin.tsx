@@ -19,6 +19,7 @@ import { COLORS } from '../../constants';
 import { ChevronLeftIcon, CheckCircleIcon } from '../../components/Icons';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import { useTranslation } from 'react-i18next';
+import { phoneAuthErrorText } from '../../utils/phoneAuthError';
 
 type Step = 'phone' | 'verify' | 'reset' | 'done';
 
@@ -71,12 +72,17 @@ export default function ForgotPinScreen() {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
 
+  // One code request at a time, set on the first tap: a second request while one is running can hang on iOS (fixed only in
+  // Firebase iOS SDK 13), and the auto-send on the 4th PIN digit can land together with a tap
+  const otpBusyRef = useRef(false);
   async function handleSendOtp() {
     if (rawPhone().length < 10) {
       Toast.show({ type: 'error', text1: t('auth.enterValidPhone10') });
       return;
     }
     setSendingOtp(true);
+    if (otpBusyRef.current) return;
+    otpBusyRef.current = true;
     try {
       const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
       setConfirmation(result);
@@ -84,13 +90,16 @@ export default function ForgotPinScreen() {
       setResendCooldown(60);
       setStep('verify');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: t('auth.couldNotSendCode'), text2: err.message || t('forgotPin.checkNumberTryAgain') });
+      Toast.show({ type: 'error', text1: t('auth.couldNotSendCode'), text2: phoneAuthErrorText(err, t) });
     } finally {
+      otpBusyRef.current = false;
       setSendingOtp(false);
     }
   }
 
   async function handleResendOtp() {
+    if (otpBusyRef.current) return;
+    otpBusyRef.current = true;
     setResending(true);
     try {
       const result = await signInWithPhoneNumber(getAuth(), `+1${rawPhone()}`);
@@ -98,9 +107,10 @@ export default function ForgotPinScreen() {
       setOtp('');
       setResendCooldown(60);
       Toast.show({ type: 'success', text1: t('auth.newCodeSent') });
-    } catch {
-      Toast.show({ type: 'error', text1: t('auth.resendFailed') });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: t('auth.resendFailed'), text2: phoneAuthErrorText(err, t) });
     } finally {
+      otpBusyRef.current = false;
       setResending(false);
     }
   }
@@ -203,6 +213,8 @@ export default function ForgotPinScreen() {
                 value={phone}
                 onChangeText={(t) => setPhone(formatPhone(t))}
                 keyboardType="phone-pad"
+                textContentType="telephoneNumber"
+                autoComplete="tel"
                 placeholder="(555) 000-0000"
                 placeholderTextColor={COLORS.textMuted}
                 autoFocus
@@ -238,6 +250,8 @@ export default function ForgotPinScreen() {
                 value={otp}
                 onChangeText={setOtp}
                 keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="sms-otp"
                 maxLength={6}
                 placeholder="••••••"
                 placeholderTextColor={COLORS.textMuted}
