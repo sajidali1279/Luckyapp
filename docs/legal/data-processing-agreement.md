@@ -29,7 +29,9 @@ Cliff Industries processes Personal Data on behalf of the Controller solely for 
 
 - Authenticating users via phone number and OTP
 - Recording and crediting loyalty transactions
-- Delivering push notifications related to offers and account activity
+- Delivering push notifications related to offers and account activity, in the customer's chosen language
+- Deciding which promotions and challenges a customer can see and use (by tier, purchase dates, or the optional birthday month and day the customer gave), and tracking challenge progress
+- Taking hot food orders for pick-up
 - Storing receipt photos for fraud verification
 - Generating transaction analytics and reporting visible to the Controller
 - Responding to data subject rights requests coordinated through the Controller
@@ -70,9 +72,14 @@ Cliff Industries uses the following subprocessors to deliver the platform servic
 |---|---|---|
 | **Neon** | PostgreSQL database hosting | United States |
 | **Render** | Backend API hosting | United States |
-| **Firebase (Google)** | Phone authentication, push notifications | United States |
+| **Firebase (Google)** | Phone number verification | United States |
+| **Expo (650 Industries)** | Push notification delivery (through Apple and Google) and app builds | United States |
 | **Cloudinary** | Receipt photo and image storage | United States |
 | **Vercel** | Admin portal hosting | United States |
+| **Cloudflare** | Domain name service and network protection | United States |
+| **Resend** | Transactional email delivery | United States |
+
+Anthropic (Claude) is used to suggest Spanish translations of promotion text and to read product catalog photos. It receives no Personal Data and is therefore not a subprocessor.
 
 Cliff Industries will notify the Controller at least 14 days before adding or replacing a subprocessor that processes Personal Data. If the Controller objects, either party may terminate the Merchant Agreement with 30 days' written notice.
 
@@ -152,4 +159,4 @@ In the event of a conflict between this Data Processing Agreement and the Mercha
 ---
 
 *Cliff Industries - Lucky Stop Loyalty Platform*  
-*Last updated: May 2026*
+*Last updated: October 8, 2026*

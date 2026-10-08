@@ -140,11 +140,11 @@ Every time you make a qualifying purchase at a Lucky Stop location:
 
 Your points are calculated as a percentage of your purchase amount (your **cashback rate**):
 
-- As a **Bronze member** (starting tier): you earn **5%** of every qualifying purchase as points.
-- Higher tiers earn more - up to **9%** at the Platinum level.
+- Every tier has its own rate, shown in the app on your tier card. Higher tiers earn more.
+- Category bonuses and promotions can add more, up to **10%** of a purchase in all.
 
 **Example:**
-If you spend $50 at Lucky Stop as a Bronze member:
+If your rate is 5% and you spend $50 at Lucky Stop:
 > $50 × 5% = $2.50 in credits = **250 points**
 
 ### What Products Qualify?
@@ -190,20 +190,20 @@ The more you shop at Lucky Stop, the higher your tier - and the more you earn!
 
 | Tier | Color | Cashback Rate |
 |---|---|---|
-| **Bronze** | 🥉 | 5% |
-| **Silver** | 🥈 | 6% |
-| **Gold** | 🥇 | 7% |
-| **Diamond** | 💎 | 8% |
-| **Platinum** | 🏆 | 9% |
+| **Bronze** | 🥉 | Starting rate |
+| **Silver** | 🥈 | Higher |
+| **Gold** | 🥇 | Higher |
+| **Diamond** | 💎 | Higher |
+| **Platinum** | 🏆 | Highest |
 
-*Actual thresholds are displayed in the app.*
+*The current rates and points needed for each tier are shown in the app.*
 
 ### How Tiers Work
 
-Your tier is determined by how many points you earn within each **Tier Period** (a defined time window, shown in the app). As you accumulate points within the period:
+Your tier is determined by how many points you earn within each **Tier Period** of six months (January to June, and July to December). As you accumulate points within the period:
 - You move up tiers automatically when you cross each threshold.
 - Your tier cashback rate increases immediately when you tier up.
-- At the end of each Tier Period, your period progress resets - but you start the next period at your current tier level.
+- On January 1 and July 1 your period points start again from 0 and your tier steps down one level (Bronze stays Bronze). Keep shopping to climb back up; the app tells you if your tier stepped down.
 
 **Think of it this way:** Earn more, unlock a higher rate, earn even more. The more regularly you shop at Lucky Stop, the better your rewards get.
 

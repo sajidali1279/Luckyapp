@@ -329,7 +329,7 @@ For high-priority requests (e.g., a broken refrigerator), use the Support Ticket
 
 ## 7. Offers - Creating and Managing Promotions
 
-As a Store Manager, you can create offers specific to your store that will appear to customers who shop at your location.
+As a Store Manager, you can post **Deals** for your store (for example, "2 for $5 chips") that appear to customers who shop at your location. Cashback promotions (a bonus percentage, per-tier rates or cents per gallon) are set by Lucky Stop HQ only; they show in your Offers list but you cannot post or change them.
 
 ### 7.1 Accessing Offers
 
@@ -345,8 +345,7 @@ Navigate to **Offers** in the bottom navigation. You will see:
    - **Title:** Clear, appealing offer name (e.g., "Weekend Grocery Bonus").
    - **Description:** More detail about the offer (optional).
    - **Category:** Apply the offer only to a specific product category, or leave blank for all categories.
-   - **Bonus Rate:** The additional cashback percentage (e.g., enter 0.05 for 5% bonus on top of normal rates).
-   - **Deal Text:** Short promotional text (max 40 characters, e.g., "Double points this weekend!").
+   - **Deal Text:** Required. The deal itself, short (max 40 characters, e.g., "2 for $5" or "Free coffee with any breakfast taco"). It must be honored at the register; it adds no points.
    - **Start Date / End Date:** Set the promotion window.
    - **Offer Image:** (Optional) Add an image for the offer card.
 3. Tap **Create Offer**.
@@ -750,15 +749,16 @@ The web admin portal at **admin.luckystop.cliffindus.com** provides a larger-scr
 
 If you manage more than one store, use the store picker to switch between them - each of the above (including per-store badge counts) reflects the store currently selected, not just the first one on your list.
 
-### 18.2 Inventory Analytics - Detailed View
+### 18.2 Inventory Intelligence - Detailed View
 
-The web portal provides richer inventory analytics than the mobile app:
-- **Top Items chart:** Bar chart of most-ordered items by frequency.
-- **Category Breakdown:** Pie or bar chart by product category.
-- **Trend Over Time:** Line chart showing ordering volume changes.
-- **Export:** Download analytics as CSV.
+The web portal provides richer inventory analytics than the mobile app, for your own stores only. Choose a period (7, 30 or 90 days, or all time), and a store if you manage more than one. There are four tabs:
 
-Use this data in your monthly planning to anticipate order volumes and identify gaps.
+- **Order history:** the most ordered items (top 15 chart and top 20 table) and the split by category, with a category filter.
+- **Restock speed:** the fill rate (how many items added to order lists arrived), and the middle time from added to ordered, ordered to arrived, and list to shelf (also for urgent items alone). **Stuck items** lists anything ordered 5 or more days ago that has not arrived, and urgent items still not ordered after 2 days. **Slowest categories** shows which categories take longest to reach the shelf.
+- **What people ask for:** customers' product requests and employees' stock requests together, with the same item typed two ways counted once. Each row shows how many customers asked, how often, how many were accepted or turned down, and when it was last asked for. **Add to order list** puts an item on the store's open order list in one click (it opens a list if there is none); items already on the open list say so. Also shown: why staff requests were turned down, and **Scanned but not in Labels**, products scanned at the counter (all stores) that have no label or price yet.
+- **Rewards & hot food:** rewards taken, not picked up and cancelled, the most taken rewards (keep them in stock), and for hot food the orders, money taken in, average order, cancellations and why, the promised ready time, best sellers, and orders by hour and weekday.
+
+Use this data in your weekly and monthly planning: chase stuck orders, stock what people keep asking for, and keep the most taken rewards and best-selling hot food in stock.
 
 ---
 

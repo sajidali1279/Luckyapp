@@ -181,7 +181,16 @@ Analytics (Dev Admin only) is where you look past today's snapshot and see how t
 
 **Drilling into one store:** click a bar in "Transactions by Store" or "Purchase Volume by Store" to narrow the whole page, including the comparison and the new charts, to that one store. A "Viewing: [store name]" chip appears at the top; click "Show every store" on it to go back to the full chain view. The store name in the Store Breakdown Table is also clickable and does the same thing.
 
-**Exporting:** the Export CSV button downloads the same filtered range (whichever store, whichever dates) as a spreadsheet, with a daily breakdown and a per-store summary.
+**Exporting:** the Export CSV button downloads the same filtered range (whichever store, whichever dates) as a spreadsheet, with a daily breakdown and a per-store summary. It is on the Overview tab.
+
+**The other tabs** use the same range and store as Overview:
+
+- **Customers:** active customers against the period before, new and returning, the repeat rate (bought twice or more), sign-ups, a monthly table of whether each month's new customers came back in the following months, the customers to win back (no purchase for 30 to 59, 60 to 89 and 90+ days; a Win-back promotion in Offers is made for them), and the tier and language mix.
+- **Promotions:** the share of sales made with a promotion and the extra cashback paid; for each promotion its sales and **extra sales** (the same comparison as a promotion's Results, with the sales per $1 of extra cashback, or "Too few sales to tell"); and each challenge's joiners, completions and rewards paid.
+- **Points:** cashback earned and redeemed each day, the redemption rate, what customers are holding today (what the stores still owe), how many customers hold how many points, and the rewards taken.
+- **Staff:** for each person who entered sales: sales, share, average, flagged and rejected rates (marked when well above the others) and their customer rating; and points disputes per store with the time taken to resolve them. Customers' own receipt claims and challenge rewards are not counted as a cashier's sales.
+- **Busy hours & forecast:** a weekday by hour grid of sales (darker is busier, hover for numbers) with the busiest slot named, and the expected sales for the next 7 days from the same weekday over the last 8 weeks, with the usual low to high range. The forecast does not know about holidays or promotions not yet started.
+- **Store scorecards:** every open store over the last 30 days against the 30 days before and against the chain average: sales, growth, transactions, customers, repeat rate, average sale, cashback share and flagged rate, ranked by sales. Click a store to open the other tabs for just that store. This tab always shows the last 30 days.
 
 ---
 
@@ -763,20 +772,21 @@ Navigate to **Overview** → **Inventory Intelligence** in the sidebar.
 
 ### 17.2 What It Shows
 
-Inventory Intelligence provides analytics on ordering patterns across stores, including:
+Inventory Intelligence has four tabs:
 
-- **Top Ordered Items:** Most frequently appearing items on order lists across all stores.
-- **Items by Category:** Breakdown of ordered items by product category.
-- **Order Frequency:** How often specific items are ordered.
-- **Store Comparison:** Which stores order which types of items most frequently.
-- **Trend Data:** Changes in ordering patterns over time.
+- **Order history:** the most ordered items (top 15 chart and top 20 table) and the split by category, with a category filter.
+- **Restock speed:** the fill rate (how many items added to order lists arrived), and the middle time from added to ordered, ordered to arrived, and list to shelf (also for urgent items alone). **Stuck items** lists anything ordered 5 or more days ago that has not arrived, and urgent items still not ordered after 2 days. **Slowest categories** shows which categories take longest to reach the shelf.
+- **What people ask for:** customers' product requests and employees' stock requests together, with the same item typed two ways counted once. Each row shows how many customers asked, how often, how many were accepted or turned down, and when it was last asked for. **Add to order list** puts an item on the store's open order list in one click (it opens a list if there is none); items already on the open list say so. Also shown: why staff requests were turned down, and **Scanned but not in Labels**, products scanned at the counter (all stores) that have no label or price yet.
+- **Rewards & hot food:** rewards taken, not picked up and cancelled, the most taken rewards (keep them in stock), and for hot food the orders, money taken in, average order, cancellations and why, the promised ready time, best sellers, and orders by hour and weekday.
+
+With every store selected, Order history and Restock speed also compare the stores.
 
 ### 17.3 Filtering
 
 Use the filters at the top of the page to focus on:
-- **Specific store:** View inventory analytics for one location.
-- **Time period:** This week, this month, last quarter, custom range.
-- **Category:** Filter by product category.
+- **Period:** 7 days, 30 days, 90 days, or all time.
+- **Store:** every store or one. Pick one store to use **Add to order list**.
+- **Category:** on the Order history tab only.
 
 ### 17.4 Using Inventory Intelligence
 

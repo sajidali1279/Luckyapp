@@ -1,7 +1,7 @@
 # Lucky Stop Loyalty Platform - Merchant Services Agreement
 
 **Effective Date:** ________________, 2026
-**Agreement Version:** 1.0
+**Agreement Version:** 1.1 (updated October 8, 2026: the Dev Cut is a share of the cashback issued, 10% by default)
 
 ---
 
@@ -73,7 +73,9 @@ For the purposes of this Agreement, the following terms have the meanings set fo
 
 **"Customer Data"** means personal information of customers who interact with the Platform in connection with the Merchant's store(s), including but not limited to names, phone numbers, transaction history, and points balances.
 
-**"Dev Cut"** means the percentage of each qualifying transaction that is allocated to the Provider as a platform usage fee, as specified in Schedule B.
+**"Cashback Issued"** means the loyalty value credited to customers through the Platform at a Merchant Store: the cashback on each Qualifying Transaction (including any tier, category, promotion and per-gallon gas bonus) and any challenge reward a customer earns there.
+
+**"Dev Cut"** (also "Platform Fee") means the percentage of the Cashback Issued that is payable to the Provider as a platform usage fee, as specified in Schedule B. It is not a percentage of the purchase amount.
 
 **"Loyalty Program"** means the points-based customer rewards program operated through the Platform on behalf of the Merchant.
 
@@ -109,7 +111,9 @@ Subject to the terms of this Agreement and timely payment of applicable fees, th
   - Loyalty points dashboard, transaction history, and tier status.
   - Redemption catalog for exchanging points for rewards.
   - Push notifications for promotions and account activity.
-  - In-app promotions and banner display.
+  - In-app promotions, deals, challenges and banner display.
+  - Hot food ordering for pick-up at participating stores.
+  - English and Spanish.
 
 **(b) Employee and Manager App**
 - Role-based access for Merchant's employees and managers, including:
@@ -162,6 +166,10 @@ The Platform additionally provides, subject to eligibility and the Merchant's st
 - **Store team chat:** Real-time messaging between Merchant's store staff.
 - **Shift scheduling:** Digital schedule management and shift request workflows.
 - **Welcome bonus:** Configurable new customer onboarding bonus.
+- **Targeted promotions:** Promotions limited to a tier and up, new customers, customers who have not bought lately (win-back) or customers in their birthday month, with an optional total budget and a daily limit per customer.
+- **Challenges:** Goals (for example, a number of visits or an amount spent in a category) that pay a fixed reward when completed.
+- **Shelf and price labels:** A product catalog with prices per store, label printing and deal suggestions.
+- **Hot food ordering:** Customer orders for pick-up, with store-set hours.
 
 ### 2.3 Future Feature Updates
 
@@ -203,13 +211,13 @@ The Provider will make the Platform available to the Merchant within **[X] busin
 
 The Merchant shall pay the Provider a Monthly Subscription Fee for each active Merchant Store, as set forth in Schedule B. The Monthly Subscription Fee is due and payable on the **1st day of each calendar month** in advance for that month.
 
-### 4.2 Transaction Fee (Dev Cut)
+### 4.2 Platform Fee (Dev Cut)
 
-In addition to the Monthly Subscription Fee, the Provider is entitled to a transaction fee ("Dev Cut") on each Qualifying Transaction, as set forth in Schedule B. The Dev Cut is calculated on the **gross purchase amount** of each Qualifying Transaction and is deducted at the time of transaction processing.
+In addition to any Monthly Subscription Fee, the Provider is entitled to a platform fee ("Dev Cut") equal to the percentage of the Cashback Issued set forth in Schedule B (**10%** unless Schedule B says otherwise). The Dev Cut is calculated on the **cashback**, not on the purchase amount. It is recorded on each Qualifying Transaction when the points are granted, at the rate in force at that moment, and is billed monthly in arrears (Section 6). No Dev Cut is charged on redemptions.
 
 ### 4.3 Payment Method
 
-The Merchant shall maintain a valid payment method on file with the Provider. Accepted payment methods are specified in Schedule B. The Provider will automatically charge the Merchant's designated payment method on the applicable due date.
+The Merchant shall pay each invoice by a payment method listed in Schedule B by its due date. The Provider records each payment against the invoice in the Admin Portal.
 
 ### 4.4 Late Payment
 
@@ -221,7 +229,7 @@ The Merchant must notify the Provider of any disputed invoice within **30 days**
 
 ### 4.6 Price Adjustments
 
-The Provider may adjust the Monthly Subscription Fee or transaction fee rates with a minimum of **60 days' written notice**. The Merchant's continued use of the Platform after the effective date of a price adjustment constitutes acceptance of the new pricing.
+The Provider may adjust the Monthly Subscription Fee or the Dev Cut percentage with a minimum of **60 days' written notice**. The Dev Cut percentage for any store cannot exceed **25%** of the Cashback Issued. A new rate applies only to sales recorded after it takes effect; past sales keep the rate recorded on them. The Merchant's continued use of the Platform after the effective date of a price adjustment constitutes acceptance of the new pricing.
 
 ### 4.7 Taxes
 
@@ -233,21 +241,23 @@ All fees are exclusive of applicable sales, use, value-added, or similar taxes (
 
 ### 5.1 How the Dev Cut Works
 
-The Platform's loyalty program is funded by the total cashback cost borne by the Merchant on each Qualifying Transaction. The total cost to the Merchant is the sum of:
+The cost of the loyalty program to the Merchant has two parts:
 
-- **Customer cashback:** The percentage of the purchase amount credited to the customer's points balance.
-- **Dev Cut:** The Provider's platform fee on the same transaction.
+- **Customer cashback:** The loyalty value credited to the customer (the rates the Merchant's administrators set on the Platform, plus any promotion, gas bonus or challenge reward). The customer receives the full amount; the Provider takes nothing from it. The Merchant bears this value when the customer redeems it in store.
+- **Dev Cut:** The Provider's platform fee, a percentage of that cashback (Schedule B). Only the Dev Cut is paid to the Provider.
 
-The combined rate borne by the Merchant is specified in Schedule B.
+The Platform caps the cashback on any one sale at **10%** of the purchase amount, so at the default rate the Dev Cut is never more than 1% of a sale.
 
 ### 5.2 Example Calculation
 
 *(Example only - actual rates are specified in Schedule B)*
 
-For a $100 qualifying purchase:
-- Customer receives 5% cashback = 500 points ($5.00 value to the customer).
-- Provider's Dev Cut = 2% = $2.00.
-- Total cost to Merchant = $7.00 on a $100 sale.
+For a $100 qualifying purchase where the customer's cashback rate is 5%:
+- Customer receives $5.00 of cashback (500 points).
+- Provider's Dev Cut = 10% of $5.00 = **$0.50**.
+- Total cost to the Merchant = $5.50 on a $100 sale: $5.00 that the customer redeems in store and $0.50 paid to the Provider.
+
+A challenge reward of $2.00 earned at the store carries a Dev Cut of $0.20 in the same way.
 
 The Merchant's obligation is to honor point redemptions by customers when customers present valid redemption requests in-store.
 
@@ -263,9 +273,12 @@ When a customer redeems points for in-store credit, the Merchant absorbs the cos
 
 The Provider will generate monthly invoices accessible through the Admin Portal. Each invoice will include:
 - Billing period.
-- Monthly Subscription Fee per active store.
-- Summary of Qualifying Transactions and associated Dev Cut calculations.
-- Total amount due.
+- Monthly Subscription Fee per active store (Monthly Subscription and Hybrid plans).
+- Number of Qualifying Transactions, purchase volume, Cashback Issued and the Dev Cut on it, by category.
+- Any extra charges agreed in writing.
+- Total amount due (Subscription Fee plus Dev Cut plus extra charges).
+
+Invoices cover a finished calendar month in the stores' local time (Central). Only approved sales count; voided or rejected sales and test data are excluded. A paid invoice is never changed: a correction is issued as a separate charge or credit.
 
 ### 6.2 Billing Records
 
@@ -328,12 +341,15 @@ The Provider uses the following subprocessors to provide the Services:
 
 | Subprocessor | Purpose |
 |---|---|
-| Google Firebase | Authentication and push notifications |
-| Cloudinary | Image storage and delivery |
+| Google Firebase | Phone number verification (sign-up and PIN reset) |
+| Expo | Push notification delivery and mobile app builds |
+| Cloudinary | Image storage and delivery (receipt photos, banners, profile photos) |
 | Render | API server hosting |
 | Neon | Database hosting |
-| Expo | Mobile app build infrastructure |
-| Resend | Transactional email delivery |
+| Vercel | Admin Portal hosting |
+| Cloudflare | Domain name service and network protection for the Platform's web addresses |
+| Resend | Transactional email delivery (to staff and administrators) |
+| Anthropic | Suggested Spanish translations of promotion text and reading product catalog photos (receives no Customer Data) |
 
 The Provider will notify the Merchant of any material changes to the subprocessor list with at least **30 days' advance notice**, providing the Merchant an opportunity to object.
 
@@ -720,15 +736,16 @@ Date: ____________________________________
 
 | Item | Amount |
 |---|---|
-| **Monthly Subscription Fee (per active store)** | $________.__ / month |
-| **Transaction Fee (Dev Cut) - percentage of qualifying purchase** | _____% per transaction |
-| **Customer Cashback Rate** | 5% (borne by Merchant) |
-| **Total Merchant cost per qualifying transaction** | Customer Cashback Rate + Dev Cut |
+| **Billing plan** | Monthly Subscription / Per Transaction / Hybrid (circle one) |
+| **Monthly Subscription Fee (per active store; Monthly Subscription and Hybrid plans)** | $________.__ / month |
+| **Platform Fee (Dev Cut), percentage of the Cashback Issued** | **10%** (or _____% if agreed), at most 25% |
+| **Customer cashback rates** | Set by the Merchant's administrators on the Platform; at most 10% of any one sale (borne by Merchant) |
+| **Amount payable to the Provider each month** | Subscription Fee (if any) + Dev Cut + any agreed extra charges |
 | **Payment Method** | ACH Bank Transfer / Credit Card |
 | **Payment Due Date** | 1st of each calendar month |
 | **Late Fee** | 1.5% per month on outstanding balance |
 
-*Initial Price Lock Period: The Monthly Subscription Fee will not increase during the first **12 months** following the Effective Date.*
+*Initial Price Lock Period: The Monthly Subscription Fee and the Dev Cut percentage will not increase during the first **12 months** following the Effective Date.*
 
 ---
 

@@ -330,7 +330,7 @@ For high-priority requests (e.g., a broken refrigerator), use the Support Ticket
 
 ## 7. Offers - Creating and Managing Promotions
 
-As a Store Manager, you can create offers specific to your store that will appear to customers who shop at your location.
+As a Store Manager, you can post **Deals** for your store (for example, "2 for $5 chips") that appear to customers who shop at your location. Cashback promotions (a bonus percentage, per-tier rates or cents per gallon) are set by Lucky Stop HQ only; they show in your Offers list but you cannot post or change them.
 
 ### 7.1 Accessing Offers
 
@@ -346,8 +346,7 @@ Navigate to **Offers** in the bottom navigation. You will see:
    - **Title:** Clear, appealing offer name (e.g., "Weekend Grocery Bonus").
    - **Description:** More detail about the offer (optional).
    - **Category:** Apply the offer only to a specific product category, or leave blank for all categories.
-   - **Bonus Rate:** The additional cashback percentage (e.g., enter 0.05 for 5% bonus on top of normal rates).
-   - **Deal Text:** Short promotional text (max 40 characters, e.g., "Double points this weekend!").
+   - **Deal Text:** Required. The deal itself, short (max 40 characters, e.g., "2 for $5" or "Free coffee with any breakfast taco"). It must be honored at the register; it adds no points.
    - **Start Date / End Date:** Set the promotion window.
    - **Offer Image:** (Optional) Add an image for the offer card.
 3. Tap **Create Offer**.

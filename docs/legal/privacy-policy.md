@@ -1,8 +1,8 @@
 # Lucky Stop Loyalty App - Privacy Policy
 
 **Effective Date:** June 1, 2026
-**Last Updated:** July 31, 2026
-**Version:** 1.0
+**Last Updated:** October 8, 2026
+**Version:** 1.1
 
 ---
 
@@ -82,7 +82,9 @@ When you create an account, we collect:
 | **4-digit PIN (hashed)** | Account security, transaction authorization | Yes |
 | **Recovery email address** | PIN recovery, account security | Optional |
 | **Profile photograph** | In-app avatar display | Optional |
-| **Date of birth / age confirmation** | Age verification (18+ requirement) | Yes |
+| **Age confirmation** | Confirming you are 18 or older (and 21 or older before age-restricted offers are shown) | Yes |
+| **Birthday (month and day only, no year)** | Birthday-month promotions | Optional |
+| **App language (English or Spanish)** | Showing the App, notifications and promotions in your language | Set from your choice in the App |
 
 ### 3.2 Transaction and Loyalty Program Data
 
@@ -98,6 +100,9 @@ When you participate in the Lucky Stop Loyalty Program, we collect:
 - **Receipt image:** If uploaded by the employee processing your transaction, a photograph of your purchase receipt is stored as fraud prevention documentation.
 - **Redemption records:** Records of when and how you redeem loyalty points, including the item redeemed, points spent, and confirming employee.
 - **Gas transaction details:** For gas purchases, additional data including gallons purchased, price per gallon, and bonus points calculation.
+- **Promotion and challenge records:** Which promotion, if any, applied to a purchase and the extra cashback it paid, how much extra cashback a promotion paid you (for promotions with a daily limit per customer), and your progress toward and completion of challenges.
+- **Hot food orders:** The items you order for pick-up, any note you add, the store, the order status and, if an order is cancelled, the reason.
+- **Product requests and missing-points reports:** Items you ask a store to stock and the details you give when you report missing points.
 
 ### 3.3 Device and Technical Information
 
@@ -105,7 +110,7 @@ When you use the App, we automatically collect:
 
 - **Device identifier:** A unique device ID used for push notification delivery.
 - **Operating system and version:** iOS or Android version.
-- **Push notification token:** A token issued by your device's notification service (Apple Push Notification Service or Firebase Cloud Messaging) to deliver in-app notifications.
+- **Push notification token:** A token issued through Expo by your device's notification service (Apple Push Notification service or Firebase Cloud Messaging) to deliver notifications.
 - **App version:** The version of the Lucky Stop app installed on your device.
 - **Login timestamps:** Records of when you log in and out of the App.
 - **Failed login attempts:** Tracked for security purposes; repeated failures may temporarily lock your account.
@@ -186,7 +191,7 @@ When an employee processes a transaction on your behalf, they enter purchase det
 
 ### 4.4 From Third-Party Authentication Services
 
-Firebase Authentication (provided by Google LLC) handles the phone number One-Time Password (OTP) verification process. Google processes your phone number to send the OTP. Please review Google's Privacy Policy for information on how Google handles this data.
+Firebase Authentication (provided by Google LLC) handles the phone number One-Time Password (OTP) verification process. Google processes your phone number to send the OTP. To confirm that a code request comes from the genuine App and not from an automated attack, Firebase may use a silent push notification to your iPhone, Google Play Integrity on Android, or a reCAPTCHA check in a browser window. These checks do not give us access to anything else on your device. Please review Google's Privacy Policy for information on how Google handles this data.
 
 ### 4.5 From Your Device's Location Services
 
@@ -205,6 +210,9 @@ We use the information we collect for the following purposes:
 - Processing point redemptions for catalog items or in-store credits.
 - Maintaining your transaction history for your review and for dispute resolution.
 - Displaying your QR code for in-store scanning.
+- Deciding which promotions you can see and use. Some promotions are only for customers of a tier and up, new customers, customers who have not bought in a while, or customers in their birthday month, and some limit the extra cashback one customer can receive in a day. This is worked out inside the Services from your tier, the dates of your purchases and your birthday month. It is not shared with advertisers and does not produce legal or similarly significant effects for you.
+- Tracking your progress toward challenges and crediting the reward when you complete one.
+- Taking and tracking your hot food orders for pick-up.
 
 ### 5.2 Account Management
 
@@ -223,7 +231,7 @@ We use the information we collect for the following purposes:
 
 ### 5.4 Communications and Notifications
 
-- Sending push notifications about new promotions, offers, and Lucky Stop news.
+- Sending push notifications about new promotions, offers, and Lucky Stop news, in the language you use the App in.
 - Notifying you of activity on your account (e.g., points received, redemption confirmation, catalog redemption status).
 - Delivering time-sensitive operational notifications (e.g., your pending redemption is about to expire).
 - Communicating via in-app notifications for employee and manager operational updates.
@@ -326,12 +334,16 @@ The following third-party services process your data on our behalf:
 
 | Provider | Purpose | Data Processed | Privacy Policy |
 |---|---|---|---|
-| **Google Firebase** (Google LLC) | Phone number OTP authentication, push notification delivery | Phone number, push notification tokens | firebase.google.com/support/privacy |
+| **Google Firebase** (Google LLC) | Phone number OTP verification, including the device checks described in Section 4.4 | Phone number, verification tokens | firebase.google.com/support/privacy |
+| **Expo / EAS** (650 Industries, Inc.) | Push notification delivery (through Apple and Google) and mobile app builds | Push notification tokens, notification content, app build metadata | expo.dev/privacy |
 | **Cloudinary** (Cloudinary Ltd.) | Storage and delivery of profile photos, receipt images, offer images, business promotion images | Images and associated metadata | cloudinary.com/privacy |
 | **Render** (Render Services, Inc.) | Backend API server hosting | All API request data passing through our servers | render.com/privacy |
 | **Neon** (Neon Inc.) | PostgreSQL database hosting | All stored application data | neon.tech/privacy |
-| **Expo / EAS** (Expo Inc.) | Mobile app build and distribution infrastructure | App build metadata, push notification token management | expo.dev/privacy |
+| **Cloudflare** (Cloudflare, Inc.) | Domain name service and network protection for our web addresses | IP addresses and request data passing through the network | cloudflare.com/privacypolicy |
+| **Vercel** (Vercel Inc.) | Hosting of the web administration portal (staff only) | Request data of staff using the portal | vercel.com/legal/privacy-policy |
 | **Resend** (Resend Inc.) | Transactional email delivery (recovery emails, account notifications) | Email address, email content | resend.com/privacy |
+
+We also use Anthropic's Claude service to suggest Spanish translations of promotion text and to read product catalog photos uploaded by staff. It receives only that text or those photos, never customer personal information.
 
 We periodically review and update this list as our subprocessors change. Material changes to our subprocessor list will be reflected in updates to this Privacy Policy.
 
@@ -346,13 +358,13 @@ We retain your personal information for as long as necessary to provide the Serv
 | **Account information** (name, phone, PIN hash, email) | Duration of active account + 3 years after account deletion |
 | **Transaction records** (purchase amounts, points, categories) | 7 years (financial record-keeping requirements) |
 | **Receipt images** | 2 years from transaction date |
-| **Push notification tokens** | Until account deletion or token expiry |
+| **Push notification tokens** | Until account deletion, or until Apple or Google reports the token is no longer valid |
 | **Audit logs** | 3 years |
 | **Chat messages** | 1 year |
 | **Shift and scheduling records** | 2 years |
 | **Job application records** | 1 year from submission |
 | **Business promotion requests** | 2 years |
-| **Notification records** | Automatically expire when the associated offer ends; otherwise 6 months |
+| **Notification records** | 30 days (deleted automatically) |
 
 When you delete your account, we delete or anonymize your personal information within **30 days**, except where retention is required by law or regulation (e.g., financial transaction records).
 
@@ -368,7 +380,7 @@ You have the right to request a copy of the personal information we hold about y
 
 ### 10.2 Right to Correction
 
-You have the right to request correction of inaccurate or incomplete personal information. You can update your name, recovery email, and profile photo directly through the App's Profile settings.
+You have the right to request correction of inaccurate or incomplete personal information. You can update your name, recovery email, profile photo, birthday and language directly through the App's Profile settings.
 
 ### 10.3 Right to Deletion ("Right to Be Forgotten")
 
@@ -414,7 +426,7 @@ In the preceding 12 months, we have collected the following categories of person
 | Commercial information | Purchase history, points earned, redemptions |
 | Internet or electronic network activity | App usage, push notification interaction |
 | Geolocation data | Precise device coordinates, processed on-device only, if you grant location permission (see Section 15) |
-| Inferences drawn from the above | Tier placement, purchase behavior patterns |
+| Inferences drawn from the above | Tier placement, purchase behavior patterns, promotion eligibility (for example, new, win-back or birthday-month promotions) |
 | Sensitive personal information | Phone number (used for identification); precise geolocation (if you grant location permission) |
 
 ### 11.2 Your CCPA Rights
@@ -450,11 +462,11 @@ We do not knowingly collect, use, or disclose personal information from children
 
 ## 13. Push Notifications
 
-We use Firebase Cloud Messaging (FCM) and Apple Push Notification Service (APNs) to deliver push notifications to your device.
+We use Expo's push notification service, which delivers through Firebase Cloud Messaging (FCM) on Android and Apple Push Notification service (APNs) on iPhone, to send push notifications to your device.
 
 ### Types of Notifications We Send
 
-- **Promotional notifications:** New offers, limited-time promotions, and Lucky Stop news. You may opt out of these.
+- **Promotional notifications:** New offers, limited-time promotions, challenges and Lucky Stop news, in your App language. You may opt out of these.
 - **Account activity notifications:** Points received, redemption confirmations, tier upgrades. These are functional and may not be fully opt-outable without limiting service functionality.
 - **Operational notifications (staff only):** Shift updates, store requests, order management alerts.
 

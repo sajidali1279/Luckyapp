@@ -57,7 +57,7 @@ The Lucky Stop Loyalty Platform is a multi-tenant, multi-role SaaS loyalty rewar
 | Procurement management | Digital order lists and employee item request workflows |
 | Scheduling | Employee shift templates, roster generation, shift requests |
 | Store chat | Real-time per-store staff messaging |
-| Billing | Per-store monthly subscriptions + per-transaction dev cut |
+| Billing | Per-store monthly subscriptions + a platform fee (dev cut) of 10% of the cashback issued, set per store |
 | Analytics | Transaction analytics, inventory intelligence, leaderboard |
 
 ---
@@ -342,7 +342,7 @@ model Store {
   isActive            Boolean  @default(true)
   billingType         BillingType @default(MONTHLY_SUBSCRIPTION)
   subscriptionPrice   Float    @default(0)
-  transactionFeeRate  Float    @default(0.02)
+  transactionFeeRate  Float    @default(0.02)   // share of the CASHBACK, not the sale; POST /stores sets DEFAULT_DEV_CUT_RATE (0.10), max 0.25
   shiftsPerDay        Int      @default(3)
   latitude            Float?
   longitude           Float?
@@ -550,9 +550,10 @@ cashbackRate += offer ? percentBonus(offer, customer.tier) : 0
 // 4. Calculate points
 const pointsAwarded = purchaseAmount * cashbackRate
 
-// 5. Calculate costs
-const devCut = purchaseAmount * DEV_CUT_RATE
-const storeCost = pointsAwarded + devCut
+// 5. Calculate costs: the platform fee is a share of the cashback (gas tier bonus included), not of the sale
+const devCutRate = store.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE   // 0.10 unless the store has its own rate
+const devCut = (pointsAwarded + gasBonusPoints) * devCutRate
+const storeCost = devCut   // what the store owes the platform for this sale; the cashback itself is not billed
 
 // 6. Create transaction
 await prisma.pointsTransaction.create({ data: { ..., pointsAwarded, devCut, storeCost, cashbackRate } })
@@ -583,7 +584,7 @@ When `POST /points/redeem` is called:
 // Deduct from customer balance
 await prisma.user.update({ data: { pointsBalance: { decrement: amount } } })
 // Record redemption
-await prisma.creditRedemption.create({ data: { customerId, storeId, amount, devCut, processedBy } })
+await prisma.creditRedemption.create({ data: { customerId, storeId, amount, devCut: 0, processedBy } })   // no fee on redemptions
 ```
 
 ---
@@ -1351,22 +1352,26 @@ Each store can be configured with one of four billing types:
 
 | Type | Description |
 |---|---|
-| `MONTHLY_SUBSCRIPTION` | Fixed monthly fee regardless of transaction volume |
-| `PER_TRANSACTION` | Fee charged per qualifying transaction |
-| `HYBRID` | Monthly subscription + per-transaction fee |
-| `CUSTOM` | Custom arrangement |
+| `MONTHLY_SUBSCRIPTION` | Monthly subscription + the platform fee on the month's cashback |
+| `PER_TRANSACTION` | The platform fee only (no subscription) |
+| `HYBRID` | Monthly subscription + the platform fee (billed the same way as `MONTHLY_SUBSCRIPTION`) |
+| `CUSTOM` | Custom arrangement (not offered by the billing routes) |
 
-### 17.2 Transaction Fees
+Every plan pays the platform fee; only `PER_TRANSACTION` has no subscription.
 
-At transaction creation, the backend calculates:
+### 17.2 Platform Fee (Dev Cut)
+
+The fee is a share of the CASHBACK issued, never of the purchase. At transaction creation (`points.controller.ts`) the backend calculates:
 
 ```typescript
-const devCutRate = await getDevCutRate() // from AppConfig table, default 0.02
-const devCut = purchaseAmount * devCutRate
-const storeCost = pointsAwarded + devCut
+const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE   // config/constants.ts: 0.10 (env DEV_CUT_RATE)
+const devCut = (cashbackIssued + gasBonusPoints) * devCutRate
+const storeCost = devCut
 ```
 
-Both `devCut` and `storeCost` are stored on every transaction for audit and billing reconciliation.
+A challenge reward line (`utils/challenges.ts`) carries `devCut = reward * rate` the same way. Credit redemptions record `devCut: 0`. Both `devCut` and `storeCost` are stored on every transaction, so a later rate change never alters past bills. A store's rate is set on Billing > Stores, typed as a percent (10, not 0.1), and is capped at `MAX_STORE_FEE_RATE` (25%).
+
+Example: a $100 sale at 5% earns $5.00 cashback; the fee at 10% is $0.50. With the 10% cashback cap on a sale, the fee at the default rate is at most 1% of a sale.
 
 ### 17.3 Monthly Bill Generation
 

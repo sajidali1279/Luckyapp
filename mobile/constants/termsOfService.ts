@@ -33,7 +33,7 @@ You are responsible for maintaining the confidentiality of your PIN and all acti
 
 ## 4. The Lucky Stop App and Services
 
-The App provides customers with a loyalty dashboard, unique QR code, transaction history, redemption catalog, promotional offers, push notifications, leaderboard, product requests, career applications, and profile management.
+The App provides customers with a loyalty dashboard, unique QR code, transaction history, redemption catalog, promotional offers and deals, challenges, hot food ordering at participating stores, push notifications, leaderboard, product requests, career applications, and profile management, in English or Spanish.
 
 We strive for continuous availability but do not guarantee uninterrupted service. We reserve the right to modify, add, or remove features at any time.
 
@@ -41,7 +41,7 @@ We strive for continuous availability but do not guarantee uninterrupted service
 
 ## 5. Loyalty Points Program
 
-**Earning Points:** Points are earned on qualifying purchases at participating Lucky Stop locations. The base cashback rate is **5%** of the purchase total, subject to your tier, active promotions, and product category.
+**Earning Points:** Points are earned on qualifying purchases at participating Lucky Stop locations. Your cashback rate is the rate for your tier shown in the App, plus any category bonus and any promotion you can use. The cashback on one purchase is never more than **10%** of the purchase total (a per-gallon gas bonus for higher tiers is paid in addition).
 
 **Categories:** Groceries, Frozen Foods, Fresh Foods, GAS, Diesel, Hot Foods, and Other.
 
@@ -57,7 +57,7 @@ We strive for continuous availability but do not guarantee uninterrupted service
 
 ## 6. Tier System
 
-The Lucky Stop Loyalty Program includes Bronze, Silver, Gold, Diamond, and Platinum tiers. Tier qualification is based on points earned within a defined tier period. Specific thresholds and cashback rates are displayed in the App. Changes to tier rates will be communicated with at least **30 days' advance notice**.
+The Lucky Stop Loyalty Program includes Bronze, Silver, Gold, Diamond, and Platinum tiers. Tier qualification is based on points earned within a six-month tier period (January to June, July to December, Central time). At the start of each period your period points reset and your tier steps down one level (Bronze stays Bronze). Specific thresholds and cashback rates are displayed in the App. Changes to tier rates will be communicated with at least **30 days' advance notice**.
 
 ---
 
@@ -75,7 +75,11 @@ Points may be redeemed for in-store credit applied as a discount at checkout. In
 
 ## 9. Promotional Offers
 
-Promotional offers displayed in the App are valid only during the specified period, may be location-specific or category-specific, and are subject to availability. Lucky Stop makes no guarantee that any specific promotion will be available at any particular time.
+Promotional offers displayed in the App are valid only during the specified period, may be location-specific or category-specific, and are subject to availability. Some are only for certain members (a tier and up, new members, members who have not visited in a while, or members in their birthday month), and the App shows you only the ones you can use. A promotion may have a total budget and a daily limit on the extra cashback per member.
+
+**Challenges** pay a stated cashback reward when you reach a goal (for example, a number of visits) during the challenge period; only approved purchases at the stores named count. **Deals** (for example, "2 for $5") are in-store prices, not points bonuses.
+
+Lucky Stop makes no guarantee that any specific promotion will be available at any particular time.
 
 ---
 
@@ -212,4 +216,4 @@ For account deletion: App → Profile → Account Settings → Delete My Account
 
 ---
 
-*Last updated: May 30, 2026*`;
+*Last updated: October 8, 2026*`;

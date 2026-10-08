@@ -1,8 +1,8 @@
 # Lucky Stop Loyalty App - Terms of Service
 
 **Effective Date:** June 1, 2026
-**Last Updated:** July 31, 2026
-**Version:** 1.0
+**Last Updated:** October 8, 2026
+**Version:** 1.1
 
 ---
 
@@ -120,15 +120,18 @@ The Lucky Stop App provides customers with the following features:
 - **Unique QR code:** A personal QR code presented to Lucky Stop cashiers to identify your account during transactions.
 - **Transaction history:** A record of all points-earning transactions associated with your account.
 - **Redemption catalog:** Browse and redeem loyalty points for rewards and in-store credits.
-- **Promotional offers:** View current promotions and bonus point opportunities at Lucky Stop locations.
+- **Promotional offers and deals:** View current promotions, in-store deals and bonus point opportunities at Lucky Stop locations. Some promotions are shown only to the members they are for (see Section 9).
+- **Challenges:** Goals that pay a cashback reward when you reach them (see Section 9).
+- **Hot food ordering:** Order hot food for pick-up at participating stores during their hot food hours.
+- **Language:** Use the App in English or Spanish.
 - **Notifications:** Receive updates about your account, new promotions, and Lucky Stop news.
 - **Leaderboard:** See your ranking among Lucky Stop loyalty program participants.
 - **Product requests:** Request specific products be stocked at your preferred Lucky Stop location.
 - **Career applications:** Browse and apply for available positions at Lucky Stop locations.
 - **Business promotions:** Submit a request to advertise your business to Lucky Stop app users.
-- **Receipt QR scanning:** Scan Lucky Stop receipt QR codes (where available) to self-claim points.
+- **Receipt QR scanning:** Not yet available. When Lucky Stop receipts carry a QR code, the App will let you scan it to claim your own points.
 - **Nearby store detection:** If you grant the optional device location permission, the App identifies the Lucky Stop location nearest you to tailor promotions and hot food ordering availability. This feature is optional; declining location permission does not limit your ability to use core features. See our Privacy Policy for details on how location data is handled.
-- **Profile management:** Update your name, profile photo, recovery email, and PIN.
+- **Profile management:** Update your name, profile photo, recovery email, PIN, birthday (optional, month and day only) and language.
 
 ### 4.2 Features Available to Employees
 
@@ -174,7 +177,8 @@ Customers earn loyalty points through qualifying purchases made at participating
 
 **Standard Earning Rate:**
 - Points are calculated as a percentage of your qualifying purchase amount.
-- The base cashback rate is **5%** of the purchase total, subject to modification based on your tier, active promotional offers, and the product category of your purchase.
+- Your cashback rate is the rate for your tier shown in the App, plus any bonus for the product category and any promotion you can use.
+- The cashback on any one purchase, from every rate, bonus and promotion together, is never more than **10% of the purchase total**. A per-gallon gas bonus for higher tiers is paid in addition.
 - The specific rate applied to any transaction is determined at the time of the transaction and may vary.
 
 **Categories:**
@@ -239,7 +243,7 @@ Specific tier thresholds and corresponding cashback rates are displayed within t
 
 ### 6.2 Tier Period
 
-Tier qualification is based on points earned within a defined **tier period** (e.g., a calendar year or rolling 12-month window). At the end of each tier period, your tier progress resets. Your tier at the end of a period carries over to the beginning of the next period as a starting position, but your accumulated period points reset.
+Tier qualification is based on points earned within a **tier period** of six months: January 1 to June 30 and July 1 to December 31, in Central time. At the start of each tier period, your period points reset to zero and your tier steps down one level (Bronze stays Bronze); you climb again as you earn points.
 
 ### 6.3 Tier Benefits
 
@@ -253,7 +257,7 @@ Available tier benefits are displayed within the App and are subject to change.
 
 ### 6.4 Tier Downgrade
 
-If you do not maintain the minimum point accumulation required for your current tier during the tier period, you may be placed at a lower tier at the start of the following period.
+Your tier does not go down during a tier period. It steps down one level at the start of each new tier period, as described in Section 6.2.
 
 ---
 
@@ -314,7 +318,13 @@ Lucky Stop may display promotional offers and banners within the App. Promotiona
 - May offer bonus cashback rates, per-gallon gas bonuses, or other incentives.
 - Are subject to availability and may be discontinued at any time without notice.
 
-Lucky Stop makes no guarantee that any specific promotion will be available at any particular time. Promotional terms are displayed within the offer details in the App.
+Some promotions are only for certain members: members of a tier and up, new members, members who have not made a purchase for a stated number of days, or members in their birthday month (if they saved their birthday in the App). The App shows you only the promotions you can use. A promotion may have a total budget and a daily limit on the extra cashback per member, and stops when its budget is used up.
+
+**Challenges.** Lucky Stop may run challenges that pay a stated cashback reward when you reach a goal, such as a number of visits or an amount spent in a category during the challenge period. Only approved purchases at the stores the challenge names count. Your progress is shown in the App and the reward is credited automatically.
+
+**Deals.** In-store deals shown in the App (for example, "2 for $5") are shelf prices set by the stores that carry the item, not points bonuses.
+
+Lucky Stop makes no guarantee that any specific promotion will be available at any particular time. Promotional terms are displayed within the offer details in the App and the Loyalty Program Terms.
 
 ---
 

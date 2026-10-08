@@ -54,7 +54,7 @@ A few things live **only** in the mobile app, not the web portal - most notably 
 
 ### Earning Points
 
-Every qualifying purchase earns the customer cashback as Lucky Stop credits, at a percentage that depends on their loyalty tier - plus any category bonus or active offer stacked on top. Rates are configured and can be adjusted by Lucky Stop HQ (not fixed store-side); as a reference point, tiers typically range from **5% at Bronze up to 9% at Platinum**.
+Every qualifying purchase earns the customer cashback as Lucky Stop credits, at a percentage that depends on their loyalty tier - plus any category bonus or active offer stacked on top. Rates are configured and can be adjusted by Lucky Stop HQ on the Rates page (not fixed store-side). A tier's own rate is at most **7.5%**, and no single sale ever pays more than **10%** cashback from every rate, bonus and promotion together.
 
 **Example:** A Gold-tier customer (say, 7% base) spends $40 on groceries at your store, and groceries carry a +1% category bonus that week: 7% + 1% = 8% effective rate, or 320 credits (1 credit = 1 cent). Credits are credited to their account the moment the employee completes the scan.
 
@@ -251,9 +251,13 @@ The **Customer Leaderboard** shows your top-spending loyalty members. Recognizin
 
 ## 10. Billing and Subscription
 
-Your subscription is billed monthly at the agreed rate. Billing is managed by Cliff Industries.
+Your store is billed once a month by Cliff Industries, for the calendar month just finished (Central time). The invoice has two parts:
 
-- Billing date: the same calendar date each month as your sign-up date
+- **Subscription:** the agreed monthly fee per store (Monthly Subscription and Hybrid plans; the Per Transaction plan has none).
+- **Platform fee:** **10%** of the cashback your customers earned at your store that month (including gas bonuses and challenge rewards). It is a share of the cashback, not of your sales: $5 of cashback on a $100 sale carries a $0.50 fee. There is no fee on redemptions.
+
+The invoice lists the month's approved sales, purchase volume, cashback and fee by category. Voided and rejected sales are not billed. A store's fee rate can only be changed by written agreement, is never more than 25% of the cashback, and a change applies only to sales after it.
+
 - Payment method: invoice or as agreed
 - Cancellation: 30 days written notice required
 

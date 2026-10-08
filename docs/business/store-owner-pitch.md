@@ -118,9 +118,11 @@ You don't need a tech team. Cliff Industries manages:
 
 | Plan | Monthly Cost | Includes |
 |---|---|---|
-| **Standard** | $___/month per store | Full platform access, unlimited transactions, all features |
+| **Standard** | $___/month per store + platform fee | Full platform access, unlimited transactions, all features |
 
-> No setup fees. No per-transaction charges to you. Cancel with 30 days' notice.
+**Platform fee:** 10% of the cashback your customers earn at your store, billed with the monthly invoice. It is a share of the cashback, not of your sales: a $100 sale that earns a customer $5 of cashback carries a $0.50 fee. No sale can earn more than 10% cashback, so the fee is never more than $1 per $100 of sales. There is no fee on redemptions.
+
+> No setup fees. Cancel with 30 days' notice.
 
 *Multi-store operators: contact us for volume pricing.*
 

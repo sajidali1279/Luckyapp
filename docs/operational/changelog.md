@@ -7,6 +7,25 @@ Audience indicators: **Customer** · **Employee** · **Manager** · **Admin** ·
 
 ---
 
+## [Unreleased] - October 8, 2026
+
+Analytics and Inventory Intelligence with the newer data, and the legal and business documents brought up to date. Server and admin only; they go live when deployed (no database migration).
+
+### Added
+- **Admin, Server** - Analytics (Dev Admin): six new tabs beside Overview, on the same range and store: Customers (active, new and returning, repeat rate, monthly return table, customers to win back, tiers and languages), Promotions (share of sales, extra cashback, extra sales per promotion, challenges), Points (earned and redeemed each day, redemption rate, what customers are holding), Staff (per cashier sales, flagged and rejected rates, ratings; disputes per store), Busy hours & forecast (weekday by hour grid, next 7 days with a usual range) and Store scorecards (every store's last 30 days against the 30 before and the chain average).
+- **Admin, Server, Manager** - Inventory Intelligence: three new tabs. Restock speed (fill rate, time to order and to arrive, stuck items, slowest categories), What people ask for (customer and staff requests together, one-click Add to order list, why requests were turned down, scanned products missing from Labels) and Rewards & hot food (rewards taken and not picked up, hot food orders, cancellations, best sellers, busiest hours). A manager sees only their own stores; a manager with more than one store gets the store picker.
+
+### Fixed
+- **Admin** - At phone width the top bar no longer pushes the alert bell past the screen edge (a long page name shortens with "..." and the "Updated" text is hidden on a phone), and Inventory Intelligence's period buttons and two-column layout fit a phone.
+
+### Documents
+- **Merchant Agreement 1.1** - the platform fee (Dev Cut) is described as it is billed: 10% of the cashback issued (including gas bonuses and challenge rewards), not a percentage of the sale; at most 25%; billed monthly with the subscription; no fee on redemptions. Worked example corrected ($0.50 on a $100 sale earning $5). Subprocessors updated (Expo, Vercel, Cloudflare added; Anthropic noted as receiving no customer data).
+- **Privacy Policy 1.1** (docs, website and app) - the optional birthday (month and day), app language, promotion and challenge records, hot food orders, who-sees-which-promotion, the phone verification checks, and the current service providers. The app copy no longer says the language choice stays on the phone.
+- **Loyalty Program Terms 1.1 and Terms of Service 1.1** (docs and app) - rates shown in the App with the 10% per-sale cap instead of fixed 5% to 9% figures, the half-year tier reset as it works (one tier down on January 1 and July 1), promotions for some members, budgets and daily limits, deals, challenges, rewards priced from the shelf price, and receipt QR claiming marked as not yet available.
+- **Data Processing Agreement, store owner overview and pitch, technical documentation** - the same fee and service-provider corrections; the pitch no longer says there are no per-transaction charges.
+
+---
+
 ## [Unreleased] - September 18, 2026
 
 Labeling rework plus a Spanish and usability pass across the three mobile roles. Needs a new mobile build to reach phones. The admin and server fixes go live when they are deployed.

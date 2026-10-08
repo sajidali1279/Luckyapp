@@ -1,8 +1,8 @@
 # Lucky Stop Loyalty Program - Official Program Terms
 
 **Effective Date:** June 1, 2026
-**Last Updated:** May 30, 2026
-**Version:** 1.0
+**Last Updated:** October 8, 2026
+**Version:** 1.1
 
 ---
 
@@ -103,7 +103,7 @@ The following do not qualify for points:
 
 ### 2.6 Self-Scan Receipt Feature
 
-At select Lucky Stop locations equipped with QR-enabled receipt printers, customers may scan a QR code printed on their receipt to self-claim points without employee assistance. Self-scan receipt points are subject to the same terms as standard transactions.
+Lucky Stop may introduce QR codes printed on receipts that customers can scan to claim their own points without employee assistance. This feature is not yet available at any location; when it is, the App will show it and self-scan receipt points will be subject to the same terms as standard transactions.
 
 ---
 
@@ -111,9 +111,11 @@ At select Lucky Stop locations equipped with QR-enabled receipt printers, custom
 
 ### 3.1 Base Rate
 
-The standard cashback rate for qualifying purchases is **5% of the purchase amount**, credited as loyalty points to your account.
+Your cashback rate is the rate for your tier (Section 4) shown in the App, credited as loyalty points to your account. One point is worth $0.01, so $1.00 of cashback is 100 points.
 
-*Example: A $40.00 grocery purchase earns 200 points (5% × $40.00 = $2.00 in credits, represented as 200 points at a $0.01 per point value).*
+*Example: At a 5% rate, a $40.00 grocery purchase earns 200 points (5% × $40.00 = $2.00 in credits).*
+
+The cashback on any one purchase, from every rate, bonus and promotion together, is never more than **10% of the purchase amount**. A per-gallon gas bonus for higher tiers (Section 5.2) is paid in addition.
 
 ### 3.2 Category-Specific Rates
 
@@ -134,7 +136,7 @@ For GAS and Diesel purchases, Lucky Stop may offer cashback either as a **percen
 
 ### 3.4 Tier-Based Rates
 
-Your loyalty tier (see Section 4) determines your personal cashback rate, which may exceed the base 5% rate at higher tiers. Tier-based rates apply automatically based on your current tier.
+Your loyalty tier (see Section 4) determines your personal cashback rate; higher tiers earn more. Tier-based rates apply automatically based on your current tier.
 
 ### 3.5 Points Calculation
 
@@ -158,20 +160,20 @@ The Lucky Stop Loyalty Program has five (5) tier levels:
 
 | Tier | Cashback Rate | Points Threshold (Per Period) |
 |---|---|---|
-| **Bronze** | 5.0% | Starting tier (all new members) |
-| **Silver** | 6.0% | Displayed in App |
-| **Gold** | 7.0% | Displayed in App |
-| **Diamond** | 8.0% | Displayed in App |
-| **Platinum** | 9.0% | Displayed in App |
+| **Bronze** | Displayed in App | Starting tier (all new members) |
+| **Silver** | Displayed in App | Displayed in App |
+| **Gold** | Displayed in App | Displayed in App |
+| **Diamond** | Displayed in App | Displayed in App |
+| **Platinum** | Displayed in App | Displayed in App |
 
-*Note: Exact thresholds and rates are displayed within the App and may be adjusted by Lucky Stop with advance notice. Rates shown above are illustrative.*
+*Note: The current rates and thresholds are always displayed within the App, read live from Lucky Stop's settings. Lucky Stop may adjust them with advance notice; a change applies to purchases made after it takes effect.*
 
 ### 4.2 Tier Period
 
-Tier progression is tracked within a **Tier Period**, which is a defined calendar period (e.g., calendar year or rolling 12-month window) displayed in the App. At the start of each new Tier Period:
+Tier progression is tracked within a **Tier Period** of six months: January 1 to June 30 and July 1 to December 31, in Central time. At the start of each new Tier Period:
 - Your period points counter resets to zero.
-- Your tier at the end of the previous period is your **starting tier** for the new period.
-- You must re-earn your tier level within the new period to maintain or advance your tier.
+- Your tier steps down **one level** (for example, Gold becomes Silver; Bronze stays Bronze). That is your starting tier for the new period.
+- You climb again as you earn points in the new period. The App notifies you if your tier stepped down.
 
 ### 4.3 Tier Qualification
 
@@ -179,7 +181,7 @@ Your tier level is determined by the total points earned within the current Tier
 
 ### 4.4 Tier Downgrade
 
-If your period points at the end of a Tier Period fall below the threshold required for your current tier, your tier will be reduced at the start of the next period to the tier corresponding to your period point total.
+Your tier never goes down during a Tier Period. It steps down one level at the start of the next Tier Period, as described in Section 4.2, whatever your points were. If you missed several periods, it steps down one level for each.
 
 ### 4.5 Tier Display
 
@@ -243,6 +245,29 @@ Each offer is subject to its own specific terms displayed within the offer detai
 - Are not combinable unless explicitly stated.
 - Cannot be applied retroactively to prior purchases.
 - Are subject to change or cancellation at any time.
+- Are limited by the 10% cap in Section 3.1: when a purchase reaches the cap, the promotion's extra cashback is reduced first.
+
+### 6.4 Promotions for Some Members
+
+Some promotions are only for certain members, and the App shows you only the ones you can use:
+- **A tier and up:** members at a stated tier or higher.
+- **New members:** members whose account or first purchase is recent, as stated in the offer.
+- **Win-back:** members who have not made a purchase for a stated number of days.
+- **Birthday month:** members who have saved their birthday (month and day) in the App, during that month. Saving your birthday is optional.
+
+A promotion may also have a total budget, after which it stops paying and is removed from the App, and a limit on the extra cashback one member can receive from it in a day.
+
+### 6.5 Deals
+
+The App also shows in-store deals (for example, "2 for $5"). A deal is a shelf price set by the store, not a points bonus, and is honored at the register of the stores that carry it while it lasts.
+
+### 6.6 Challenges
+
+Lucky Stop may run challenges: a goal, such as a number of visits or an amount spent in a category within the challenge period, that pays a stated cashback reward when you reach it. Challenges:
+- Count only approved purchases made during the challenge period at the stores it names.
+- May be for some members only, in the same way as Section 6.4.
+- Pay their reward once, unless the challenge says it can be earned again.
+- Show your progress in the App. The reward is credited automatically when the purchase that completes the goal is approved. If that purchase is later found to be invalid, Lucky Stop may void the reward.
 
 ---
 
@@ -311,6 +336,8 @@ Each catalog item displays:
 - Item name, description, and relevant details.
 - Points cost.
 - Availability.
+
+Where a reward is a product sold in the store, its points cost may follow the product's shelf price (100 points for each $1.00, rounded up to the next 25 points), so it changes when the price changes. A store may also offer its own rewards at that store only.
 
 ### 9.2 How to Redeem a Catalog Item
 
