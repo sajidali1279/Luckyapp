@@ -2807,6 +2807,7 @@
     "requiredBody": "Esta versión de la app ya no funciona. Actualízala para seguir ganando y usando tus recompensas. Tus puntos están seguros.",
     "versions": "Tu versión {{mine}} · Nueva versión {{latest}}",
     "update": "Actualizar ahora",
-    "notNow": "Ahora no"
+    "notNow": "Ahora no",
+    "yourVersion": "Tu versión {{mine}}"
   }
 }

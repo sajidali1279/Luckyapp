@@ -592,7 +592,7 @@ export const dailyTaskApi = {
 // App versions the phones compare themselves with (read: anyone; save: Dev Admin)
 export const appVersionApi = {
   get: () => api.get('/app/version'),
-  save: (data: { android: { latest: string; minimum: string }; ios: { latest: string; minimum: string } }) => api.put('/app/versions', data),
+  save: (data: { android: string; ios: string }) => api.put('/app/versions', data),   // the oldest version allowed per platform
 };
 
 // Analytics tabs (Dev Admin): the same window as the Analytics page (range, or from/to) and an optional store

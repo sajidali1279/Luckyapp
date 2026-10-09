@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Text } from './ScaledText';
 import { COLORS } from '../constants';
-import { checkForUpdate, dismissUpdate, openStore, installedVersion, type UpdateState } from '../utils/appUpdate';
+import { checkForUpdate, dismissUpdate, startUpdate, installedVersion, type UpdateState } from '../utils/appUpdate';
 import { haptic } from '../utils/haptics';
 
 const CHECK_EVERY_MS = 60 * 60_000;   // coming back to the front asks again at most once an hour
@@ -35,8 +35,8 @@ export default function UpdatePrompt() {
 
   if (state.kind === 'none') return null;
   const required = state.kind === 'required';
-  const update = () => { haptic.press(); openStore(state.storeUrl); };
-  const later = () => { haptic.tap(); dismissUpdate(state.latest); setState({ kind: 'none' }); };
+  const update = () => { haptic.press(); startUpdate(state); };
+  const later = () => { haptic.tap(); dismissUpdate(state.storeVersion); setState({ kind: 'none' }); };
 
   return (
     <Modal visible transparent={!required} animationType={required ? 'fade' : 'slide'} statusBarTranslucent
@@ -48,7 +48,9 @@ export default function UpdatePrompt() {
           </View>
           <Text style={s.title} accessibilityRole="header">{required ? t('appUpdate.requiredTitle') : t('appUpdate.availableTitle')}</Text>
           <Text style={s.body}>{required ? t('appUpdate.requiredBody') : t('appUpdate.availableBody')}</Text>
-          <Text style={s.version}>{t('appUpdate.versions', { mine: installedVersion() ?? '?', latest: state.latest })}</Text>
+          <Text style={s.version}>{state.storeVersion
+            ? t('appUpdate.versions', { mine: installedVersion() ?? '?', latest: state.storeVersion })
+            : t('appUpdate.yourVersion', { mine: installedVersion() ?? '?' })}</Text>
           <TouchableOpacity style={s.primaryBtn} onPress={update} accessibilityRole="button" activeOpacity={0.85}>
             <Text style={s.primaryText}>{t('appUpdate.update')}</Text>
           </TouchableOpacity>

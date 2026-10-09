@@ -718,14 +718,17 @@ The moment the job makes a store's bill, that store's own Super Admin is emailed
 
 On the **Stores** tab, click **History** next to a store's **Edit** button to see every past change to its billing plan, fee or subscription price, with who made the change and when.
 
-### 15.6 App Versions: Asking Phones to Update (Dev Admin only)
+### 15.6 App Updates: Asking Phones to Update (Dev Admin only)
 
-Google Play and the App Store never ask anyone to update; phones install updates on their own schedule, sometimes days later, and some never do. The app asks instead. Go to **Billing** → **Platform Settings** → **App versions**. For Android and for iPhone separately:
+Google Play and the App Store never ask anyone to update; phones install updates on their own schedule, sometimes days later, and some never do. From app version 1.2.8 the app asks instead, by itself:
 
-- **Newest version:** a phone on an older version sees "A new version is ready" with **Update now** (opens the store) and **Not now** (asks again about the same version after 3 days).
-- **Oldest version allowed:** a phone on an older version sees only a "Please update Lucky Stop" screen until it updates. Saving one asks you to confirm first.
+- **Android:** Google Play tells each phone when a newer version is ready for it, following your release's rollout percentage. **Update now** opens Google Play's own update screen inside the app.
+- **iPhone:** the app looks up the version live on the App Store. **Update now** opens the App Store page for the app.
+- **Not now** asks again about the same version after 3 days. The app checks when it opens and when it comes back to the front, at most once an hour.
 
-Leave a box empty for no prompt. Set a version only once it is live in that store (after review and at 100% rollout), or people will be sent to a store page that does not have it yet. The phones check when the app opens and when it comes back to the front, at most once an hour. Every change is in the Activity Log ("App Versions"). This works from app version 1.2.8; older versions do not have the check.
+There is nothing to type for a new release. **Billing** → **Platform Settings** → **App updates** shows the version the App Store has now.
+
+**Oldest version allowed** (one box for Android, one for iPhone) is only for when an old version must stop working, for example after a server change: an app older than it shows only a "Please update Lucky Stop" screen until it updates. Leave it empty to block nobody. Saving one asks you to confirm first, and the iPhone one is refused if it is above the version live on the App Store. Set the Android one only once that version is live on Google Play at 100%. Every change is in the Activity Log ("App Versions").
 
 ---
 
