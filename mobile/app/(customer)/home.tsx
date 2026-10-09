@@ -698,15 +698,13 @@ export default function CustomerHome() {
             age21Declined: data.data.age21Declined,
             birthMonth: data.data.birthMonth ?? null,   // the birthday they gave (Profile), for birthday-month promotions
             birthDay: data.data.birthDay ?? null,
-          }, t);
+          }, data.data.token ?? t);   // a renewed session when the server sent one (GET /auth/me)
         }
       }).catch((err: any) => {
         // Account no longer exists or was deactivated server-side — a locally
         // cached session shouldn't keep showing the app as usable.
-        if (err.response?.status === 401 || err.response?.status === 404) {
-          useAuthStore.getState().logout();
-          Toast.show({ type: 'error', text1: t('customerHome.signedOut'), text2: t('customerHome.signInAgain') });
-        }
+        // (A refused session, 401, is signed out by the API layer for every screen.)
+        if (err.response?.status === 404) useAuthStore.getState().endSession();
       });
     }, [t])
   );

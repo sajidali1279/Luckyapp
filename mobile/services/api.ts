@@ -26,7 +26,13 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       await SecureStore.deleteItemAsync('jwt_token');
-      // Navigation to login handled by auth store
+      // A signed-in request refused: the session expired, the PIN was reset or the account was closed. Sign out properly so
+      // the app goes to the sign-in screen, instead of staying on a screen where nothing loads (staff screens never noticed).
+      // Required here, not imported, because the auth store imports this file.
+      if (error.config?.headers?.Authorization && !String(error.config?.url ?? '').startsWith('/auth/login')) {
+        const { useAuthStore } = require('../store/authStore');
+        if (useAuthStore.getState().user) await useAuthStore.getState().endSession();
+      }
     }
     return Promise.reject(error);
   }

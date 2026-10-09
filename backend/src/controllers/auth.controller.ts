@@ -30,6 +30,7 @@ const JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7; // 7 days
 // its token where page scripts can read it. A stolen admin token is worth much more than a customer's, so it lasts 12 hours:
 // admins sign in once a day. Everyone else keeps 7 days.
 const ADMIN_JWT_EXPIRES_IN_SECONDS = 60 * 60 * 12;
+const RENEW_AFTER_SECONDS = 60 * 60 * 24;   // GET /auth/me hands a phone session more than a day old a fresh one
 export const jwtLifetimeSeconds = (role: Role) => (role === Role.DEV_ADMIN || role === Role.SUPER_ADMIN ? ADMIN_JWT_EXPIRES_IN_SECONDS : JWT_EXPIRES_IN_SECONDS);
 
 // ─── Per-phone login lockout (DB-backed) ──────────────────────────────────────
@@ -288,7 +289,15 @@ export async function getMe(req: AuthRequest, res: Response) {
   ]);
   if (!user) { res.status(404).json({ success: false, error: 'User not found' }); return; }
   const storeIds = storeRoles.map((r) => r.storeId);
-  res.json({ success: true, data: { ...user, pointsBalance: Number(user.pointsBalance), periodPoints: Number(user.periodPoints), storeIds } });
+  // A phone session lasts 7 days from sign-in and was never renewed, so someone using the app every day was still signed
+  // out once a week (2026-10-09). The app reads this when it opens; a session more than a day old gets a fresh one, so the
+  // 7 days now count from the last time the app was used. Only for the phone roles: HQ's 12-hour admin sessions on the web
+  // are not extended. A PIN reset or a deactivation still ends every session (middleware/auth.ts checks both first).
+  const issuedAt = (req.user as unknown as { iat?: number }).iat;
+  const renew = user.role !== Role.DEV_ADMIN && user.role !== Role.SUPER_ADMIN
+    && typeof issuedAt === 'number' && Date.now() / 1000 - issuedAt > RENEW_AFTER_SECONDS;
+  const token = renew ? issueJwt(user, storeIds) : undefined;
+  res.json({ success: true, data: { ...user, pointsBalance: Number(user.pointsBalance), periodPoints: Number(user.periodPoints), storeIds, ...(token ? { token } : {}) } });
 }
 
 // ─── Register Push Token ──────────────────────────────────────────────────────

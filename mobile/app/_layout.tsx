@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { Stack, router } from 'expo-router';
 import type { Href } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -94,6 +95,21 @@ export default function RootLayout() {
     if (user) {
       registerPushToken().catch(() => {});
     }
+  }, [user?.id]);
+
+  // Keep a signed-in session alive and notice one that has ended, for every role: on open and whenever the app comes back
+  // to the front (at most every 6 hours). The server renews a session more than a day old; one it refuses signs out.
+  const lastSessionCheck = useRef(0);
+  useEffect(() => {
+    if (!user?.id) return;
+    const check = () => {
+      if (Date.now() - lastSessionCheck.current < 6 * 3600_000) return;
+      lastSessionCheck.current = Date.now();
+      useAuthStore.getState().refreshSession();
+    };
+    check();
+    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') check(); });
+    return () => sub.remove();
   }, [user?.id]);
 
   // Catch OS-level notification taps while the app is foregrounded or

@@ -55,7 +55,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Lucky Stop uses your camera to scan customer QR codes and take receipt photos."
+          "cameraPermission": "Lucky Stop uses your camera to scan QR codes and barcodes at the counter and to take photos of receipts, labels and products.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
@@ -82,8 +84,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Lucky Stop needs access to your photo library so you can upload a business logo or image for your promotion.",
-          "cameraPermission": "Lucky Stop needs access to your camera to take a photo for your promotion."
+          "photosPermission": "Lucky Stop uses your photo library only when you choose a picture to upload, such as a profile photo, a business logo or a store image.",
+          "cameraPermission": "Lucky Stop uses your camera to scan QR codes and barcodes at the counter and to take photos of receipts, labels and products.",
+          "microphonePermission": false
         }
       ],
       [

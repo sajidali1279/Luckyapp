@@ -59,6 +59,10 @@ export async function anonymizeCustomerAccount(db: Prisma.TransactionClient, use
       tier: Tier.BRONZE,
       age21Confirmed: false,
       age21Declined: false,
+      // The birthday and language they gave in the app (2026-09/10) are personal too
+      birthMonth: null,
+      birthDay: null,
+      language: null,
       fraudNote: null,
       failedLoginAttempts: 0,
       lockedUntil: null,

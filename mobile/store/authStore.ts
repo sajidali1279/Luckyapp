@@ -3,6 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { authApi } from '../services/api';
+import Toast from 'react-native-toast-message';
+import i18next from 'i18next';
 import { EXPO_PROJECT_ID } from '../constants';
 
 // Best effort, never allowed to block or fail the actual sign-out: re-derives this device's own Expo push
@@ -20,6 +22,8 @@ async function removeThisDevicesPushToken(): Promise<void> {
     // Sign-out proceeds regardless
   }
 }
+
+let ending = false;   // endSession is running
 
 export type UserRole = 'DEV_ADMIN' | 'SUPER_ADMIN' | 'STORE_MANAGER' | 'EMPLOYEE' | 'CUSTOMER';
 
@@ -51,6 +55,10 @@ interface AuthState {
   // Actions
   setAuth: (user: AuthUser, token: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** The server ended the session: sign out and say so once. */
+  endSession: () => Promise<void>;
+  /** Re-read the account; saves a renewed session when the server sends one. */
+  refreshSession: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
   updateBalance: (newBalance: number) => void;
   setAge21Confirmed: () => void;
@@ -62,7 +70,7 @@ interface AuthState {
   clearQuickLogin: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   isLoading: true,
@@ -84,6 +92,30 @@ export const useAuthStore = create<AuthState>((set) => ({
     await SecureStore.deleteItemAsync('biometric_pin');
     // Keep quick_login_phone and biometric_enabled for next time
     set({ user: null, token: null, isLoading: false });
+  },
+
+  endSession: async () => {
+    // The server already refused this session, so nothing is sent to it (removing the push token would be refused too, and
+    // each refusal would come back here). Cleared locally, once, while several refused requests may arrive together.
+    if (!get().user || ending) return;
+    ending = true;
+    try {
+      await SecureStore.deleteItemAsync('jwt_token');
+      await SecureStore.deleteItemAsync('user_data');
+      await SecureStore.deleteItemAsync('biometric_pin');
+      set({ user: null, token: null, isLoading: false });
+    } finally { ending = false; }
+    Toast.show({ type: 'error', text1: i18next.t('customerHome.signedOut'), text2: i18next.t('customerHome.signInAgain') });
+  },
+
+  refreshSession: async () => {
+    const { user, token } = get();
+    if (!user || !token) return;
+    try {
+      const { data } = await authApi.getMe();
+      const fresh = data?.data?.token;
+      if (fresh) get().setAuth(get().user!, fresh);
+    } catch { /* a refused session is handled by the API layer; no network leaves it as it is */ }
   },
 
   loadFromStorage: async () => {
