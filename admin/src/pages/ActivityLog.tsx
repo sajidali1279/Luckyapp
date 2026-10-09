@@ -108,6 +108,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   BILLING_REPORT_SENT:       { label: 'Billing Report Sent',    color: '#3c6e8f', bg: '#457b9d18', icon: '📨' },
   STORE_BILLING_UPDATE:      { label: 'Store Plan / Fee',       color: '#4f6d8f', bg: '#9b5de518', icon: '⚙️' },
   DEV_CUT_RATE_UPDATE:       { label: 'Default Fee Rate',       color: '#4f6d8f', bg: '#9b5de518', icon: '⚙️' },
+  APP_VERSIONS_UPDATE:       { label: 'App Versions',           color: '#4f6d8f', bg: '#9b5de518', icon: '📱' },
   // Rates
   RATE_TIER_UPDATE:          { label: 'Tier Rates Changed',     color: '#4f6d8f', bg: '#9b5de518', icon: '🏆' },
   RATE_CATEGORY_UPDATE:      { label: 'Category Bonus Changed', color: '#4f6d8f', bg: '#9b5de518', icon: '📦' },
@@ -298,7 +299,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Billing ──">
-            {['BILLING_GENERATE','BILLING_FILL_MISSING','BILLING_RECALCULATE','BILLING_MARK_PAID','BILLING_MARK_PERIOD_PAID','BILLING_UNDO_PAID','BILLING_CHARGE_ADD','BILLING_CHARGE_EDIT','BILLING_CHARGE_DELETE','BILLING_REPORT_SENT','STORE_BILLING_UPDATE','DEV_CUT_RATE_UPDATE'].map(k => (
+            {['BILLING_GENERATE','BILLING_FILL_MISSING','BILLING_RECALCULATE','BILLING_MARK_PAID','BILLING_MARK_PERIOD_PAID','BILLING_UNDO_PAID','BILLING_CHARGE_ADD','BILLING_CHARGE_EDIT','BILLING_CHARGE_DELETE','BILLING_REPORT_SENT','STORE_BILLING_UPDATE','DEV_CUT_RATE_UPDATE','APP_VERSIONS_UPDATE'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

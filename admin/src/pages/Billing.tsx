@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
 import { PageHeader, Tabs } from '../components/kit';
 import Glyph from '../components/Glyph';
+import AppVersionsCard from '../components/AppVersionsCard';
 
 type Tab = 'stores' | 'monthly' | 'manual' | 'settings';
 
@@ -1156,6 +1157,8 @@ export default function Billing() {
               </div>
             )}
           </div>
+
+          <AppVersionsCard />
 
           {/* Info card */}
           <div style={s.settingsCard}>

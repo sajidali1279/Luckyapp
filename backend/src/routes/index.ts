@@ -77,6 +77,7 @@ import {
 } from '../controllers/orderCategory.controller';
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { getRestockInsights, getDemandInsights, getRewardsHotFoodInsights } from '../controllers/inventoryInsights.controller';
+import { getAppVersion, updateAppVersions } from '../controllers/appVersion.controller';
 import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
@@ -235,6 +236,7 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
+router.get('/app/version', getAppVersion);                                         // Latest + minimum app version per platform (no sign-in: asked when the app opens)
 router.post('/auth/register', register);                                          // New customer signup
 router.post('/auth/login', login);                                                // Phone + PIN login
 router.patch('/auth/pin', authenticate, changePin);                               // Change PIN
@@ -384,6 +386,7 @@ router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllS
 router.get('/billing/revenue', authenticate, requireRole(Role.DEV_ADMIN), getDevRevenue);
 router.get('/billing/analytics', authenticate, requireRole(Role.DEV_ADMIN), getAnalytics);
 router.get('/billing/analytics/export', authenticate, requireRole(Role.DEV_ADMIN), exportAnalyticsCsv);
+router.put('/app/versions', authenticate, requireRole(Role.DEV_ADMIN), updateAppVersions);   // Set them (Billing > Platform Settings)
 router.get('/analytics/customers',  authenticate, requireRole(Role.DEV_ADMIN), getCustomerInsights);   // Active, new, repeat, cohorts, lapsed
 router.get('/analytics/promotions', authenticate, requireRole(Role.DEV_ADMIN), getPromotionInsights);  // Per promotion sales + lift, challenges
 router.get('/analytics/points',     authenticate, requireRole(Role.DEV_ADMIN), getPointsInsights);     // Earned vs redeemed, outstanding

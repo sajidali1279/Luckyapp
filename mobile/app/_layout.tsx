@@ -11,6 +11,7 @@ import { useAuthStore } from '../store/authStore';
 import { registerPushToken } from '../utils/pushRegistration';
 import AppLoader from '../components/AppLoader';
 import ErrorBoundary from '../components/ErrorBoundary';
+import UpdatePrompt from '../components/UpdatePrompt';
 import { loadSavedLanguage } from '../i18n';
 
 // Hold the splash until we're ready
@@ -111,6 +112,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <Stack screenOptions={{ headerShown: false }} />
         {(isLoading || showLoader) && <AppLoader />}
+        <UpdatePrompt />
         <Toast config={toastConfig} />
       </QueryClientProvider>
     </ErrorBoundary>

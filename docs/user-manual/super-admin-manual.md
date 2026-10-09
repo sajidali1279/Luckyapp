@@ -718,6 +718,15 @@ The moment the job makes a store's bill, that store's own Super Admin is emailed
 
 On the **Stores** tab, click **History** next to a store's **Edit** button to see every past change to its billing plan, fee or subscription price, with who made the change and when.
 
+### 15.6 App Versions: Asking Phones to Update (Dev Admin only)
+
+Google Play and the App Store never ask anyone to update; phones install updates on their own schedule, sometimes days later, and some never do. The app asks instead. Go to **Billing** → **Platform Settings** → **App versions**. For Android and for iPhone separately:
+
+- **Newest version:** a phone on an older version sees "A new version is ready" with **Update now** (opens the store) and **Not now** (asks again about the same version after 3 days).
+- **Oldest version allowed:** a phone on an older version sees only a "Please update Lucky Stop" screen until it updates. Saving one asks you to confirm first.
+
+Leave a box empty for no prompt. Set a version only once it is live in that store (after review and at 100% rollout), or people will be sent to a store page that does not have it yet. The phones check when the app opens and when it comes back to the front, at most once an hour. Every change is in the Activity Log ("App Versions"). This works from app version 1.2.8; older versions do not have the check.
+
 ---
 
 ## 16. Cashback Rates

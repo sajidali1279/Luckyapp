@@ -2799,5 +2799,14 @@
     "verification": "No pudimos confirmar este dispositivo para enviar el código. Inténtalo de nuevo o llama a tu tienda.",
     "notAllowed": "El inicio con teléfono no está disponible ahora. Llama a tu tienda.",
     "generic": "Revisa el número e inténtalo de nuevo."
+  },
+  "appUpdate": {
+    "availableTitle": "Hay una nueva versión",
+    "availableBody": "Actualiza Lucky Stop para tener las ofertas, correcciones y mejoras más recientes.",
+    "requiredTitle": "Actualiza Lucky Stop",
+    "requiredBody": "Esta versión de la app ya no funciona. Actualízala para seguir ganando y usando tus recompensas. Tus puntos están seguros.",
+    "versions": "Tu versión {{mine}} · Nueva versión {{latest}}",
+    "update": "Actualizar ahora",
+    "notNow": "Ahora no"
   }
 }

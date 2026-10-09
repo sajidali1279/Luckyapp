@@ -2799,5 +2799,14 @@
     "verification": "We could not confirm this device to send the code. Please try again, or call your store.",
     "notAllowed": "Phone sign-in is not available right now. Please call your store.",
     "generic": "Check the number and try again."
+  },
+  "appUpdate": {
+    "availableTitle": "A new version is ready",
+    "availableBody": "Update Lucky Stop to get the latest offers, fixes and improvements.",
+    "requiredTitle": "Please update Lucky Stop",
+    "requiredBody": "This version of the app no longer works. Update it to keep earning and using your rewards. Your points are safe.",
+    "versions": "Your version {{mine}} · New version {{latest}}",
+    "update": "Update now",
+    "notNow": "Not now"
   }
 }
