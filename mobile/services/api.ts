@@ -173,6 +173,7 @@ export const schedulingApi = {
     api.get(`/schedule/store/${storeId}/day?date=${encodeURIComponent(date)}`),
   getVacancies: () => api.get('/schedule/vacancies'),
   getPendingCount: () => api.get('/schedule/requests/pending-count'),
+  getPendingByStore: () => api.get('/schedule/requests/pending-by-store'),   // { [storeId]: count }
 };
 
 export const chatApi = {
@@ -198,6 +199,7 @@ export const disputeApi = {
     api.get(`/disputes/store/${storeId}${status ? `?status=${status}` : ''}`),
   getPendingCount: (storeId: string) => api.get(`/disputes/store/${storeId}/pending-count`),
   getMyStoresPendingCount: () => api.get('/disputes/my-stores/pending-count'),
+  getMyStoresPendingByStore: () => api.get('/disputes/my-stores/pending-by-store'),   // { [storeId]: count }
   resolve: (id: string, data: { action: 'APPROVED' | 'REJECTED'; resolvedNote?: string; creditedAmt?: number }) =>
     api.patch(`/disputes/${id}/resolve`, data),
 };
@@ -211,6 +213,7 @@ export const storeRequestApi = {
   getStoreRequests: (storeId: string, status?: string) =>
     api.get(`/store-requests/store/${storeId}${status ? `?status=${status}` : ''}`),
   getPendingCount: () => api.get('/store-requests/pending-count'),
+  getPendingByStore: () => api.get('/store-requests/pending-by-store'),   // { [storeId]: count }
   acknowledge: (requestId: string, note?: string) =>
     api.patch(`/store-requests/${requestId}/acknowledge`, { note }),
 };
@@ -250,6 +253,7 @@ export const productRequestApi = {
     api.post('/product-requests', data),
   getMine: () => api.get('/product-requests/mine'),
   getPendingCount: () => api.get('/product-requests/pending-count'),
+  getPendingByStore: () => api.get('/product-requests/pending-by-store'),   // { [storeId]: count }
   getStoreRequests: (storeId: string) =>
     api.get(`/product-requests/store/${storeId}`),
   respond: (id: string, status: 'ACCEPTED' | 'DECLINED', responseNote?: string) =>
@@ -398,6 +402,7 @@ export const labelsApi = {
 export const employeeRequestApi = {
   getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}`),
   getPendingCount: () => api.get('/employee-requests/pending-count'),
+  getPendingByStore: () => api.get('/employee-requests/pending-by-store'),   // { [storeId]: count }
   submit: (data: { note?: string; requestType?: 'LOW_STOCK' | 'CUSTOMER_REQUEST'; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
     api.post('/employee-requests', data),
   mine: () => api.get('/employee-requests/mine'),

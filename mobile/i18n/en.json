@@ -1010,8 +1010,8 @@
   "managerCatalog": {
     "tabScan": "Rapid Scan",
     "tabManual": "Manual Add",
-    "tabBrowse": "browse",
-    "tabPhoto": "photo",
+    "tabBrowse": "Browse",
+    "tabPhoto": "Photo",
     "title": "Store Catalog",
     "cameraPermText": "Camera access is needed to scan barcodes.",
     "allowCameraLabel": "Allow camera access",
@@ -1142,7 +1142,20 @@
     "reviewPendingLabel_one": "Review {{count}} pending item request",
     "reviewPendingLabel_other": "Review {{count}} pending item requests",
     "pendingItemsTitle_one": "{{count}} pending item request",
-    "pendingItemsTitle_other": "{{count}} pending item requests"
+    "pendingItemsTitle_other": "{{count}} pending item requests",
+    "attentionTitle": "Needs your attention",
+    "attentionDisputes_one": "{{count}} missing-points report",
+    "attentionDisputes_other": "{{count}} missing-points reports",
+    "attentionDisputesSub": "A customer is waiting for their points",
+    "attentionShifts_one": "{{count}} shift request",
+    "attentionShifts_other": "{{count}} shift requests",
+    "attentionShiftsSub": "Time off and extra shifts to approve",
+    "attentionChat_one": "{{count}} new team message",
+    "attentionChat_other": "{{count}} new team messages",
+    "attentionChatSub": "In Team Chat",
+    "attentionSupport_one": "{{count}} support reply",
+    "attentionSupport_other": "{{count}} support replies",
+    "attentionSupportSub": "From the Lucky Stop support team"
   },
   "managerLeaderboard": {
     "title": "Leaderboard",
@@ -1265,7 +1278,8 @@
     "yesDeny": "Yes, Deny",
     "peopleCount_one": "{{count}} person",
     "peopleCount_other": "{{count}} people",
-    "middleNotInUse": "Middle (not in use at this store)"
+    "middleNotInUse": "Middle (not in use at this store)",
+    "legendCount": "The number is how many people work that shift"
   },
   "managerSupport": {
     "justNow": "just now",
@@ -1390,12 +1404,12 @@
     "responsePrefix": "Response: \"{{note}}\"",
     "respondToProductA11y": "Respond to product request for {{product}}",
     "respondButton": "Respond to Request",
-    "tabAlerts": "alerts",
-    "tabStock": "stock",
-    "tabProducts": "products",
-    "alertsEyebrow": "STORE ALERTS",
-    "stockEyebrow": "STOCK REQUESTS",
-    "productsEyebrow": "PRODUCT REQUESTS",
+    "tabAlerts": "Alerts",
+    "tabStock": "Stock",
+    "tabProducts": "Products",
+    "alertsEyebrow": "REQUESTS",
+    "stockEyebrow": "REQUESTS",
+    "productsEyebrow": "REQUESTS",
     "alertsTitle": "Store Alerts",
     "stockTitle": "Stock Requests",
     "productsTitle": "Product Requests",
@@ -2897,5 +2911,9 @@
     "closeTicket": "Close ticket",
     "sendReply": "Send reply",
     "openTicket": "Open ticket: {{subject}}, {{status}}"
+  },
+  "storeChips": {
+    "waitingA11y_one": "{{count}} waiting",
+    "waitingA11y_other": "{{count}} waiting"
   }
 }

@@ -171,6 +171,19 @@ export async function getMyStoresPendingDisputeCount(req: AuthRequest, res: Resp
   res.json({ success: true, data: { count } });
 }
 
+// Same as getMyStoresPendingDisputeCount, broken out per store ({ [storeId]: count }), so the app's
+// store picker shows which store has a report waiting and opens on it (2026-10-10)
+export async function getMyStoresPendingDisputeCountByStore(req: AuthRequest, res: Response) {
+  const storeIds = req.user!.storeIds ?? [];
+  if (storeIds.length === 0) { res.json({ success: true, data: {} }); return; }
+  const grouped = await prisma.pointsDispute.groupBy({
+    by: ['storeId'],
+    where: { storeId: { in: storeIds }, status: 'PENDING' },
+    _count: { _all: true },
+  });
+  res.json({ success: true, data: Object.fromEntries(grouped.map((g) => [g.storeId, g._count._all])) });
+}
+
 const allDisputesQuery = z.object({
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED'], { message: 'The status must be PENDING, APPROVED or REJECTED.' }).optional(),
   storeId: z.string().uuid('That store is not valid.').optional(),

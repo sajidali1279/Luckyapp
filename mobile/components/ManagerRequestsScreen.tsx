@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Text, TextInput } from './ScaledText';
 import RefreshControl from './AppRefreshControl';
-import { useState, useCallback, type ReactElement } from 'react';
+import { useState, useCallback, useEffect, type ReactElement } from 'react';
 import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +28,8 @@ import { useHighlightParam } from '../hooks/useHighlightParam';
 import PulseHighlight from './PulseHighlight';
 import KeyboardSafe from './KeyboardSafe';
 import { useLargeTitleScroll } from './LargeTitleHeader';
+import StoreChips, { startStore } from './StoreChips';
+import { useAuthStore } from '../store/authStore';
 
 export function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
   const p = { size, color, strokeWidth: 1.75 };
@@ -159,6 +161,30 @@ export default function ManagerRequestsScreen() {
   const stores: { id: string; name: string }[] = storesData?.data?.data || [];
   const effectiveStoreId = stores.length === 1 ? stores[0]?.id : selectedStoreId;
 
+  // What waits at each store, per kind (2026-10-10): the screen used to open on "Select a store" with 12 chips and no hint where the requests were
+  const { user } = useAuthStore();
+  const multi = stores.length > 1;
+  const alertsByStoreQ = useQuery({ queryKey: ['store-requests-pending-by-store'], queryFn: () => storeRequestApi.getPendingByStore(), enabled: multi, refetchInterval: 60000 });
+  const stockByStoreQ = useQuery({ queryKey: ['employee-requests-pending-by-store'], queryFn: () => employeeRequestApi.getPendingByStore(), enabled: multi, refetchInterval: 60000 });
+  const productsByStoreQ = useQuery({ queryKey: ['product-requests-pending-by-store'], queryFn: () => productRequestApi.getPendingByStore(), enabled: multi, refetchInterval: 60000 });
+  const alertsBy: Record<string, number> = alertsByStoreQ.data?.data?.data ?? {};
+  const stockBy: Record<string, number> = stockByStoreQ.data?.data?.data ?? {};
+  const productsBy: Record<string, number> = productsByStoreQ.data?.data?.data ?? {};
+  const waitingBy: Record<string, number> = {};
+  for (const m of [alertsBy, stockBy, productsBy]) for (const [id, n] of Object.entries(m)) waitingBy[id] = (waitingBy[id] ?? 0) + n;
+  const countsLoading = alertsByStoreQ.isLoading || stockByStoreQ.isLoading || productsByStoreQ.isLoading;
+  useEffect(() => {
+    if (!multi || selectedStoreId || countsLoading) return;
+    const id = startStore(stores, waitingBy, user?.storeIds);
+    if (!id) return;
+    setSelectedStoreId(id);
+    // Open on the kind that is waiting there, unless a notification already chose the tab
+    if (!tab && !(alertsBy[id] > 0)) {
+      if (stockBy[id] > 0) setMainTab('stock');
+      else if (productsBy[id] > 0) setMainTab('products');
+    }
+  }, [multi, countsLoading, stores.length]);
+
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: requestsData, isLoading: alertsLoading, isError: alertsError, refetch: refetchAlerts, isRefetching: alertsRefetching } = useQuery({
     queryKey: ['manager-store-requests', effectiveStoreId, statusFilter],
@@ -200,6 +226,8 @@ export default function ManagerRequestsScreen() {
       storeRequestApi.acknowledge(id, note || undefined),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-store-requests'] });
+      qc.invalidateQueries({ queryKey: ['store-requests-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['store-requests-pending-by-store'] });
       setAckTarget(null); setAckNote('');
     },
     onError: (err: any) =>
@@ -211,6 +239,8 @@ export default function ManagerRequestsScreen() {
       productRequestApi.respond(id, status, note || undefined),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-product-requests'] });
+      qc.invalidateQueries({ queryKey: ['product-requests-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['product-requests-pending-by-store'] });
       setRespondTarget(null); setRespondNote('');
     },
     onError: (err: any) =>
@@ -225,6 +255,7 @@ export default function ManagerRequestsScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-employee-requests'] });
       qc.invalidateQueries({ queryKey: ['employee-requests-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['employee-requests-pending-by-store'] });
       setReviewTarget(null); setLineDecisions({}); setRejectReasons({});
     },
     onError: (err: any) =>
@@ -527,23 +558,13 @@ export default function ManagerRequestsScreen() {
         {/* Store picker */}
         {stores.length > 1 && (
           <>
-            <View style={s.storePickerRow}>
-              {stores.map(st => (
-                <TouchableOpacity
-                  key={st.id}
-                  style={[s.storeChip, st.id === effectiveStoreId && s.storeChipActive]}
-                  onPress={() => setSelectedStoreId(st.id)}
-                  hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-                  accessibilityRole="tab"
-                  accessibilityLabel={t('sharedManagerRequests.selectStoreA11y', { name: st.name })}
-                >
-                  <Text style={[s.storeChipText, st.id === effectiveStoreId && s.storeChipTextActive]}>
-                    {st.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={s.scopeHint}>{t('sharedManagerRequests.scopeHint')}</Text>
+            <StoreChips
+              stores={stores}
+              selectedId={effectiveStoreId}
+              onSelect={setSelectedStoreId}
+              counts={waitingBy}
+              a11yLabel={(name) => t('sharedManagerRequests.selectStoreA11y', { name })}
+            />
           </>
         )}
 

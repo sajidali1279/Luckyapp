@@ -1050,8 +1050,8 @@
     "toggleSelectionLabel": "Alternar selección de {{name}}",
     "tabScan": "Escaneo Rápido",
     "tabManual": "Agregar Manualmente",
-    "tabBrowse": "explorar",
-    "tabPhoto": "foto",
+    "tabBrowse": "Explorar",
+    "tabPhoto": "Foto",
     "title": "Catálogo de la Tienda",
     "cameraPermText": "Se necesita acceso a la cámara para escanear códigos de barras.",
     "allowCameraLabel": "Permitir acceso a la cámara",
@@ -1142,7 +1142,20 @@
     "startTrackingHint": "Comienza a rastrear registrando tu primera lista de pedidos",
     "openOrderListLabel": "Abrir lista de pedidos",
     "openOrderListArrow": "Abrir lista de pedidos →",
-    "ordersLabel": "pedidos"
+    "ordersLabel": "pedidos",
+    "attentionTitle": "Requiere tu atención",
+    "attentionDisputes_one": "{{count}} reporte de puntos faltantes",
+    "attentionDisputes_other": "{{count}} reportes de puntos faltantes",
+    "attentionDisputesSub": "Un cliente espera sus puntos",
+    "attentionShifts_one": "{{count}} solicitud de turno",
+    "attentionShifts_other": "{{count}} solicitudes de turno",
+    "attentionShiftsSub": "Días libres y turnos extra por aprobar",
+    "attentionChat_one": "{{count}} mensaje nuevo del equipo",
+    "attentionChat_other": "{{count}} mensajes nuevos del equipo",
+    "attentionChatSub": "En el chat del equipo",
+    "attentionSupport_one": "{{count}} respuesta de soporte",
+    "attentionSupport_other": "{{count}} respuestas de soporte",
+    "attentionSupportSub": "Del equipo de soporte de Lucky Stop"
   },
   "managerLeaderboard": {
     "ptsLabel": "pts",
@@ -1265,7 +1278,8 @@
     "cancel": "Cancelar",
     "approve": "Aprobar",
     "deny": "Denegar",
-    "middleNotInUse": "Intermedio (no se usa en esta tienda)"
+    "middleNotInUse": "Intermedio (no se usa en esta tienda)",
+    "legendCount": "El número es cuántas personas trabajan ese turno"
   },
   "managerSupport": {
     "ticketSubmitted": "Ticket enviado",
@@ -1430,12 +1444,12 @@
     "responsePrefix": "Respuesta: \"{{note}}\"",
     "respondToProductA11y": "Responder a solicitud de producto para {{product}}",
     "respondButton": "Responder Solicitud",
-    "tabAlerts": "alertas",
-    "tabStock": "stock",
-    "tabProducts": "productos",
-    "alertsEyebrow": "ALERTAS DE TIENDA",
-    "stockEyebrow": "SOLICITUDES DE STOCK",
-    "productsEyebrow": "SOLICITUDES DE PRODUCTOS",
+    "tabAlerts": "Alertas",
+    "tabStock": "Stock",
+    "tabProducts": "Productos",
+    "alertsEyebrow": "SOLICITUDES",
+    "stockEyebrow": "SOLICITUDES",
+    "productsEyebrow": "SOLICITUDES",
     "alertsTitle": "Alertas de Tienda",
     "stockTitle": "Solicitudes de Stock",
     "productsTitle": "Solicitudes de Productos",
@@ -2897,5 +2911,9 @@
     "closeTicket": "Cerrar ticket",
     "sendReply": "Enviar respuesta",
     "openTicket": "Abrir ticket: {{subject}}, {{status}}"
+  },
+  "storeChips": {
+    "waitingA11y_one": "{{count}} pendiente",
+    "waitingA11y_other": "{{count}} pendientes"
   }
 }

@@ -25,6 +25,7 @@ import { useHighlightParam } from '../hooks/useHighlightParam';
 import PulseHighlight from './PulseHighlight';
 import KeyboardSafe from './KeyboardSafe';
 import { useLargeTitleScroll } from './LargeTitleHeader';
+import StoreChips, { startStore } from './StoreChips';
 
 interface Dispute {
   id: string;
@@ -57,9 +58,19 @@ export default function ManagerDisputesScreen() {
     queryFn: () => storesApi.accessible(),
   });
   const stores: Store[] = storesData?.data?.data || [];
+  // Missing-points reports waiting at each store (2026-10-10): open on the store that has one, not the first in the list
+  const byStoreQ = useQuery({
+    queryKey: ['disputes-pending-by-store'],
+    queryFn: () => disputeApi.getMyStoresPendingByStore(),
+    enabled: stores.length > 1,
+    refetchInterval: 60000,
+  });
+  const pendingBy: Record<string, number> = byStoreQ.data?.data?.data ?? {};
   useEffect(() => {
-    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
-  }, [stores]);
+    if (selectedStoreId || stores.length === 0) return;
+    if (stores.length > 1 && byStoreQ.isLoading) return;
+    setSelectedStoreId(startStore(stores, pendingBy, user?.storeIds));
+  }, [stores, byStoreQ.isLoading]);
   const storeId = selectedStoreId || user?.storeIds?.[0];
 
   const [statusFilter, setStatusFilter] = useState<string>('PENDING');
@@ -98,7 +109,8 @@ export default function ManagerDisputesScreen() {
       disputeApi.resolve(id, { action, resolvedNote: note || undefined, creditedAmt: amt }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-disputes', storeId] });
-      qc.invalidateQueries({ queryKey: ['disputes-pending-count', storeId] });
+      qc.invalidateQueries({ queryKey: ['disputes-pending-count'] });   // every store, and the menu badge
+      qc.invalidateQueries({ queryKey: ['disputes-pending-by-store'] });
       setResolveTarget(null); setResolveNote(''); setCreditAmt('');
     },
     onError: (err: any) =>
@@ -198,24 +210,13 @@ export default function ManagerDisputesScreen() {
         }
       >
         {stores.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
-            {stores.map(store => (
-              <TouchableOpacity
-                key={store.id}
-                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
-                onPress={() => setSelectedStoreId(store.id)}
-                activeOpacity={0.75}
-                accessibilityRole="tab"
-                accessibilityLabel={t('managerDisputes.storeFilterLabel', { name: store.name })}
-                accessibilityState={{ selected: store.id === storeId }}
-                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-              >
-                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
-                  {store.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <StoreChips
+            stores={stores}
+            selectedId={storeId}
+            onSelect={setSelectedStoreId}
+            counts={pendingBy}
+            a11yLabel={(name) => t('managerDisputes.storeFilterLabel', { name })}
+          />
         )}
 
         <View style={s.filterRow}>

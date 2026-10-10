@@ -16,11 +16,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Svg, { Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
-import { managerApi, storesApi, employeeRequestApi, orderCategoriesApi, notificationsApi, orderListApi } from '../../services/api';
-import { useAuthStore } from '../../store/authStore';
+import { managerApi, storesApi, employeeRequestApi, orderCategoriesApi, notificationsApi, orderListApi, storeRequestApi, productRequestApi, disputeApi, schedulingApi, chatApi, supportApi } from '../../services/api';
+import { useAuthStore, isStoreManagerOrAbove } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
   PackageIcon, ClipboardIcon, TrendingUpIcon, InboxIcon, ChevronRightIcon, BellIcon,
+  AlertTriangleIcon, CalendarIcon, MessageCircleIcon, HeadphonesIcon,
 } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
 import DashboardWatermark from '../../components/DashboardWatermark';
@@ -128,7 +129,23 @@ export default function ManagerHome() {
     queryFn: () => employeeRequestApi.getPendingCount(),
     refetchInterval: 60000,
   });
-  const pendingCount: number = pendingData?.data?.data?.count ?? analytics?.pendingRequestsCount ?? 0;
+  // Requests = stock requests + store alerts + product requests, the same three the menu badge adds up (2026-10-10: the card counted only the first)
+  const { data: storeReqData } = useQuery({ queryKey: ['store-requests-pending-count'], queryFn: () => storeRequestApi.getPendingCount(), refetchInterval: 60000 });
+  const { data: productReqData } = useQuery({ queryKey: ['product-requests-pending-count'], queryFn: () => productRequestApi.getPendingCount(), refetchInterval: 60000 });
+  const pendingCount: number = (pendingData?.data?.data?.count ?? analytics?.pendingRequestsCount ?? 0)
+    + (storeReqData?.data?.data?.count ?? 0) + (productReqData?.data?.data?.count ?? 0);
+
+  // Everything else waiting on the manager, all their stores (same queries as the menu badges, so no extra calls)
+  const { data: disputesData } = useQuery({ queryKey: ['disputes-pending-count'], queryFn: () => disputeApi.getMyStoresPendingCount(), refetchInterval: 60000 });
+  const { data: shiftReqData } = useQuery({ queryKey: ['scheduling-pending-count'], queryFn: () => schedulingApi.getPendingCount(), refetchInterval: 60000 });
+  const { data: chatData } = useQuery({ queryKey: ['chat-unread-count'], queryFn: () => chatApi.getUnreadCount(), refetchInterval: 30000 });
+  const { data: supportData } = useQuery({ queryKey: ['support-unread'], queryFn: () => supportApi.getUnreadCount(), enabled: isStoreManagerOrAbove(user?.role), refetchInterval: 30000 });
+  const attention = [
+    { key: 'disputes', n: disputesData?.data?.data?.count ?? 0, title: 'managerHome.attentionDisputes', sub: 'managerHome.attentionDisputesSub', route: '/(manager)/disputes', color: '#DC2626', Icon: AlertTriangleIcon },
+    { key: 'shifts', n: shiftReqData?.data?.data?.count ?? 0, title: 'managerHome.attentionShifts', sub: 'managerHome.attentionShiftsSub', route: '/(manager)/schedule', color: '#7C3AED', Icon: CalendarIcon },
+    { key: 'chat', n: chatData?.data?.data?.count ?? 0, title: 'managerHome.attentionChat', sub: 'managerHome.attentionChatSub', route: '/(manager)/chat', color: '#2563EB', Icon: MessageCircleIcon },
+    { key: 'support', n: supportData?.data?.data?.count ?? 0, title: 'managerHome.attentionSupport', sub: 'managerHome.attentionSupportSub', route: '/(manager)/support', color: '#0D9488', Icon: HeadphonesIcon },
+  ].filter((a) => a.n > 0);
 
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
@@ -348,6 +365,32 @@ export default function ManagerHome() {
               <ChevronRightIcon size={16} color="#C2410C" />
             </TouchableOpacity>
           </Animated.View>
+        )}
+
+        {/* ── Needs your attention (2026-10-10): reports, shift requests, chat and support used to show only as menu badges ── */}
+        {attention.length > 0 && (
+          <View style={s.attnCard}>
+            <Text style={s.attnTitle}>{t('managerHome.attentionTitle')}</Text>
+            {attention.map((a, i) => (
+              <TouchableOpacity
+                key={a.key}
+                style={[s.attnRow, i > 0 && s.attnRowBorder]}
+                onPress={() => router.push(a.route as any)}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`${t(a.title, { count: a.n })}. ${t(a.sub)}`}
+              >
+                <View style={[s.attnIcon, { backgroundColor: a.color + '15' }]}>
+                  <a.Icon size={18} color={a.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.attnRowTitle}>{t(a.title, { count: a.n })}</Text>
+                  <Text style={s.attnRowSub}>{t(a.sub)}</Text>
+                </View>
+                <ChevronRightIcon size={16} color="#ADB5BD" />
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
 
         {/* ── Inventory Intelligence header ── */}
@@ -614,6 +657,18 @@ const s = StyleSheet.create({
   alertIcon:  { width: 34, height: 34, borderRadius: 10, backgroundColor: '#FFEDD5', alignItems: 'center', justifyContent: 'center' },
   alertTitle: { fontSize: 13, fontWeight: '700', color: '#92400E' },
   alertSub:   { fontSize: 12, color: '#B45309', marginTop: 2 },
+
+  // ── Needs your attention ────────────────────────────────────────────────────
+  attnCard: {
+    backgroundColor: '#fff', borderRadius: 16, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, marginBottom: 16,
+    borderWidth: 1, borderColor: '#E5E7EB',
+  },
+  attnTitle: { fontSize: 12, fontWeight: '800', color: '#374151', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  attnRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10 },
+  attnRowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E7EB' },
+  attnIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  attnRowTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  attnRowSub: { fontSize: 12, color: '#6B7280', marginTop: 1 },
 
   // ── Section header ──────────────────────────────────────────────────────────
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10, marginTop: 6 },

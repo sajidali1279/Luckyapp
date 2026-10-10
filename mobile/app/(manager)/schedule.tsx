@@ -27,6 +27,7 @@ import {
   getTodayDayKey as getTodayKey, getCurrentWeekDates, fmtDateFull, formatShiftTime,
 } from '../../utils/schedule';
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import StoreChips, { startStore } from '../../components/StoreChips';
 
 // This file indexes SHIFT_LABELS/SHIFT_TIMES with untyped strings from API
 // responses (e.g. req.shiftType), so both are re-typed loosely here rather
@@ -58,9 +59,19 @@ export default function ManagerScheduleScreen() {
     queryFn: () => storesApi.accessible(),
   });
   const stores: Store[] = storesData?.data?.data || [];
+  // Shift requests waiting at each store (2026-10-10): open on the store that has some, not the first in the list
+  const byStoreQ = useQuery({
+    queryKey: ['schedule-pending-by-store'],
+    queryFn: () => schedulingApi.getPendingByStore(),
+    enabled: stores.length > 1,
+    refetchInterval: 60000,
+  });
+  const pendingBy: Record<string, number> = byStoreQ.data?.data?.data ?? {};
   useEffect(() => {
-    if (!selectedStoreId && stores.length > 0) setSelectedStoreId(stores[0].id);
-  }, [stores]);
+    if (selectedStoreId || stores.length === 0) return;
+    if (stores.length > 1 && byStoreQ.isLoading) return;
+    setSelectedStoreId(startStore(stores, pendingBy, user?.storeIds));
+  }, [stores, byStoreQ.isLoading]);
   const storeId = selectedStoreId || user?.storeIds?.[0];
   // A store that runs 2 shifts has no Middle: anyone still booked on it is shown as "not in use", as on the admin, so the manager moves them
   const twoShift = stores.find((st) => st.id === storeId)?.shiftsPerDay === 2;
@@ -107,6 +118,8 @@ export default function ManagerScheduleScreen() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manager-requests', storeId] });
       qc.invalidateQueries({ queryKey: ['manager-roster', storeId] });
+      qc.invalidateQueries({ queryKey: ['scheduling-pending-count'] });
+      qc.invalidateQueries({ queryKey: ['schedule-pending-by-store'] });
       setConfirmModal(null);
     },
     onError: (err: any) => {
@@ -168,24 +181,13 @@ export default function ManagerScheduleScreen() {
         }
       >
         {stores.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
-            {stores.map(store => (
-              <TouchableOpacity
-                key={store.id}
-                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
-                onPress={() => setSelectedStoreId(store.id)}
-                activeOpacity={0.75}
-                accessibilityRole="tab"
-                accessibilityLabel={t('managerSchedule.filterByStore', { store: store.name })}
-                accessibilityState={{ selected: store.id === storeId }}
-                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-              >
-                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
-                  {store.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <StoreChips
+            stores={stores}
+            selectedId={storeId}
+            onSelect={setSelectedStoreId}
+            counts={pendingBy}
+            a11yLabel={(name) => t('managerSchedule.filterByStore', { store: name })}
+          />
         )}
 
         {/* Tab bar */}
@@ -399,6 +401,18 @@ export default function ManagerScheduleScreen() {
                   </TouchableOpacity>
                 );
               })}
+              {/* What the letters mean (2026-10-10): the pills read "O · 2" with no key */}
+              <View style={s.legendRow}>
+                {SHIFT_ORDER.filter((sh) => DAY_ORDER.some((d) => (grouped[d] || []).some((x: any) => x.shiftType === sh))).map((sh) => (
+                  <View key={sh} style={s.legendItem}>
+                    <View style={[s.legendPill, { backgroundColor: SHIFT_COLORS[sh] + '18', borderColor: SHIFT_COLORS[sh] + '40' }]}>
+                      <Text style={[s.overviewShiftText, { color: SHIFT_COLORS[sh] }]}>{SHIFT_LABELS[sh][0]}</Text>
+                    </View>
+                    <Text style={s.legendText}>{shiftName(sh)}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={s.legendNote}>{t('managerSchedule.legendCount')}</Text>
             </FadeSlideIn>
           )
         )}
@@ -726,6 +740,11 @@ const s = StyleSheet.create({
   weekShiftNames: { fontSize: 12, color: TEXT_GRAY[500], marginTop: 1 },
   weekShiftTime: { fontSize: 11, color: TEXT_GRAY[400], fontWeight: '600' },
 
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 6, paddingHorizontal: 2 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
+  legendText: { fontSize: 13, color: TEXT_GRAY[500], fontWeight: '600' },
+  legendNote: { fontSize: 12, color: TEXT_GRAY[500], marginTop: 6, marginBottom: 8, paddingHorizontal: 2 },
   overviewRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.white, borderRadius: 12, padding: 12, marginBottom: 8,
