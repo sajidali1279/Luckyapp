@@ -358,8 +358,8 @@ We retain your personal information for as long as necessary to provide the Serv
 | Data Category | Retention Period |
 |---|---|
 | **Account information** (name, phone, PIN hash, email) | Duration of active account + 3 years after account deletion |
-| **Transaction records** (purchase amounts, points, categories) | 7 years (financial record-keeping requirements) |
-| **Receipt images** | 2 years from transaction date |
+| **Transaction records** (purchase amounts, points, categories) | 7 years from the transaction (financial record-keeping); after an account is deleted, kept without your name or phone number |
+| **Receipt images** | 2 years from the transaction date, then deleted automatically (kept longer only while a missing-points report about that purchase is open). A fingerprint of the image (not the image) is kept with the transaction so the same receipt cannot be used twice |
 | **Push notification tokens** | Until account deletion, or until Apple or Google reports the token is no longer valid |
 | **Audit logs** | 3 years |
 | **Chat messages** | 1 year |

@@ -83,7 +83,7 @@ Cliff Industries uses the following subprocessors to deliver the platform servic
 
 Anthropic (Claude) is used to suggest Spanish translations of promotion text and to read product catalog photos. It receives no Personal Data and is therefore not a subprocessor.
 
-Cliff Industries will notify the Controller at least 14 days before adding or replacing a subprocessor that processes Personal Data. If the Controller objects, either party may terminate the Merchant Agreement with 30 days' written notice.
+Cliff Industries will notify the Controller at least 30 days before adding or replacing a subprocessor that processes Personal Data. If the Controller objects, either party may terminate the Merchant Agreement with 30 days' written notice.
 
 ---
 
@@ -121,8 +121,8 @@ The Controller is responsible for any notifications to data subjects or regulato
 
 Personal Data is retained for as long as the customer or employee account is active, plus:
 
-- Transaction records: 3 years after the transaction date (for audit and billing integrity)
-- Receipt photos: 1 year after the transaction date
+- Transaction records: 7 years after the transaction date (for audit, tax and billing integrity)
+- Receipt photos: 2 years after the transaction date, then deleted automatically (kept longer only while a missing-points report about that purchase is open); a fingerprint of the image is kept to block reuse of the same receipt
 - Deleted accounts: Personal Data is removed within 30 days of account deletion. Transaction records are anonymized but retained for billing verification.
 
 Upon termination of the Merchant Agreement, Cliff Industries will delete all Personal Data associated with the Controller's store within 60 days, except where retention is required by law.

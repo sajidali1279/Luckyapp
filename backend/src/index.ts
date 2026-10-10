@@ -14,6 +14,7 @@ import { startCatalogExpiryCron } from './utils/catalog-expiry-cron';
 import { startDailyReportReminderCron } from './utils/daily-report-reminder-cron';
 import { startLabelPriceExpiryCron } from './utils/label-price-expiry-cron';
 import { startNotificationRetentionCron } from './utils/notification-retention-cron';
+import { startReceiptRetentionCron } from './utils/receipt-retention-cron';
 import { startOfferAnnounceCron } from './utils/offerAnnounce';
 import { startOfferLastDayCron } from './utils/offerLastDay';
 import { startNoticeAnnounceCron } from './utils/noticeAnnounce';
@@ -131,6 +132,7 @@ app.listen(PORT, () => {
   startDailyReportReminderCron();
   startLabelPriceExpiryCron();
   startNotificationRetentionCron();
+  startReceiptRetentionCron();   // receipt photos older than 2 years
   startOfferAnnounceCron();
   startOfferLastDayCron();
   startNoticeAnnounceCron();

@@ -111,8 +111,8 @@ Anthropic's Claude service suggests Spanish translations of promotion text for o
 ## 7. Data Retention
 
 - **Account profile** - until you delete your account
-- **Transaction history** - until account deletion, or 5 years for legal compliance (whichever is longer)
-- **Receipt photos** - automatically deleted 12 months after the transaction date
+- **Transaction history** - 7 years from the purchase, for financial record-keeping; after you delete your account it is kept without your name or phone number
+- **Receipt photos** - automatically deleted 2 years after the transaction date (kept longer only while a missing-points report about it is open)
 - **Dispute reports** - 24 months from submission
 - **Push notification tokens** - deleted when Apple or Google reports them no longer valid, and when you delete your account
 - **In-app notifications** - deleted automatically after 30 days
