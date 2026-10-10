@@ -168,6 +168,7 @@ export default function ManagerHome() {
   const totalItems: number = analytics?.totalItems ?? 0;
 
   const initial = (user?.name || user?.phone || '?')[0].toUpperCase();
+  const [headerSize, setHeaderSize] = useState({ w: 0, h: 0 });
 
   return (
     <View style={{ flex: 1 }}>
@@ -176,8 +177,11 @@ export default function ManagerHome() {
         <StatusBar barStyle="light-content" />
 
         {/* ── Header with SVG gradient ── */}
-        <View style={[s.header, stores.length > 1 && s.headerWithPicker]}>
-        <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
+        <View
+          style={s.header}
+          onLayout={(e) => { const { width, height } = e.nativeEvent.layout; setHeaderSize((o) => (o.w === width && o.h === height ? o : { w: width, h: height })); }}
+        >
+        <Svg key={`${headerSize.w}x${headerSize.h}`} width={headerSize.w} height={headerSize.h} style={s.headerGradient} preserveAspectRatio="none">
           <Defs>
             <SvgGradient id="hg" x1="0" y1="0" x2="1" y2="1">
               <Stop offset="0" stopColor="#0a3323" />
@@ -237,7 +241,7 @@ export default function ManagerHome() {
         </View>
 
         {stores.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.storePicker} contentContainerStyle={s.storePickerRow}>
             {stores.map(store => (
               <TouchableOpacity
                 key={store.id}
@@ -548,20 +552,18 @@ const s = StyleSheet.create({
   content: { paddingTop: 0, paddingHorizontal: 16, paddingBottom: 48 },
 
   // ── Header ──────────────────────────────────────────────────────────────────
+  // The quick cards no longer tuck under the header (2026-10-10): the scroll view cut their top off, icons included,
+  // so the header ends with one even padding and the cards start below it
   header: {
     paddingHorizontal: 20,
     paddingTop: 14,
-    paddingBottom: 64,
+    paddingBottom: 18,
     overflow: 'hidden',
   },
-  // The store-picker row below already adds its own height + spacing —
-  // stacking the full 64 on top of it left a large empty gap for any
-  // manager with more than one store (worse the more stores they have).
-  headerWithPicker: {
-    paddingBottom: 20,
-  },
+  headerGradient: { position: 'absolute', top: 0, left: 0 },
+  // 2. Bell and avatar centred on the logo and name (they sat at the top)
   headerRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
+    flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', zIndex: 1,
   },
   headerLogo: {
@@ -572,8 +574,9 @@ const s = StyleSheet.create({
   name:      { fontSize: 24, color: '#FFFFFF', fontWeight: '800', marginTop: 1, letterSpacing: -0.3 },
   storeName: { fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3, fontWeight: '400' },
 
+  storePicker: { marginHorizontal: -20, zIndex: 1 },
   storePickerRow: {
-    flexDirection: 'row', gap: 8, paddingTop: 14, zIndex: 1,
+    flexDirection: 'row', gap: 8, paddingTop: 14, paddingHorizontal: 20,
   },
   storeChip: {
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
@@ -584,9 +587,9 @@ const s = StyleSheet.create({
   storeChipTextActive: { color: '#fff', fontWeight: '700' },
 
   // Bell + avatar
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   bellBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.12)',
     alignItems: 'center', justifyContent: 'center',
   },
@@ -615,7 +618,7 @@ const s = StyleSheet.create({
   quickRow: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: -52,
+    marginTop: 16,
     marginBottom: 10,
   },
   quickCardWide: { flex: 1.5 },
