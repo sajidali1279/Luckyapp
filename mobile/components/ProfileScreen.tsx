@@ -463,7 +463,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
             <View style={s.settingBody}>
               <Text style={s.settingTitle}>{t('notifPermission.title')}</Text>
               <Text style={[s.settingValue, notif.isOff && { color: '#b91c1c' }]}>
-                {notif.isOff ? t('notifPermission.offSub') : t('notifPermission.onSub')}
+                {notif.isOff ? t('notifPermission.offSub') : user?.role === 'CUSTOMER' ? t('notifPermission.onSub') : t('notifPermission.onSubStaff')}
               </Text>
             </View>
             {notif.isOff

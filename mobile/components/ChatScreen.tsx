@@ -12,7 +12,7 @@ import {
 import { Text, TextInput } from './ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import { chatApi } from '../services/api';
@@ -85,6 +85,7 @@ function getInitials(name: string) {
 export default function ChatScreen() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const qc = useQueryClient();
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -101,6 +102,10 @@ export default function ChatScreen() {
     queryKey: ['chat-my-stores'],
     queryFn: () => chatApi.getMyStores(),
   });
+  // Unread messages per store (2026-10-10): the chat opens on the store that has new messages, and the switcher shows each count.
+  // It used to open on the first store alphabetically, so a multi-store employee saw "4 unread" in the menu and an empty chat.
+  const unreadQ = useQuery({ queryKey: ['chat-unread-by-store'], queryFn: () => chatApi.getUnreadByStore(), refetchInterval: 30_000 });
+  const unreadBy: Record<string, number> = unreadQ.data?.data?.data ?? {};
 
   const { notices: visibleNotices, dismiss: dismissNotice } = usePinnedNotices(selectedStoreId);
 
@@ -114,8 +119,18 @@ export default function ChatScreen() {
   useEffect(() => {
     const s: Store[] = storesData?.data?.data || [];
     setStores(s);
-    if (s.length > 0 && !selectedStoreId) setSelectedStoreId(s[0].id);
-  }, [storesData]);
+    if (s.length === 0 || selectedStoreId) return;
+    if (s.length > 1 && unreadQ.isLoading) return;   // wait a moment to know where the new messages are
+    const withNew = [...s].filter((x) => (unreadBy[x.id] ?? 0) > 0).sort((a, b) => (unreadBy[b.id] ?? 0) - (unreadBy[a.id] ?? 0))[0];
+    const own = s.find((x) => user?.storeIds?.includes(x.id));
+    setSelectedStoreId((withNew ?? own ?? s[0]).id);
+  }, [storesData, unreadQ.isLoading]);
+  // Reading a store's messages marks them read: refresh the per-store counts (and the menu badge) when switching
+  useEffect(() => {
+    if (!selectedStoreId) return;
+    const timer = setTimeout(() => { qc.invalidateQueries({ queryKey: ['chat-unread-by-store'] }); qc.invalidateQueries({ queryKey: ['chat-unread-count'] }); }, 1500);
+    return () => clearTimeout(timer);
+  }, [selectedStoreId]);
 
   const { data: initialData, isLoading: msgsLoading, isError: msgsError, refetch: refetchMsgs } = useQuery({
     queryKey: ['chat-messages-init', selectedStoreId],
@@ -347,6 +362,11 @@ export default function ChatScreen() {
                         <Text style={[s.switcherName, active && s.switcherNameActive]} numberOfLines={1}>{store.name}</Text>
                         {store.city ? <Text style={s.switcherCity}>{store.city}</Text> : null}
                       </View>
+                      {!active && (unreadBy[store.id] ?? 0) > 0 && (
+                        <View style={s.switcherBadge} accessibilityLabel={t('sharedChat.unreadInStoreA11y', { count: unreadBy[store.id] })}>
+                          <Text style={s.switcherBadgeText}>{unreadBy[store.id] > 99 ? '99+' : unreadBy[store.id]}</Text>
+                        </View>
+                      )}
                       {active && <CheckCircleIcon size={20} color={COLORS.primary} strokeWidth={2} />}
                     </TouchableOpacity>
                   );
@@ -468,6 +488,8 @@ const s = StyleSheet.create({
   switcherRowActive: { backgroundColor: '#f3f4f6' },
   switcherDot: { width: 10, height: 10, borderRadius: 5 },
   switcherName: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  switcherBadge: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
+  switcherBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   switcherNameActive: { color: COLORS.primary },
   switcherCity: { fontSize: 12, color: '#9ca3af', marginTop: 1 },
 

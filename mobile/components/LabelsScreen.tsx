@@ -528,7 +528,21 @@ export default function LabelsScreen() {
     if (printPriceFor(label) === null) openPriceSheet(label);
   }
 
+  // More than a handful asks first (2026-10-10): with nothing searched, "Add all" sat beside the search box and added every label in the
+  // catalog (920 at one store) to My Prints in one tap.
   function addAllShown() {
+    if (!cartId || shownAddable.length === 0) return;
+    if (shownAddable.length > 25) {
+      Alert.alert(t('sharedLabels.addAllConfirmTitle', { n: shownAddable.length }), t('sharedLabels.addAllConfirmBody'), [
+        { text: t('sharedLabels.addAllConfirmNo'), style: 'cancel' },
+        { text: t('sharedLabels.addAllConfirmYes', { n: shownAddable.length }), onPress: doAddAllShown },
+      ]);
+      return;
+    }
+    doAddAllShown();
+  }
+
+  function doAddAllShown() {
     if (!cartId || shownAddable.length === 0) return;
     useLabelCart.getState().add(cartId, shownAddable.map(l => l.id));
     const skipped = shownNotInCart.length - shownAddable.length;

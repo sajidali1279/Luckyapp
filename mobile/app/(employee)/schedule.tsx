@@ -207,7 +207,7 @@ export default function ScheduleScreen() {
             onPress={goThisWeek}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="View this week"
+            accessibilityLabel={t('staffA11y.viewThisWeek')}
           >
             <Text style={[s.weekToggleText, weekOffset === 0 && s.weekToggleTextActive]}>{t('employeeSchedule.thisWeek')}</Text>
           </TouchableOpacity>
@@ -216,7 +216,7 @@ export default function ScheduleScreen() {
             onPress={goNextWeek}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel="View next week"
+            accessibilityLabel={t('staffA11y.viewNextWeek')}
           >
             <Text style={[s.weekToggleText, weekOffset === 1 && s.weekToggleTextActive]}>{t('employeeSchedule.nextWeek')}</Text>
           </TouchableOpacity>
@@ -240,7 +240,7 @@ export default function ScheduleScreen() {
                   onPress={() => setSelectedDayKey(key)}
                   activeOpacity={0.75}
                   accessibilityRole="button"
-                  accessibilityLabel={`View ${DAY_LABELS[key]} schedule`}
+                  accessibilityLabel={t('staffA11y.viewDay', { day: DAY_LABELS[key] })}
                 >
                   <Text style={[s.calLetter, isSelected && s.calLetterSelected, isToday && !isSelected && s.calLetterToday]}>
                     {DAY_LETTER[key]}
@@ -347,7 +347,7 @@ export default function ScheduleScreen() {
                         onPress={() => handleRequestOff(selectedTemplate, selectedDayData.date)}
                         activeOpacity={0.8}
                         accessibilityRole="button"
-                        accessibilityLabel={`Request time off for ${DAY_LABELS[selectedDayKey]}`}
+                        accessibilityLabel={t('staffA11y.requestOff', { day: DAY_LABELS[selectedDayKey] })}
                         hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       >
                         <Text style={s.actionBtnText}>{t('employeeSchedule.requestOffBtn')}</Text>
@@ -378,7 +378,7 @@ export default function ScheduleScreen() {
                           onPress={() => handleFillIn(storeId, storeName, selectedDayData.date)}
                           activeOpacity={0.8}
                           accessibilityRole="button"
-                          accessibilityLabel={`Request extra shift for ${DAY_LABELS[selectedDayKey]}`}
+                          accessibilityLabel={t('staffA11y.requestExtra', { day: DAY_LABELS[selectedDayKey] })}
                           hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                         >
                           <Text style={[s.actionBtnText, s.actionBtnGreenText]}>{t('employeeSchedule.requestExtraShiftBtn')}</Text>
@@ -405,7 +405,7 @@ export default function ScheduleScreen() {
                     onPress={() => setSelectedDayKey(key)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`View ${DAY_LABELS[key]} schedule`}
+                    accessibilityLabel={t('staffA11y.viewDay', { day: DAY_LABELS[key] })}
                   >
                     <Text style={[s.weekDotDay, isToday && s.weekDotDayToday]}>{key.slice(0, 2)}</Text>
                     {shiftColor ? (
@@ -418,6 +418,16 @@ export default function ScheduleScreen() {
                   </TouchableOpacity>
                 );
               })}
+            </View>
+            {/* What the letters mean (2026-10-10): the strip showed O / M / C with no key */}
+            <View style={s.weekLegend}>
+              {[...new Set(weekDates.map(({ key }) => templateByDay[key]?.shiftType).filter(Boolean))].map((st: any) => (
+                <View key={st} style={s.weekLegendItem}>
+                  <View style={[s.weekLegendDot, { backgroundColor: SHIFT_COLORS[st] }]}><Text style={s.weekLegendLetter}>{SHIFT_LABELS[st][0]}</Text></View>
+                  <Text style={s.weekLegendText}>{SHIFT_LABELS[st]}</Text>
+                </View>
+              ))}
+              <View style={s.weekLegendItem}><Text style={s.weekLegendDash}>–</Text><Text style={s.weekLegendText}>{t('employeeSchedule.legendOff')}</Text></View>
             </View>
 
             {/* ── Pending Requests ── */}
@@ -503,7 +513,7 @@ export default function ScheduleScreen() {
                                   onPress={() => setRequestModal({ ...requestModal, storeId: store.id, storeName: store.name, shiftType: 'OPENING' })}
                                   activeOpacity={0.8}
                                   accessibilityRole="button"
-                                  accessibilityLabel={`Select ${store.name}${store.city ? `, ${store.city}` : ''} as store`}
+                                  accessibilityLabel={t('staffA11y.selectStore', { store: `${store.name}${store.city ? `, ${store.city}` : ''}` })}
                                   hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                                 >
                                   <Text style={[s.chipText, isActive && s.chipTextActive]}>
@@ -536,7 +546,7 @@ export default function ScheduleScreen() {
                               onPress={() => setRequestModal({ ...requestModal, shiftType: st })}
                               activeOpacity={0.8}
                               accessibilityRole="button"
-                              accessibilityLabel={`Select ${SHIFT_LABELS[st]} shift, ${SHIFT_TIMES[st]}${isEmpty ? ', currently unstaffed' : ''}`}
+                              accessibilityLabel={t(isEmpty ? 'staffA11y.selectShiftEmpty' : 'staffA11y.selectShift', { shift: SHIFT_LABELS[st], time: SHIFT_TIMES[st] })}
                             >
                               <View style={[s.shiftSlotIconWrap, { backgroundColor: color + '20' }]}>
                                 <View style={[s.shiftSlotDot, { backgroundColor: color }]} />
@@ -603,7 +613,7 @@ export default function ScheduleScreen() {
                     onPress={() => setRequestModal(null)}
                     activeOpacity={0.8}
                     accessibilityRole="button"
-                    accessibilityLabel="Cancel request"
+                    accessibilityLabel={t('staffA11y.cancelRequest')}
                   >
                     <Text style={s.cancelBtnText}>{t('employeeSchedule.cancelBtn')}</Text>
                   </TouchableOpacity>
@@ -749,6 +759,12 @@ const s = StyleSheet.create({
   },
   sectionBadgeText: { color: COLORS.statusPendingText, fontSize: 11, fontWeight: '800' },
 
+  weekLegend: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: -14, marginBottom: 22, paddingHorizontal: 4 },
+  weekLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  weekLegendDot: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  weekLegendLetter: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  weekLegendDash: { width: 20, textAlign: 'center', color: COLORS.textMuted, fontWeight: '800' },
+  weekLegendText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
   weekOverview: {
     flexDirection: 'row', gap: 6, marginBottom: 24,
     backgroundColor: COLORS.white, borderRadius: 16, padding: 14,

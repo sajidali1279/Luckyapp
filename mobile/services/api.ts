@@ -182,6 +182,7 @@ export const chatApi = {
   sendMessage: (storeId: string, text: string) =>
     api.post(`/chat/${storeId}/messages`, { text }),
   getUnreadCount: () => api.get('/chat/unread-count'),
+  getUnreadByStore: () => api.get('/chat/unread-by-store'),   // { [storeId]: count }
 };
 
 export const noticesApi = {

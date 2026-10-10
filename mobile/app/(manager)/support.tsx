@@ -272,7 +272,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
             onPress={onClose}
             style={{ padding: 8 }}
             accessibilityRole="button"
-            accessibilityLabel="Close ticket"
+            accessibilityLabel={t('staffA11y.closeTicket')}
             hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
           >
             <XIcon size={20} color="#fff" strokeWidth={2} />
@@ -346,7 +346,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
                 onPress={() => sendMutation.mutate()}
                 disabled={!reply.trim() || sendMutation.isPending}
                 accessibilityRole="button"
-                accessibilityLabel="Send reply"
+                accessibilityLabel={t('staffA11y.sendReply')}
                 hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
               >
                 {sendMutation.isPending
@@ -490,7 +490,7 @@ function ThreadCard({ thread, onPress }: { thread: Thread; onPress: () => void }
       onPress={onPress}
       activeOpacity={0.75}
       accessibilityRole="button"
-      accessibilityLabel={`Open ticket: ${thread.subject}, ${t(sc.labelKey)}`}
+      accessibilityLabel={t('staffA11y.openTicket', { subject: thread.subject, status: t(sc.labelKey) })}
     >
       <View style={s.cardTop}>
         <Text style={s.cardSubject} numberOfLines={1}>{thread.subject}</Text>

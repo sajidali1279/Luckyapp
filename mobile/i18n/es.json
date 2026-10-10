@@ -754,10 +754,10 @@
     "hotFoodOrdersEmpty": "No hay pedidos pendientes ahora",
     "activePromotions": "Promociones Activas",
     "noActivePromotions": "No hay promociones activas",
-    "standardCashbackNote": "El cashback estándar del 5% aplica a todas las compras",
+    "standardCashbackNote": "El cashback depende del nivel del cliente y de cualquier promoción activa. Lo ves al escanear su QR.",
     "todaysDeals": "Ofertas de Hoy",
     "dailyReportTitle": "Reporte Diario",
-    "infoCashback": "Cashback estándar: 5¢ por cada $1 gastado",
+    "infoCashback": "El cashback sigue el nivel del cliente; lo ves al escanear",
     "infoReceipt": "Siempre sube un recibo para completar la transacción",
     "infoPromosAuto": "Las promociones activas se aplican automáticamente",
     "shiftOpening": "Apertura",
@@ -926,7 +926,8 @@
     "emptyShiftBadge": "Vacío ⚠️",
     "submitRequestBtn": "Enviar Solicitud →",
     "cancelBtn": "Cancelar",
-    "loadError": "No se pudo cargar tu horario. Tus turnos no se muestran, así que vuelve a intentarlo antes de suponer que tienes el día libre."
+    "loadError": "No se pudo cargar tu horario. Tus turnos no se muestran, así que vuelve a intentarlo antes de suponer que tienes el día libre.",
+    "legendOff": "Día libre"
   },
   "employeeStockRequest": {
     "alreadyInList": "\"{{name}}\" ya está en la lista",
@@ -1326,7 +1327,8 @@
     "switchStoreTitle": "Cambiar Tienda",
     "closeSwitcherA11y": "Cerrar selector de tienda",
     "noMessagesYet": "Aún no hay mensajes - ¡saluda!",
-    "inputPlaceholder": "Escribe un mensaje…"
+    "inputPlaceholder": "Escribe un mensaje…",
+    "unreadInStoreA11y": "{{count}} sin leer"
   },
   "sharedEmployeeRequests": {
     "alertSentTitle": "Alerta Enviada",
@@ -2080,7 +2082,11 @@
     "similarDeal": "La misma oferta que productos parecidos: {{deal}}",
     "similarLine": "Misma línea de productos: {{names}}",
     "similarMaker": "Misma marca: {{names}}",
-    "priceHqOnly": "El precio para todas las tiendas lo fija la oficina central. Para cambiarlo en su tienda, use Cambiar precio en el artículo."
+    "priceHqOnly": "El precio para todas las tiendas lo fija la oficina central. Para cambiarlo en su tienda, use Cambiar precio en el artículo.",
+    "addAllConfirmTitle": "¿Agregar {{n}} etiquetas a Mis impresiones?",
+    "addAllConfirmBody": "Son todas las etiquetas que se ven. Para agregar menos, busca o filtra primero.",
+    "addAllConfirmYes": "Agregar {{n}}",
+    "addAllConfirmNo": "Cancelar"
   },
   "sharedScanner": {
     "titleScan": "Escanear Código de Barras",
@@ -2439,7 +2445,8 @@
     "onA11y": "Las notificaciones están activadas",
     "bannerTitle": "Las notificaciones están desactivadas",
     "bannerBody": "No te enterarás de nuevas ofertas, recompensas ni mensajes. Actívalas para no perderte ninguna oferta.",
-    "dismissA11y": "Ocultar este aviso por una semana"
+    "dismissA11y": "Ocultar este aviso por una semana",
+    "onSubStaff": "Activadas. Recibirás avisos de tus turnos, solicitudes y novedades de la tienda"
   },
   "labelPaper": {
     "title": "Papel de etiquetas",
@@ -2861,5 +2868,34 @@
     "signupAdded": "Te invitó {{name}}",
     "signupAddedBody": "Los dos reciben su bono después de tu primera compra de ${{min}}.",
     "signupNotAdded": "Tu cuenta está lista, pero el código de invitación no se agregó"
+  },
+  "staffA11y": {
+    "closeReportForm": "Cerrar el formulario del reporte",
+    "submitDailyReport": "Enviar el reporte diario",
+    "newDailyReport": "Enviar un nuevo reporte diario",
+    "changeStore": "Cambiar tienda, ahora {{store}}",
+    "notSelected": "ninguna elegida",
+    "selectStore": "Elegir {{store}} como tienda",
+    "tasksTicker": "Lista de tareas del día, tarea {{n}} de {{total}}: {{task}}",
+    "viewThisWeek": "Ver esta semana",
+    "viewNextWeek": "Ver la próxima semana",
+    "viewDay": "Ver el horario del {{day}}",
+    "requestOff": "Pedir día libre el {{day}}",
+    "requestExtra": "Pedir turno extra el {{day}}",
+    "selectShift": "Elegir el turno {{shift}}, {{time}}",
+    "selectShiftEmpty": "Elegir el turno {{shift}}, {{time}}, sin personal ahora",
+    "cancelRequest": "Cancelar solicitud",
+    "typeLowStock": "Tipo de solicitud: poco inventario",
+    "typeCustomerAsk": "Tipo de solicitud: pedido de cliente",
+    "scanToAdd": "Escanear código de barras para agregar",
+    "addItem": "Agregar artículo a la solicitud",
+    "addSuggestion": "Agregar {{name}} a la solicitud",
+    "removeItem": "Quitar {{name}} de la solicitud",
+    "submitStock": "Enviar solicitud de inventario",
+    "submitStockCount_one": "Enviar solicitud de inventario con {{count}} artículo",
+    "submitStockCount_other": "Enviar solicitud de inventario con {{count}} artículos",
+    "closeTicket": "Cerrar ticket",
+    "sendReply": "Enviar respuesta",
+    "openTicket": "Abrir ticket: {{subject}}, {{status}}"
   }
 }

@@ -744,10 +744,10 @@
     "hotFoodOrdersEmpty": "No pending orders right now",
     "activePromotions": "Active Promotions",
     "noActivePromotions": "No active promotions",
-    "standardCashbackNote": "Standard 5% cashback applies to all purchases",
+    "standardCashbackNote": "Cashback depends on the customer's tier and any active promotion. You see it after you scan their QR.",
     "todaysDeals": "Today's Deals",
     "dailyReportTitle": "Daily Report",
-    "infoCashback": "Standard cashback: 5¢ per $1 spent",
+    "infoCashback": "Cashback follows the customer's tier, shown after you scan",
     "infoReceipt": "Always upload a receipt to complete the transaction",
     "infoPromosAuto": "Active promotions apply automatically",
     "promosActive_one": "{{count}} active promo",
@@ -926,7 +926,8 @@
     "optionalTag": "(optional)",
     "fillInNotesPlaceholder": "Any notes for your manager…",
     "timeOffNotesPlaceholder": "Reason for time off…",
-    "loadError": "Couldn't load your schedule. Your shifts are not shown, so check again before assuming a day off."
+    "loadError": "Couldn't load your schedule. Your shifts are not shown, so check again before assuming a day off.",
+    "legendOff": "Day off"
   },
   "employeeStockRequest": {
     "submitFailed": "Failed to submit",
@@ -1326,7 +1327,8 @@
     "roleDev": "Dev Admin",
     "roleHq": "Lucky Stop HQ",
     "roleManager": "Store Manager",
-    "roleStaff": "Staff"
+    "roleStaff": "Staff",
+    "unreadInStoreA11y": "{{count}} unread"
   },
   "sharedEmployeeRequests": {
     "genericErrorMessage": "Something went wrong. Please try again.",
@@ -2080,7 +2082,11 @@
     "similarDeal": "Same deal as similar items: {{deal}}",
     "similarLine": "Same product line: {{names}}",
     "similarMaker": "Same brand: {{names}}",
-    "priceHqOnly": "The price for every store is set by HQ. To change it at your store, use Change price on the item."
+    "priceHqOnly": "The price for every store is set by HQ. To change it at your store, use Change price on the item.",
+    "addAllConfirmTitle": "Add {{n}} labels to My Prints?",
+    "addAllConfirmBody": "That is every label shown. To add fewer, search or filter first.",
+    "addAllConfirmYes": "Add {{n}}",
+    "addAllConfirmNo": "Cancel"
   },
   "sharedScanner": {
     "titleScan": "Scan Barcode",
@@ -2439,7 +2445,8 @@
     "onA11y": "Notifications are on",
     "bannerTitle": "Notifications are off",
     "bannerBody": "You won't hear about new offers, rewards or messages. Turn them on so you never miss a deal.",
-    "dismissA11y": "Hide this reminder for a week"
+    "dismissA11y": "Hide this reminder for a week",
+    "onSubStaff": "On. You will get alerts for your shifts, requests and store news"
   },
   "labelPaper": {
     "title": "Label paper",
@@ -2861,5 +2868,34 @@
     "signupAdded": "Invited by {{name}}",
     "signupAddedBody": "You both get your bonus after your first ${{min}} purchase.",
     "signupNotAdded": "Your account is ready, but the invite code was not added"
+  },
+  "staffA11y": {
+    "closeReportForm": "Close report form",
+    "submitDailyReport": "Submit daily report",
+    "newDailyReport": "Submit a new daily report",
+    "changeStore": "Change store, currently {{store}}",
+    "notSelected": "not selected",
+    "selectStore": "Select {{store}} as store",
+    "tasksTicker": "Daily tasks checklist, showing task {{n}} of {{total}}: {{task}}",
+    "viewThisWeek": "View this week",
+    "viewNextWeek": "View next week",
+    "viewDay": "View {{day}} schedule",
+    "requestOff": "Request time off for {{day}}",
+    "requestExtra": "Request extra shift for {{day}}",
+    "selectShift": "Select {{shift}} shift, {{time}}",
+    "selectShiftEmpty": "Select {{shift}} shift, {{time}}, currently unstaffed",
+    "cancelRequest": "Cancel request",
+    "typeLowStock": "Select request type: Low Stock",
+    "typeCustomerAsk": "Select request type: Customer Ask",
+    "scanToAdd": "Scan barcode to add item",
+    "addItem": "Add item to request",
+    "addSuggestion": "Add {{name}} to request",
+    "removeItem": "Remove {{name}} from request",
+    "submitStock": "Submit stock request",
+    "submitStockCount_one": "Submit stock request with {{count}} item",
+    "submitStockCount_other": "Submit stock request with {{count}} items",
+    "closeTicket": "Close ticket",
+    "sendReply": "Send reply",
+    "openTicket": "Open ticket: {{subject}}, {{status}}"
   }
 }

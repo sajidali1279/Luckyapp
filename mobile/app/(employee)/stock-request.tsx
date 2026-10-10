@@ -193,7 +193,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
             style={[f.typeChip, requestType === 'LOW_STOCK' && f.typeChipActive]}
             onPress={() => setRequestType('LOW_STOCK')}
             accessibilityRole="tab"
-            accessibilityLabel="Select request type: Low Stock"
+            accessibilityLabel={t('staffA11y.typeLowStock')}
             hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
           >
             <Text style={[f.typeChipText, requestType === 'LOW_STOCK' && f.typeChipTextActive]}>{t('employeeStockRequest.lowStockChip')}</Text>
@@ -202,7 +202,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
             style={[f.typeChip, requestType === 'CUSTOMER_REQUEST' && f.typeChipActive]}
             onPress={() => setRequestType('CUSTOMER_REQUEST')}
             accessibilityRole="tab"
-            accessibilityLabel="Select request type: Customer Ask"
+            accessibilityLabel={t('staffA11y.typeCustomerAsk')}
             hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
           >
             <Text style={[f.typeChipText, requestType === 'CUSTOMER_REQUEST' && f.typeChipTextActive]}>{t('employeeStockRequest.customerAskChip')}</Text>
@@ -219,7 +219,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
               onPress={() => setShowScanner(true)}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Scan barcode to add item"
+              accessibilityLabel={t('staffA11y.scanToAdd')}
             >
               <QrCodeScanIcon size={22} color="#fff" strokeWidth={2} />
             </TouchableOpacity>
@@ -250,7 +250,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                       style={f.suggRow}
                       onPress={() => pickSugg(sg)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Add ${sg.name}${sg.category ? `, ${sg.category}` : ''} to request`}
+                      accessibilityLabel={t('staffA11y.addSuggestion', { name: `${sg.name}${sg.category ? `, ${sg.category}` : ''}` })}
                       hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                     >
                       <Text style={f.suggName}>{sg.name}</Text>
@@ -266,7 +266,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
               disabled={!search.trim()}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Add item to request"
+              accessibilityLabel={t('staffA11y.addItem')}
             >
               <PlusIcon size={22} color="#fff" strokeWidth={2.5} />
             </TouchableOpacity>
@@ -298,7 +298,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                         style={f.removeBtn}
                         onPress={() => removeItem(item.key)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Remove ${item.name} from request`}
+                        accessibilityLabel={t('staffA11y.removeItem', { name: item.name })}
                         hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
                       >
                         <XIcon size={14} color="#DC2626" strokeWidth={2.5} />
@@ -371,7 +371,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
           disabled={!canSubmit}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel={`Submit stock request${cart.length > 0 ? ` with ${cart.length} item${cart.length !== 1 ? 's' : ''}` : ''}`}
+          accessibilityLabel={cart.length > 0 ? t('staffA11y.submitStockCount', { count: cart.length }) : t('staffA11y.submitStock')}
         >
           {submitMut.isPending
             ? <ActivityIndicator color="#fff" />

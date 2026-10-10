@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
-import { schedulingApi, notificationsApi, hotFoodApi, chatApi } from '../../services/api';
+import { notificationsApi, hotFoodApi, chatApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
@@ -24,12 +24,7 @@ export default function EmployeeLayout() {
   });
   const hotFoodCount: number = hotFoodCountData?.data?.data?.count ?? 0;
 
-  const { data: vacData } = useQuery({
-    queryKey: ['schedule-vacancies'],
-    queryFn: () => schedulingApi.getVacancies(),
-    refetchInterval: 120000,
-  });
-  const vacancyCount: number = vacData?.data?.data?.totalVacancies || 0;
+  // (No schedule badge: it counted every unstaffed shift, a manager's job, and sat at 99+ (2026-10-10). Open shifts show on My Schedule.)
 
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
@@ -61,7 +56,7 @@ export default function EmployeeLayout() {
     {
       title: t('nav.groupWork'),
       items: [
-        { route: '/(employee)/schedule',   icon: (p) => <CalendarIcon {...p} />,      label: t('nav.schedule'), badge: vacancyCount },
+        { route: '/(employee)/schedule',   icon: (p) => <CalendarIcon {...p} />,      label: t('nav.schedule') },
         { route: '/(employee)/chat',       icon: (p) => <MessageCircleIcon {...p} />, label: t('nav.chat'), badge: chatUnread },
         { route: '/(employee)/requests',   icon: (p) => <ClipboardIcon {...p} />,     label: t('nav.requests') },
         { route: '/(employee)/labels',     icon: (p) => <TagIcon {...p} />,           label: t('nav.labels') },

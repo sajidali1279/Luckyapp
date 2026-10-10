@@ -7,12 +7,13 @@ import {
   Pressable,
   ScrollView,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { Text } from './ScaledText';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, router } from 'expo-router';
-import { useRef, useState, ReactNode, useCallback } from 'react';
+import { useRef, useState, ReactNode, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
@@ -69,6 +70,13 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
       Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
     ]).start(() => { setOpen(false); cb?.(); });
   }, []);
+
+  // Android back with the menu open closes the menu (it used to leave the app)
+  useEffect(() => {
+    if (!open) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { closeDrawer(); return true; });
+    return () => sub.remove();
+  }, [open, closeDrawer]);
 
   function navigate(route: string) {
     closeDrawer(() => router.navigate(route as any));

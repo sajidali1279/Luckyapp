@@ -468,7 +468,7 @@ export default function EmployeeHomeScreen() {
               onPress={() => router.push('/(employee)/daily-tasks')}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel={`Daily tasks checklist, showing task ${(taskIdx % shiftTasks.length) + 1} of ${shiftTasks.length}: ${shiftTasks[taskIdx % shiftTasks.length].title}`}
+              accessibilityLabel={t('staffA11y.tasksTicker', { n: (taskIdx % shiftTasks.length) + 1, total: shiftTasks.length, task: shiftTasks[taskIdx % shiftTasks.length].title })}
             >
               <View style={s.taskTickerIconBg}>
                 <ListChecksIcon size={20} color={COLORS.primary} strokeWidth={2} />
