@@ -670,7 +670,7 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
   // Customers whose first purchase ever was while it ran, with it
   const users = [...new Set(approved.map((s) => s.customerId))];
   const firsts = users.length ? await prisma.pointsTransaction.groupBy({
-    by: ['customerId'], where: { customerId: { in: users }, status: { not: 'REJECTED' }, challengeId: null }, _min: { createdAt: true },
+    by: ['customerId'], where: { customerId: { in: users }, status: { not: 'REJECTED' }, challengeId: null, referralId: null }, _min: { createdAt: true },
   }) : [];
   const firstTimers = firsts.filter((f) => f._min.createdAt && f._min.createdAt >= start).length;
 

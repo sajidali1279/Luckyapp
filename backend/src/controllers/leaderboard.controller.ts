@@ -158,6 +158,7 @@ export async function getPendingRatings(req: AuthRequest, res: Response) {
       createdAt: { gte: since },
       rating: null,
       challengeId: null,   // a challenge's reward had no cashier to rate
+      referralId: null,    // nor a referral's
     },
     select: {
       id: true,

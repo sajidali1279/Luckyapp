@@ -33,13 +33,13 @@ export async function submitDispute(req: AuthRequest, res: Response) {
   if (transactionId) {
     const transaction = await prisma.pointsTransaction.findUnique({
       where: { id: transactionId },
-      select: { id: true, customerId: true, storeId: true, challengeId: true },
+      select: { id: true, customerId: true, storeId: true, challengeId: true, referralId: true },
     });
     if (!transaction) {
       res.status(404).json({ success: false, error: 'Transaction not found' });
       return;
     }
-    if (transaction.challengeId) {
+    if (transaction.challengeId || transaction.referralId) {
       res.status(400).json({ success: false, error: 'A challenge reward is not a purchase. If a purchase was counted wrong, report that purchase.' });
       return;
     }

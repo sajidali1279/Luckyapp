@@ -3,6 +3,7 @@ import { offerPaysAt } from '../utils/offerHours';
 import { forCustomer } from '../utils/offerAudience';
 import { hasLimits, promotionRoom, noteBudgetUse } from '../utils/offerBudget';
 import { creditChallenges, pushChallengeAwards } from '../utils/challenges';
+import { creditReferral, pushReferralAwards } from '../utils/referrals';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
@@ -217,7 +218,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   // Daily self-grant cap — limits abuse if a store API key is compromised
   const todayStart = storeDayStart();
   const todaySelfGrantCount = await prisma.pointsTransaction.count({
-    where: { customerId: customer.id, grantedById: customer.id, challengeId: null, createdAt: { gte: todayStart } },   // a challenge reward is not a scan
+    where: { customerId: customer.id, grantedById: customer.id, challengeId: null, referralId: null, createdAt: { gte: todayStart } },   // a challenge or referral reward is not a scan
   });
   if (todaySelfGrantCount >= 15) {
     res.status(429).json({ success: false, error: 'Daily receipt scan limit reached. Visit the store cashier to claim additional points.' });
@@ -375,8 +376,13 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   // Challenges: each approved line moves them on, one after the other (utils/challenges.ts)
   const challengeAwards = [];
   for (const line of transactions) challengeAwards.push(...await prisma.$transaction((db) => creditChallenges(db, line.id)));
-  const challengeExtra = challengeAwards.reduce((n, a) => n + a.reward, 0);
+  // A referral the first of these lines completes (utils/referrals.ts)
+  const referralAwards = [];
+  for (const line of transactions) referralAwards.push(...await prisma.$transaction((db) => creditReferral(db, line.id)));
+  const challengeExtra = challengeAwards.reduce((n, a) => n + a.reward, 0)
+    + referralAwards.filter((a) => a.customerId === customer.id).reduce((n, a) => n + a.amount, 0);
   pushChallengeAwards(challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));
+  pushReferralAwards(referralAwards).catch((e) => console.error('[referrals] push failed:', e?.message ?? e));
 
   // Recalculate tier after balance update
   await updateCustomerTierIfNeeded(customer.id, updatedCustomer.periodPoints + challengeExtra, updatedCustomer.tier);

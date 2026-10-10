@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { customersApi, disputesApi, storesApi, staffApi, CustomerFilters } from '../services/api';
@@ -16,6 +16,7 @@ import { useSingleFlight } from '../hooks/useSingleFlight';
 import { PageHeader, HeaderStat, Button, Tabs } from '../components/kit';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import ReferralsPanel from '../components/ReferralsPanel';
 
 function fmt$(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -43,6 +44,7 @@ function creditProblem(text: string): string | null {
 
 export default function Customers() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const isDevAdmin = user?.role === 'DEV_ADMIN';
@@ -58,8 +60,8 @@ export default function Customers() {
   const [deleteTyped, setDeleteTyped] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [fraudNote, setFraudNote] = useState('');
-  const [activeTab, setActiveTab] = useState<'customers' | 'disputes'>(
-    searchParams.get('tab') === 'disputes' ? 'disputes' : 'customers'
+  const [activeTab, setActiveTab] = useState<'customers' | 'disputes' | 'referrals'>(
+    searchParams.get('tab') === 'disputes' ? 'disputes' : searchParams.get('tab') === 'referrals' ? 'referrals' : 'customers'
   );
   const highlightId = searchParams.get('highlightId');
   const [disputeStore, setDisputeStore] = useState('');
@@ -71,10 +73,6 @@ export default function Customers() {
   const [exportingCustomers, setExportingCustomers] = useState(false);
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [filters, setFilters] = useState<CustomerFilters>({ sort: 'joined_desc' });
-  const [detailTarget, setDetailTarget] = useState<{ id: string; name: string } | null>(null);
-  const [goodwillAmt, setGoodwillAmt] = useState('');
-  const [goodwillReason, setGoodwillReason] = useState('');
-  const [goodwillError, setGoodwillError] = useState('');
   const activeFilterCount = [filters.status, filters.hasBalance, filters.hasNote, filters.joinedWithin, filters.hideTest].filter(Boolean).length;
 
   async function handleExportCustomers() {
@@ -99,37 +97,6 @@ export default function Customers() {
     queryFn: () => customersApi.list(search, page, filters),
   });
 
-  const detailQuery = useQuery({
-    queryKey: ['customer-detail', detailTarget?.id],
-    queryFn: () => customersApi.detail(detailTarget!.id),
-    enabled: !!detailTarget,
-  });
-  const detail = detailQuery.data?.data?.data as
-    | { customer: any; totals: { txCount: number; totalSpent: number }; sales: any[]; redemptions: any[]; disputes: any[] }
-    | undefined;
-
-  const goodwillIssue = (() => {
-    const t = goodwillAmt.trim();
-    if (t === '') return null;
-    if (!/^(\d{1,2}(\.\d{1,2})?|\.\d{1,2})$/.test(t) || !(Number(t) > 0)) return 'Enter dollars and cents, from $0.01 to $25.';
-    if (Number(t) > 25) return 'A goodwill credit can be at most $25. For more, use a missing-points report instead.';
-    return null;
-  })();
-  const goodwillOk = goodwillAmt.trim() !== '' && goodwillIssue === null && goodwillReason.trim() !== '';
-
-  const goodwillMutation = useMutation({
-    mutationFn: ({ id, amount, reason }: { id: string; amount: number; reason: string }) => customersApi.goodwillCredit(id, amount, reason),
-    onSuccess: () => {
-      toast.success(`$${Number(goodwillAmt).toFixed(2)} credited to ${detailTarget?.name}.`);
-      qc.invalidateQueries({ queryKey: ['customers'] });
-      qc.invalidateQueries({ queryKey: ['customer-detail', detailTarget?.id] });
-      setGoodwillAmt(''); setGoodwillReason(''); setGoodwillError('');
-    },
-    onError: (e: any) => setGoodwillError(failureMessage(e, 'Could not add the credit. Nothing was changed.')),
-  });
-  const runGoodwill = useSingleFlight(goodwillMutation);
-
-  function closeDetail() { setDetailTarget(null); setGoodwillAmt(''); setGoodwillReason(''); setGoodwillError(''); }
 
   const { data: storesData } = useQuery({
     queryKey: ['stores'],
@@ -274,8 +241,10 @@ export default function Customers() {
         tabs={[
           { value: 'customers', label: 'Customers' },
           { value: 'disputes', label: pendingCount > 0 ? `Disputes (${pendingCount} pending)` : 'Disputes' },
+          { value: 'referrals', label: 'Referrals' },
         ]}
       />
+      {activeTab === 'referrals' && <div role="tabpanel" aria-label="Referrals"><ReferralsPanel /></div>}
       {/* ── Disputes tab ── */}
       {activeTab === 'disputes' && (
         <div role="tabpanel" aria-label="Disputes">
@@ -466,10 +435,10 @@ export default function Customers() {
                   {/* Action */}
                   <button
                     style={{ ...s.actionBtn, ...s.actionBtnView }}
-                    aria-label={`View ${displayName}'s sales, redemptions and reports`}
-                    onClick={() => setDetailTarget({ id: c.id, name: displayName })}
+                    aria-label={`Open ${displayName}'s profile: details, every transaction, notes and referrals`}
+                    onClick={() => navigate(`/customers/${c.id}`)}
                   >
-                    View Details
+                    View Profile
                   </button>
                   <button
                     style={{ ...s.actionBtn, ...(c.isActive ? s.actionBtnRestrict : s.actionBtnRestore) }}
@@ -651,103 +620,8 @@ export default function Customers() {
         </Modal>
       )}
 
-      {/* ── Customer detail panel: their sales, redemptions and reports, plus a goodwill credit ── */}
-      {detailTarget && (
-        <Modal title={`${detailTarget.name} - Details`} onClose={closeDetail} maxWidth={640}>
-          {detailQuery.isLoading ? (
-            <div style={s.modalText} role="status">Loading…</div>
-          ) : detailQuery.isError ? (
-            <div role="alert" style={s.errorBox}>
-              Could not load this customer. <button type="button" style={s.linkBtn} onClick={() => detailQuery.refetch()}>Try again</button>
-            </div>
-          ) : detail ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <div style={s.detailSummaryRow}>
-                <div style={s.detailStat}><div style={s.detailStatNum}>{fmt$(detail.customer.pointsBalance || 0)}</div><div style={s.detailStatLbl}>Balance</div></div>
-                <div style={s.detailStat}><div style={s.detailStatNum}>{detail.totals.txCount}</div><div style={s.detailStatLbl}>Sales</div></div>
-                <div style={s.detailStat}><div style={s.detailStatNum}>{fmt$(detail.totals.totalSpent)}</div><div style={s.detailStatLbl}>Total Spent</div></div>
-                <div style={s.detailStat}><div style={s.detailStatNum}>{storeDayLong(detail.customer.createdAt)}</div><div style={s.detailStatLbl}>Joined</div></div>
-              </div>
-              {detail.customer.isTest && <div style={s.testNote}>This looks like a test account (a 111-555 area code).</div>}
-              {!detail.customer.isActive && <div style={s.fraudBadge}>Restricted{detail.customer.fraudNote ? `: ${detail.customer.fraudNote}` : ''}</div>}
-
-              <div>
-                <div style={s.detailSectionTitle}>Recent Sales {detail.sales.length === 0 && <span style={s.detailEmpty}>- none yet</span>}</div>
-                {detail.sales.map((t: any) => (
-                  <div key={t.id} style={s.detailRow}>
-                    <span>{storeDayTime(t.createdAt)} · {t.store?.name || 'Unknown store'}</span>
-                    <span>${Number(t.purchaseAmount).toFixed(2)} · {statusWord(t.status)}{t.receiptImageUrl && <a href={t.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 6 }} aria-label="Open the receipt photo" title="Open the receipt photo"><Glyph e="📷" size={14} color="#1D3557" style={{ verticalAlign: -2 }} /></a>}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <div style={s.detailSectionTitle}>Recent Redemptions {detail.redemptions.length === 0 && <span style={s.detailEmpty}>- none yet</span>}</div>
-                {detail.redemptions.map((r: any) => (
-                  <div key={r.id} style={s.detailRow}>
-                    <span>{storeDayTime(r.createdAt)} · {r.store?.name || 'Unknown store'}</span>
-                    <span>{fmt$(r.amount)}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div>
-                <div style={s.detailSectionTitle}>Missing-Points Reports {detail.disputes.length === 0 && <span style={s.detailEmpty}>- none yet</span>}</div>
-                {detail.disputes.map((d: any) => (
-                  <div key={d.id} style={s.detailRow}>
-                    <span>{storeDayLong(d.createdAt)} · {d.description}</span>
-                    <span>{d.status}{d.creditedAmt ? ` · ${fmt$(d.creditedAmt)}` : ''}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={s.goodwillBox}>
-                <div style={s.detailSectionTitle}>Goodwill Credit</div>
-                <div style={{ fontSize: 14, color: TEXT_MUTED, marginBottom: 10 }}>For a case that is not a missing-points report - an apology, a one-off gesture. Up to $25, with a reason.</div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                  <div style={{ flex: '0 0 120px' }}>
-                    <input
-                      style={s.fieldInput}
-                      inputMode="decimal"
-                      value={goodwillAmt}
-                      maxLength={5}
-                      aria-label="Goodwill credit amount in dollars"
-                      placeholder="$0.00"
-                      onChange={(e) => { setGoodwillAmt(e.target.value.replace(/[^0-9.]/g, '')); setGoodwillError(''); }}
-                    />
-                  </div>
-                  <div style={{ flex: '1 1 180px' }}>
-                    <input
-                      style={s.fieldInput}
-                      value={goodwillReason}
-                      maxLength={300}
-                      aria-label="Reason for the goodwill credit"
-                      placeholder="Reason (required)"
-                      onChange={(e) => { setGoodwillReason(e.target.value); setGoodwillError(''); }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    style={{ ...s.confirmBtn, flex: '0 0 auto', background: GREEN_TEXT, ...(!goodwillOk ? { opacity: 0.5, cursor: 'not-allowed' } : {}) }}
-                    disabled={!goodwillOk || goodwillMutation.isPending}
-                    onClick={() => goodwillOk && runGoodwill({ id: detailTarget.id, amount: Number(goodwillAmt), reason: goodwillReason.trim() })}
-                  >
-                    {goodwillMutation.isPending ? 'Adding…' : 'Add Credit'}
-                  </button>
-                </div>
-                {goodwillIssue && goodwillAmt.trim() !== '' && <div role="alert" style={s.errorText}>{goodwillIssue}</div>}
-                {goodwillError && <div role="alert" style={{ ...s.errorBox, marginTop: 8 }}>{goodwillError}</div>}
-              </div>
-            </div>
-          ) : null}
-        </Modal>
-      )}
     </div>
   );
-}
-
-function statusWord(status: string): string {
-  return status === 'APPROVED' ? 'Approved' : status === 'PENDING' ? 'Pending' : status === 'FLAGGED' ? 'Flagged' : status === 'VOIDED' ? 'Voided' : 'Rejected';
 }
 
 const s: Record<string, React.CSSProperties> = {

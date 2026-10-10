@@ -50,6 +50,7 @@ export async function estimateOffer(input: EstimateInput, now: Date = new Date()
       status: 'APPROVED',
       isTestData: false,
       challengeId: null,
+      referralId: null,
       createdAt: { gte: since, lt: now },
       ...(input.storeId ? { storeId: input.storeId } : { store: { isActive: true } }),
       ...(input.category ? { category: input.category } : {}),

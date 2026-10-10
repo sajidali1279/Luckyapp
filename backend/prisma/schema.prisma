@@ -198,6 +198,8 @@ model User {
   // Their birthday, month and day only (no year), if they gave it in the app: birthday-month promotions
   birthMonth      Int?
   birthDay        Int?
+  // Refer a friend (2026-10-09): the code this customer shares; made the first time they open Invite friends
+  referralCode    String?  @unique
 
   // Auth — phone + PIN
   pinHash         String?
@@ -282,6 +284,9 @@ model User {
   jobOpenings           JobOpening[]
   dailyReports          DailyReport[]         @relation("DailyReportsSubmitted")
   adminNotices          AdminNotice[]
+  referralsMade         Referral[]            @relation("Referrer")
+  referredBy            Referral?             @relation("ReferredFriend")
+  supportNotes          CustomerNote[]        @relation("NoteCustomer")
 
   @@map("users")
 }
@@ -509,6 +514,9 @@ model PointsTransaction {
   // own approved line (no purchase), and the sale whose approval completed it. Voiding this line takes the reward back.
   challengeId       String?
   rewardForSaleId   String?
+  // A referral reward (2026-10-09, utils/referrals.ts): like a challenge reward, its own approved line with no purchase, never a
+  // sale. Both the person who shared and the friend get one, at the store of the friend's qualifying purchase.
+  referralId        String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -528,6 +536,7 @@ model PointsTransaction {
   @@index([offerId])
   @@index([challengeId])
   @@index([rewardForSaleId])
+  @@index([referralId])
   @@map("points_transactions")
 }
 
@@ -1083,6 +1092,8 @@ model PushToken {
   userId    String
   token     String   @unique
   platform  String
+  appVersion String?                     // the app version that registered it (2026-10-09), for support
+  lastSeenAt DateTime @default(now())     // the last time the app registered it (each sign-in and app start)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1741,4 +1752,47 @@ model DailyReport {
 
   @@index([storeId, reportDate])
   @@map("daily_reports")
+}
+
+// ─── Refer a friend (2026-10-09) ─────────────────────────────────────────────
+// A customer shares their code; a new customer enters it when signing up (or soon after). When the friend's first approved
+// purchase of at least the minimum is made within the window, both are paid (utils/referrals.ts), the sharer at most the
+// monthly limit. Amounts and limits: AppConfig REFERRAL_SETTINGS.
+model Referral {
+  id               String    @id @default(uuid())
+  referrerId       String
+  friendId         String    @unique
+  code             String
+  status           String    @default("PENDING")   // PENDING | REWARDED | EXPIRED | CANCELLED
+  referrerRewarded Boolean   @default(false)       // false on a REWARDED one: the sharer was over the monthly limit
+  referrerReward   Float?
+  friendReward     Float?
+  saleId           String?                         // the friend's qualifying purchase
+  storeId          String?
+  note             String?
+  createdAt        DateTime  @default(now())
+  rewardedAt       DateTime?
+
+  referrer User @relation("Referrer", fields: [referrerId], references: [id])
+  friend   User @relation("ReferredFriend", fields: [friendId], references: [id])
+
+  @@index([referrerId, status])
+  @@index([createdAt])
+  @@map("referrals")
+}
+
+// ─── Support notes on a customer (2026-10-09) ────────────────────────────────
+// HQ's private notes ("called about missing points"). Never shown to the customer; removed when the account is deleted.
+model CustomerNote {
+  id         String   @id @default(uuid())
+  customerId String
+  authorId   String
+  authorName String?
+  text       String
+  createdAt  DateTime @default(now())
+
+  customer User @relation("NoteCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, createdAt])
+  @@map("customer_notes")
 }

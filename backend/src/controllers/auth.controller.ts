@@ -22,6 +22,7 @@ import { customerSearchWhere, customerListQuery, customerExportQuery, customerFi
 import { staffFootprint, footprintTotal, cannotDeleteMessage } from '../utils/accountRecords';
 import { isTestPhone } from '../utils/testAccounts';
 import { sendPushToUser } from '../utils/push';
+import { attachReferral } from '../utils/referrals';
 
 const SALT_ROUNDS = 12;
 
@@ -136,6 +137,7 @@ const registerSchema = z.object({
   pin: z.string().length(4).regex(/^\d{4}$/, 'PIN must be 4 digits'),
   name: z.string().min(1).max(80),
   firebaseToken: z.string().min(1),
+  referralCode: z.string().max(20).optional(),   // an invite code (utils/referrals.ts); a wrong one never stops the sign-up
 });
 
 export async function register(req: Request, res: Response) {
@@ -145,7 +147,7 @@ export async function register(req: Request, res: Response) {
     return;
   }
 
-  const { phone, pin, name, firebaseToken } = parsed.data;
+  const { phone, pin, name, firebaseToken, referralCode } = parsed.data;
 
   // Verify the Firebase ID token (proves they own the phone number)
   let decodedToken: admin.auth.DecodedIdToken;
@@ -190,12 +192,20 @@ export async function register(req: Request, res: Response) {
     throw e;
   }
 
+  // The invite code, if they gave one: a code that does not work is reported back (the app says so) but the account stands
+  let referral: { invitedBy?: string; error?: string } | undefined;
+  if (referralCode?.trim()) {
+    const r = await attachReferral(prisma, user.id, referralCode).catch(() => ({ ok: false as const, error: 'The invite code could not be added. You can add it in the app within 7 days.' }));
+    referral = r.ok ? { invitedBy: r.referrerName } : { error: r.error };
+  }
+
   const token = issueJwt(user, []);
   res.status(201).json({
     success: true,
     data: {
       token,
       user: { id: user.id, phone: user.phone, name: user.name, role: user.role, qrCode: user.qrCode, pointsBalance: 0 },
+      ...(referral ? { referral } : {}),
     },
   });
 }
@@ -303,15 +313,17 @@ export async function getMe(req: AuthRequest, res: Response) {
 // ─── Register Push Token ──────────────────────────────────────────────────────
 
 export async function registerPushToken(req: AuthRequest, res: Response) {
-  const { token, platform, language } = req.body as { token: string; platform: string; language?: string };
+  const { token, platform, language, appVersion } = req.body as { token: string; platform: string; language?: string; appVersion?: string };
   if (!token || !platform) {
     res.status(400).json({ success: false, error: 'token and platform required' });
     return;
   }
+  const version = typeof appVersion === 'string' && /^\d{1,4}(\.\d{1,4}){0,3}$/.test(appVersion) ? appVersion : null;
   await prisma.pushToken.upsert({
     where: { token },
-    update: { userId: req.user!.id },
-    create: { userId: req.user!.id, token, platform },
+    // The app version and when it was last seen, for support (Customers > a customer > Devices)
+    update: { userId: req.user!.id, platform, lastSeenAt: new Date(), ...(version ? { appVersion: version } : {}) },
+    create: { userId: req.user!.id, token, platform, appVersion: version },
   });
   if (language === 'en' || language === 'es') await prisma.user.update({ where: { id: req.user!.id }, data: { language } });
   res.json({ success: true });
@@ -570,7 +582,7 @@ export async function listCustomers(req: AuthRequest, res: Response) {
   const customerIds = customers.map((c) => c.id);
   const txStats = await prisma.pointsTransaction.groupBy({
     by: ['customerId'],
-    where: { customerId: { in: customerIds }, status: 'APPROVED', challengeId: null },   // sales, not challenge rewards
+    where: { customerId: { in: customerIds }, status: 'APPROVED', challengeId: null, referralId: null },   // sales, not challenge or referral rewards
     _count: { id: true },
     _sum: { purchaseAmount: true },
   });
@@ -624,7 +636,7 @@ export async function exportCustomersCsv(req: AuthRequest, res: Response) {
   const customerIds = customers.map((c) => c.id);
   const txStats = await prisma.pointsTransaction.groupBy({
     by: ['customerId'],
-    where: { customerId: { in: customerIds }, status: 'APPROVED', challengeId: null },   // sales, not challenge rewards
+    where: { customerId: { in: customerIds }, status: 'APPROVED', challengeId: null, referralId: null },   // sales, not challenge or referral rewards
     _count: { id: true },
     _sum: { purchaseAmount: true },
   });
@@ -689,7 +701,7 @@ export async function getCustomerDetail(req: AuthRequest, res: Response) {
       take: 15,
     }),
     prisma.pointsTransaction.aggregate({
-      where: { customerId: userId, status: 'APPROVED', challengeId: null },
+      where: { customerId: userId, status: 'APPROVED', challengeId: null, referralId: null },
       _count: { id: true },
       _sum: { purchaseAmount: true },
     }),

@@ -27,6 +27,7 @@ const Notices                = lazy(() => import('./pages/Notices'));
 const Transactions           = lazy(() => import('./pages/Transactions'));
 const Staff                  = lazy(() => import('./pages/Staff'));
 const Customers              = lazy(() => import('./pages/Customers'));
+const CustomerProfile        = lazy(() => import('./pages/CustomerProfile'));
 const ActivityLog            = lazy(() => import('./pages/ActivityLog'));
 const SuperAdminBilling      = lazy(() => import('./pages/SuperAdminBilling'));
 const Notifications          = lazy(() => import('./pages/Notifications'));
@@ -162,6 +163,7 @@ export default function App() {
                 <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
                 <Route path="/hot-food/orders" element={<ComingSoon feature="Hot Food Order Board" />} />
                 <Route path="/customers" element={<Customers />} />
+                <Route path="/customers/:id" element={<CustomerProfile />} />
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/rates" element={<Rates />} />

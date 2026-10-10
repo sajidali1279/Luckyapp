@@ -12,7 +12,7 @@ import { excludeDeletedCustomers } from '../utils/accountDeletion';
 const money = (n: number) => Math.round(n * 100) / 100;
 const pct1 = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 1000) / 10 : 0);
 const change = (a: number, b: number) => (b > 0 ? Math.round(((a - b) / b) * 100) : null);
-const SALE = { status: 'APPROVED' as const, isTestData: false, challengeId: null };
+const SALE = { status: 'APPROVED' as const, isTestData: false, challengeId: null, referralId: null };
 const DAY = 86_400_000;
 
 export interface Window { start: Date; end: Date; prevStart: Date; prevEnd: Date; storeId?: string; days: number }
@@ -214,7 +214,7 @@ export async function getStaffInsights(req: AuthRequest, res: Response) {
   const at = { gte: w.start, lt: w.end };
   const [txs, ratings, disputes] = await Promise.all([
     prisma.pointsTransaction.findMany({
-      where: { isTestData: false, challengeId: null, ...storeScope(w), createdAt: at },
+      where: { isTestData: false, challengeId: null, referralId: null, ...storeScope(w), createdAt: at },
       select: { grantedById: true, customerId: true, status: true, purchaseAmount: true, fraudFlags: true, storeId: true },
     }),
     prisma.employeeRating.groupBy({ by: ['employeeId'], where: { ...storeScope(w), createdAt: at }, _avg: { rating: true }, _count: { _all: true } }),
@@ -303,7 +303,7 @@ export async function getScorecards(req: AuthRequest, res: Response) {
   const start = startOfStoreDate(addStoreDays(todayKey, -29)), prevStart = startOfStoreDate(addStoreDays(todayKey, -59));
   const [stores, rows] = await Promise.all([
     prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true, city: true } }),
-    prisma.pointsTransaction.findMany({ where: { isTestData: false, challengeId: null, createdAt: { gte: prevStart, lt: now } }, select: { storeId: true, customerId: true, status: true, purchaseAmount: true, pointsAwarded: true, fraudFlags: true, createdAt: true } }),
+    prisma.pointsTransaction.findMany({ where: { isTestData: false, challengeId: null, referralId: null, createdAt: { gte: prevStart, lt: now } }, select: { storeId: true, customerId: true, status: true, purchaseAmount: true, pointsAwarded: true, fraudFlags: true, createdAt: true } }),
   ]);
   const cards = stores.map((st) => {
     const mine = rows.filter((r) => r.storeId === st.id);

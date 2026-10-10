@@ -78,6 +78,8 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { getRestockInsights, getDemandInsights, getRewardsHotFoodInsights } from '../controllers/inventoryInsights.controller';
 import { getAppVersion, updateAppVersions } from '../controllers/appVersion.controller';
+import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
+import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory } from '../controllers/customerProfile.controller';
 import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
@@ -236,6 +238,7 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
+router.get('/referrals/check', checkReferralCode);                                  // Whose invite code it is (no sign-in: the sign-up screen)
 router.get('/app/version', getAppVersion);                                         // Latest + minimum app version per platform (no sign-in: asked when the app opens)
 router.post('/auth/register', register);                                          // New customer signup
 router.post('/auth/login', login);                                                // Phone + PIN login
@@ -263,6 +266,13 @@ router.get('/staff', authenticate, requireRole(Role.SUPER_ADMIN), listStaff);   
 router.get('/users/customers', authenticate, requireRole(Role.SUPER_ADMIN), listCustomers);          // List customers
 router.get('/users/customers/export', authenticate, requireRole(Role.SUPER_ADMIN), exportCustomersCsv); // Export customers CSV
 router.get('/users/customers/:userId/detail', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerDetail); // Customer panel: sales, redemptions, disputes
+router.get('/users/customers/:userId/profile', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerProfile);    // Full profile: details, tier, stats, devices, referrals
+router.get('/users/customers/:userId/activity', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerActivity);  // Timeline: sales, rewards, redemptions, reports, hot food, credits
+router.get('/users/customers/:userId/notes', authenticate, requireRole(Role.SUPER_ADMIN), listCustomerNotes);       // HQ's private support notes
+router.post('/users/customers/:userId/notes', authenticate, requireRole(Role.SUPER_ADMIN), addCustomerNote);
+router.delete('/users/customers/:userId/notes/:noteId', authenticate, requireRole(Role.SUPER_ADMIN), deleteCustomerNote);
+router.post('/users/customers/:userId/unlock', authenticate, requireRole(Role.SUPER_ADMIN), unlockCustomer);        // Clear a wrong-PIN lockout
+router.get('/users/customers/:userId/history', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerHistory);    // What staff did on the account
 router.post('/users/customers/:userId/goodwill-credit', authenticate, requireRole(Role.SUPER_ADMIN), grantGoodwillCredit); // A small credit outside the dispute flow
 router.patch('/users/:userId/edit', authenticate, requireRole(Role.SUPER_ADMIN), editStaffAccount);         // Fix a name/phone typo, promote/demote Employee<->Store Manager, set allStoresAccess
 router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPER_ADMIN), toggleUserActive); // Deactivate/reactivate
@@ -386,6 +396,10 @@ router.get('/billing/stores', authenticate, requireRole(Role.DEV_ADMIN), getAllS
 router.get('/billing/revenue', authenticate, requireRole(Role.DEV_ADMIN), getDevRevenue);
 router.get('/billing/analytics', authenticate, requireRole(Role.DEV_ADMIN), getAnalytics);
 router.get('/billing/analytics/export', authenticate, requireRole(Role.DEV_ADMIN), exportAnalyticsCsv);
+router.get('/referrals/me', authenticate, requireRole(Role.CUSTOMER), getMyReferrals);          // Invite friends: code, deal, friends
+router.post('/referrals/claim', authenticate, requireRole(Role.CUSTOMER), claimReferral);        // Add an invite code late (7 days, before a purchase)
+router.get('/referrals', authenticate, requireRole(Role.SUPER_ADMIN), listReferrals);            // HQ: every referral with totals
+router.put('/referrals/settings', authenticate, requireRole(Role.SUPER_ADMIN), updateReferralSettings);
 router.put('/app/versions', authenticate, requireRole(Role.DEV_ADMIN), updateAppVersions);   // Set them (Billing > Platform Settings)
 router.get('/analytics/customers',  authenticate, requireRole(Role.DEV_ADMIN), getCustomerInsights);   // Active, new, repeat, cohorts, lapsed
 router.get('/analytics/promotions', authenticate, requireRole(Role.DEV_ADMIN), getPromotionInsights);  // Per promotion sales + lift, challenges

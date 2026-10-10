@@ -29,7 +29,7 @@ export interface LiftResult {
 
 export async function offerLift(offer: LiftOffer, start: Date, end: Date, extraCashbackPaid: number): Promise<LiftResult> {
   const lengthMs = Math.max(0, end.getTime() - start.getTime());
-  const sale = { status: 'APPROVED' as const, isTestData: false, challengeId: null };   // a challenge's reward is not a sale
+  const sale = { status: 'APPROVED' as const, isTestData: false, challengeId: null, referralId: null };   // a challenge's reward is not a sale
   const categoryWhere: Prisma.PointsTransactionWhereInput = {
     ...sale,
     ...(offer.storeId ? { storeId: offer.storeId } : {}),

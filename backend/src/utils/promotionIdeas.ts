@@ -142,7 +142,7 @@ export async function promotionIdeas(now: Date = new Date()): Promise<IdeasResul
   const half = new Date(now.getTime() - HALF * 86_400_000);
   const [rows, rates, offers, stores] = await Promise.all([
     prisma.pointsTransaction.findMany({
-      where: { status: 'APPROVED', isTestData: false, challengeId: null, createdAt: { gte: since, lt: now }, store: { isActive: true } },
+      where: { status: 'APPROVED', isTestData: false, challengeId: null, referralId: null, createdAt: { gte: since, lt: now }, store: { isActive: true } },
       select: { purchaseAmount: true, category: true, storeId: true, createdAt: true, customer: { select: { tier: true } } },
     }),
     loadRates(),
@@ -283,7 +283,7 @@ export async function promotionIdeas(now: Date = new Date()): Promise<IdeasResul
   const lapsedSince = new Date(now.getTime() - DEFAULT_LAPSED_DAYS * 86_400_000);
   const visits = await prisma.pointsTransaction.groupBy({
     by: ['customerId'],
-    where: { status: { not: 'REJECTED' }, isTestData: false, challengeId: null, customer: excludeDeletedCustomers },
+    where: { status: { not: 'REJECTED' }, isTestData: false, challengeId: null, referralId: null, customer: excludeDeletedCustomers },
     _count: { _all: true },
     _max: { createdAt: true },
   });

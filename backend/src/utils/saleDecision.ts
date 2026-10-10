@@ -9,6 +9,7 @@ import { Prisma, TransactionStatus } from '@prisma/client';
 import prisma from '../config/prisma';
 import { rollCustomerPeriod } from './tier';
 import { creditChallenges } from './challenges';
+import { creditReferral } from './referrals';
 
 export interface SaleToCredit {
   id: string;
@@ -20,7 +21,9 @@ export interface SaleToCredit {
 /**
  * Moves the sale from `from` to APPROVED and credits the customer. Returns the updated customer, or null when the sale was no longer in
  * `from`. The approved sale also moves the customer's challenges on (utils/challenges.ts), in the same transaction: a reward it completes
- * is credited too, included in the balance returned, and listed in `challengeAwards` for the caller to push once this is saved.
+ * is credited too, included in the balance returned, and listed in `challengeAwards` for the caller to push once this is saved. A
+ * referral it completes (utils/referrals.ts) is paid the same way: the customer's own welcome bonus is in the balance returned, and
+ * both awards are in `referralAwards`.
  */
 export async function approveAndCredit(
   db: Prisma.TransactionClient,
@@ -41,8 +44,10 @@ export async function approveAndCredit(
     data: { pointsBalance: { increment: totalPoints }, periodPoints: { increment: totalPoints } },
   });
   const challengeAwards = await creditChallenges(db, sale.id);
-  const extra = challengeAwards.reduce((n, a) => n + a.reward, 0);
-  return { ...user, pointsBalance: user.pointsBalance + extra, periodPoints: user.periodPoints + extra, challengeAwards };
+  const referralAwards = await creditReferral(db, sale.id);
+  const extra = challengeAwards.reduce((n, a) => n + a.reward, 0)
+    + referralAwards.filter((a) => a.customerId === sale.customerId).reduce((n, a) => n + a.amount, 0);
+  return { ...user, pointsBalance: user.pointsBalance + extra, periodPoints: user.periodPoints + extra, challengeAwards, referralAwards };
 }
 
 /** Moves the sale from `from` to REJECTED. Returns false when the sale was no longer in `from`. */

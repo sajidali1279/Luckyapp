@@ -246,6 +246,14 @@ export const customersApi = {
     return api.get('/users/customers', { params });
   },
   detail: (userId: string) => api.get(`/users/customers/${userId}/detail`),
+  // The full profile page (2026-10-09)
+  profile: (userId: string) => api.get(`/users/customers/${userId}/profile`),
+  activity: (userId: string, kind: string, page: number) => api.get(`/users/customers/${userId}/activity`, { params: { kind, page } }),
+  notes: (userId: string) => api.get(`/users/customers/${userId}/notes`),
+  addNote: (userId: string, text: string) => api.post(`/users/customers/${userId}/notes`, { text }),
+  deleteNote: (userId: string, noteId: string) => api.delete(`/users/customers/${userId}/notes/${noteId}`),
+  unlock: (userId: string) => api.post(`/users/customers/${userId}/unlock`),
+  history: (userId: string) => api.get(`/users/customers/${userId}/history`),
   goodwillCredit: (userId: string, amount: number, reason: string) =>
     api.post(`/users/customers/${userId}/goodwill-credit`, { amount, reason }),
   // Say which state you want: restricting twice, or a double click, cannot switch the account back on
@@ -587,6 +595,13 @@ export const dailyTaskApi = {
   seedDefaults: () => api.post('/admin/daily-tasks/seed'),
   /** A 2-shift store: copy the chain's Middle tasks into its own Opening or Closing list (ones it already has are skipped) */
   copyMiddle: (storeId: string, to: 'OPENING' | 'CLOSING') => api.post('/admin/daily-tasks/copy-middle', { storeId, to }),
+};
+
+// Refer a friend (HQ): every referral with totals, and the amounts and limits
+export type ReferralSettings = { enabled: boolean; referrerReward: number; friendReward: number; minPurchase: number; monthlyLimit: number; windowDays: number };
+export const referralsApi = {
+  list: (status?: string, page = 1) => api.get('/referrals', { params: { ...(status ? { status } : {}), page } }),
+  saveSettings: (s: ReferralSettings) => api.put('/referrals/settings', s),
 };
 
 // App versions the phones compare themselves with (read: anyone; save: Dev Admin)

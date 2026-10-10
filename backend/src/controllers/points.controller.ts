@@ -3,6 +3,7 @@ import { offerPaysAt } from '../utils/offerHours';
 import { forCustomer } from '../utils/offerAudience';
 import { promotionRoom, noteBudgetUse } from '../utils/offerBudget';
 import { pushChallengeAwards } from '../utils/challenges';
+import { pushReferralAwards } from '../utils/referrals';
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
@@ -29,7 +30,7 @@ import { lockCustomer, REPEAT_WINDOW_MS } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
-const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0); };
+const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
@@ -418,7 +419,8 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   const updatedTransaction = settled.sale;
   const updatedCustomer = settled.customer;
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
-  pushChallengeAwards(updatedCustomer.challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));   // a challenge this sale completed
+  pushChallengeAwards(updatedCustomer.challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));
+  pushReferralAwards(updatedCustomer.referralAwards).catch((e) => console.error('[referrals] push failed:', e?.message ?? e));   // a challenge this sale completed
 
   sendPushToUser(
     transaction.customerId,
@@ -668,7 +670,8 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
     return;
   }
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);
-  pushChallengeAwards(updatedCustomer.challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));   // a challenge this sale completed
+  pushChallengeAwards(updatedCustomer.challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));
+  pushReferralAwards(updatedCustomer.referralAwards).catch((e) => console.error('[referrals] push failed:', e?.message ?? e));   // a challenge this sale completed
   sendPushToUser(transaction.customerId, '💰 Points Credited!', `Your $${transaction.purchaseAmount.toFixed(2)} transaction was approved. ${Math.round(totalPoints * 100)} pts added.`, 'POINTS', pointsUrl(transactionId));
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'APPROVE_FLAGGED', entity: 'transaction', entityId: transactionId, details: { purchaseAmount: transaction.purchaseAmount, fraudFlags: transaction.fraudFlags }, storeId: transaction.storeId });
   res.json({ success: true, message: 'Flagged transaction approved and points credited' });
@@ -761,13 +764,13 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
   const [todayStats, pendingCount, allTimeStats] = await prisma.$transaction([
     prisma.pointsTransaction.aggregate({
       where: { storeId, status: TransactionStatus.APPROVED, createdAt: { gte: todayStart } },
-      _count: { _all: true, challengeId: true },
+      _count: { _all: true, challengeId: true, referralId: true },
       _sum: { pointsAwarded: true, purchaseAmount: true },
     }),
     prisma.pointsTransaction.count({ where: { storeId, status: TransactionStatus.PENDING } }),
     prisma.pointsTransaction.aggregate({
       where: { storeId, status: TransactionStatus.APPROVED },
-      _count: { _all: true, challengeId: true },
+      _count: { _all: true, challengeId: true, referralId: true },
       _sum: { pointsAwarded: true, purchaseAmount: true },
     }),
   ]);
@@ -838,29 +841,29 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
   const [todayStats, monthStats, pendingCount, flaggedCount, oldestReview, allTimeStats, perStore, lastSales, creditsOut, allStores] = await prisma.$transaction([
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED', createdAt: { gte: todayStart } },
-      _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
     }),
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED', createdAt: { gte: monthStart } },
-      _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
     }),
     prisma.pointsTransaction.count({ where: { status: 'PENDING' } }),
     prisma.pointsTransaction.count({ where: { status: 'FLAGGED' } }),
     prisma.pointsTransaction.aggregate({ where: { status: { in: ['PENDING', 'FLAGGED'] } }, _min: { createdAt: true } }),
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED' },
-      _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
     }),
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
       where: { status: 'APPROVED', createdAt: { gte: monthStart } },
-      _count: { _all: true, challengeId: true },
+      _count: { _all: true, challengeId: true, referralId: true },
       _sum: { purchaseAmount: true, pointsAwarded: true },
       orderBy: { _sum: { purchaseAmount: 'desc' } },
     }),
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
-      where: { status: 'APPROVED', challengeId: null },
+      where: { status: 'APPROVED', challengeId: null, referralId: null },
       _max: { createdAt: true },
       orderBy: { storeId: 'asc' },
     }),
@@ -925,7 +928,7 @@ export async function getPlatformTrend(req: AuthRequest, res: Response) {
 
   const rows = await prisma.pointsTransaction.findMany({
     where: { status: 'APPROVED', createdAt: { gte: startOfStoreDate(firstKey) } },
-    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, challengeId: true },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, challengeId: true, referralId: true },
   });
 
   const byDate: Record<string, { date: string; transactions: number; purchaseVolume: number; cashbackIssued: number }> = {};
@@ -936,7 +939,7 @@ export async function getPlatformTrend(req: AuthRequest, res: Response) {
   for (const r of rows) {
     const b = byDate[storeDateKey(r.createdAt)];
     if (!b) continue;
-    if (!r.challengeId) b.transactions++;
+    if (!r.challengeId && !r.referralId) b.transactions++;
     b.purchaseVolume += r.purchaseAmount;
     b.cashbackIssued += r.pointsAwarded;
   }
@@ -960,7 +963,7 @@ export async function getPlatformCompare(req: AuthRequest, res: Response) {
 
   const rows = await prisma.pointsTransaction.findMany({
     where: { status: 'APPROVED', createdAt: { gte: w.previous.start, lte: now } },
-    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, challengeId: true },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, challengeId: true, referralId: true },
   });
 
   res.json({
@@ -984,12 +987,12 @@ export async function getStoreHealth(_req: AuthRequest, res: Response) {
 
   const [stores, today, lastWeek, month, ratio, waiting, last] = await Promise.all([
     prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true, city: true } }),
-    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: todayStart } }, _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: todayStart } }, _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
     prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: lastWeekStart, lte: lastWeekEnd } }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
-    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: monthStart } }, _count: { _all: true, challengeId: true }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: monthStart } }, _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
     prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: thirtyDaysAgo } }, _sum: { purchaseAmount: true, pointsAwarded: true }, orderBy: { storeId: 'asc' } }),
     prisma.pointsTransaction.groupBy({ by: ['storeId', 'status'], where: { status: { in: [TransactionStatus.PENDING, TransactionStatus.FLAGGED] } }, _count: true, orderBy: [{ storeId: 'asc' }, { status: 'asc' }] }),
-    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, challengeId: null }, _max: { createdAt: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, challengeId: null, referralId: null }, _max: { createdAt: true }, orderBy: { storeId: 'asc' } }),
   ]);
 
   const byStore = <T extends { storeId: string }>(rows: T[]) => new Map(rows.map((r) => [r.storeId, r]));

@@ -14,7 +14,7 @@ export type CompareRange = 'today' | '7d' | '30d' | '90d' | 'month';
 export const COMPARE_RANGES: CompareRange[] = ['today', '7d', '30d', '90d', 'month'];
 
 // challengeId: a challenge's reward line (utils/challenges.ts) adds to the cashback but is not a sale
-export interface Row { createdAt: Date; purchaseAmount: number; pointsAwarded: number; challengeId?: string | null }
+export interface Row { createdAt: Date; purchaseAmount: number; pointsAwarded: number; challengeId?: string | null; referralId?: string | null }
 export interface Totals { transactions: number; purchaseVolume: number; cashbackIssued: number; avgTicket: number }
 export interface Bucket { key: string; transactions: number; purchaseVolume: number; cashbackIssued: number }
 
@@ -86,7 +86,7 @@ function summarizeSpan(w: CompareWindows, span: Span, rows: Row[]): { totals: To
   for (const r of rows) {
     const t = r.createdAt.getTime();
     if (t < span.start.getTime() || t > span.end.getTime()) continue;
-    const sale = r.challengeId ? 0 : 1;
+    const sale = r.challengeId || r.referralId ? 0 : 1;
     tx += sale; vol += r.purchaseAmount; cash += r.pointsAwarded;
     const b = series[bucketIndex(w, span, r.createdAt)];
     if (b) { b.transactions += sale; b.purchaseVolume += r.purchaseAmount; b.cashbackIssued += r.pointsAwarded; }

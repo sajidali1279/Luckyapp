@@ -34,6 +34,7 @@ export async function anonymizeCustomerAccount(db: Prisma.TransactionClient, use
   await db.productRequest.deleteMany({ where: { customerId: userId } });
   await db.businessPromotion.deleteMany({ where: { requesterId: userId } });
   await db.userStoreRole.deleteMany({ where: { userId } });
+  await db.customerNote.deleteMany({ where: { customerId: userId } });   // HQ's notes about the person
 
   // Records the store keeps stay, minus free text written about the person
   await db.pointsDispute.updateMany({ where: { customerId: userId }, data: { description: REMOVED_TEXT } });
@@ -63,6 +64,7 @@ export async function anonymizeCustomerAccount(db: Prisma.TransactionClient, use
       birthMonth: null,
       birthDay: null,
       language: null,
+      referralCode: null,   // their invite code stops working
       fraudNote: null,
       failedLoginAttempts: 0,
       lockedUntil: null,
