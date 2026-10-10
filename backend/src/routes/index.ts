@@ -122,7 +122,7 @@ import {
   getWelcomeBonusStatus,
   claimWelcomeBonus,
   getCustomerWelcomeBonus,
-  confirmWelcomeBonus,
+  confirmWelcomeBonus, giveWelcomeBonus,
 } from '../controllers/welcome-bonus.controller';
 import {
   submitApplication,
@@ -551,6 +551,7 @@ router.get('/welcome-bonus',                    authenticate, requireRole(Role.C
 router.post('/welcome-bonus/claim',             authenticate, requireRole(Role.CUSTOMER),  claimWelcomeBonus);
 router.get('/welcome-bonus/customer/:qrCode',   authenticate, requireRole(Role.EMPLOYEE),  getCustomerWelcomeBonus);
 router.post('/welcome-bonus/confirm',           authenticate, requireRole(Role.EMPLOYEE),  confirmWelcomeBonus);
+router.post('/welcome-bonus/give',              authenticate, requireRole(Role.EMPLOYEE),  giveWelcomeBonus);     // Cashier gives today's item from the scan
 
 // ─── Store Requests ───────────────────────────────────────────────────────────
 router.post('/store-requests', authenticate, requireRole(Role.EMPLOYEE), submitRequest);             // Employee submits a request

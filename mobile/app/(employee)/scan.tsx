@@ -697,6 +697,31 @@ export default function EmployeeScanScreen() {
     }
   }
 
+  // The welcome gift straight from the scan (2026-10-10): for a new customer who did not choose today's item in their app
+  const WELCOME_OPTION_KEYS: Record<string, string> = { FOUNTAIN_DRINK: 'customerWelcomeBonus.optionFountain', COFFEE: 'customerWelcomeBonus.optionCoffee', SODA_12OZ: 'customerWelcomeBonus.optionSoda', HOT_SNACK: 'customerWelcomeBonus.optionHotSnack' };
+  const welcomeLabel = (r: { rewardType: string; rewardLabel?: string; label?: string }) => (WELCOME_OPTION_KEYS[r.rewardType] ? t(WELCOME_OPTION_KEYS[r.rewardType]) : r.rewardLabel ?? r.label ?? '');
+  function handleGiveWelcomeGift(r: { rewardType: string; label: string; emoji: string }) {
+    const label = welcomeLabel(r);
+    Alert.alert(t('employeeScan.welcomeGiftConfirmTitle', { label }), t('employeeScan.welcomeGiftConfirmBody'), [
+      { text: t('employeeScan.welcomeGiftCancel'), style: 'cancel' },
+      { text: t('employeeScan.welcomeGiftConfirm'), onPress: async () => {
+        if (busyRef.current || !customerQr) return;
+        busyRef.current = true;
+        setLoading(true);
+        try {
+          const res = await welcomeBonusApi.give(customerQr, r.rewardType, storeId ?? undefined);
+          setConfirmedWelcomeBonus(res.data.data);
+          setStep('welcome-bonus-done');
+        } catch (err: any) {
+          Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.confirmationFailed') });
+        } finally {
+          setLoading(false);
+          busyRef.current = false;
+        }
+      } },
+    ]);
+  }
+
   async function pickReceiptImage() {
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -826,6 +851,34 @@ export default function EmployeeScanScreen() {
                 <Text style={s.successBadgeTitle}>{t('employeeScan.qrScannedTitle')}</Text>
                 <Text style={s.successBadgeSub}>{t('employeeScan.qrScannedSub')}</Text>
               </View>
+            </View>
+          )}
+
+          {/* Welcome gift first (2026-10-10): it was the last card, under Grant Points, and easy to miss */}
+          {welcomeBonus && (
+            <View style={s.welcomeCard}>
+              <Text style={s.welcomeTitle}>🎁 {t('employeeScan.welcomeGiftTitle', { day: welcomeBonus.day })}</Text>
+              {welcomeBonus.claimed !== false ? (
+                <>
+                  <Text style={s.welcomeSub}>{t('employeeScan.welcomeGiftChoseSub', { label: welcomeLabel(welcomeBonus), code: welcomeBonus.claimCode })}</Text>
+                  <TouchableOpacity style={s.welcomeGiveBtn} onPress={handleConfirmWelcomeBonus} disabled={loading} activeOpacity={0.85} accessibilityRole="button"
+                    accessibilityLabel={t('employeeScan.confirmWelcomeBonusA11y', { day: welcomeBonus.day })}>
+                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.welcomeGiveText}>{welcomeBonus.rewardEmoji || '🎁'}  {t('employeeScan.welcomeGiftGive', { label: welcomeLabel(welcomeBonus) })}</Text>}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <Text style={s.welcomeSub}>{t('employeeScan.welcomeGiftPickSub')}</Text>
+                  <View style={s.welcomeGrid}>
+                    {(welcomeBonus.rewards ?? []).map((r: any) => (
+                      <TouchableOpacity key={r.rewardType} style={s.welcomeOption} onPress={() => handleGiveWelcomeGift(r)} disabled={loading} activeOpacity={0.85} accessibilityRole="button">
+                        <Text style={s.welcomeOptionEmoji}>{r.emoji}</Text>
+                        <Text style={s.welcomeOptionText} numberOfLines={2}>{welcomeLabel(r)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </>
+              )}
             </View>
           )}
 
@@ -971,30 +1024,6 @@ export default function EmployeeScanScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Welcome Bonus - show when customer has an unconfirmed claim for today */}
-          {welcomeBonus && (
-            <TouchableOpacity
-              style={[s.modeCard, { borderColor: '#F59E0B60' }]}
-              onPress={handleConfirmWelcomeBonus}
-              disabled={loading}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={t('employeeScan.confirmWelcomeBonusA11y', { day: welcomeBonus.day })}
-            >
-              <View style={[s.modeIconBg, { backgroundColor: '#FEF3C7' }]}>
-                <Text style={s.modeEmoji}>{welcomeBonus.rewardEmoji || '🎁'}</Text>
-              </View>
-              <View style={s.modeBody}>
-                <Text style={[s.modeTitle, { color: '#D97706' }]}>{t('employeeScan.welcomeBonusDayTitle', { day: welcomeBonus.day })}</Text>
-                <Text style={s.modeSub}>{t('employeeScan.welcomeBonusSub', { label: welcomeBonus.rewardLabel, code: welcomeBonus.claimCode })}</Text>
-              </View>
-              {loading
-                ? <ActivityIndicator color="#F59E0B" style={{ marginRight: 4 }} />
-                : <View style={[s.modeArrow, { backgroundColor: '#F59E0B' }]}>
-                    <Text style={s.modeArrowText}>✓</Text>
-                  </View>}
-            </TouchableOpacity>
-          )}
         </ScrollView>
       )}
 
@@ -1565,6 +1594,15 @@ export default function EmployeeScanScreen() {
 }
 
 const s = StyleSheet.create({
+  welcomeCard: { backgroundColor: '#FFFBEB', borderWidth: 2, borderColor: '#F59E0B', borderRadius: 18, padding: 16, marginBottom: 14 },
+  welcomeTitle: { fontSize: 18, fontWeight: '900', color: '#92400E' },
+  welcomeSub: { fontSize: 14, color: '#78350F', marginTop: 4, lineHeight: 20 },
+  welcomeGiveBtn: { marginTop: 12, backgroundColor: '#D97706', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
+  welcomeGiveText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  welcomeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+  welcomeOption: { flexBasis: '47%', flexGrow: 1, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1.5, borderColor: '#FCD34D', paddingVertical: 14, paddingHorizontal: 10, alignItems: 'center', gap: 4 },
+  welcomeOptionEmoji: { fontSize: 28 },
+  welcomeOptionText: { fontSize: 14, fontWeight: '800', color: '#78350F', textAlign: 'center' },
   fill: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   body: { padding: 18, gap: 14, paddingBottom: 32 },

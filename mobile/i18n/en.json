@@ -1673,7 +1673,15 @@
     "dayOfSevenRedeemed": "Day {{day}} of 7 redeemed",
     "rewardConfirmedHeading": "Reward Confirmed!",
     "ptsAlreadyDeducted": "-{{pts}} pts already deducted",
-    "codeRedeemed": "Code redeemed"
+    "codeRedeemed": "Code redeemed",
+    "welcomeGiftTitle": "Welcome gift: Day {{day}} of 7",
+    "welcomeGiftChoseSub": "They chose {{label}} in the app (code {{code}}). Hand it over, then tap Give.",
+    "welcomeGiftGive": "Give {{label}}",
+    "welcomeGiftPickSub": "New customer: one free item today, no sale needed. Tap what you hand over.",
+    "welcomeGiftConfirmTitle": "Give {{label}}?",
+    "welcomeGiftConfirmBody": "This is the customer's welcome gift for today. It can only be given once a day.",
+    "welcomeGiftConfirm": "Give it",
+    "welcomeGiftCancel": "Cancel"
   },
   "managerOrderList": {
     "failedToSubmitCategory": "Failed to submit category",

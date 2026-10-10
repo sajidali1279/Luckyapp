@@ -151,14 +151,24 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
       where: { customerId_day: { customerId: customer.id, day: dayNumber } },
     });
 
-    if (!claim || claim.confirmedAt != null) {
-      return res.json({ success: true, data: null });
+    if (claim?.confirmedAt != null) {
+      return res.json({ success: true, data: null });   // today's item was already handed over
+    }
+    // Not chosen in the customer's app yet (2026-10-10): an app that asks with ?offer=1 lets the cashier give it straight from the scan
+    // (POST /welcome-bonus/give). Older cashier apps do not ask, and get nothing here, as before.
+    if (!claim) {
+      if (req.query.offer !== '1') return res.json({ success: true, data: null });
+      return res.json({
+        success: true,
+        data: { claimed: false, day: dayNumber, customerName: customer.name, rewards: VALID_REWARD_TYPES.map((rt) => ({ rewardType: rt, ...REWARD_LABELS[rt] })) },
+      });
     }
 
     const reward = REWARD_LABELS[claim.rewardType];
     return res.json({
       success: true,
       data: {
+        claimed: true,
         claimId: claim.id,
         claimCode: claim.claimCode,
         day: claim.day,
@@ -205,6 +215,47 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
       success: true,
       data: { rewardLabel: reward?.label, rewardEmoji: reward?.emoji, day: confirmed.day },
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+}
+
+// POST /welcome-bonus/give { qrCode, rewardType, storeId } (2026-10-10): the cashier gives today's welcome item straight from the scan,
+// for a new customer who did not choose it in their app first. Same rules: days 1 to 7 of the account, one item a day, at a store the
+// cashier works at, recorded with who gave it. If the customer had chosen one in the app and not picked it up, that one is used, with
+// the item the cashier actually handed over.
+export async function giveWelcomeBonus(req: Request, res: Response) {
+  try {
+    const { qrCode, rewardType, storeId } = req.body as { qrCode?: string; rewardType?: string; storeId?: string };
+    if (!qrCode) return res.status(400).json({ success: false, error: 'Scan the customer first.' });
+    if (!rewardType || !VALID_REWARD_TYPES.includes(rewardType)) return res.status(400).json({ success: false, error: 'Choose the item you are handing over.' });
+    const customer = await prisma.user.findUnique({ where: { qrCode }, select: { id: true, createdAt: true, role: true, isActive: true } });
+    if (!customer) return res.status(404).json({ success: false, error: 'Customer not found' });
+    if (!isCustomerAccount(customer)) return res.status(403).json({ success: false, error: NOT_A_CUSTOMER });
+    if (!customer.isActive) return res.status(403).json({ success: false, error: 'This account is restricted. It cannot get rewards right now.' });
+    const day = getDayNumber(customer.createdAt);
+    if (day < 1 || day > 7) return res.status(400).json({ success: false, error: 'The welcome gift is only for the first 7 days after signing up.' });
+    if (storeId && !(req.user!.storeIds ?? []).includes(storeId) && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
+      return res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' });
+    }
+    const given = { confirmedAt: new Date(), confirmedById: req.user!.id, storeId: storeId ?? null, rewardType };
+    const existing = await prisma.welcomeBonusClaim.findUnique({ where: { customerId_day: { customerId: customer.id, day } } });
+    if (existing) {
+      // Only if still not handed over, so two cashiers (or a double tap) cannot give today's item twice
+      const { count } = await prisma.welcomeBonusClaim.updateMany({ where: { id: existing.id, confirmedAt: null }, data: given });
+      if (count === 0) return res.status(400).json({ success: false, error: "Today's welcome gift was already given." });
+    } else {
+      let claimCode = generateCode();
+      for (let i = 0; i < 10 && (await prisma.welcomeBonusClaim.findUnique({ where: { claimCode } })); i++) claimCode = generateCode();
+      try {
+        await prisma.welcomeBonusClaim.create({ data: { customerId: customer.id, day, claimCode, ...given } });
+      } catch (e: any) {
+        if (e?.code === 'P2002') return res.status(400).json({ success: false, error: "Today's welcome gift was already given." });
+        throw e;
+      }
+    }
+    const reward = REWARD_LABELS[rewardType];
+    return res.json({ success: true, data: { rewardLabel: reward?.label, rewardEmoji: reward?.emoji, day } });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
   }

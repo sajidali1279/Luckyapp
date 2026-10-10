@@ -301,25 +301,19 @@ The customer will need to go back to their app, cancel the expired redemption (t
 
 ## 9. Welcome Bonus - New Customers
 
-When a new customer first registers on the Lucky Stop App, they may be eligible for a Welcome Bonus. They must claim it at a store.
+For the first 7 days after signing up, a new customer gets **one free item a day**: a fountain drink, a coffee, a 12oz soda or a hot food snack. No purchase is needed.
 
-### Step 1: Customer Tells You They Have a Welcome Bonus
+### Step 1: Scan the Customer's QR Code
 
-New customers will know their Welcome Bonus is available because the app shows it on their home screen.
+From the home screen, tap **Scan QR** and scan the customer's QR code.
 
-### Step 2: Scan the Customer's QR Code
+### Step 2: Give the Welcome Gift
 
-From the home screen, tap **Scan QR** → scan the customer's QR code.
+If they have a gift waiting today, a highlighted **Welcome gift: Day N of 7** card is the first thing on the screen:
+- **They already chose an item in their app:** the card shows what they chose and their code. Hand it over and tap **Give**.
+- **They did not choose yet:** tap the item you are handing over, then **Give it** to confirm.
 
-### Step 3: Look Up Welcome Bonus
-
-On the customer account screen, you will see a **Welcome Bonus** section if the customer is eligible. Tap **Claim Welcome Bonus**.
-
-### Step 4: Confirm the Claim
-
-Review the bonus details (what the customer receives) and tap **Confirm Claim**.
-
-The welcome bonus is credited to the customer's account. It cannot be claimed again.
+Do not use **Grant Points** for the welcome gift: that records a sale. The gift is recorded with your name and store, and can only be given once a day. If the card is not there, they already had today's gift or it has been more than 7 days.
 
 ---
 
@@ -692,7 +686,7 @@ If you notice a customer or another employee attempting to abuse the loyalty sys
 | Receipt photo is blurry | Tap Retake and take another photo in better lighting |
 | Customer wants to redeem their credits | Scan QR → Redeem Credits → enter amount |
 | Customer has a catalog reward code | Scan QR → Pending Catalog Redemptions → confirm |
-| New customer has a welcome bonus | Scan QR → Welcome Bonus → Claim |
+| New customer's free welcome item | Scan QR → Welcome gift card (top) → tap the item → Give |
 | Customer says they didn't get their points | Check their transaction history (visible after scan) - if processing error, ask manager |
 | Store is out of a product | Stock Request → New Request → Low Stock |
 | Refrigerator is broken | Requests → Work Order → High priority |

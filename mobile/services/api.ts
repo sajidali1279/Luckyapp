@@ -238,8 +238,10 @@ export const storesApi = {
 export const welcomeBonusApi = {
   getStatus: () => api.get('/welcome-bonus'),
   claim: (rewardType: string) => api.post('/welcome-bonus/claim', { rewardType }),
-  getForCustomer: (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`),
+  // offer=1: also answers for a new customer who has not chosen today's item, so the cashier can give it (give below)
+  getForCustomer: (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`, { params: { offer: 1 } }),
   confirm: (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
+  give: (qrCode: string, rewardType: string, storeId?: string) => api.post('/welcome-bonus/give', { qrCode, rewardType, storeId }),
 };
 
 export const productRequestApi = {

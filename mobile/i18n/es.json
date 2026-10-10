@@ -1673,7 +1673,15 @@
     "dayOfSevenRedeemed": "Día {{day}} de 7 canjeado",
     "rewardConfirmedHeading": "¡Recompensa Confirmada!",
     "ptsAlreadyDeducted": "-{{pts}} pts ya deducidos",
-    "codeRedeemed": "Código canjeado"
+    "codeRedeemed": "Código canjeado",
+    "welcomeGiftTitle": "Regalo de bienvenida: día {{day}} de 7",
+    "welcomeGiftChoseSub": "Eligió {{label}} en la app (código {{code}}). Entrégalo y toca Dar.",
+    "welcomeGiftGive": "Dar {{label}}",
+    "welcomeGiftPickSub": "Cliente nuevo: un artículo gratis hoy, sin venta. Toca lo que entregas.",
+    "welcomeGiftConfirmTitle": "¿Dar {{label}}?",
+    "welcomeGiftConfirmBody": "Es el regalo de bienvenida de hoy para este cliente. Solo se puede dar una vez al día.",
+    "welcomeGiftConfirm": "Dar",
+    "welcomeGiftCancel": "Cancelar"
   },
   "managerOrderList": {
     "failedToSubmitCategory": "Error al enviar la categoría",
