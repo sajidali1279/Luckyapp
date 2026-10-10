@@ -245,6 +245,21 @@ The scrolling banner at the top of your home screen shows the latest Lucky Stop 
 
 ---
 
+## 8a. Invite Friends
+
+Open the menu and tap **Invite friends**, or tap the **Invite friends** card on your home screen.
+
+- Tap **Share invite** to send your code and a link by text, WhatsApp or any app, or tap **Copy** to copy just the code.
+- Your friend downloads Lucky Stop and enters your code in **Invite code** when they create their account.
+- When they make their first purchase of $10 or more within 30 days, **you both get $5** in credits. You get a notification when it happens.
+- You can earn for up to 10 friends a month. The screen shows each friend you invited and whether you were paid.
+
+**Were you invited but forgot the code?** Open Invite friends within 7 days of joining, before your first purchase, and add it under **Were you invited?**
+
+*The amounts and rules shown in the app are always the current ones.*
+
+---
+
 ## 9. Redeeming Points for In-Store Credits
 
 Want to use your points as cash toward your next purchase? You can redeem any amount of your points balance as in-store credit.

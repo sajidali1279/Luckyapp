@@ -344,11 +344,27 @@ The search box finds a customer by part of a name (any case, spaces around it do
 
 **Filters** narrows the list further. Click **Filters** to open a panel of checkboxes: **Status** (All, Active or Restricted), **Has a balance**, **Has a fraud note**, **Joined this week**, and **Hide test accounts**. The Filters button itself shows how many are on ("Filters (2)"), and **Clear filters** turns them all off at once. **Export CSV** downloads exactly what the filters and search currently show, so the file always matches the screen.
 
-### 6.1a A Customer's Own Page
+### 6.1a A Customer's Profile
 
-Click **View Details** on any card to open that customer's own page: their credit balance, sale count and total spent, their most recent sales (with a link to each receipt photo), their most recent redemptions, and their missing-points reports, all in one place - the starting point for "a customer says they got no points."
+Click **View Profile** on any card to open the customer's full profile, the starting point for any support call. The header shows their balance, tier, number of purchases and total spent, and says when the account is restricted or sign-in is locked. Tabs:
 
-The same page has a **Goodwill Credit** tool, for a case that is not a missing-points report: an apology, a promise made on the phone, a one-off gesture. Type an amount (up to $25) and a reason (required), then **Add Credit**. It is added to their balance right away, the customer is told why, and it is recorded in the Activity Log. For a larger amount tied to a specific purchase, use a missing-points report instead (see 6.6), which can credit up to $50.
+- **Overview:** phone, email, language, birthday (month and day, if they gave it), 21+ confirmation, joined, last sign-in and invite code; tier progress this half-year; shopping (purchases, last 30 days, spent, average, first and last purchase, usual store, anything waiting or held, missing-points reports, hot food orders); points earned and redeemed. Also here:
+  - **Sign-in:** if they are locked out after too many wrong PINs, **Unlock sign-in** lets them try again straight away. If they forgot the PIN, they reset it themselves in the app with a text code.
+  - **Goodwill credit:** for something that is not a missing-points report (an apology, a promise made on the phone). Up to $25 with a reason; it is added at once, they get a push notification saying why, and it is in the Activity Log. For a larger amount tied to a purchase, use a missing-points report (6.6), up to $50.
+  - **Restrict / Restore account** (see 6.2 and 6.3).
+- **Activity:** every purchase (with promotion, receipt photo, who entered it, and whether it was voided or held), challenge and referral rewards, redemptions at the counter and rewards taken, missing-points reports, hot food orders and goodwill credits, newest first, with filters. **Older** and **Newer** page through it.
+- **Referrals:** their invite code, how many friends they invited and how many were paid, what they earned, and who invited them (click the name to open that customer).
+- **Notes:** private notes for HQ ("called 10/9 about missing gas points"), with who wrote each one and when. Customers never see them. You can delete your own notes; a Dev Admin can delete any. They are deleted with the account.
+- **Devices:** each phone that has notifications on (Android or iPhone), its app version and when it was last seen. No phones listed means they will not get notifications: they need to allow notifications for Lucky Stop in the phone's settings and open the app.
+- **Account history:** what staff did on this account (credits, restrictions, unlocks, PIN resets), from the Activity Log.
+
+### 6.1b Refer a Friend (Customers > Referrals)
+
+Customers share a personal invite code from **Invite friends** in the app. A new customer enters it when creating their account (or within 7 days, before their first purchase). When the friend's purchase of at least the minimum is approved within the window, both are paid in credits at the store of that purchase; the store's platform fee applies, like a challenge reward. A customer is paid for at most the monthly limit of friends; the friend is still paid after that.
+
+The **Referrals** tab on Customers shows the totals, the people who bring the most friends, and every referral with its status (**Waiting for a purchase**, **Paid**, **Expired**) and what was paid. **The deal** sets: whether codes are accepted, what the person who shared gets, what the new friend gets, the friend's minimum purchase, the paid friends per person a month, and the days the friend has to buy (today $5, $5, $10, 10 and 30). Changes apply to rewards paid from then on.
+
+A referral reward is never counted as a sale or a visit in Analytics, Billing or promotion results. If a referral looks fake (the same person on two phones, for example), void the two reward lines in **Transactions** (open each one and use Void, with a reason), and restrict the accounts if needed.
 
 ### 6.2 Restricting a Customer Account
 

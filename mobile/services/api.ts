@@ -42,9 +42,16 @@ export default api;
 
 // ─── API Methods ──────────────────────────────────────────────────────────────
 
+// Refer a friend (2026-10-09): my code and friends, whose code it is (sign-up), adding a code late
+export const referralsApi = {
+  me: () => api.get('/referrals/me'),
+  check: (code: string) => api.get('/referrals/check', { params: { code } }),
+  claim: (code: string) => api.post('/referrals/claim', { code }),
+};
+
 export const authApi = {
-  register: (phone: string, pin: string, name: string, firebaseToken: string) =>
-    api.post('/auth/register', { phone, pin, name, firebaseToken }),
+  register: (phone: string, pin: string, name: string, firebaseToken: string, referralCode?: string) =>
+    api.post('/auth/register', { phone, pin, name, firebaseToken, ...(referralCode ? { referralCode } : {}) }),
   login: (phone: string, pin: string, pushToken?: string, platform?: string) =>
     api.post('/auth/login', { phone, pin, pushToken, platform }),
   updateProfile: (name: string) =>
@@ -57,8 +64,8 @@ export const authApi = {
   removeAvatar: () => api.delete('/auth/profile/avatar'),
   changePin: (currentPin: string, newPin: string) =>
     api.patch('/auth/pin', { currentPin, newPin }),
-  registerPushToken: (token: string, platform: string, language?: string) =>
-    api.post('/auth/push-token', { token, platform, language }),
+  registerPushToken: (token: string, platform: string, language?: string, appVersion?: string) =>
+    api.post('/auth/push-token', { token, platform, language, appVersion }),
   /** The language the app is used in: promotion pushes come in it. */
   setLanguage: (language: string) => api.put('/auth/language', { language }),
   // Sign-out: tell the server this device should stop getting this account's pushes. A best-effort call

@@ -26,6 +26,9 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import LanguageSwitch from '../../components/LanguageSwitch';
 import { useTranslation } from 'react-i18next';
 import { phoneAuthErrorText } from '../../utils/phoneAuthError';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { referralsApi } from '../../services/api';
+import { PENDING_INVITE_KEY, pendingInvite } from '../invite';
 
 type Screen = 'quick' | 'login' | 'register' | 'verify-phone';
 
@@ -38,6 +41,9 @@ export default function LoginScreen() {
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [name, setName] = useState('');
+  // Refer a friend: an optional invite code, filled in for them when they came from an invite link (app/invite.tsx)
+  const [inviteCode, setInviteCode] = useState(pendingInvite.code);
+  const [invite, setInvite] = useState<{ state: 'idle' | 'checking' | 'valid' | 'invalid'; name?: string; amount?: number; min?: number }>({ state: 'idle' });
   const [confirmPin, setConfirmPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -47,6 +53,22 @@ export default function LoginScreen() {
   const tabAnim = useRef(new Animated.Value(screen === 'register' ? 1 : 0)).current;
   const quickPinRef = useRef<TextInput>(null);
   const nameRef = useRef<TextInput>(null);
+  useEffect(() => { AsyncStorage.getItem(PENDING_INVITE_KEY).then((c) => { if (c) setInviteCode((v) => v || c); }).catch(() => {}); }, []);
+  useEffect(() => {
+    const c = inviteCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!c) { setInvite({ state: 'idle' }); return; }
+    if (c.length !== 6) { setInvite({ state: c.length > 6 ? 'invalid' : 'idle' }); return; }
+    setInvite({ state: 'checking' });
+    let live = true;
+    const timer = setTimeout(() => {
+      referralsApi.check(c).then(({ data }) => {
+        if (!live) return;
+        const r = data?.data;
+        setInvite(r?.valid ? { state: 'valid', name: r.name, amount: r.friendReward, min: r.minPurchase } : { state: 'invalid' });
+      }).catch(() => { if (live) setInvite({ state: 'idle' }); });   // no network: the server checks it again at sign-up
+    }, 400);
+    return () => { live = false; clearTimeout(timer); };
+  }, [inviteCode]);
   const phoneRef = useRef<TextInput>(null);
   const mainPinRef = useRef<TextInput>(null);
   const confirmPinRef = useRef<TextInput>(null);
@@ -229,7 +251,13 @@ export default function LoginScreen() {
     try {
       const credential = await confirmation.confirm(otp);
       const firebaseToken = await credential.user.getIdToken();
-      const { data } = await authApi.register(rawPhone(), pin, name.trim(), firebaseToken);
+      const code = inviteCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const { data } = await authApi.register(rawPhone(), pin, name.trim(), firebaseToken, code || undefined);
+      AsyncStorage.removeItem(PENDING_INVITE_KEY).catch(() => {});
+      pendingInvite.code = '';
+      const ref = data.data.referral;
+      if (ref?.invitedBy) Toast.show({ type: 'success', text1: t('invite.signupAdded', { name: ref.invitedBy }), text2: t('invite.signupAddedBody', { min: invite.min ?? 10 }) });
+      else if (ref?.error) Toast.show({ type: 'info', text1: t('invite.signupNotAdded'), text2: ref.error });
       signOut(getAuth()).catch(() => {});
       await setAuth(data.data.user, data.data.token);
       if (bioAvailable && !biometricEnabled) setShowBioOffer(true);
@@ -517,6 +545,29 @@ keyboardType="number-pad"
                 onFocus={() => setFocusedInput('name')}
                 onBlur={() => setFocusedInput(null)}
               />
+              <Text style={styles.label}>{t('invite.signupLabel')}</Text>
+              <TextInput
+                style={[styles.input, focusedInput === 'invite' && styles.inputFocused, { letterSpacing: inviteCode ? 2 : 0 }]}
+                placeholder="ABC234"
+                placeholderTextColor={COLORS.textMuted}
+                value={inviteCode}
+                onChangeText={(v) => setInviteCode(v.toUpperCase())}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                maxLength={10}
+                returnKeyType="next"
+                onSubmitEditing={() => phoneRef.current?.focus()}
+                onFocus={() => setFocusedInput('invite')}
+                onBlur={() => setFocusedInput(null)}
+                accessibilityHint={t('invite.signupLabel')}
+              />
+              {invite.state !== 'idle' && (
+                <Text style={[styles.pinHint, { color: invite.state === 'valid' ? COLORS.success : invite.state === 'invalid' ? COLORS.error : COLORS.textMuted }]} accessibilityLiveRegion="polite">
+                  {invite.state === 'checking' ? t('invite.signupChecking')
+                    : invite.state === 'valid' ? t('invite.signupValid', { name: invite.name, amount: invite.amount, min: invite.min })
+                    : t('invite.signupInvalid')}
+                </Text>
+              )}
             </>
           )}
 

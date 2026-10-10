@@ -7,7 +7,7 @@ import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import {
   HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
   BriefcaseIcon, ShoppingBagIcon, BellIcon, FlameIcon,
-  UserIcon, BookOpenIcon, ClipboardIcon,
+  UserIcon, BookOpenIcon, ClipboardIcon, GiftIcon,
 } from '../../components/Icons';
 
 export default function CustomerLayout() {
@@ -37,6 +37,7 @@ export default function CustomerLayout() {
     {
       title: t('nav.groupDiscover'),
       items: [
+        { route: '/(customer)/invite-friends',  icon: (p) => <GiftIcon {...p} />,        label: t('nav.inviteFriends') },
         { route: '/(customer)/ads',             icon: (p) => <MegaphoneIcon {...p} />,   label: t('nav.adsPromos') },
         { route: '/(customer)/leaderboard',     icon: (p) => <TrophyIcon {...p} />,      label: t('nav.leaderboard') },
         { route: '/(customer)/careers',         icon: (p) => <BriefcaseIcon {...p} />,   label: t('nav.careers') },
@@ -70,6 +71,7 @@ export default function CustomerLayout() {
         <Tabs.Screen name="my-disputes" />
         <Tabs.Screen name="guide" />
         <Tabs.Screen name="profile" />
+        <Tabs.Screen name="invite-friends" />
       </Tabs>
     </DrawerShell>
   );

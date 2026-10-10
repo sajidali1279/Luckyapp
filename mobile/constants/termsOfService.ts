@@ -77,6 +77,8 @@ Points may be redeemed for in-store credit applied as a discount at checkout. In
 
 Promotional offers displayed in the App are valid only during the specified period, may be location-specific or category-specific, and are subject to availability. Some are only for certain members (a tier and up, new members, members who have not visited in a while, or members in their birthday month), and the App shows you only the ones you can use. A promotion may have a total budget and a daily limit on the extra cashback per member.
 
+**Refer a friend:** share your invite code from Invite friends. When a new customer joins with it and makes a qualifying first purchase in time, you both get the bonus shown in the app (up to a monthly number of friends). One code per person, never your own; bonuses without a genuine new customer may be reversed.
+
 **Challenges** pay a stated cashback reward when you reach a goal (for example, a number of visits) during the challenge period; only approved purchases at the stores named count. **Deals** (for example, "2 for $5") are in-store prices, not points bonuses.
 
 Lucky Stop makes no guarantee that any specific promotion will be available at any particular time.

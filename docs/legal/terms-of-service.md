@@ -124,6 +124,7 @@ The Lucky Stop App provides customers with the following features:
 - **Challenges:** Goals that pay a cashback reward when you reach them (see Section 9).
 - **Hot food ordering:** Order hot food for pick-up at participating stores during their hot food hours.
 - **Language:** Use the App in English or Spanish.
+- **Invite friends:** Share your invite code; you and a new friend both get a bonus after their first qualifying purchase (see Section 9).
 - **Notifications:** Receive updates about your account, new promotions, and Lucky Stop news.
 - **Leaderboard:** See your ranking among Lucky Stop loyalty program participants.
 - **Product requests:** Request specific products be stocked at your preferred Lucky Stop location.
@@ -323,6 +324,8 @@ Some promotions are only for certain members: members of a tier and up, new memb
 **Challenges.** Lucky Stop may run challenges that pay a stated cashback reward when you reach a goal, such as a number of visits or an amount spent in a category during the challenge period. Only approved purchases at the stores the challenge names count. Your progress is shown in the App and the reward is credited automatically.
 
 **Deals.** In-store deals shown in the App (for example, "2 for $5") are shelf prices set by the stores that carry the item, not points bonuses.
+
+**Refer a friend.** You can share your invite code from Invite friends in the App. When a new customer joins with it and makes a qualifying first purchase within the time allowed, you both receive the bonus shown in the App, up to a monthly number of friends. Each person can use one code, never their own, and bonuses obtained without a genuine new customer may be reversed. The App shows each person the other's first name and last initial. Full rules are in the Loyalty Program Terms.
 
 Lucky Stop makes no guarantee that any specific promotion will be available at any particular time. Promotional terms are displayed within the offer details in the App and the Loyalty Program Terms.
 

@@ -103,6 +103,7 @@ When you participate in the Lucky Stop Loyalty Program, we collect:
 - **Promotion and challenge records:** Which promotion, if any, applied to a purchase and the extra cashback it paid, how much extra cashback a promotion paid you (for promotions with a daily limit per customer), and your progress toward and completion of challenges.
 - **Hot food orders:** The items you order for pick-up, any note you add, the store, the order status and, if an order is cancelled, the reason.
 - **Product requests and missing-points reports:** Items you ask a store to stock and the details you give when you report missing points.
+- **Referrals:** Your invite code, who invited you (if anyone) and whom you invited, and the bonuses paid. The person who invited you, and the friends you invite, see your first name and last initial (for example, "Maria G.") and whether the bonus was paid; nothing else about you is shown to them.
 
 ### 3.3 Device and Technical Information
 
@@ -111,7 +112,7 @@ When you use the App, we automatically collect:
 - **Device identifier:** A unique device ID used for push notification delivery.
 - **Operating system and version:** iOS or Android version.
 - **Push notification token:** A token issued through Expo by your device's notification service (Apple Push Notification service or Firebase Cloud Messaging) to deliver notifications.
-- **App version:** The version of the Lucky Stop app installed on your device.
+- **App version:** The version of the Lucky Stop app installed on your device, and when the app last registered for notifications, so our support team can help when notifications or the app do not work.
 - **Login timestamps:** Records of when you log in and out of the App.
 - **Failed login attempts:** Tracked for security purposes; repeated failures may temporarily lock your account.
 - **Biometric authentication preference:** Whether you have enabled Face ID, Touch ID, or device biometric login. We do **not** store your biometric data - this is handled entirely by your device's operating system.
@@ -243,6 +244,7 @@ We use the information we collect for the following purposes:
 - Monitoring for suspicious activity patterns that may indicate fraudulent use.
 - Locking accounts after repeated failed PIN attempts.
 - Maintaining audit logs of all significant actions taken within the platform.
+- Keeping private support notes about a customer's requests (for example, "called about missing points"), visible only to Lucky Stop headquarters staff and deleted when the account is deleted.
 
 ### 5.6 Platform Operations
 

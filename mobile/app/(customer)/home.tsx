@@ -34,7 +34,7 @@ import { useAuthStore } from '../../store/authStore';
 import { offerBonusText } from '../../utils/offerRate';
 import { spanishOffer } from '../../utils/offerText';
 import ChallengesSection from '../../components/ChallengesSection';
-import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi } from '../../services/api';
+import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
 import ErrorState from '../../components/ErrorState';
@@ -42,9 +42,7 @@ import PromoFlipCard from '../../components/PromoFlipCard';
 import { COLORS, RECEIPT_QR_LIVE } from '../../constants';
 import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import {
-  BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon,
-  FlameIcon, TagIcon, ReceiptIcon, CameraIcon, ChevronRightIcon, StarIcon,
-  PercentIcon, GiftIcon, ClockIcon,
+  BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon, FlameIcon, TagIcon, ReceiptIcon, CameraIcon, ChevronRightIcon, StarIcon, PercentIcon, GiftIcon, ClockIcon,
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
@@ -535,6 +533,31 @@ const CAT_LABEL_KEYS: Record<string, string> = {
   HOT_FOODS: 'customerRewards.categoryHotFoods',
 };
 const CAT_FALLBACK_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#6366F1'];
+
+/** "Invite friends, get $5": opens Invite friends. Hidden while invites are switched off or before the deal has loaded. */
+const InviteCard = memo(function InviteCard() {
+  const { t } = useTranslation();
+  const q = useQuery({ queryKey: ['my-referrals'], queryFn: () => referralsApi.me(), staleTime: 10 * 60 * 1000 });
+  const s = q.data?.data?.data?.settings;
+  if (!s?.enabled) return null;
+  const amt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+  return (
+    <TouchableOpacity style={inv.card} activeOpacity={0.85} accessibilityRole="button" onPress={() => { haptic.tap(); router.push('/(customer)/invite-friends'); }}>
+      <View style={inv.icon}><GiftIcon size={22} color={COLORS.white} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={inv.title}>{t('invite.cardTitle', { amount: amt(s.referrerReward) })}</Text>
+        <Text style={inv.body}>{t('invite.cardBody', { amount: amt(s.friendReward) })}</Text>
+      </View>
+      <ChevronRightIcon size={20} color={COLORS.secondary} />
+    </TouchableOpacity>
+  );
+});
+const inv = StyleSheet.create({
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginTop: 4, marginBottom: 14, padding: 14, borderRadius: 16, backgroundColor: '#EEF2F7', borderWidth: 1, borderColor: '#D3DCEA' },
+  icon: { width: 42, height: 42, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  title: { fontSize: 15, fontWeight: '800', color: COLORS.secondary },
+  body: { fontSize: 13, color: COLORS.textMuted, marginTop: 1 },
+});
 
 const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any[]; userPts: number }) {
   const { t } = useTranslation();
@@ -1252,6 +1275,9 @@ export default function CustomerHome() {
           <RewardsShelf items={catalogItems} userPts={userPts} />
         </View>
       )}
+
+      {/* ── Invite friends (2026-10-09): both get the bonus when the friend makes a first purchase ── */}
+      <InviteCard />
 
       {/* ── Gas Prices + Active Gas Offers ── */}
       <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>

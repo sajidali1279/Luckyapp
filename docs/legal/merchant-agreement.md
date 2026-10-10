@@ -73,7 +73,7 @@ For the purposes of this Agreement, the following terms have the meanings set fo
 
 **"Customer Data"** means personal information of customers who interact with the Platform in connection with the Merchant's store(s), including but not limited to names, phone numbers, transaction history, and points balances.
 
-**"Cashback Issued"** means the loyalty value credited to customers through the Platform at a Merchant Store: the cashback on each Qualifying Transaction (including any tier, category, promotion and per-gallon gas bonus) and any challenge reward a customer earns there.
+**"Cashback Issued"** means the loyalty value credited to customers through the Platform at a Merchant Store: the cashback on each Qualifying Transaction (including any tier, category, promotion and per-gallon gas bonus), any challenge reward a customer earns there, and any refer-a-friend bonus paid on a customer's qualifying purchase there.
 
 **"Dev Cut"** (also "Platform Fee") means the percentage of the Cashback Issued that is payable to the Provider as a platform usage fee, as specified in Schedule B. It is not a percentage of the purchase amount.
 
@@ -170,6 +170,7 @@ The Platform additionally provides, subject to eligibility and the Merchant's st
 - **Challenges:** Goals (for example, a number of visits or an amount spent in a category) that pay a fixed reward when completed.
 - **Shelf and price labels:** A product catalog with prices per store, label printing and deal suggestions.
 - **Hot food ordering:** Customer orders for pick-up, with store-set hours.
+- **Refer a friend:** Customers invite friends with a personal code; both are paid a bonus in credits when the friend's first qualifying purchase is approved, at the store of that purchase.
 
 ### 2.3 Future Feature Updates
 

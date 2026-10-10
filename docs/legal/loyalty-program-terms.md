@@ -271,6 +271,17 @@ Lucky Stop may run challenges: a goal, such as a number of visits or an amount s
 
 ---
 
+### 6.7 Refer a Friend
+
+You can invite friends with your personal invite code, found under **Invite friends** in the App.
+- A friend who is new to Lucky Stop enters your code when creating their account, or in Invite friends within 7 days of joining and before their first purchase. Each account can use one code, and you cannot use your own.
+- When your friend makes a purchase of at least the minimum shown in the App (currently **$10**) within the time shown in the App (currently **30 days**) of giving your code, and that purchase is approved, **you and your friend each receive the bonus shown in the App** (currently **$5** in credits each).
+- You can be paid for up to the number of friends a month shown in the App (currently **10**). Your friend still receives their bonus after you reach the limit.
+- Bonuses are credits with no cash value, appear in each person's history, and count toward tier progress like other cashback.
+- Invites must be genuine: creating accounts for yourself, using someone else's phone number, or any other way of earning a bonus without a real new customer is prohibited (Section 13). Lucky Stop may refuse or reverse such bonuses and restrict the accounts involved.
+- To show the referral to both people, the App shows the other person's first name and last initial (for example, "Maria G.").
+- Lucky Stop may change the amounts and rules or end the program at any time; the App always shows the current ones, and bonuses already paid are not affected.
+
 ## 7. Welcome Bonus
 
 ### 7.1 Eligibility

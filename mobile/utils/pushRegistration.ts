@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -31,5 +32,5 @@ export async function registerPushToken() {
   const tokenData = await Notifications.getExpoPushTokenAsync({
     projectId: EXPO_PROJECT_ID,
   });
-  await authApi.registerPushToken(tokenData.data, Platform.OS, getLanguage());   // promotion pushes come in the app's language
+  await authApi.registerPushToken(tokenData.data, Platform.OS, getLanguage(), Constants.expoConfig?.version);   // the app version helps support (HQ sees it on the customer's page)   // promotion pushes come in the app's language
 }

@@ -32,6 +32,8 @@ Cliff Industries processes Personal Data on behalf of the Controller solely for 
 - Delivering push notifications related to offers and account activity, in the customer's chosen language
 - Deciding which promotions and challenges a customer can see and use (by tier, purchase dates, or the optional birthday month and day the customer gave), and tracking challenge progress
 - Taking hot food orders for pick-up
+- Running refer-a-friend (linking a new customer to the customer who invited them, and paying both)
+- Keeping HQ's private support notes about a customer, deleted with the account
 - Storing receipt photos for fraud verification
 - Generating transaction analytics and reporting visible to the Controller
 - Responding to data subject rights requests coordinated through the Controller

@@ -40,6 +40,7 @@ For privacy inquiries: **support@luckystop.cliffindus.com**
 - **Product requests** - items you ask a store to stock.
 - **Promotions and challenges** - which promotion applied to a purchase, the extra cashback it paid you (for promotions with a daily limit), and your progress on challenges.
 - **Hot food orders** - the items you order for pick-up, any note, the store and the order status.
+- **Referrals** - your invite code, who invited you and whom you invited, and the bonuses paid. The other person sees only your first name and last initial.
 - **Push notification token** - a device token used to deliver notifications. Never shared externally.
 - **App crash and error data** - anonymous technical logs used to fix bugs. Does not identify you.
 
