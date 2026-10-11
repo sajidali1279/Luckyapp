@@ -5,10 +5,11 @@ import { hotFoodApi, hotFoodCatalogApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import {
   Flame, Clock, CheckCircle, X, RefreshCw, ChevronDown,
-  Plus, Pencil, Trash2, Building2, Search, ImageIcon,
+  Plus, Pencil, Trash2, Building2, Search, ImageIcon, Upload,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
 import HotFoodHoursModal, { hotFoodNowText, HotFoodNow } from '../components/HotFoodHoursModal';
+import HotFoodImportModal from '../components/HotFoodImportModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
@@ -456,6 +457,7 @@ export default function HotFood() {
   const [assignItem,   setAssignItem]   = useState<CatalogItem | null>(null);
   const [editItem,     setEditItem]     = useState<CatalogItem | null | 'new'>(null);
   const [showAddEdit,  setShowAddEdit]  = useState(false);
+  const [showImport,   setShowImport]   = useState(false);   // add many items at once from a sheet
 
   // Stores
   const { data: storesData } = useQuery({
@@ -571,7 +573,10 @@ export default function HotFood() {
         actions={view === 'orders' ? (
           <Button icon={<RefreshCw style={isRefetching ? { animation: 'spin 1s linear infinite' } : {}} />} onClick={() => refetch()}>Refresh</Button>
         ) : view === 'catalog' ? (
-          <Button variant="primary" icon={<Plus />} onClick={() => { setEditItem(null); setShowAddEdit(true); }}>Add Item</Button>
+          <>
+            <Button icon={<Upload />} onClick={() => setShowImport(true)}>Import items</Button>
+            <Button variant="primary" icon={<Plus />} onClick={() => { setEditItem(null); setShowAddEdit(true); }}>Add Item</Button>
+          </>
         ) : null}
       />
       <Tabs
@@ -770,6 +775,9 @@ export default function HotFood() {
           onClose={() => setHoursStore(null)}
           onSaved={() => qc.invalidateQueries({ queryKey: ['hot-food-stores-status'] })}
         />
+      )}
+      {showImport && (
+        <HotFoodImportModal stores={stores} existingNames={catalogItems.map((i) => i.name)} onClose={() => setShowImport(false)} />
       )}
       {showAddEdit && (
         <AddEditModal
