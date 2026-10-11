@@ -348,7 +348,8 @@ export async function dismissDealRecommendation(req: AuthRequest, res: Response)
 
 /** POST /labels/deal-recommendations/restore: shows every dismissed recommendation again. */
 export async function restoreDealRecommendations(req: AuthRequest, res: Response) {
-  const { count } = await prisma.dealRecommendationDismissal.deleteMany({});
+  // Deal recommendations only: hidden combo ideas (Offers > Deals) share the table and stay hidden
+  const { count } = await prisma.dealRecommendationDismissal.deleteMany({ where: { NOT: { key: { startsWith: 'combo|' } } } });
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'DEAL_RECOMMENDATIONS_RESTORED', entity: 'label', entityId: 'deal-recommendations',

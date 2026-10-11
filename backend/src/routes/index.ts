@@ -33,7 +33,7 @@ import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, delete
 import {
   createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults, setOfferImage, removeOfferImage, translateOffer,
   createBanner, getActiveBanners, deleteBanner,
-  estimateOfferCost, getPromotionIdeas,
+  estimateOfferCost, getPromotionIdeas, getComboIdeas, dismissComboIdea, restoreComboIdeas,
   listShelfDeals,
   setShelfDealHidden,
 } from '../controllers/offers.controller';
@@ -332,6 +332,9 @@ router.get('/offers', authenticate, getActiveOffers); // All authenticated users
 router.get('/offers/history', authenticate, requireRole(Role.STORE_MANAGER), getOffersHistory);
 router.post('/offers/estimate', authenticate, requireRole(Role.STORE_MANAGER), estimateOfferCost);                 // What a promotion would cost (last 4 weeks of sales)
 router.get('/offers/ideas', authenticate, requireRole(Role.SUPER_ADMIN), getPromotionIdeas);           // Promotion ideas from the last 8 weeks of sales, ready to post
+router.get('/offers/combo-ideas', authenticate, requireRole(Role.SUPER_ADMIN), getComboIdeas);                 // Combo ideas: two items for one price
+router.post('/offers/combo-ideas/dismiss', authenticate, requireRole(Role.SUPER_ADMIN), dismissComboIdea);
+router.post('/offers/combo-ideas/restore', authenticate, requireRole(Role.SUPER_ADMIN), restoreComboIdeas);
 router.post('/offers/translate', authenticate, requireRole(Role.STORE_MANAGER), translateOffer); // A suggested Spanish version of an offer's words
 // Challenges: spend or visit targets with a reward (utils/challenges.ts)
 router.get('/challenges/mine', authenticate, myChallenges);                                   // A customer's own, with their progress

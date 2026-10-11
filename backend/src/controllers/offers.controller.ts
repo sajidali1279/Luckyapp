@@ -18,6 +18,7 @@ import { isRestrictedCategory } from '../utils/dealSuggest';
 import { AUDIENCES, forCustomer, audienceText } from '../utils/offerAudience';
 import { budgetSpent, budgetSpentMany } from '../utils/offerBudget';
 import { promotionIdeas } from '../utils/promotionIdeas';
+import { comboIdeas, COMBO_KEY_PREFIX } from '../utils/comboIdeas';
 import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
 import { offerLift } from '../utils/offerLift';
 
@@ -737,6 +738,41 @@ export async function estimateOfferCost(req: AuthRequest, res: Response) {
 export async function getPromotionIdeas(_req: AuthRequest, res: Response) {
   const data = await cachedAnalytics(`promotion-ideas:${bucketTime(new Date())}`, () => promotionIdeas());
   res.json({ success: true, data });
+}
+
+// ─── Combo ideas ──────────────────────────────────────────────────────────────
+
+/** GET /offers/combo-ideas (HQ): two items sold together for one price, from the catalog, what moves and when it sells (utils/comboIdeas.ts). */
+export async function getComboIdeas(_req: AuthRequest, res: Response) {
+  const dismissed = await prisma.dealRecommendationDismissal.findMany({ where: { key: { startsWith: COMBO_KEY_PREFIX } }, select: { key: true } });
+  const data = await comboIdeas(new Date(), new Set(dismissed.map((d) => d.key)));
+  res.json({ success: true, data });
+}
+
+const comboDismissSchema = z.object({ key: z.string().startsWith(COMBO_KEY_PREFIX, 'That is not a combo idea.').max(300) });
+
+/** POST /offers/combo-ideas/dismiss (HQ): hides one combo idea. */
+export async function dismissComboIdea(req: AuthRequest, res: Response) {
+  const parsed = comboDismissSchema.safeParse(req.body ?? {});
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const { key } = parsed.data;
+  await prisma.dealRecommendationDismissal.upsert({
+    where: { key },
+    create: { key, labelId: key.split('|')[2] ?? 'combo', dismissedById: req.user!.id, dismissedByName: req.user!.name || null },
+    update: {},
+  });
+  res.json({ success: true, data: { key } });
+}
+
+/** POST /offers/combo-ideas/restore (HQ): shows every hidden combo idea again. */
+export async function restoreComboIdeas(req: AuthRequest, res: Response) {
+  const { count } = await prisma.dealRecommendationDismissal.deleteMany({ where: { key: { startsWith: COMBO_KEY_PREFIX } } });
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'COMBO_IDEAS_RESTORED', entity: 'offer', entityId: 'combo-ideas',
+    details: { summary: `Showed ${count} hidden combo idea${count === 1 ? '' : 's'} again` }, storeId: null,
+  });
+  res.json({ success: true, data: { restored: count } });
 }
 
 // ─── Spanish ──────────────────────────────────────────────────────────────────

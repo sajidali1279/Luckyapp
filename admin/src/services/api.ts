@@ -127,6 +127,10 @@ export const offersApi = {
   removeImage: (offerId: string) => api.delete(`/offers/${offerId}/image`),
   /** Promotion ideas from the last 8 weeks of sales (HQ), each ready to fill in the form. */
   ideas: () => api.get('/offers/ideas'),
+  /** Combo ideas (HQ): two items for one price, from the catalog and what moves; new ones every day. */
+  comboIdeas: () => api.get('/offers/combo-ideas'),
+  dismissComboIdea: (key: string) => api.post('/offers/combo-ideas/dismiss', { key }),
+  restoreComboIdeas: () => api.post('/offers/combo-ideas/restore'),
   /** A suggested Spanish version of an offer's words, to read and change. */
   translate: (words: { title: string; description: string; dealText: string }) => api.post('/offers/translate', words),
   getActive: () => api.get('/offers'),

@@ -22,6 +22,7 @@ import OfferCalendar from '../components/offers/OfferCalendar';
 import ShelfDealsSection from '../components/offers/ShelfDealsSection';
 import ChallengesPanel from '../components/offers/ChallengesPanel';
 import IdeasPanel, { type IdeaOffer } from '../components/offers/IdeasPanel';
+import ComboIdeasPanel, { type ComboOffer } from '../components/offers/ComboIdeasPanel';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 import { ImagePick } from '../components/offers/ImagePick';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from '../components/offers/SpanishFields';
@@ -380,6 +381,22 @@ export default function Offers() {
     setShowIdeas(false); setShowQuick(false); setShowTemplates(false);
     setTimeout(() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth' }), 100);
     toast.success('Form filled in from the idea. Check it, add a picture if you like, and post it.');
+  }
+
+  // Fill the deal form from a combo idea: both items, the combo price and the Spanish, at every store, from today to the month's end
+  function applyCombo(o: ComboOffer) {
+    setDealTitle(o.title);
+    setDealText(o.dealText);
+    setDealDescription(o.description);
+    setDealCategory(o.category);
+    setDealType('ALL_STORES'); setDealStoreId('');
+    setDealRequires21(false);
+    setDealSpanish({ titleEs: o.titleEs, descriptionEs: o.descriptionEs, dealTextEs: o.dealTextEs });
+    setDealStartDate(todayStr()); setDealEndDate(defaultEndStr());
+    setDealImageFile(null);
+    setShowDealForm(true);
+    setTimeout(() => document.getElementById('deal-form')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    toast.success(o.dealText ? 'Deal form filled in from the combo. Check it and post it.' : 'Deal form filled in. Type the combo price in the deal text, then post it.');
   }
 
   // A deal again: the same product, deal text, words, category, stores and 21+, with new dates (the picture is chosen again)
@@ -1155,6 +1172,7 @@ export default function Offers() {
       {/* Deals */}
       {mainTab === 'deals' && (
         <>
+          {isHQ && <ComboIdeasPanel onUse={applyCombo} />}
           {showDealForm && (
             <Card style={{ marginBottom: 28, maxWidth: 880 }}>
               <form id="deal-form" onSubmit={handleCreateDeal} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
