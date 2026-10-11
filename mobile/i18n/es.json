@@ -2964,5 +2964,48 @@
   "storeChips": {
     "waitingA11y_one": "{{count}} pendiente",
     "waitingA11y_other": "{{count}} pendientes"
+  },
+  "staffCheckIn": {
+    "askTitle": "¿Dónde trabajas hoy?",
+    "askBody": "Estás en {{here}}, pero tu horario te tiene en {{scheduled}} hoy ({{from}} a {{to}}).",
+    "workingHere": "Hoy trabajo en {{store}}",
+    "goingThere": "Voy a {{store}}",
+    "askNote": "Tu respuesta es solo para hoy. Tu gerente y la oficina central ven dónde te registraste.",
+    "checkedInAt": "Registrado en {{store}}",
+    "checkedIn": "Registrado",
+    "alreadyHere": "Ya estás registrado aquí",
+    "failed": "No pudimos registrarte. Inténtalo de nuevo.",
+    "todayLabel": "Hoy",
+    "checkedInLine": "Registrado en {{store}} · {{time}}",
+    "notCheckedIn": "Aún no te registras",
+    "scheduledLine": "Programado en {{store}}, de {{from}} a {{to}}",
+    "checkIn": "Registrarme",
+    "checkInA11y": "Registrarme en la tienda donde estoy",
+    "chooseTitle": "¿En qué tienda estás?",
+    "chooseSub": "Tu ubicación no lo pudo saber, así que elige la tienda donde trabajas hoy.",
+    "cancel": "Cancelar"
+  },
+  "whereStaff": {
+    "tab": "Quién dónde",
+    "tabA11y": "Quién está dónde: tienda programada y registros",
+    "thisWeek": "Esta semana",
+    "lastWeek": "Semana pasada",
+    "note": "Dónde estaba programada cada persona y dónde se registró. El horario que se ve es el semanal que se usa ahora.",
+    "loadError": "No se pudo cargar dónde está el personal.",
+    "today": "Hoy",
+    "nobody": "Nadie programado ni registrado.",
+    "onSite": "En la tienda",
+    "elsewhere": "En {{store}}",
+    "noCheckIn": "Sin registro",
+    "unscheduled": "Sin horario, registrado",
+    "off": "Día libre",
+    "upcoming": "Programado",
+    "scheduledLine": "Programado en {{store}}, de {{from}} a {{to}}",
+    "checkedInLine": "Registrado en {{store}} · {{time}}",
+    "chosen": "eligió la tienda",
+    "summaryAway_one": "{{count}} persona en otra tienda hoy",
+    "summaryAway_other": "{{count}} personas en otra tienda hoy",
+    "summaryMissing_one": "{{count}} sin registrarse aún",
+    "summaryMissing_other": "{{count}} sin registrarse aún"
   }
 }

@@ -447,6 +447,13 @@ export const managerApi = {
   },
 };
 
+// Where staff are working (2026-10-11): the check-in when the app opens during a shift, and the "Where staff are" calendar
+export const staffApi = {
+  today: () => api.get('/staff/today'),
+  checkIn: (data: { storeId: string; method: 'AUTO' | 'CHOSEN'; distanceFeet?: number | null }) => api.post('/staff/check-in', data),
+  attendance: (params: { from: string; to: string; storeId?: string }) => api.get('/staff/attendance', { params }),
+};
+
 export const hotFoodApi = {
   getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`),
   // Employee management view — legacy + catalog items merged with availability + source

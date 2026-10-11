@@ -262,6 +262,7 @@ model User {
   processedCatalogRedemptions CatalogRedemption[] @relation("CatalogProcessor")
   shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
+  checkIns             StaffCheckIn[]       @relation("StaffCheckIns")
   chatMessages         ChatMessage[]
   chatReads            ChatRead[]
   submittedStoreRequests StoreRequest[]
@@ -366,6 +367,7 @@ model Store {
   receiptTokens     ReceiptToken[]
   shiftTemplates    ShiftTemplate[]
   shiftRequests     ShiftRequest[]
+  staffCheckIns     StaffCheckIn[]
   chatMessages      ChatMessage[]
   chatReads         ChatRead[]
   storeRequests     StoreRequest[]
@@ -948,6 +950,27 @@ model ShiftRequest {
   @@index([storeId, date])
   @@index([employeeId])
   @@map("shift_requests")
+}
+
+// Where a staff member is working (2026-10-11): recorded when they open the app during a shift, from which of their stores the phone is
+// at (worked out on the phone: no coordinates are sent). AUTO = at the store the schedule has them at; CHOSEN = they told the app
+// which store, because they were at another of their stores. The latest one of the store day counts (utils/staffCheckIn.ts).
+model StaffCheckIn {
+  id               String   @id @default(uuid())
+  userId           String
+  storeId          String
+  storeDay         String   // the store day, "YYYY-MM-DD" (Central)
+  scheduledStoreId String?  // where the schedule had them then; null when they were not scheduled
+  method           String   // AUTO | CHOSEN
+  distanceFeet     Int?     // how far from the store the phone was
+  createdAt        DateTime @default(now())
+
+  user  User  @relation("StaffCheckIns", fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, storeDay])
+  @@index([storeId, storeDay])
+  @@map("staff_check_ins")
 }
 
 // ─── Store Chat ───────────────────────────────────────────────────────────────

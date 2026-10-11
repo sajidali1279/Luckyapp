@@ -2964,5 +2964,48 @@
   "storeChips": {
     "waitingA11y_one": "{{count}} waiting",
     "waitingA11y_other": "{{count}} waiting"
+  },
+  "staffCheckIn": {
+    "askTitle": "Where are you working today?",
+    "askBody": "You're at {{here}}, but your schedule has you at {{scheduled}} today ({{from}} to {{to}}).",
+    "workingHere": "I'm working at {{store}} today",
+    "goingThere": "I'm going to {{store}}",
+    "askNote": "Your answer is for today only. Your manager and HQ see where you checked in.",
+    "checkedInAt": "Checked in at {{store}}",
+    "checkedIn": "Checked in",
+    "alreadyHere": "You're already checked in here",
+    "failed": "Couldn't check you in. Try again.",
+    "todayLabel": "Today",
+    "checkedInLine": "Checked in at {{store}} · {{time}}",
+    "notCheckedIn": "Not checked in yet",
+    "scheduledLine": "Scheduled at {{store}}, {{from}} to {{to}}",
+    "checkIn": "Check in",
+    "checkInA11y": "Check in at the store you are at",
+    "chooseTitle": "Which store are you at?",
+    "chooseSub": "Your location couldn't tell, so choose the store you're working at today.",
+    "cancel": "Cancel"
+  },
+  "whereStaff": {
+    "tab": "Who's where",
+    "tabA11y": "Who is where: scheduled store and check-ins",
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
+    "note": "Where each person was scheduled and where they checked in. The schedule shown is the weekly one in use now.",
+    "loadError": "Couldn't load where staff are.",
+    "today": "Today",
+    "nobody": "Nobody scheduled or checked in.",
+    "onSite": "On site",
+    "elsewhere": "At {{store}} instead",
+    "noCheckIn": "Not checked in",
+    "unscheduled": "Not scheduled, checked in",
+    "off": "Time off",
+    "upcoming": "Scheduled",
+    "scheduledLine": "Scheduled at {{store}}, {{from}} to {{to}}",
+    "checkedInLine": "Checked in at {{store}} · {{time}}",
+    "chosen": "chose the store",
+    "summaryAway_one": "{{count}} person at another store today",
+    "summaryAway_other": "{{count}} people at another store today",
+    "summaryMissing_one": "{{count}} not checked in yet",
+    "summaryMissing_other": "{{count}} not checked in yet"
   }
 }

@@ -3,43 +3,19 @@
 // assigned to several stores is told only about the store they are working at. An order nobody accepts within ESCALATE_MINUTES is
 // escalated once: the store's managers and everyone assigned there hear about it. (It is still cancelled at AUTO_CANCEL_MINUTES.)
 import prisma from '../config/prisma';
-import { DayOfWeek } from '@prisma/client';
 import { saveNotificationMany, sendPushToStoreEmployees, sendPushToStoreManagers } from './push';
 import { sendExpoBatch } from './pushSend';
-import { storeMinutes, storeWeekday, storeDayStart, storeDayEnd } from './storeTime';
+import { workingAt } from './staffCheckIn';
 import { hotFoodOrderUrl } from './notificationRoutes';
 
 export const ESCALATE_MINUTES = 5;
-const DAYS: DayOfWeek[] = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const mins = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + (m || 0); };
 
 /**
- * The people on shift at a store at `now` (store time): today's shifts that have started and not ended, and last night's shifts that run
- * past midnight. Only people still active and still assigned to that store.
+ * The people working at a store at `now`: on a shift now and checked in there today, or not checked in anywhere today and scheduled there
+ * (utils/staffCheckIn.ts). Approved time off and people no longer assigned to the store are left out.
  */
 export async function onShiftAt(storeId: string, now: Date = new Date()): Promise<string[]> {
-  const day = storeWeekday(now);
-  const minute = storeMinutes(now);
-  const today = DAYS[day];
-  const yesterday = DAYS[(day + 6) % 7];
-  const shifts = await prisma.shiftTemplate.findMany({
-    where: { storeId, isActive: true, dayOfWeek: { in: [today, yesterday] }, employee: { isActive: true, storeRoles: { some: { storeId } } } },
-    select: { employeeId: true, dayOfWeek: true, startTime: true, endTime: true },
-  });
-  // Approved time off today (store day): not working, whatever the weekly schedule says
-  const off = new Set((await prisma.shiftRequest.findMany({
-    where: { employeeId: { in: [...new Set(shifts.map((s) => s.employeeId))] }, requestType: 'TIME_OFF', status: 'APPROVED', date: { gte: storeDayStart(now), lte: storeDayEnd(now) } },
-    select: { employeeId: true },
-  })).map((r) => r.employeeId));
-  const ids = new Set<string>();
-  for (const s of shifts) {
-    if (off.has(s.employeeId)) continue;
-    const start = mins(s.startTime); const end = mins(s.endTime);
-    const overnight = end <= start;
-    if (s.dayOfWeek === today && (overnight ? minute >= start : minute >= start && minute < end)) ids.add(s.employeeId);
-    if (s.dayOfWeek === yesterday && overnight && minute < end) ids.add(s.employeeId);
-  }
-  return [...ids];
+  return workingAt(storeId, now);
 }
 
 async function pushToUsers(userIds: string[], title: string, body: string, type: string, actionUrl?: string) {

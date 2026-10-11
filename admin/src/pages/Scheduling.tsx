@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
+import WhereStaffPanel from '../components/WhereStaffPanel';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { schedulingApi, storesApi } from '../services/api';
@@ -51,7 +52,7 @@ export default function Scheduling() {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [addModal, setAddModal] = useState<{ day: string; shiftType: string } | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
-  const [activeTab, setActiveTab] = useState<'schedule' | 'requests'>('schedule');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'requests' | 'where'>('schedule');
   const [confirmTwoShifts, setConfirmTwoShifts] = useState(false);
 
   // ── Queries ──
@@ -324,6 +325,9 @@ export default function Scheduling() {
                   Requests
                   {pendingRequests.length > 0 && <span style={s.badge}>{pendingRequests.length}</span>}
                 </button>
+                <button style={{ ...s.tab, ...(activeTab === 'where' ? s.tabActive : {}) }} onClick={() => setActiveTab('where')}>
+                  Who's where
+                </button>
               </div>
             </div>
 
@@ -451,6 +455,8 @@ export default function Scheduling() {
                 </div>
               </>
             )}
+
+            {activeTab === 'where' && selectedStoreId && <WhereStaffPanel storeId={selectedStoreId} />}
 
             {activeTab === 'requests' && (
               <div style={s.section}>

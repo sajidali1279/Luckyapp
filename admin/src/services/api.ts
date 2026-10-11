@@ -366,6 +366,11 @@ export const auditApi = {
   getStats: () => api.get('/audit/stats'),
 };
 
+// Where staff are working (2026-10-11): scheduled store vs where they checked in, per day
+export const staffAttendanceApi = {
+  attendance: (params: { from: string; to: string; storeId?: string }) => api.get('/staff/attendance', { params }),
+};
+
 export const schedulingApi = {
   getStoreSchedule: (storeId: string) => api.get(`/schedule/store/${storeId}`),
   getTodayRoster: (storeId: string) => api.get(`/schedule/store/${storeId}/today`),

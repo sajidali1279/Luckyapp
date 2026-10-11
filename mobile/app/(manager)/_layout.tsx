@@ -5,6 +5,7 @@ import { COLORS } from '../../constants';
 import { notificationsApi, employeeRequestApi, productRequestApi, storeRequestApi, chatApi, supportApi, schedulingApi, disputeApi } from '../../services/api';
 import { useAuthStore, isStoreManagerOrAbove } from '../../store/authStore';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
+import ShiftCheckIn from '../../components/ShiftCheckIn';
 import {
   HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
   TagIcon, ImageIcon, MessageCircleIcon, ListIcon, TrophyIcon, BookOpenIcon,
@@ -117,6 +118,9 @@ export default function ManagerLayout() {
   ];
 
   return (
+    <>
+    {/* Checks in at the store they are working at, when the app opens during a shift (2026-10-11) */}
+    <ShiftCheckIn />
     <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.managerPrimary}>
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
@@ -136,5 +140,6 @@ export default function ManagerLayout() {
         <Tabs.Screen name="guide" />
       </Tabs>
     </DrawerShell>
+    </>
   );
 }

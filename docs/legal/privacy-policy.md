@@ -1,7 +1,7 @@
 # Lucky Stop Loyalty App - Privacy Policy
 
 **Effective Date:** June 1, 2026
-**Last Updated:** October 8, 2026
+**Last Updated:** October 11, 2026
 **Version:** 1.1
 
 ---
@@ -133,6 +133,7 @@ For Lucky Stop employees, store managers, and administrators, we additionally co
 - **Role designation:** Your access level within the platform (Employee, Store Manager, Super Admin).
 - **Work schedule data:** Shift assignments and schedule requests submitted or managed through the App.
 - **Shift request history:** Time-off requests, fill-in requests, and their approval status.
+- **Store check-ins:** When you open the App during a shift, it works out on your device which of your assigned stores you are at, and records the store, the time, and how far your phone was from that store (in feet). Your coordinates are not sent or stored. If you are at a different one of your stores than the one you are scheduled at, the App asks which store you are working at that day; your answer is recorded with the check-in, and your store manager(s) and Lucky Stop headquarters are notified. Check-ins are shown to you, your store managers and headquarters, are used to send hot food order alerts to the people working at that store, and are kept with your work schedule data.
 - **Transaction processing records:** Records of customer transactions you processed, including receipt images uploaded.
 - **Store request records:** Supply or maintenance requests you have submitted.
 - **Employee item requests:** Inventory replenishment requests you have submitted.
@@ -507,10 +508,11 @@ The App may request access to your device's precise location (GPS/location servi
 
 - To identify the Lucky Stop location nearest you and tailor the home screen's promotions, banners, and hot food ordering availability to that store.
 - To determine whether the nearest store carries age-restricted products, so the App can show the existing age-confirmation step in the right context.
+- For staff users only: to check you in at the store you are working at when you open the App during a shift (see Section 3.5).
 
 ### How It's Processed
 
-Your coordinates are used **entirely on your device** to calculate distance to Lucky Stop store locations (whose addresses are already public within the App). They are never transmitted to or stored on our servers, and are not retained after the calculation completes - see Section 9 for our data retention practices generally.
+Your coordinates are used **entirely on your device** to calculate distance to Lucky Stop store locations (whose addresses are already public within the App). They are never transmitted to or stored on our servers, and are not retained after the calculation completes - see Section 9 for our data retention practices generally. For a staff check-in, only the result is sent: which store, and how far the phone was from it.
 
 ### Your Control
 

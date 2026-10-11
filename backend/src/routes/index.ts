@@ -101,6 +101,7 @@ import {
   getStoreEmployees,
   getVacancies,
 } from '../controllers/schedule.controller';
+import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
   getUnreadCount as getSupportUnreadCount, updatePriority, getSupportStats,
@@ -477,6 +478,10 @@ router.get('/schedule/my', authenticate, requireRole(Role.EMPLOYEE), getMySchedu
 router.post('/schedule/requests', authenticate, requireRole(Role.EMPLOYEE), createShiftRequest);
 router.get('/schedule/requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getShiftRequestsPendingCount); // Badge count
 router.get('/schedule/requests/pending-by-store', authenticate, requireRole(Role.STORE_MANAGER), getRequestsPendingCountByStore); // Per-store breakdown for multi-store sidebar
+// Where staff are working (2026-10-11): the app's check-in, and the "Where staff are" calendar (employees see only their own days)
+router.get('/staff/today', authenticate, requireRole(Role.EMPLOYEE), getMyStaffToday);
+router.post('/staff/check-in', authenticate, requireRole(Role.EMPLOYEE), staffCheckIn);
+router.get('/staff/attendance', authenticate, requireRole(Role.EMPLOYEE), getStaffAttendance);
 router.patch('/schedule/requests/:requestId', authenticate, requireRole(Role.STORE_MANAGER), updateShiftRequest);
 router.get('/schedule/vacancies', authenticate, getVacancies);                                       // Vacant shift slots (all roles)
 

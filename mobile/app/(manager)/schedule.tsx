@@ -10,6 +10,8 @@ import {
 import { Text } from '../../components/ScaledText';
 import RefreshControl from '../../components/AppRefreshControl';
 import { useState, useEffect } from 'react';
+import { useLocalSearchParams, router } from 'expo-router';
+import WhereStaffAre from '../../components/WhereStaffAre';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { schedulingApi, storesApi } from '../../services/api';
@@ -40,7 +42,7 @@ const SHIFT_TIMES: Record<string, string> = {
   CLOSING: formatShiftTime('CLOSING', true),
 };
 
-type Tab = 'roster' | 'week' | 'requests';
+type Tab = 'roster' | 'week' | 'requests' | 'where';
 interface Store { id: string; name: string; shiftsPerDay?: number }
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -78,6 +80,9 @@ export default function ManagerScheduleScreen() {
   const shiftName = (shift: string) => (shift === 'MIDDLE' && twoShift ? t('managerSchedule.middleNotInUse') : SHIFT_LABELS[shift]);
 
   const [tab, setTab] = useState<Tab>('roster');
+  // A check-in alert opens Where staff are (2026-10-11)
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
+  useEffect(() => { if (tabParam === 'where') { setTab('where'); router.setParams({ tab: '' }); } }, [tabParam]);
   const [selectedWeekDay, setSelectedWeekDay] = useState(todayKey);
   const [confirmModal, setConfirmModal] = useState<{
     requestId: string; employeeName: string; type: string;
@@ -151,6 +156,7 @@ export default function ManagerScheduleScreen() {
   function onRefresh() {
     if (tab === 'roster') refetchRoster();
     else if (tab === 'week') refetchWeek();
+    else if (tab === 'where') qc.invalidateQueries({ queryKey: ['staff-attendance'] });
     else refetchReqs();
   }
 
@@ -192,7 +198,7 @@ export default function ManagerScheduleScreen() {
 
         {/* Tab bar */}
         <View style={s.tabBar}>
-          {(['roster', 'week', 'requests'] as Tab[]).map((tabKey) => (
+          {(['roster', 'week', 'requests', 'where'] as Tab[]).map((tabKey) => (
             <TouchableOpacity
               key={tabKey}
               style={[s.tab, tab === tabKey && s.tabActive]}
@@ -202,6 +208,7 @@ export default function ManagerScheduleScreen() {
               accessibilityLabel={
                 tabKey === 'roster' ? t('managerSchedule.viewTodaysRosterLabel')
                   : tabKey === 'week' ? t('managerSchedule.viewWeeklyScheduleLabel')
+                  : tabKey === 'where' ? t('whereStaff.tabA11y')
                   : pendingCount > 0 ? t('managerSchedule.viewRequestsPendingLabel', { count: pendingCount }) : t('managerSchedule.viewRequestsLabel')
               }
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
@@ -209,6 +216,7 @@ export default function ManagerScheduleScreen() {
               <Text style={[s.tabText, tab === tabKey && s.tabTextActive]}>
                 {tabKey === 'roster' ? t('managerSchedule.todaysRoster')
                   : tabKey === 'week' ? t('managerSchedule.weekly')
+                  : tabKey === 'where' ? t('whereStaff.tab')
                   : pendingCount > 0 ? t('managerSchedule.requestsWithCount', { count: pendingCount }) : t('managerSchedule.requestsLabel')}
               </Text>
             </TouchableOpacity>
@@ -416,6 +424,9 @@ export default function ManagerScheduleScreen() {
             </FadeSlideIn>
           )
         )}
+
+        {/* ════ WHERE STAFF ARE ════ */}
+        {tab === 'where' && storeId && <WhereStaffAre storeId={storeId} />}
 
         {/* ════ REQUESTS ════ */}
         {tab === 'requests' && (

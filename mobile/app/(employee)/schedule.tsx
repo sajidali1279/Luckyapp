@@ -29,6 +29,7 @@ import {
 } from '../../utils/schedule';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ErrorState from '../../components/ErrorState';
+import TodayCheckInCard from '../../components/TodayCheckInCard';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 // This file indexes SHIFT_COLORS/SHIFT_LABELS/SHIFT_TIMES with untyped
@@ -199,6 +200,9 @@ export default function ScheduleScreen() {
           </View>
         }
       >
+
+        {/* Today: where they are checked in, or Check in (2026-10-11) */}
+        <TodayCheckInCard />
 
         {/* ── Week Toggle ── */}
         <View style={s.weekToggle}>
