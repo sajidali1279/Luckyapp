@@ -512,7 +512,13 @@
     "switchStoreTitle": "¿Cambiar de tienda?",
     "switchStoreBody": "Tu pedido es de {{from}}. Cambiar a {{to}} lo vacía, porque los menús y los precios pueden ser distintos.",
     "keepStore": "Quedarme en {{store}}",
-    "switchStoreYes": "Cambiar y vaciar"
+    "switchStoreYes": "Cambiar y vaciar",
+    "tooManyOpenTitle": "Ya tienes 3 pedidos abiertos",
+    "tooManyOpenSub": "Recógelos o cancela uno antes de pedir otra vez.",
+    "farTitle": "Esta tienda está lejos",
+    "farBody": "{{store}} está a {{distance}} de ti. ¿Pedir para recoger ahí?",
+    "farCancel": "Cambiar de tienda",
+    "farConfirm": "Sí, pedir ahí"
   },
   "customerLeaderboard": {
     "pointsValue": "{{points}} pts",

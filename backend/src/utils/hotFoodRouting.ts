@@ -6,7 +6,7 @@ import prisma from '../config/prisma';
 import { DayOfWeek } from '@prisma/client';
 import { saveNotificationMany, sendPushToStoreEmployees, sendPushToStoreManagers } from './push';
 import { sendExpoBatch } from './pushSend';
-import { storeMinutes, storeWeekday } from './storeTime';
+import { storeMinutes, storeWeekday, storeDayStart, storeDayEnd } from './storeTime';
 import { hotFoodOrderUrl } from './notificationRoutes';
 
 export const ESCALATE_MINUTES = 5;
@@ -26,8 +26,14 @@ export async function onShiftAt(storeId: string, now: Date = new Date()): Promis
     where: { storeId, isActive: true, dayOfWeek: { in: [today, yesterday] }, employee: { isActive: true, storeRoles: { some: { storeId } } } },
     select: { employeeId: true, dayOfWeek: true, startTime: true, endTime: true },
   });
+  // Approved time off today (store day): not working, whatever the weekly schedule says
+  const off = new Set((await prisma.shiftRequest.findMany({
+    where: { employeeId: { in: [...new Set(shifts.map((s) => s.employeeId))] }, requestType: 'TIME_OFF', status: 'APPROVED', date: { gte: storeDayStart(now), lte: storeDayEnd(now) } },
+    select: { employeeId: true },
+  })).map((r) => r.employeeId));
   const ids = new Set<string>();
   for (const s of shifts) {
+    if (off.has(s.employeeId)) continue;
     const start = mins(s.startTime); const end = mins(s.endTime);
     const overnight = end <= start;
     if (s.dayOfWeek === today && (overnight ? minute >= start : minute >= start && minute < end)) ids.add(s.employeeId);
@@ -48,7 +54,9 @@ export async function tellStoreAboutOrder(order: { id: string; storeId: string }
   const url = hotFoodOrderUrl(order.id, order.storeId);
   try {
     const onShift = await onShiftAt(order.storeId, now);
-    if (onShift.length > 0) { await pushToUsers(onShift, title, body, 'HOT_FOOD_ORDER', url); return 'shift'; }
+    // Only people whose phone can ring: when nobody on shift has the app with notifications on, the whole store is told instead
+    const reachable = onShift.length ? new Set((await prisma.pushToken.findMany({ where: { userId: { in: onShift } }, select: { userId: true } })).map((t) => t.userId)) : new Set<string>();
+    if (reachable.size > 0) { await pushToUsers(onShift, title, body, 'HOT_FOOD_ORDER', url); return 'shift'; }
   } catch { /* fall back to the whole store below */ }
   await sendPushToStoreEmployees(order.storeId, title, body, 'HOT_FOOD_ORDER', url);
   return 'store';

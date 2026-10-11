@@ -512,7 +512,13 @@
     "switchStoreTitle": "Switch store?",
     "switchStoreBody": "Your order is from {{from}}. Switching to {{to}} empties it, because menus and prices can differ.",
     "keepStore": "Keep {{store}}",
-    "switchStoreYes": "Switch and empty"
+    "switchStoreYes": "Switch and empty",
+    "tooManyOpenTitle": "You already have 3 orders open",
+    "tooManyOpenSub": "Pick them up or cancel one before ordering again.",
+    "farTitle": "This store is far away",
+    "farBody": "{{store}} is {{distance}} from you. Order for pickup there?",
+    "farCancel": "Change store",
+    "farConfirm": "Yes, order there"
   },
   "customerLeaderboard": {
     "nameYou": " (You)",

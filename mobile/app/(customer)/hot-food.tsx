@@ -28,7 +28,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { sized } from '../../utils/imageUrl';
-import { byDistance, choosePickup, closerStore, locationQuality, loadSavedPickup, savePickup, addressLine, openDirections, type Here, type PickupStore } from '../../utils/pickupStore';
+import { byDistance, choosePickup, closerStore, locationQuality, loadSavedPickup, savePickup, addressLine, openDirections, milesText, FAR_MILES, type Here, type PickupStore } from '../../utils/pickupStore';
 import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } from '../../components/HotFoodPickup';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -346,6 +346,10 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
     },
     onError: (e: any) => {
       const d = e.response?.data;
+      if (d?.code === 'TOO_MANY_OPEN_ORDERS') {
+        Toast.show({ type: 'error', text1: t('customerHotFood.tooManyOpenTitle'), text2: t('customerHotFood.tooManyOpenSub') });
+        return;
+      }
       if (d?.code === 'HOT_FOOD_CLOSED') {
         // It closed while the order was being made: say so in the app's language and show the new state
         Toast.show({ type: 'error', text1: t('customerHotFood.closedToast'), text2: d.hours ? hoursLine(t, d.hours) : undefined });
@@ -416,7 +420,16 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
             {closedText ? <Text style={cs.closedNote} accessibilityRole="alert">{closedText}</Text> : null}
             <TouchableOpacity
               style={[cs.placeBtn, (placeMutation.isPending || !!closedText) && { opacity: 0.5 }]}
-              onPress={() => placeMutation.mutate()}
+              onPress={() => {
+                if (store.distance != null && store.distance > FAR_MILES) {
+                  Alert.alert(t('customerHotFood.farTitle'), t('customerHotFood.farBody', { store: store.name, distance: milesText(store.distance) }), [
+                    { text: t('customerHotFood.farCancel'), style: 'cancel' },
+                    { text: t('customerHotFood.farConfirm'), onPress: () => placeMutation.mutate() },
+                  ]);
+                  return;
+                }
+                placeMutation.mutate();
+              }}
               disabled={placeMutation.isPending || !!closedText}
               activeOpacity={0.85}
               accessibilityRole="button"

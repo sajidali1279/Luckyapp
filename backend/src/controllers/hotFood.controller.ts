@@ -12,6 +12,9 @@ import { refuse } from '../utils/refusal';
 import { audit } from '../utils/audit';
 import { tellStoreAboutOrder } from '../utils/hotFoodRouting';
 
+/** Open hot food orders (pending, being made, ready) one customer can have at once, across stores (2026-10-11) */
+export const MAX_OPEN_ORDERS = 3;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // HQ can act on every store; a manager with allStoresAccess too; anyone else only on a store they are assigned to. Same rule as
@@ -492,6 +495,13 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       res.status(400).json({ success: false, error: `You can order up to ${MAX_QTY_PER_ITEM} of one item at a time.` });
       return;
     }
+  }
+
+  // A few open orders at a time (a mistake or a prank should not fill a kitchen): pending, being made or ready, at any store
+  const open = await prisma.hotFoodOrder.count({ where: { customerId: req.user!.id, status: { in: ['PENDING', 'ACCEPTED', 'READY'] } } });
+  if (open >= MAX_OPEN_ORDERS) {
+    res.status(429).json({ success: false, code: 'TOO_MANY_OPEN_ORDERS', error: `You already have ${open} orders open. Pick them up or cancel one before ordering again.` });
+    return;
   }
 
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true, name: true } });

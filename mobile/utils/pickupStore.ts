@@ -26,6 +26,8 @@ export const TIE_MILES = 0.5;
 export const NOT_CLOSEST_MILES = 1;
 /** A location fix rougher than this (meters) is "approximate": the app says so and does not pick on its own. */
 export const ROUGH_METERS = 500;
+/** A pickup store this far away (miles) is checked with the customer before the order goes in. */
+export const FAR_MILES = 25;
 
 export function milesBetween(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 3958.8;
