@@ -14,7 +14,8 @@ import CombinedInvoiceModal from '../components/CombinedInvoiceModal';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { Link } from 'react-router-dom';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
-import { PageHeader, Tabs } from '../components/kit';
+import { PageHeader, Tabs, Button, MenuButton, HowItWorks } from '../components/kit';
+import { Download, FilePlus2, CalendarRange, Send, FlaskConical, ListChecks } from 'lucide-react';
 import Glyph from '../components/Glyph';
 import AppVersionsCard from '../components/AppVersionsCard';
 
@@ -642,34 +643,29 @@ export default function Billing() {
                 </select>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button style={s.generateBtn} onClick={() => once(() => generateBills.mutate())} disabled={generateBills.isPending || (!!selectedPeriod && selectedPeriod >= storeToday().slice(0, 7))}
-                title="Makes the bills that do not exist yet for a finished month (default: last month). It never changes an existing bill.">
-                {generateBills.isPending ? 'Generating…' : `Generate ${selectedPeriod || 'last month'}`}
-              </button>
-              <button style={s.backfillBtn} onClick={() => setConfirmFill(true)} disabled={fillMissing.isPending}
-                title="Makes every missing bill for every finished month. It never changes or deletes an existing bill or charge.">
-                {fillMissing.isPending ? 'Filling in…' : 'Fill in missing bills'}
-              </button>
-              <button style={s.exportBtn} onClick={() => consolidatedInvoices.length ? downloadBillsCSV(consolidatedInvoices) : toast.error('No records to export')} disabled={monthlyLoading}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <Button icon={<Download />} onClick={() => consolidatedInvoices.length ? downloadBillsCSV(consolidatedInvoices) : toast.error('No records to export')} disabled={monthlyLoading}>
                 Export CSV
-              </button>
-              <button style={s.sendBtn} onClick={() => setConfirmNotify(true)} disabled={sendReport.isPending}>
-                {sendReport.isPending ? 'Sending…' : 'Notify Super Admin'}
-              </button>
-              {/* Development builds only. On the live site this one click filled the real database with fake sales
-                  and gave every real customer fake cashback. */}
-              {import.meta.env.DEV && (
-                <button style={s.clearBtn} onClick={() => setShowSeedConfirm(true)} disabled={seedData.isPending}>
-                  {seedData.isPending ? 'Seeding…' : 'Seed Test Data'}
-                </button>
-              )}
+              </Button>
+              <MenuButton label={generateBills.isPending ? 'Generating…' : fillMissing.isPending ? 'Filling in…' : sendReport.isPending ? 'Sending…' : 'Bill actions'} icon={<ListChecks />} items={[
+                { label: `Generate ${selectedPeriod || 'last month'}`, icon: <FilePlus2 />, onClick: () => once(() => generateBills.mutate()),
+                  disabled: generateBills.isPending || (!!selectedPeriod && selectedPeriod >= storeToday().slice(0, 7)),
+                  description: 'Makes the bills that do not exist yet for a finished month. It never changes an existing bill.' },
+                { label: 'Fill in missing bills', icon: <CalendarRange />, onClick: () => setConfirmFill(true), disabled: fillMissing.isPending,
+                  description: 'Every missing bill for every finished month. Never changes or deletes a bill or charge.' },
+                { label: 'Notify Super Admin', icon: <Send />, onClick: () => setConfirmNotify(true), disabled: sendReport.isPending,
+                  description: 'Sends HQ the bills report.' },
+                // Development builds only. On the live site this one click filled the real database with fake sales
+                // and gave every real customer fake cashback.
+                ...(import.meta.env.DEV ? [{ label: 'Seed Test Data', icon: <FlaskConical />, onClick: () => setShowSeedConfirm(true), disabled: seedData.isPending, danger: true,
+                  description: 'Development only.' }] : []),
+              ]} />
             </div>
           </div>
 
-          <p style={s.monthlyHint}>
+          <HowItWorks summary="How bills are made">
             Each bill is one record per store for a finished month (Central time): the subscription fee, if the plan has one, plus the platform fee recorded on each sale, with the full cashback breakdown. Bills are made automatically after a month ends and are never changed or deleted by the buttons on this page. A paid bill never changes: a correction is a new extra charge.
-          </p>
+          </HowItWorks>
 
           {monthlyLoading ? (
             <TableSkeleton columns={7} />
@@ -678,7 +674,7 @@ export default function Billing() {
           ) : monthlyRecords.length === 0 ? (
             <div style={s.emptyBox}>
               <p style={{ margin: 0, color: TEXT_MUTED }}>No billing records for this filter.</p>
-              <p style={{ margin: '8px 0 0', fontSize: 15, color: TEXT_MUTED }}>Click "Generate" or "Backfill All Missing" to create compound bills.</p>
+              <p style={{ margin: '8px 0 0', fontSize: 15, color: TEXT_MUTED }}>Bills are made automatically after a month ends. To make a missing one now, use Bill actions.</p>
             </div>
           ) : (
             <Table style={s.table}>
@@ -1105,27 +1101,35 @@ export default function Billing() {
 
       {/* ══════════════════ SETTINGS TAB ══════════════════ */}
       {tab === 'settings' && (
-        <div style={s.settingsGrid}>
-
-          {/* Cashback rates live on one page only (a second editor here used fractions and skipped the checks) */}
-          <div style={{ ...s.settingsCard, gridColumn: '1 / -1' }}>
-            <h3 style={s.settingsCardTitle}>Cashback rates</h3>
-            <p style={s.settingsCardDesc}>
-              Tier cashback, gas cents per gallon, points to reach a tier and category bonuses are all set on the{' '}
-              <Link to="/rates" style={{ color: PRIMARY, fontWeight: 700 }}>Cashback Rates page</Link>,
-              where every change is confirmed and recorded.
-            </p>
+        <>
+        <HowItWorks summary="How billing works" style={{ marginBottom: 16 }}>
+          <div style={s.infoList}>
+            <InfoItem icon="🏪" text="Each store is billed a share of the cashback it issues (its fee, set on the Stores tab). A Monthly or Hybrid plan adds a fixed monthly subscription on top." />
+            <InfoItem icon="💵" text="When an employee grants points, the customer earns cashback and the platform fee is recorded on that sale at the store's fee at that moment." />
+            <InfoItem icon="📅" text="Bills are made automatically after each month ends (Central time). The buttons here never change or delete an existing bill or charge, and a paid bill never changes: a correction is a new extra charge." />
+            <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken: the cut was already recorded when the cashback was granted." />
           </div>
+          {/* Cashback rates live on one page only (a second editor here used fractions and skipped the checks) */}
+          <p style={{ margin: '10px 0 0' }}>
+            Tier cashback, gas cents per gallon, points to reach a tier and category bonuses are set on the{' '}
+            <Link to="/rates" style={{ color: PRIMARY, fontWeight: 700 }}>Cashback Rates page</Link>, where every change is confirmed and recorded.
+          </p>
+        </HowItWorks>
+        <div style={s.settingsGrid}>
 
           {/* Default fee card (read only: no bill reads this number; each store has its own fee on the Stores tab) */}
           <div style={s.settingsCard}>
             <h3 style={s.settingsCardTitle}>Default fee for new stores</h3>
             <p style={s.settingsCardDesc}>
-              The platform fee is a share of the <strong>cashback issued</strong> on each sale, not of the purchase amount. Every store has its own fee
-              (set on the Stores tab) and that is the one billed. A store added later starts at this default. Changing a store's fee never rewrites
-              sales already made or bills already created.
+              A share of the <strong>cashback issued</strong> on each sale. Each store has its own fee (Stores tab); a new store starts at this one.
             </p>
 
+            <HowItWorks summary="An example, and what changing it does">
+            <p style={{ margin: '0 0 10px' }}>
+              The platform fee is a share of the cashback issued on each sale, not of the purchase amount. Every store has its own fee (set on the
+              Stores tab) and that is the one billed. A store added later starts at this default. Changing a store's fee never rewrites sales already
+              made or bills already created.
+            </p>
             <div style={s.rateExampleBox}>
               <div style={s.rateExampleTitle}>How it works on a $20 purchase (Bronze tier, 1% cashback)</div>
               <div style={s.rateExampleRow}>
@@ -1141,6 +1145,7 @@ export default function Billing() {
                 <span style={{ color: TEXT_MUTED, fontSize: 14 }}>Cashback is the store's loyalty cost (redeemed as free products)</span>
               </div>
             </div>
+            </HowItWorks>
 
             {rateLoading ? (
               <div style={s.loading}>Loading…</div>
@@ -1159,19 +1164,8 @@ export default function Billing() {
           </div>
 
           <AppVersionsCard />
-
-          {/* Info card */}
-          <div style={s.settingsCard}>
-            <h3 style={s.settingsCardTitle}>Billing Model</h3>
-            <p style={s.settingsCardDesc}>How revenue flows in Lucky Stop:</p>
-            <div style={s.infoList}>
-              <InfoItem icon="🏪" text="Each store is billed a share of the cashback it issues (its fee, set on the Stores tab). A Monthly or Hybrid plan adds a fixed monthly subscription on top." />
-              <InfoItem icon="💵" text="When an employee grants points, the customer earns cashback and the platform fee is recorded on that sale at the store's fee at that moment." />
-              <InfoItem icon="📅" text="Bills are made automatically after each month ends (Central time). The buttons here never change or delete an existing bill or charge, and a paid bill never changes: a correction is a new extra charge." />
-              <InfoItem icon="🎁" text="When a customer redeems credits in-store, no additional cut is taken: the cut was already recorded when the cashback was granted." />
-            </div>
-          </div>
         </div>
+        </>
       )}
 
       {/* ── Plan history ── */}

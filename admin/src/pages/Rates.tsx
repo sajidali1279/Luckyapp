@@ -15,7 +15,7 @@ import {
   stateFromRows, applyChanges, refusalFor, changeLines, effectLines, holdWarnings, touchesAppText, gasFill, salePays,
   type TierKey, type TierRow, type CategoryRow, type TierChange, type CategoryChange, type RateState,
 } from '../lib/rateRules';
-import { PageHeader, Button, Notice } from '../components/kit';
+import { PageHeader, Button, Notice, Tabs } from '../components/kit';
 import { Save, Info, Smartphone } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -84,6 +84,7 @@ export default function Rates() {
   const [catDraft, setCatDraft] = useState<Record<string, string>>({});
   const [showPerGallon, setShowPerGallon] = useState<boolean | null>(null); // null until the rates arrive, then follows what is live
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [rtab, setRtab] = useState<'tiers' | 'categories' | 'gas' | 'how'>('tiers');
   const [busy, setBusy] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['tier-rates'], queryFn: () => billingApi.getTierRates() });
@@ -307,14 +308,24 @@ export default function Rates() {
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-        <Notice icon={<Info size={15} />}>
-          Store cost = cashback paid out × (1 + that store's platform fee). The platform fee is set per store on Billing, Stores tab, not here.
-        </Notice>
         <Notice tone="warning" icon={<Smartphone size={15} />}>
           The customer app shows fixed tier numbers (1 to 5% cashback, 5,000 to 45,000 points to reach a tier, +5, +7 and +10 cents a gallon). It does not follow this page, so tell customers if you change a tier's cashback or points.
         </Notice>
       </div>
 
+      {/* One part at a time (2026-10-10): the tiers, the category bonuses, gas and diesel, and how it all adds up */}
+      <Tabs
+        ariaLabel="Cashback rates"
+        value={rtab}
+        onChange={setRtab}
+        tabs={[
+          { value: 'tiers', label: 'Tiers', count: dirtyTiers.length || undefined },
+          { value: 'categories', label: 'Category bonuses', count: dirtyCats.length || undefined },
+          { value: 'gas', label: 'Gas and diesel' },
+          { value: 'how', label: 'How it works' },
+        ]}
+      />
+      {rtab === 'tiers' && (<>
       {isLoading && <TableSkeleton columns={5} />}
       {isError  && <ErrorState message="Could not load rates. Check your connection." onRetry={refetch} />}
 
@@ -448,6 +459,9 @@ export default function Rates() {
         </div>
       )}
 
+      </>)}
+
+      {rtab === 'categories' && (<>
       {/* ── Category Bonus Rates ─────────────────────────────────────────── */}
       <div style={s.sectionHeader}>
         <div>
@@ -565,6 +579,9 @@ export default function Rates() {
         </div>
       )}
 
+      </>)}
+
+      {rtab === 'gas' && (<>
       {/* ── Gas & Diesel Mode ────────────────────────────────────────────── */}
       <div style={s.sectionHeader}>
         <div>
@@ -704,7 +721,13 @@ export default function Rates() {
         )}
       </div>
 
+      </>)}
+
+      {rtab === 'how' && (<>
       {/* How it works, with the numbers on this page */}
+      <Notice icon={<Info size={15} />} style={{ marginBottom: 16 }}>
+        Store cost = cashback paid out × (1 + that store's platform fee). The platform fee is set per store on Billing, Stores tab, not here.
+      </Notice>
       <div style={s.infoGrid}>
         <div style={s.infoCard}>
           <div style={s.infoCardTitle}>How rates apply</div>
@@ -739,6 +762,7 @@ export default function Rates() {
           </div>
         </div>
       </div>
+      </>)}
 
       <ConfirmModal
         open={!!plan}

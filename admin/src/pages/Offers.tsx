@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { C, FONT, RADIUS, INPUT } from '../lib/theme';
-import { Page, PageHeader, SectionTitle, Tabs, Button, Chip, Card, Badge, Notice, EmptyState, Field } from '../components/kit';
+import { Page, PageHeader, SectionTitle, Tabs, Button, Chip, Card, Badge, Notice, EmptyState, Field, MenuButton } from '../components/kit';
 import { LayoutTemplate, Lightbulb, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2, Pencil, Square, Clock, BellOff } from 'lucide-react';
 import Modal from '../components/Modal';
 import { serverMessage } from '../lib/apiError';
@@ -291,6 +291,11 @@ export default function Offers() {
     onSuccess: () => { toast.success('Scheduled offer cancelled'); qc.invalidateQueries({ queryKey: ['offers'] }); qc.invalidateQueries({ queryKey: ['offers-history'] }); },
     onError: (err) => toast.error(serverMessage(err, 'Failed to remove the offer')),
   });
+
+  // One of the ways to start a promotion at a time: the full form, quick post, templates or ideas
+  function openPanel(which: 'form' | 'quick' | 'templates' | 'ideas' | null) {
+    setShowForm(which === 'form'); setShowQuick(which === 'quick'); setShowTemplates(which === 'templates'); setShowIdeas(which === 'ideas');
+  }
 
   function resetForm() {
     setShowForm(false);
@@ -749,20 +754,16 @@ export default function Offers() {
         description="Promotions add cashback automatically. Deals show price specials in the app."
         actions={mainTab === 'requests' || mainTab === 'calendar' || mainTab === 'challenges' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
           <>
-            <Button icon={<Lightbulb />} aria-pressed={showIdeas}
-              onClick={() => { setShowIdeas(!showIdeas); setShowForm(false); setShowQuick(false); setShowTemplates(false); }}>
-              Ideas
-            </Button>
-            <Button icon={<LayoutTemplate />} aria-pressed={showTemplates}
-              onClick={() => { setShowTemplates(!showTemplates); setShowForm(false); setShowQuick(false); setShowIdeas(false); }}>
-              Templates
-            </Button>
-            <Button icon={<Zap />} aria-pressed={showQuick}
-              onClick={() => { setShowQuick(!showQuick); setShowForm(false); setShowTemplates(false); setShowIdeas(false); }}>
-              Quick post
-            </Button>
+            {(showQuick || showTemplates || showIdeas) && (
+              <Button icon={<X />} onClick={() => openPanel(null)}>Close {showQuick ? 'quick post' : showTemplates ? 'templates' : 'ideas'}</Button>
+            )}
+            <MenuButton label="Start from" icon={<LayoutTemplate />} items={[
+              { label: 'Quick post', description: 'A category, a bonus and how long. Posted in a minute.', icon: <Zap />, onClick: () => openPanel('quick') },
+              { label: 'A template', description: 'Ready-made: happy hours, weekends, tier perks and more.', icon: <LayoutTemplate />, onClick: () => openPanel('templates') },
+              ...(isHQ ? [{ label: 'An idea from your sales', description: 'Slow hours, falling categories and win-backs, from the last 8 weeks.', icon: <Lightbulb />, onClick: () => openPanel('ideas') }] : []),
+            ]} />
             <Button variant={showForm ? 'secondary' : 'primary'} icon={showForm ? <X /> : <Plus />}
-              onClick={() => { setShowForm(!showForm); setShowTemplates(false); setShowQuick(false); setShowIdeas(false); }}>
+              onClick={() => openPanel(showForm ? null : 'form')}>
               {showForm ? 'Cancel' : 'New promotion'}
             </Button>
           </>
@@ -1172,7 +1173,6 @@ export default function Offers() {
       {/* Deals */}
       {mainTab === 'deals' && (
         <>
-          {isHQ && <ComboIdeasPanel onUse={applyCombo} />}
           {showDealForm && (
             <Card style={{ marginBottom: 28, maxWidth: 880 }}>
               <form id="deal-form" onSubmit={handleCreateDeal} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -1267,6 +1267,10 @@ export default function Offers() {
             </>
           )}
 
+          {/* What is running first, then ideas for the next deals, the label deals the app shows, and the past last (2026-10-10) */}
+          {isHQ && <div style={{ marginTop: 32 }}><ComboIdeasPanel onUse={applyCombo} /></div>}
+          {isHQ && <ShelfDealsSection />}
+
           <div style={{ marginTop: 32 }}>
             <Button variant="ghost" icon={showHistory ? <ChevronDown /> : <ChevronRight />} aria-expanded={showHistory} onClick={() => setShowHistory(!showHistory)} style={{ paddingLeft: 6 }}>
               Past deals
@@ -1283,7 +1287,6 @@ export default function Offers() {
               )
             )}
           </div>
-          {isHQ && <ShelfDealsSection />}
         </>
       )}
     </Page>

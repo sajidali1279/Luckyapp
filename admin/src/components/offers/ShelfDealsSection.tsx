@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { offersApi } from '../../services/api';
 import { serverMessage } from '../../lib/apiError';
 import { C, FONT } from '../../lib/theme';
-import { Button, Card, Badge, SectionTitle } from '../kit';
+import { Button, Card, Badge, SectionTitle, HowItWorks } from '../kit';
 import ErrorState from '../ErrorState';
 
 export default function ShelfDealsSection() {
@@ -24,10 +24,13 @@ export default function ShelfDealsSection() {
   return (
     <div style={{ marginTop: 32 }}>
       <SectionTitle count={deals.length}>Shelf deals from Labels</SectionTitle>
-      <p style={{ margin: '-4px 0 12px', color: C.muted, fontSize: FONT.body, maxWidth: 760, lineHeight: 1.5 }}>
-        A label with a deal shows in the app's Today's Deals by itself, at each store that carries the label. Hiding one takes it out of the app only;
-        the shelf label stays as it is. {deals.length > 0 && `${shown} of ${deals.length} showing.`}
+      <p style={{ margin: '-4px 0 6px', color: C.muted, fontSize: FONT.body, lineHeight: 1.5 }}>
+        Label deals the app shows in Today's Deals.{deals.length > 0 && ` ${shown} of ${deals.length} showing.`}
       </p>
+      <HowItWorks>
+        A label with a deal shows in the app's Today's Deals by itself, at each store that carries the label. Hiding one takes it out of the app
+        only; the shelf label stays as it is. Tobacco and alcohol deals never show in the app.
+      </HowItWorks>
       {isError ? <ErrorState message="Could not load the shelf deals." onRetry={refetch} />
         : isLoading ? <div style={{ color: C.muted, fontSize: FONT.body }}>Loading…</div>
         : deals.length === 0 ? (

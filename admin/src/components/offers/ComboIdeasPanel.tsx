@@ -10,7 +10,7 @@ import { offersApi } from '../../services/api';
 import { serverMessage } from '../../lib/apiError';
 import { appQrSvg } from '../../lib/appQr';
 import { C, FONT, RADIUS } from '../../lib/theme';
-import { Badge, Button, Card, Notice, SectionTitle } from '../kit';
+import { Badge, Button, Card, Notice, SectionTitle, HowItWorks } from '../kit';
 import CardSkeleton from '../CardSkeleton';
 import ErrorState from '../ErrorState';
 
@@ -32,7 +32,8 @@ export default function ComboIdeasPanel({ onUse }: { onUse: (o: ComboOffer) => v
   const qc = useQueryClient();
   const [page, setPage] = useState(0);
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['combo-ideas'], queryFn: () => offersApi.comboIdeas(), staleTime: 5 * 60_000 });
-  const result = data?.data?.data as Result | undefined;
+  const raw = data?.data?.data as Result | undefined;
+  const result = raw && Array.isArray(raw.ideas) && raw.basis ? raw : undefined;   // an older server or an odd reply shows the error, not a broken page
 
   const hide = useMutation({
     mutationFn: (key: string) => offersApi.dismissComboIdea(key),
@@ -50,7 +51,7 @@ export default function ComboIdeasPanel({ onUse }: { onUse: (o: ComboOffer) => v
   const shown = ideas.slice((page % pages) * PAGE, (page % pages) * PAGE + PAGE);
 
   return (
-    <Card style={{ marginBottom: 24, maxWidth: 880 }}>
+    <Card style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <SectionTitle>Combo ideas</SectionTitle>
         {ideas.length > PAGE && (
@@ -61,12 +62,16 @@ export default function ComboIdeasPanel({ onUse }: { onUse: (o: ComboOffer) => v
       </div>
       {isLoading ? <CardSkeleton count={2} /> : isError || !result ? <ErrorState compact message="Could not work out the combo ideas." onRetry={() => refetch()} /> : (
         <>
-          <p style={{ margin: '-4px 0 14px', color: C.muted, fontSize: FONT.body, lineHeight: 1.5 }}>
-            Two things that go together for one price: coffee with something sweet, hot food with a can or a bottle, chips with a 24oz soda.
-            Picked from {result.basis.items.toLocaleString('en-US')} items in Labels and the hot food menu, and what moved in the last {result.basis.days} days
-            ({result.basis.lines.toLocaleString('en-US')} order list and stock request lines, {result.basis.hotFoodOrders.toLocaleString('en-US')} hot food items ordered).
-            Prices stay inside your deal limits. New ideas come up every day.
+          <p style={{ margin: '-4px 0 6px', color: C.muted, fontSize: FONT.body, lineHeight: 1.5 }}>
+            Two things that go together, for one price. New ideas every day.
           </p>
+          <HowItWorks summary="How ideas are picked">
+            Pairings: coffee with something sweet, hot food with a 12oz can or a 20oz drink, chips with a 24oz soda, jerky with a sports drink,
+            candy with an energy drink. The items come from {result.basis.items.toLocaleString('en-US')} items in Labels and the hot food menu; the ones
+            that moved most in the last {result.basis.days} days come first ({result.basis.lines.toLocaleString('en-US')} order list and stock request lines,
+            {' '}{result.basis.hotFoodOrders.toLocaleString('en-US')} hot food items ordered). The combo price stays inside your deal limits
+            (Labels, Deals, Settings). Tobacco and alcohol are never paired. Nothing is posted until you post it.
+          </HowItWorks>
           {ideas.length === 0 ? (
             <Notice tone="info" icon={<Coffee size={16} />}>No combo ideas right now. Add prices and categories to items in Labels and they will come.</Notice>
           ) : (

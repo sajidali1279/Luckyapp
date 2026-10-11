@@ -13,7 +13,8 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { showPhone, phoneDigits } from '../lib/phoneText';
 import { useSingleFlight } from '../hooks/useSingleFlight';
-import { PageHeader, HeaderStat, Button } from '../components/kit';
+import { PageHeader, HeaderStat, Button, MenuButton } from '../components/kit';
+import { Clock, Printer, Tags, KeyRound, Power, MoreHorizontal } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -170,6 +171,7 @@ const AVATAR_PALETTE = [
 function storeAvatar(idx: number) { return AVATAR_PALETTE[idx % AVATAR_PALETTE.length]; }
 
 export default function Stores() {
+  const [keyOpenId, setKeyOpenId] = useState<string | null>(null);   // the store whose printer agent key panel is open
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -829,11 +831,14 @@ export default function Stores() {
                 </div>
                 {gasProblem(store) && <div role="alert" style={s.gasError}>{gasProblem(store)}</div>}
 
-                {isDevAdmin && (
+                {isDevAdmin && keyOpenId === store.id && (
                   <>
                     <div style={s.divider} />
                     <div style={s.apiKeySection}>
-                      <div style={s.apiKeyLabel}>Printer Agent API Key</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <div style={s.apiKeyLabel}>Printer Agent API Key</div>
+                        <Button size="sm" variant="ghost" onClick={() => setKeyOpenId(null)}>Done</Button>
+                      </div>
                       {apiKeyVisible[store.id] && apiKeys[store.id] ? (
                         <div style={s.apiKeyBox}>
                           <code style={s.apiKeyCode}>{apiKeys[store.id]}</code>
@@ -878,34 +883,20 @@ export default function Stores() {
                   </div>
                 )}
 
-                {isDevAdmin && (
-                  <div style={s.cardBtns}>
-                    <button
-                      style={{ ...s.kwBtn, ...(store.isActive ? { color: '#a51b28', borderColor: '#f3cdd1' } : { color: '#1a7f45', borderColor: '#c8e6d2' }) }}
-                      onClick={() => store.isActive ? setConfirmDeactivateId(store.id) : runActive({ storeId: store.id, isActive: true })}
-                      disabled={activeMutation.isPending}
-                    >
-                      {store.isActive ? 'Deactivate' : 'Reactivate'}
-                    </button>
-                  </div>
-                )}
-
                 <div style={s.divider} />
-                <div style={s.cardBtns}>
-                  <button style={s.kwBtn} onClick={() => openKwModal(store.id)}>
-                    POS Mappings
-                  </button>
-                  <button style={s.kwBtn} onClick={() => openHoursModal(store.id)}>
-                    Store Hours
-                  </button>
-                  <button style={s.kwBtn} onClick={() => setPrinterStore({ id: store.id, name: store.name })}>
-                    Label Printer
-                  </button>
-                </div>
-                <div style={{ ...s.cardBtns, marginTop: 8 }}>
-                  <button style={{ ...s.editBtn, borderColor: color, color: PRIMARY }} onClick={() => openEdit(store)}>
-                    Edit Store
-                  </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Button style={{ flex: 1 }} onClick={() => openEdit(store)}>Edit store</Button>
+                  <MenuButton label="More" icon={<MoreHorizontal />} ariaLabel={`More for ${store.name}`} items={[
+                    { label: 'Store hours', icon: <Clock />, description: 'Opening hours and holidays.', onClick: () => openHoursModal(store.id) },
+                    { label: 'Label printer', icon: <Printer />, description: 'Fine-tune how this store prints labels.', onClick: () => setPrinterStore({ id: store.id, name: store.name }) },
+                    { label: 'POS mappings', icon: <Tags />, description: 'Receipt words to Lucky Stop categories.', onClick: () => openKwModal(store.id) },
+                    ...(isDevAdmin ? [
+                      { label: 'Printer agent key', icon: <KeyRound />, description: 'See whether a key is set, or make a new one.', onClick: () => { setKeyOpenId(store.id); checkApiKeyStatus(store.id); } },
+                      store.isActive
+                        ? { label: 'Deactivate store', icon: <Power />, danger: true, description: 'Hidden from customers, no sales recorded. Asks first.', onClick: () => setConfirmDeactivateId(store.id), disabled: activeMutation.isPending }
+                        : { label: 'Reactivate store', icon: <Power />, description: 'Shows it to customers and records sales again.', onClick: () => runActive({ storeId: store.id, isActive: true }), disabled: activeMutation.isPending },
+                    ] : []),
+                  ]} />
                 </div>
               </div>
             );

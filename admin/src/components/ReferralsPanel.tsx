@@ -8,7 +8,7 @@ import { referralsApi, type ReferralSettings } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { storeDayLong } from '../lib/storeDates';
 import { C, FONT, INPUT } from '../lib/theme';
-import { Card, SectionTitle, StatTile, Badge, Button, Chip, EmptyState, Field } from './kit';
+import { Card, SectionTitle, StatTile, Badge, Button, Chip, EmptyState, Field, HowItWorks } from './kit';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table';
 import ErrorState from './ErrorState';
 import CardSkeleton from './CardSkeleton';
@@ -51,44 +51,14 @@ export default function ReferralsPanel() {
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 16 }}>
         <StatTile label="Friends who joined" value={((by.PENDING ?? 0) + (by.REWARDED ?? 0) + (by.EXPIRED ?? 0)).toLocaleString('en-US')} />
         <StatTile label="Paid" value={(by.REWARDED ?? 0).toLocaleString('en-US')} hint={`${t.rewardedThisMonth} this month`} />
         <StatTile label="Waiting for a purchase" value={(by.PENDING ?? 0).toLocaleString('en-US')} />
         <StatTile label="Rewards paid in all" value={fmt$(t.paid)} hint="Both sides together" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 16, marginBottom: 16 }}>
-        <Card>
-          <SectionTitle>The deal</SectionTitle>
-          <p style={{ margin: '-4px 0 12px', color: C.muted, fontSize: FONT.small, lineHeight: 1.5 }}>
-            A customer shares their code from the app. When the friend's first purchase of at least the minimum is approved within the window, both are
-            paid in credits at that store (the store's platform fee applies, like a challenge reward). Changes apply to rewards paid from now on.
-          </p>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: FONT.body, marginBottom: 12, cursor: 'pointer' }}>
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> Accept invite codes
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 14 }}>
-            <Field label="Person who shared gets ($)" htmlFor="r-ref"><input id="r-ref" style={INPUT} inputMode="decimal" value={form.referrerReward} onChange={(e) => set('referrerReward', e.target.value)} /></Field>
-            <Field label="New friend gets ($)" htmlFor="r-fr"><input id="r-fr" style={INPUT} inputMode="decimal" value={form.friendReward} onChange={(e) => set('friendReward', e.target.value)} /></Field>
-            <Field label="Friend's purchase at least ($)" htmlFor="r-min"><input id="r-min" style={INPUT} inputMode="decimal" value={form.minPurchase} onChange={(e) => set('minPurchase', e.target.value)} /></Field>
-            <Field label="Paid friends per person a month" htmlFor="r-lim"><input id="r-lim" style={INPUT} inputMode="numeric" value={form.monthlyLimit} onChange={(e) => set('monthlyLimit', e.target.value)} /></Field>
-            <Field label="Days the friend has to buy" htmlFor="r-days"><input id="r-days" style={INPUT} inputMode="numeric" value={form.windowDays} onChange={(e) => set('windowDays', e.target.value)} /></Field>
-          </div>
-          <Button variant="primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
-        </Card>
-        <Card>
-          <SectionTitle>Bring the most friends</SectionTitle>
-          {d.topReferrers.length === 0 ? <EmptyState title="Nobody has been paid for a friend yet" /> : d.topReferrers.map((p: any) => (
-            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '8px 0', borderTop: `1px solid ${C.border}`, fontSize: FONT.body }}>
-              <Link to={`/customers/${p.id}`}>{p.name}</Link>
-              <span style={{ color: C.text2 }}>{p.friends} friend{p.friends === 1 ? '' : 's'}</span>
-            </div>
-          ))}
-        </Card>
-      </div>
-
-      <Card>
+      <Card style={{ marginBottom: 16 }}>
         <SectionTitle count={d.total}>Every referral</SectionTitle>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }} role="group" aria-label="Status">
           {[['', 'All'], ['PENDING', 'Waiting'], ['REWARDED', 'Paid'], ['EXPIRED', 'Expired']].map(([v, l]) => <Chip key={v} selected={status === v} onClick={() => { setStatus(v); setPage(1); }}>{l}</Chip>)}
@@ -119,6 +89,36 @@ export default function ReferralsPanel() {
           </div>
         )}
       </Card>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 16 }}>
+        <Card>
+          <SectionTitle>The deal</SectionTitle>
+          <HowItWorks>
+            A customer shares their code from the app. When the friend's first purchase of at least the minimum is approved within the window, both are
+            paid in credits at that store (the store's platform fee applies, like a challenge reward). Changes apply to rewards paid from now on.
+          </HowItWorks>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: FONT.body, marginBottom: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> Accept invite codes
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 14 }}>
+            <Field label="Person who shared gets ($)" htmlFor="r-ref"><input id="r-ref" style={INPUT} inputMode="decimal" value={form.referrerReward} onChange={(e) => set('referrerReward', e.target.value)} /></Field>
+            <Field label="New friend gets ($)" htmlFor="r-fr"><input id="r-fr" style={INPUT} inputMode="decimal" value={form.friendReward} onChange={(e) => set('friendReward', e.target.value)} /></Field>
+            <Field label="Friend's purchase at least ($)" htmlFor="r-min"><input id="r-min" style={INPUT} inputMode="decimal" value={form.minPurchase} onChange={(e) => set('minPurchase', e.target.value)} /></Field>
+            <Field label="Paid friends per person a month" htmlFor="r-lim"><input id="r-lim" style={INPUT} inputMode="numeric" value={form.monthlyLimit} onChange={(e) => set('monthlyLimit', e.target.value)} /></Field>
+            <Field label="Days the friend has to buy" htmlFor="r-days"><input id="r-days" style={INPUT} inputMode="numeric" value={form.windowDays} onChange={(e) => set('windowDays', e.target.value)} /></Field>
+          </div>
+          <Button variant="primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
+        </Card>
+        <Card>
+          <SectionTitle>Bring the most friends</SectionTitle>
+          {d.topReferrers.length === 0 ? <EmptyState title="Nobody has been paid for a friend yet" /> : d.topReferrers.map((p: any) => (
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '8px 0', borderTop: `1px solid ${C.border}`, fontSize: FONT.body }}>
+              <Link to={`/customers/${p.id}`}>{p.name}</Link>
+              <span style={{ color: C.text2 }}>{p.friends} friend{p.friends === 1 ? '' : 's'}</span>
+            </div>
+          ))}
+        </Card>
+      </div>
+
     </>
   );
 }

@@ -240,7 +240,7 @@ export default function Customers() {
         onChange={setActiveTab}
         tabs={[
           { value: 'customers', label: 'Customers' },
-          { value: 'disputes', label: pendingCount > 0 ? `Disputes (${pendingCount} pending)` : 'Disputes' },
+          { value: 'disputes', label: 'Disputes', count: pendingCount > 0 ? pendingCount : undefined },
           { value: 'referrals', label: 'Referrals' },
         ]}
       />

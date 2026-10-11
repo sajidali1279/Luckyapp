@@ -22,7 +22,9 @@ function ago(iso: string | null) {
 export default function AppVersionsCard() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['app-version'], queryFn: () => appVersionApi.get() });
-  const d = q.data?.data?.data;
+  // An odd reply (an older server mid-deploy) shows "could not load" here instead of breaking the whole Billing page (2026-10-10)
+  const raw = q.data?.data?.data;
+  const d = raw && raw.android && raw.ios ? raw : undefined;
   const saved: Form | null = d ? { android: d.android.minimum ?? '', ios: d.ios.minimum ?? '' } : null;
   const [form, setForm] = useState<Form>({ android: '', ios: '' });
   const [confirming, setConfirming] = useState(false);

@@ -410,3 +410,15 @@
 }
 #main-content tbody td { border-bottom: 1px solid #eef0f3; }
 #main-content tbody tr:hover > td { background-color: #f5f7fa; }
+
+/* Menus and fold-outs (kit MenuButton, HowItWorks), 2026-10-10 */
+.ui-menu-item { display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; padding: 9px 10px; border: none; border-radius: 6px;
+  background: transparent; font: inherit; font-size: 14px; cursor: pointer; }
+.ui-menu-item:hover:not(:disabled), .ui-menu-item:focus-visible { background: #f1f3f6; outline: none; }
+.ui-menu-item:disabled { opacity: 0.5; cursor: not-allowed; }
+.ui-menu-item svg { width: 16px; height: 16px; }
+.ui-band .ui-menu-item { color: #1f2937; }
+.ui-how > summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; font-weight: 600; color: #1D3557; list-style: none; }
+.ui-how > summary::-webkit-details-marker { display: none; }
+.ui-how > summary:focus-visible { outline: 2px solid #1D3557; outline-offset: 2px; border-radius: 4px; }
+.ui-how[open] > summary { margin-bottom: 2px; }

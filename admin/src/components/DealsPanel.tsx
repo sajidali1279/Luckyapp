@@ -11,7 +11,7 @@ import { CheckCircle2, Printer, Sparkles, Wrench, Link2, Lightbulb, RotateCcw } 
 import { labelsApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, RADIUS } from '../lib/theme';
-import { Button, Card, Badge, Notice, EmptyState, SectionTitle } from './kit';
+import { Button, Card, Badge, Notice, EmptyState, SectionTitle, Chip, HowItWorks } from './kit';
 import ConfirmModal from './ConfirmModal';
 import CardSkeleton from './CardSkeleton';
 import ErrorState from './ErrorState';
@@ -41,7 +41,10 @@ function dealMath(deal: string | null, price: string | null): { each: string; sa
 }
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
+type DealsView = 'todo' | 'ideas' | 'list' | 'settings';
+
 export default function DealsPanel({ labels }: { labels: Label[] }) {
+  const [chosenView, setView] = useState<DealsView | null>(null);
   const qc = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['deal-recos'], queryFn: () => labelsApi.getDealRecommendations() });
   const recos: Reco[] = data?.data?.data?.recommendations ?? [];
@@ -119,6 +122,8 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
   const over = recos.filter((r) => r.kind === 'over-limit');
   const match = recos.filter((r) => r.kind === 'line' || r.kind === 'brand');
   const ideas = recos.filter((r) => r.kind === 'idea');
+  // Opens on what needs fixing when there is any, else on the ideas; the choice then stays
+  const view: DealsView = chosenView ?? (fix.length + match.length > 0 ? 'todo' : 'ideas');
   const ideaGroups = useMemo(() => {
     const g = new Map<string, Reco[]>();
     ideas.forEach((r) => g.set(r.category ?? 'Other', [...(g.get(r.category ?? 'Other') ?? []), r]));
@@ -182,31 +187,51 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
         onConfirm={() => { if (resetCat) reset.mutate(resetCat.category); }}
         onCancel={() => setResetCat(null)}
       />
-      <p style={{ margin: 0, color: C.muted, fontSize: FONT.body, lineHeight: 1.5 }}>
-        Suggestions from the catalog itself: deals that need fixing, items missing their product line's deal, and a deal idea for every item without one,
-        within its category's limit. Change any suggestion before you apply it and the next ones learn from it. Sales are kept by category, not by product,
-        so check an idea against what sells before you apply it.
-      </p>
-      {isError ? <ErrorState message="Could not work out the recommendations." onRetry={refetch} /> : isLoading ? <CardSkeleton count={3} /> : (
+      {/* Four views instead of one long page (2026-10-10): what to fix, ideas, the staff list, and the settings */}
+      <div role="radiogroup" aria-label="Deals view" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {([
+          ['todo', 'To fix', isLoading ? undefined : fix.length + match.length],
+          ['ideas', 'Ideas', isLoading ? undefined : ideas.length],
+          ['list', 'Deal list', undefined],
+          ['settings', 'Settings', undefined],
+        ] as [DealsView, string, number | undefined][]).map(([v, label, n]) => (
+          <Chip key={v} role="radio" selected={view === v} onClick={() => setView(v)}>
+            {label}{n != null && <span style={{ marginLeft: 6, fontWeight: 700 }}>{n}</span>}
+          </Chip>
+        ))}
+      </div>
+      {view !== 'list' && view !== 'settings' && (
+        <HowItWorks style={{ margin: 0 }} summary="Where these come from">
+          Suggestions from the catalog itself: deals that need fixing, items missing their product line's deal, and a deal idea for every item
+          without one, within its category's limit (Settings). Change any suggestion before you apply it and the next ones learn from it. Sales are
+          kept by category, not by product, so check an idea against what sells before you apply it.
+        </HowItWorks>
+      )}
+      {view === 'list' ? <DealList labels={labels} /> : isError ? <ErrorState message="Could not work out the recommendations." onRetry={refetch} /> : isLoading ? <CardSkeleton count={3} /> : (
         <>
-          {recos.length === 0 && <EmptyState icon={<CheckCircle2 size={22} />} title="Nothing to recommend" description="Every deal saves money, reads the same way, and matches its product line." />}
-          {fix.length > 0 && (
+          {view === 'todo' && fix.length + match.length === 0 && over.length === 0 && (
+            <EmptyState icon={<CheckCircle2 size={22} />} title="Nothing to fix" description="Every deal saves money, reads the same way, and matches its product line." />
+          )}
+          {view === 'ideas' && ideas.length === 0 && (
+            <EmptyState icon={<CheckCircle2 size={22} />} title="No ideas right now" description="Every item has a deal, or none can save inside its category's limit." />
+          )}
+          {view === 'todo' && fix.length > 0 && (
             <Card padding={0}>
               <div style={s.head}><Wrench size={16} aria-hidden /><SectionTitle count={fix.length} style={{ margin: 0 }}>Fix these deals</SectionTitle></div>
               {fix.map(row)}
             </Card>
           )}
-          {match.length > 0 && (
+          {view === 'todo' && match.length > 0 && (
             <Card padding={0}>
               <div style={s.head}><Link2 size={16} aria-hidden /><SectionTitle count={match.length} style={{ margin: 0 }}>Match the product line</SectionTitle></div>
               {match.map(row)}
             </Card>
           )}
-          {ideaGroups.length > 0 && (
+          {view === 'ideas' && ideaGroups.length > 0 && (
             <Card padding={0}>
               <div style={s.head}>
                 <Lightbulb size={16} aria-hidden /><SectionTitle count={ideas.length} style={{ margin: 0 }}>Deal ideas by category</SectionTitle>
-                <span style={{ ...s.reason, flex: 1 }}>Every item with no deal, within its category's limit (Deal limits below), rounded the way that category's deals are. Change any of them before you apply it: the next suggestions learn from what you change.</span>
+                <span style={{ ...s.reason, flex: 1 }}>Every item with no deal, within its category's limit (Settings), rounded the way that category's deals are. Change any of them before you apply it: the next suggestions learn from what you change.</span>
                 <Button size="sm" variant="primary" onClick={() => setApplyAll({ category: '*', items: ideas })}>Apply every idea ({ideas.length})</Button>
               </div>
               {ideaGroups.map(([cat, items]) => (
@@ -221,7 +246,7 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
               ))}
             </Card>
           )}
-          {over.length > 0 && (
+          {view === 'todo' && over.length > 0 && (
             <Card padding={0}>
               <details>
                 <summary style={{ ...s.summary, background: C.subtle }}>
@@ -232,7 +257,8 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
               </details>
             </Card>
           )}
-          {learning.length > 0 && (
+          {view === 'settings' && <DealLimitsCard />}
+          {view === 'settings' && learning.length > 0 && (
             <Card padding={0}>
               <details open data-testid="deal-learning">
                 <summary style={{ ...s.summary, background: C.subtle }}>
@@ -258,8 +284,7 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
               </details>
             </Card>
           )}
-          <DealLimitsCard />
-          {dismissedCount > 0 && (
+          {view === 'settings' && dismissedCount > 0 && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <span style={s.reason}>{dismissedCount} dismissed {dismissedCount === 1 ? 'suggestion is' : 'suggestions are'} hidden.</span>
               <Button size="sm" variant="ghost" icon={<RotateCcw />} disabled={restore.isPending} onClick={() => restore.mutate()}>Show them again</Button>
@@ -267,7 +292,6 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
           )}
         </>
       )}
-      <DealList labels={labels} />
     </div>
   );
 }

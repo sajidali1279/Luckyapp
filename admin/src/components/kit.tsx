@@ -1,7 +1,8 @@
 // The admin's shared building blocks (the calm, professional look chosen 2026-09-29). Pages use these instead of
 // their own header, tab, button, card and badge styles, so every page looks like the same product.
 // Colours and sizes come from lib/theme.ts; hover and focus come from the .ui-* classes in index.css.
-import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
+import { ChevronDown, Info } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { NAV_ITEMS } from '../lib/navItems';
@@ -209,5 +210,71 @@ export function HeaderStat({ label, value, tone = 'neutral' }: { label: ReactNod
         {label}
       </span>
     </div>
+  );
+}
+
+// ─── Menus and fold-outs (2026-10-10 clean-up) ───────────────────────────────
+
+export type MenuItem = { label: ReactNode; description?: ReactNode; icon?: ReactNode; onClick: () => void; disabled?: boolean; danger?: boolean };
+
+/** A button that opens a short list of actions: the page's less-used actions, so the main one stands alone. Escape or a click
+ * outside closes it; arrow keys move between the items. */
+export function MenuButton({ label, icon, items, variant = 'secondary', size = 'md', align = 'right', ariaLabel }: {
+  label: ReactNode; icon?: ReactNode; items: MenuItem[]; variant?: ButtonVariant; size?: 'sm' | 'md'; align?: 'left' | 'right'; ariaLabel?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLDivElement>(null);
+  const menuId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); wrap.current?.querySelector<HTMLButtonElement>('button')?.focus(); } };
+    document.addEventListener('mousedown', away); document.addEventListener('keydown', key);
+    wrap.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', key); };
+  }, [open]);
+  const move = (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const all = [...(wrap.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])];
+    const i = all.indexOf(document.activeElement as HTMLButtonElement);
+    all[(i + (e.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length]?.focus();
+  };
+  return (
+    <div ref={wrap} style={{ position: 'relative', display: 'inline-flex' }}>
+      <Button variant={variant} size={size} icon={icon} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
+        aria-label={ariaLabel} onClick={() => setOpen((o) => !o)}>
+        {label}<ChevronDown size={14} aria-hidden style={{ marginLeft: 2, transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 120ms ease' }} />
+      </Button>
+      {open && (
+        <div id={menuId} role="menu" onKeyDown={move} style={{
+          position: 'absolute', top: 'calc(100% + 6px)', [align]: 0, zIndex: 50, minWidth: 240, maxWidth: 'min(340px, calc(100vw - 32px))',
+          background: C.surface, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, boxShadow: '0 12px 32px rgba(15, 29, 49, 0.18)', padding: 6,
+        }}>
+          {items.map((it, i) => (
+            <button key={i} type="button" role="menuitem" disabled={it.disabled} className="ui-menu-item"
+              // Focus goes back to the menu's button first, so a dialog the item opens returns focus there when it closes
+              onClick={() => { setOpen(false); wrap.current?.querySelector<HTMLButtonElement>('button')?.focus(); it.onClick(); }}
+              style={{ color: it.danger ? C.danger : C.text }}>
+              {it.icon && <span style={{ display: 'flex', marginTop: 1, color: it.danger ? C.danger : C.muted }}>{it.icon}</span>}
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span style={{ fontWeight: 600 }}>{it.label}</span>
+                {it.description && <span style={{ fontSize: FONT.caption, color: C.muted, fontWeight: 400, lineHeight: 1.4 }}>{it.description}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The long explanation of a panel, folded away: one line shows, the rest opens on a click. */
+export function HowItWorks({ children, summary = 'How this works', style }: { children: ReactNode; summary?: ReactNode; style?: CSSProperties }) {
+  return (
+    <details className="ui-how" style={{ margin: '0 0 14px', ...style }}>
+      <summary><Info size={14} aria-hidden />{summary}</summary>
+      <div style={{ marginTop: 8, fontSize: FONT.small, color: C.text2, lineHeight: 1.6 }}>{children}</div>
+    </details>
   );
 }
