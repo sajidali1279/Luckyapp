@@ -1553,6 +1553,7 @@ model HotFoodOrder {
   cancelledBy      String?            // STORE (declined), CUSTOMER (cancelled in the app) or AUTO (nobody accepted it in time)
   cancelReason     String?            // what the customer is told
   cancelledAt      DateTime?
+  escalatedAt      DateTime?          // when the store's managers were told nobody had accepted it (utils/hotFoodRouting.ts), once
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 

@@ -902,7 +902,10 @@
     "markAvailableA11y": "Mark {{name}} as available",
     "addItemA11y": "Add menu item",
     "declineOutOfStock": "Out of stock",
-    "reasonOutOfStock": "An item is out of stock"
+    "reasonOutOfStock": "An item is out of stock",
+    "showingStore": "Showing orders for {{store}}",
+    "backToStore": "Back to {{store}}",
+    "backToStoreA11y": "Back to the orders for {{store}}"
   },
   "employeeLeaderboard": {
     "headerTitle": "Staff Rankings",

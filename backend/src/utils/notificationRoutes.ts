@@ -32,8 +32,9 @@ export function disputeResolvedUrl(disputeId: string): string {
 }
 
 // ─── Mobile: Employee ──────────────────────────────────────────────────────
-export function hotFoodOrderUrl(orderId: string): string {
-  return `/(employee)/hot-food?tab=PENDING&highlightId=${orderId}`;
+export function hotFoodOrderUrl(orderId: string, storeId?: string): string {
+  // The store too (2026-10-11): someone assigned to several stores sees that store's orders when they open it, wherever the phone is
+  return `/(employee)/hot-food?tab=PENDING&highlightId=${orderId}${storeId ? `&storeId=${storeId}` : ''}`;
 }
 export function gasPriceUrlEmployee(): string {
   return '/(employee)/home';

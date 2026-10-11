@@ -4,6 +4,7 @@ import cron from 'node-cron';
 import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
 import { customerHotFoodUrl } from './notificationRoutes';
+import { escalateWaitingHotFoodOrders, ESCALATE_MINUTES } from './hotFoodRouting';
 
 export const AUTO_CANCEL_MINUTES = 20;
 
@@ -34,4 +35,9 @@ export function startHotFoodAutoCancelCron() {
     cancelStaleHotFoodOrders().catch((e) => console.error('[hot-food-auto-cancel] run failed:', e?.message ?? e));
   }, { timezone: 'UTC' });
   console.log(`[hot-food-auto-cancel] Orders not accepted within ${AUTO_CANCEL_MINUTES} minutes are cancelled (checked every 5 minutes)`);
+  // An order waiting ESCALATE_MINUTES: its store's managers and everyone assigned there are told, once (checked every minute)
+  cron.schedule('* * * * *', () => {
+    escalateWaitingHotFoodOrders().catch((e) => console.error('[hot-food-escalate] run failed:', e?.message ?? e));
+  }, { timezone: 'UTC' });
+  console.log(`[hot-food-escalate] Orders waiting ${ESCALATE_MINUTES} minutes are escalated to the store's managers`);
 }

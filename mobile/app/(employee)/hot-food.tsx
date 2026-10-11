@@ -605,7 +605,12 @@ export default function HotFoodOrders() {
     staleTime: 30_000,
   });
   const allStoresWithLocation: any[] = gasPricesData?.data?.data || [];
-  const storeId = useCurrentStoreId(allStoresWithLocation, user?.storeIds);
+  const nearStoreId = useCurrentStoreId(allStoresWithLocation, user?.storeIds);
+  // An order alert names its store (2026-10-11): opening it shows that store's orders, wherever the phone is, until "Back"
+  const [pinnedStoreId, setPinnedStoreId] = useState<string | null>(null);
+  const storeId = pinnedStoreId ?? nearStoreId;
+  const storeNameOf = (id?: string | null) => allStoresWithLocation.find((st: any) => st.id === id)?.name as string | undefined;
+  const multiStore = (user?.storeIds?.length ?? 0) > 1;
   const highlightedId = useHighlightParam();
   const [activeTab,    setActiveTab]    = useState<TabKey>('PENDING');
   const [updatingId,   setUpdatingId]   = useState<string | null>(null);
@@ -614,13 +619,17 @@ export default function HotFoodOrders() {
   const queryClient = useQueryClient();
 
   // Switch to the requested tab when arriving from a notification tap
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, storeId: linkStoreId } = useLocalSearchParams<{ tab?: string; storeId?: string }>();
   useFocusEffect(useCallback(() => {
     if (tab && VALID_TABS.includes(tab as TabKey)) {
       setActiveTab(tab as TabKey);
       router.setParams({ tab: '' });
     }
-  }, [tab]));
+    if (linkStoreId) {
+      if (user?.storeIds?.includes(linkStoreId)) setPinnedStoreId(linkStoreId);
+      router.setParams({ storeId: '' });
+    }
+  }, [tab, linkStoreId]));
 
   // Orders
   const { data: ordersData, isLoading: ordersLoading, isError: ordersError, isRefetching, refetch } = useQuery({
@@ -760,6 +769,7 @@ export default function HotFoodOrders() {
           </View>
           <View>
             <Text style={s.headerTitle}>{t('employeeHotFood.headerTitle')}</Text>
+            {multiStore && storeNameOf(storeId) ? <Text style={s.headerSub}>{storeNameOf(storeId)}</Text> : null}
             {pendingCount > 0 && (
               <Text style={s.headerSub}>{t('employeeHotFood.headerSubPending', { count: pendingCount })}</Text>
             )}
@@ -780,6 +790,17 @@ export default function HotFoodOrders() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Opened from an alert for another of their stores: say so, and the way back */}
+      {pinnedStoreId && pinnedStoreId !== nearStoreId && (
+        <View style={s.pinnedBar} accessibilityRole="alert">
+          <Text style={s.pinnedText}>{t('employeeHotFood.showingStore', { store: storeNameOf(pinnedStoreId) ?? '' })}</Text>
+          <TouchableOpacity onPress={() => setPinnedStoreId(null)} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel={t('employeeHotFood.backToStoreA11y', { store: storeNameOf(nearStoreId) ?? '' })}>
+            <Text style={s.pinnedBtn}>{t('employeeHotFood.backToStore', { store: storeNameOf(nearStoreId) ?? '' })}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Tabs */}
       <View style={s.tabs}>
@@ -912,6 +933,9 @@ export default function HotFoodOrders() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
+  pinnedBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFBEB', borderBottomWidth: 1, borderBottomColor: '#FDE68A', paddingHorizontal: 16, paddingVertical: 10 },
+  pinnedText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#92400E' },
+  pinnedBtn: { fontSize: 13, fontWeight: '800', color: COLORS.primary },
   container: { flex: 1, backgroundColor: '#F8FAFC' },
 
   header: {

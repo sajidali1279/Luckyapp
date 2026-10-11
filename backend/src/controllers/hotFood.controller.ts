@@ -10,6 +10,7 @@ import { hotFoodState, opensSentence, HotFoodSchedules, HotFoodState } from '../
 import { updateHoursSchema, dayProblem, dayWords, DAY_NAMES } from './storeHours.controller';
 import { refuse } from '../utils/refusal';
 import { audit } from '../utils/audit';
+import { tellStoreAboutOrder } from '../utils/hotFoodRouting';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -347,7 +348,7 @@ export async function customerCancelOrder(req: AuthRequest, res: Response) {
     return;
   }
   // The staff board refreshes on its own; a push tells whoever is on shift not to start it
-  sendPushToStoreEmployees(order.storeId, 'Order cancelled', `The customer cancelled order #${order.orderNumber}. Do not make it.`, 'HOT_FOOD_ORDER', hotFoodOrderUrl(order.id));
+  tellStoreAboutOrder({ id: order.id, storeId: order.storeId }, 'Order cancelled', `The customer cancelled order #${order.orderNumber}. Do not make it.`).catch(() => {});
   res.json({ success: true, changed: true });
 }
 
@@ -570,15 +571,10 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     },
   });
 
-  // Notify employees only — hot food is an employee task, not an inventory item
+  // The people working at the store now (from the schedule), else everyone assigned there (utils/hotFoodRouting.ts). Managers hear only
+  // when nobody accepts it in a few minutes.
   const itemSummary = orderLines.map(l => `${l.quantity}× ${l.name}`).join(', ');
-  sendPushToStoreEmployees(
-    storeId,
-    `🔥 New Order #${order.orderNumber}`,
-    itemSummary,
-    'HOT_FOOD_ORDER',
-    hotFoodOrderUrl(order.id),
-  );
+  tellStoreAboutOrder({ id: order.id, storeId }, `🔥 New Order #${order.orderNumber}`, itemSummary).catch(() => {});
 
   res.status(201).json({ success: true, data: order });
 }

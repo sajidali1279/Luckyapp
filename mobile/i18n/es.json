@@ -902,7 +902,10 @@
     "markAvailableA11y": "Marcar {{name}} como disponible",
     "addItemA11y": "Agregar artículo al menú",
     "declineOutOfStock": "Agotado",
-    "reasonOutOfStock": "Un producto está agotado"
+    "reasonOutOfStock": "Un producto está agotado",
+    "showingStore": "Mostrando pedidos de {{store}}",
+    "backToStore": "Volver a {{store}}",
+    "backToStoreA11y": "Volver a los pedidos de {{store}}"
   },
   "employeeLeaderboard": {
     "avgReviews_one": "{{avg}} prom · {{count}} reseña",
