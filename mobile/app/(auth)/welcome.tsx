@@ -248,12 +248,16 @@ export default function WelcomeScreen() {
           <View style={ts.agreeRow}>
             <TouchableOpacity
               style={[ts.checkbox, agreed && ts.checkboxChecked]}
-              onPress={() => scrolledToBottom && setAgreed(!agreed)}
-              activeOpacity={scrolledToBottom ? 0.7 : 1}
+              // No scrolling needed to tick it (2026-10-11): new customers did not know the box unlocked at the end of the terms, and
+              // the Privacy and 21+ boxes never had that rule. The terms stay readable above and through the link.
+              onPress={() => setAgreed(!agreed)}
+              activeOpacity={0.7}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: agreed }}
             >
               {agreed && <Text style={ts.checkmark}>✓</Text>}
             </TouchableOpacity>
-            <Text style={[ts.agreeLabel, !scrolledToBottom && { color: '#aaa' }]}>
+            <Text style={ts.agreeLabel}>
               {t('welcome.agreeTo')}{' '}
               <Text style={ts.agreeLabelLink} onPress={() => setLegalDoc('terms')}>{t('welcome.termsOfService')}</Text>
             </Text>
@@ -265,6 +269,8 @@ export default function WelcomeScreen() {
               style={[ts.checkbox, privacyAgreed && ts.checkboxChecked]}
               onPress={() => setPrivacyAgreed(!privacyAgreed)}
               activeOpacity={0.7}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: privacyAgreed }}
             >
               {privacyAgreed && <Text style={ts.checkmark}>✓</Text>}
             </TouchableOpacity>
@@ -280,6 +286,8 @@ export default function WelcomeScreen() {
               style={[ts.checkbox, ageConfirmed && ts.checkboxChecked]}
               onPress={() => setAgeConfirmed(!ageConfirmed)}
               activeOpacity={0.7}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: ageConfirmed }}
             >
               {ageConfirmed && <Text style={ts.checkmark}>✓</Text>}
             </TouchableOpacity>
