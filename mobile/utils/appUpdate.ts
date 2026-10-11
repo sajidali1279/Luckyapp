@@ -6,7 +6,8 @@ import { API_URL } from '../constants';
 // Google Play and the App Store never ask anyone to update, so the app asks when it opens and when it comes back to the front.
 // Whether a newer version is out comes from the stores themselves, never from a number typed by hand: Google Play's in-app
 // updates on Android (which also follow the rollout percentage) and the App Store lookup on iPhone (expo-in-app-updates). The
-// server (GET /app/version) only adds the OLDEST VERSION ALLOWED: an app older than it shows a screen that only updates.
+// server (GET /app/version) only adds the OLDEST VERSION ALLOWED: an app older than it shows a screen that only updates, as long as the
+// store has the update for that phone.
 // Anything that goes wrong (no network, an app not installed from the store, an old server) means no prompt: the app never
 // blocks itself on a failed check.
 
@@ -66,7 +67,10 @@ export async function checkForUpdate(): Promise<UpdateState> {
   if (!mine || (Platform.OS !== 'android' && Platform.OS !== 'ios')) return { kind: 'none' };
   const storeUrl = STORE_URLS[Platform.OS];
   const [minimum, store] = await Promise.all([oldestAllowed(), storeCheck()]);
-  if (minimum && compareVersions(mine, minimum) < 0) {
+  // Blocked only when the store really has a newer version for this phone (2026-10-11): during a Play staged rollout, or before a
+  // release is live, the store has nothing newer for many phones, and a block there would lock them out with nothing to update to.
+  // Then they get in; the block starts the moment the store offers them the update.
+  if (minimum && compareVersions(mine, minimum) < 0 && store.available) {
     return { kind: 'required', storeVersion: store.storeVersion, storeUrl, immediateAllowed: store.immediateAllowed };
   }
   if (store.available) {

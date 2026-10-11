@@ -58,6 +58,11 @@ export default function AppVersionsCard() {
             Only when an old version must stop working (for example after a server change): an app older than this shows a screen that only
             updates. Leave empty to block nobody. The iPhone one cannot be above the App Store version.
           </p>
+          <Notice tone="warning" style={{ marginBottom: 12 }}>
+            Android: raise it only after the new release is at <strong>100%</strong> in Play Console (Production, not a staged rollout or a test track).
+            Until Google Play offers the update to a phone, app versions 1.2.9 to 1.3.2 lock that phone out with nothing to update to.
+            From 1.3.3 the app lets such a phone in until Play has the update for it.
+          </Notice>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
             {PLATFORMS.map(([k, label]) => (
               <Field key={k} label={label} htmlFor={`v-${k}-minimum`}>
