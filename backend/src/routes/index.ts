@@ -161,6 +161,7 @@ import {
   updateHotFoodHours,
   clearHotFoodHours,
   getHotFoodStoresStatus,
+  getHotFoodPickupStores,
   getCatalog as getHotFoodCatalog,
   createCatalogItem as createHotFoodCatalogItem,
   updateCatalogItem as updateHotFoodCatalogItem,
@@ -659,6 +660,7 @@ router.delete('/hot-food/menu/:id',     authenticate, requireRole(Role.EMPLOYEE)
 // Orders — admin board (specific routes before :id param)
 router.get('/hot-food/orders/admin/pending-count', authenticate, requireRole(Role.SUPER_ADMIN), getHotFoodAdminPendingCount); // Badge count, all stores
 router.get('/hot-food/stores-status', authenticate, requireRole(Role.SUPER_ADMIN), getHotFoodStoresStatus); // On/off and open-now for every store
+router.get('/hot-food/pickup-stores', authenticate, getHotFoodPickupStores);     // Where a customer can pick up hot food: address, location, open now
 router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGER), getHotFoodOrders);
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);

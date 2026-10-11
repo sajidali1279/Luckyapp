@@ -454,6 +454,8 @@ export const hotFoodApi = {
   placeOrder:     (data: { storeId: string; items: { menuItemId: string; quantity: number }[]; note?: string }) =>
     api.post('/hot-food/orders', data),
   getMyOrders:    () => api.get('/hot-food/orders/mine'),
+  // Where a customer can pick up: every store taking hot food, with address, location and open now (2026-10-11)
+  getPickupStores: () => api.get('/hot-food/pickup-stores'),
   getStoreOrders: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}`),
   updateStatus:   (orderId: string, status: string, estimatedMinutes?: number, reason?: string) =>
     api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }), ...(reason ? { reason } : {}) }),

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  Linking,
 } from 'react-native';
 import { Text, TextInput } from '../../components/ScaledText';
 import RefreshControl from '../../components/AppRefreshControl';
@@ -27,6 +28,8 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { sized } from '../../utils/imageUrl';
+import { byDistance, choosePickup, closerStore, locationQuality, loadSavedPickup, savePickup, addressLine, openDirections, type Here, type PickupStore } from '../../utils/pickupStore';
+import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } from '../../components/HotFoodPickup';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +55,7 @@ interface FoodOrder {
   estimatedMinutes?: number;
   createdAt: string;
   updatedAt: string;
-  store: { name: string };
+  store: { name: string; address?: string | null; city?: string | null; state?: string | null; latitude?: number | null; longitude?: number | null };
   items: { name: string; quantity: number; price: number }[];
   /** STORE (declined), CUSTOMER or AUTO (nobody accepted it in time) */
   cancelledBy?: string | null;
@@ -82,18 +85,6 @@ function timeAgo(iso: string, t: (key: string, options?: Record<string, unknown>
 
 function fmtPrice(n: number) {
   return `$${n.toFixed(2)}`;
-}
-
-const MAX_NEARBY_MILES = 2;
-
-function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 3958.8;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // Whether this store is taking hot food orders right now (the server works it out from its hot food hours, the store's hours and
@@ -250,6 +241,9 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
           <View>
             <Text style={oc.orderNum}>#{order.orderNumber}</Text>
             <Text style={oc.store}>{order.store.name}</Text>
+            {(order.status === 'PENDING' || order.status === 'ACCEPTED' || order.status === 'READY') && addressLine(order.store) ? (
+              <Text style={oc.storeAddr}>{addressLine(order.store)}</Text>
+            ) : null}
           </View>
         </View>
         <View style={[oc.badge, { backgroundColor: cfg.bg }]}>
@@ -274,6 +268,18 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
           accessibilityLabel={t('customerHotFood.cancelOrderA11y', { number: order.orderNumber })}
         >
           <Text style={oc.cancelBtnText}>{cancelling ? t('customerHotFood.cancelling') : t('customerHotFood.cancelOrder')}</Text>
+        </TouchableOpacity>
+      )}
+
+      {(order.status === 'ACCEPTED' || order.status === 'READY') && (
+        <TouchableOpacity
+          style={oc.dirBtn}
+          onPress={() => openDirections(order.store)}
+          accessibilityRole="link"
+          accessibilityLabel={t('customerHotFood.directionsA11y', { store: order.store.name })}
+        >
+          <MapPinIcon size={13} color={COLORS.secondary} />
+          <Text style={oc.dirBtnText}>{t('customerHotFood.directionsTo', { store: order.store.name })}</Text>
         </TouchableOpacity>
       )}
 
@@ -316,9 +322,9 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
 
 // ─── Cart Sheet ───────────────────────────────────────────────────────────────
 
-function CartSheet({ cart, storeId, closedText, onClose, onOrderPlaced }: {
+function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
   cart: CartItem[];
-  storeId: string;
+  store: PickupStore;
   closedText: string | null;
   onClose: () => void;
   onOrderPlaced: () => void;
@@ -330,7 +336,7 @@ function CartSheet({ cart, storeId, closedText, onClose, onOrderPlaced }: {
 
   const placeMutation = useMutation({
     mutationFn: () => hotFoodApi.placeOrder({
-      storeId,
+      storeId: store.id,
       items: cart.map(i => ({ menuItemId: i.id, quantity: i.qty })),
       ...(note.trim() ? { note: note.trim() } : {}),
     }),
@@ -370,6 +376,7 @@ function CartSheet({ cart, storeId, closedText, onClose, onOrderPlaced }: {
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled" style={cs.body} showsVerticalScrollIndicator={false}>
+            <PickupSummary store={store} />
             {cart.map(item => (
               <View key={item.id} style={cs.lineRow}>
                 <Text style={cs.lineQty}>{item.qty}×</Text>
@@ -414,11 +421,11 @@ function CartSheet({ cart, storeId, closedText, onClose, onOrderPlaced }: {
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityState={{ disabled: placeMutation.isPending || !!closedText }}
-              accessibilityLabel={closedText ? t('customerHotFood.orderingClosedBtn') : placeMutation.isPending ? t('customerHotFood.placingOrderA11y') : t('customerHotFood.placeOrderA11y', { total: fmtPrice(total) })}
+              accessibilityLabel={closedText ? t('customerHotFood.orderingClosedBtn') : placeMutation.isPending ? t('customerHotFood.placingOrderA11y') : t('customerHotFood.placeOrderAtA11y', { total: fmtPrice(total), store: store.name, address: addressLine(store) })}
             >
               {placeMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={cs.placeBtnText}>{closedText ? t('customerHotFood.orderingClosedBtn') : t('customerHotFood.placeOrderBtn', { total: fmtPrice(total) })}</Text>}
+                : <Text style={cs.placeBtnText} numberOfLines={2}>{closedText ? t('customerHotFood.orderingClosedBtn') : t('customerHotFood.placeOrderAtBtn', { total: fmtPrice(total), store: store.name })}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -431,7 +438,7 @@ function CartSheet({ cart, storeId, closedText, onClose, onOrderPlaced }: {
 
 // ─── Order Success Sheet ──────────────────────────────────────────────────────
 
-function OrderSuccessSheet({ onClose }: { onClose: () => void }) {
+function OrderSuccessSheet({ store, onClose }: { store: PickupStore | null; onClose: () => void }) {
   const { t } = useTranslation();
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
@@ -444,6 +451,7 @@ function OrderSuccessSheet({ onClose }: { onClose: () => void }) {
             <Text style={{ fontWeight: '800', color: COLORS.primary }}>{t('customerHotFood.orderPlacedTabName')}</Text>{' '}
             {t('customerHotFood.orderPlacedSub2')}
           </Text>
+          {store && <View style={{ alignSelf: 'stretch', marginTop: 4 }}><PickupSummary store={store} compact /></View>}
           <TouchableOpacity
             style={ss.btn}
             onPress={onClose}
@@ -472,48 +480,77 @@ export default function CustomerHotFoodScreen() {
   const [showCart, setShowCart] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Location-based store detection
-  const [nearestStore, setNearestStore] = useState<{ id: string; name: string; hotFoodEnabled: boolean } | null>(null);
-  const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');
+  // ── Where the order is picked up (2026-10-11): the customer chooses; the app opens on the closest store, asks when two are about the
+  // same distance or the location cannot tell, remembers the store they chose, and says how good the location is
+  const [here, setHere] = useState<Here | null>(null);
+  const [locStatus, setLocStatus] = useState<'detecting' | 'ok' | 'denied' | 'error'>('detecting');
+  const [savedId, setSavedId] = useState<string | null | undefined>(undefined);   // undefined until read
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+  const [placedAt, setPlacedAt] = useState<PickupStore | null>(null);
 
+  const locate = useCallback(async () => {
+    setLocStatus('detecting');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') { setLocStatus('denied'); setHere(null); return; }
+      // A precise fix, but never a long wait indoors: after 10 seconds the phone's last known location (its accuracy is shown)
+      const precise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10_000));
+      const pos = (await Promise.race([precise, timeout])) ?? (await Location.getLastKnownPositionAsync());
+      if (!pos) { setLocStatus('error'); return; }
+      setHere({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy ?? null, at: Date.now() });
+      setLocStatus('ok');
+    } catch {
+      setLocStatus('error');
+    }
+  }, []);
+  useEffect(() => { locate(); loadSavedPickup().then(setSavedId); }, [locate]);
+
+  const { data: pickupData, isError: pickupError } = useQuery({
+    queryKey: ['hot-food-pickup-stores'],
+    queryFn: hotFoodApi.getPickupStores,
+    staleTime: 60_000,
+    refetchInterval: 60_000,   // open / closed follows the clock
+  });
+  // A server from before the pickup list: the stores' own list, those with hot food on (no hours in it)
   const { data: storesData } = useQuery({
     queryKey: ['stores-gas-prices'],
     queryFn: storesApi.getGasPrices,
     staleTime: 5 * 60 * 1000,
+    enabled: pickupError,
   });
-  const allStores: any[] = storesData?.data?.data || [];
+  const pickupStores: PickupStore[] = pickupError
+    ? ((storesData?.data?.data ?? []) as any[]).filter((st) => st.hotFoodEnabled !== false)
+    : (pickupData?.data?.data ?? []);
+  const sorted = byDistance(pickupStores, here);
+  const quality = locationQuality(locStatus === 'ok' ? here : null);
+  const storesReady = pickupError ? !!storesData : !!pickupData;
+  const choice = storesReady && locStatus !== 'detecting' && savedId !== undefined ? choosePickup(sorted, locStatus === 'ok' ? here : null, savedId) : null;
+  // The store in use: the one the customer chose, else the one the rules picked (the screen asks when they do not pick)
+  const autoId = choice?.kind === 'chosen' ? choice.id : null;
+  const storeId = chosenId ?? autoId;
+  const store = sorted.find((st) => st.id === storeId) ?? null;
+  const closer = closerStore(sorted, storeId, locStatus === 'ok' ? here : null);
+  // Once the screen settles on a store it stays there: a later location update never moves an order in the making to another store
+  // (the customer sees "not your closest store" and decides)
+  useEffect(() => { if (!chosenId && autoId) setChosenId(autoId); }, [chosenId, autoId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function detect() {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted' || cancelled) { if (!cancelled) setLocationStatus('none'); return; }
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        const { latitude: uLat, longitude: uLon } = pos.coords;
-        const withCoords = allStores.filter((s: any) => s.latitude != null && s.longitude != null);
-        if (!withCoords.length || cancelled) { if (!cancelled) setLocationStatus('none'); return; }
-        let closest: any = null;
-        let closestDist = Infinity;
-        for (const s of withCoords) {
-          const d = haversineMiles(uLat, uLon, s.latitude, s.longitude);
-          if (d < closestDist) { closestDist = d; closest = s; }
-        }
-        if (!cancelled && closest && closestDist <= MAX_NEARBY_MILES) {
-          setNearestStore({ id: closest.id, name: closest.name, hotFoodEnabled: closest.hotFoodEnabled !== false });
-          setLocationStatus('found');
-        } else if (!cancelled) {
-          setLocationStatus('none');
-        }
-      } catch {
-        if (!cancelled) setLocationStatus('none');
-      }
+  function pickStore(id: string) {
+    const apply = () => { setChosenId(id); setSavedId(id); savePickup(id); setShowPicker(false); };
+    if (cart.length > 0 && id !== storeId) {
+      const to = sorted.find((st) => st.id === id);
+      setShowPicker(false);
+      Alert.alert(t('customerHotFood.switchStoreTitle'), t('customerHotFood.switchStoreBody', { from: store?.name ?? '', to: to?.name ?? '' }), [
+        { text: t('customerHotFood.keepStore', { store: store?.name ?? '' }), style: 'cancel' },
+        { text: t('customerHotFood.switchStoreYes'), style: 'destructive', onPress: () => { setCart([]); apply(); } },
+      ]);
+      return;
     }
-    if (allStores.length > 0) detect();
-    return () => { cancelled = true; };
-  }, [allStores.length]);
+    apply();
+  }
 
-  const effectiveStore = nearestStore?.id || '';
+  const effectiveStore = store?.id || '';
 
   // Menu for detected store
   const { data: menuData, isLoading: menuLoading, isError: menuIsError, refetch: refetchMenu, isRefetching: menuRefetching } = useQuery({
@@ -579,6 +616,7 @@ export default function CustomerHotFoodScreen() {
   }, []);
 
   function handleOrderPlaced() {
+    if (store) { setPlacedAt(store); savePickup(store.id); setSavedId(store.id); setChosenId(store.id); }
     setShowCart(false);
     setCart([]);
     setShowSuccess(true);
@@ -640,42 +678,32 @@ export default function CustomerHotFoodScreen() {
       {/* ── MENU TAB ── */}
       {tab === 'menu' && (
         <>
-          {/* Location status banner */}
-          <View style={s.locationBanner}>
-            <MapPinIcon size={14} color={locationStatus === 'found' ? COLORS.primary : COLORS.textMuted} />
-            <Text style={[s.locationText, locationStatus === 'found' && s.locationTextFound]}>
-              {locationStatus === 'detecting'
-                ? t('customerHotFood.detectingLocation')
-                : locationStatus === 'found'
-                ? nearestStore!.name
-                : t('customerHotFood.noStoreNearby')}
-            </Text>
-          </View>
+          {/* How good the location is, then the store the order goes to (or the question which one) */}
+          <LocationLine status={locStatus} here={here} quality={quality} onUpdate={locate} onTurnOn={() => Linking.openSettings().catch(() => {})} />
+          {store && (
+            <PickupBar store={store} closer={closer} onChange={() => setShowPicker(true)} onSwitchToCloser={() => closer && pickStore(closer.id)} />
+          )}
 
-          {locationStatus === 'found' && nearestStore?.hotFoodEnabled && hours?.limited && (
+          {store && hours?.limited && (
             <View style={[s.hoursBanner, closed ? s.hoursBannerClosed : s.hoursBannerOpen]} accessibilityRole="text">
               <ClockIcon size={14} color={closed ? '#9A3412' : '#166534'} />
               <Text style={[s.hoursText, { color: closed ? '#9A3412' : '#166534' }]}>{hoursLine(t, hours)}</Text>
             </View>
           )}
 
-          {locationStatus === 'detecting' ? (
+          {!store && !choice ? (
             <View style={s.loadingBox}>
               <ActivityIndicator size="large" color={COLORS.primary} />
               <Text style={s.loadingText}>{t('customerHotFood.findingStore')}</Text>
             </View>
-          ) : locationStatus === 'none' ? (
-            <View style={s.emptyBox}>
-              <Text style={s.emptyEmoji}>📍</Text>
-              <Text style={s.emptyTitle}>{t('customerHotFood.noStoreNearbyTitle')}</Text>
-              <Text style={s.emptySub}>{t('customerHotFood.noStoreNearbySub')}</Text>
-            </View>
-          ) : nearestStore && !nearestStore.hotFoodEnabled ? (
+          ) : !store && choice?.kind === 'none' ? (
             <View style={s.emptyBox}>
               <Text style={s.emptyEmoji}>🍽️</Text>
-              <Text style={s.emptyTitle}>{t('customerHotFood.notAvailableTitle')}</Text>
-              <Text style={s.emptySub}>{t('customerHotFood.notAvailableSub', { store: nearestStore.name })}</Text>
+              <Text style={s.emptyTitle}>{t('customerHotFood.noPickupStoresTitle')}</Text>
+              <Text style={s.emptySub}>{t('customerHotFood.noPickupStores')}</Text>
             </View>
+          ) : !store && choice?.kind === 'ask' ? (
+            <AskCard why={choice.why} candidates={choice.candidates} onPick={pickStore} onSeeAll={() => setShowPicker(true)} />
           ) : menuLoading ? (
             <View style={s.loadingBox}>
               <ActivityIndicator size="large" color={COLORS.primary} />
@@ -788,19 +816,24 @@ export default function CustomerHotFoodScreen() {
       )}
 
       {/* Cart sheet */}
-      {showCart && cart.length > 0 && (
+      {showCart && cart.length > 0 && store && (
         <CartSheet
           cart={cart}
           closedText={closed && hours ? hoursLine(t, hours) : null}
-          storeId={effectiveStore}
+          store={store!}
           onClose={() => setShowCart(false)}
           onOrderPlaced={handleOrderPlaced}
         />
       )}
 
+      {/* Every pickup store, closest first */}
+      {showPicker && (
+        <PickupStoreSheet stores={sorted} selectedId={storeId} onPick={pickStore} onClose={() => setShowPicker(false)} />
+      )}
+
       {/* Success sheet */}
       {showSuccess && (
-        <OrderSuccessSheet onClose={() => setShowSuccess(false)} />
+        <OrderSuccessSheet store={placedAt} onClose={() => setShowSuccess(false)} />
       )}
     </View>
   );
@@ -943,6 +976,9 @@ const mc = StyleSheet.create({
 
 // ─── Order card styles ────────────────────────────────────────────────────────
 const oc = StyleSheet.create({
+  storeAddr: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
+  dirBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 8, borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F8FAFC' },
+  dirBtnText: { fontSize: 12.5, fontWeight: '800', color: COLORS.secondary },
   cancelReason: { fontSize: 13, color: '#a51b28', marginTop: 4, lineHeight: 18 },
   cancelBtn: {
     alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,

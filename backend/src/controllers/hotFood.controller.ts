@@ -259,7 +259,7 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
 
   const order = await prisma.hotFoodOrder.findUnique({
     where: { id },
-    include: { store: { select: { id: true, name: true } } },
+    include: { store: { select: { id: true, name: true, address: true, city: true } } },
   });
   if (!order) {
     res.status(404).json({ success: false, error: 'Order not found' });
@@ -324,7 +324,7 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     sendPushToUser(
       order.customerId,
       '✅ Your food is ready!',
-      `Order #${order.orderNumber} is ready. Head to the counter at ${order.store.name}.`,
+      `Order #${order.orderNumber} is ready. Head to the counter at ${order.store.name}${order.store.address ? `, ${order.store.address}${order.store.city ? `, ${order.store.city}` : ''}` : ''}.`,
       'HOT_FOOD_ORDER',
     );
   }
@@ -592,7 +592,7 @@ export async function getMyOrders(req: AuthRequest, res: Response) {
       id: true, orderNumber: true, status: true, totalAmount: true,
       note: true, estimatedMinutes: true, cancelledBy: true, cancelReason: true,
       createdAt: true, updatedAt: true,
-      store: { select: { id: true, name: true } },
+      store: { select: { id: true, name: true, address: true, city: true, state: true, latitude: true, longitude: true } },
       items: { select: { name: true, quantity: true, price: true } },
     },
     orderBy: { createdAt: 'desc' },
@@ -848,6 +848,33 @@ export async function clearHotFoodHours(req: AuthRequest, res: Response) {
 }
 
 // GET /hot-food/stores-status — every store: hot food on or off, and whether ordering is open right now (HQ's Availability view)
+/**
+ * GET /hot-food/pickup-stores (any signed-in customer, 2026-10-11): every store a customer can order hot food from (active, hot food on),
+ * with its address and location for the distance, and whether it takes orders right now. The app lists them closest first and lets the
+ * customer choose where to pick up.
+ */
+export async function getHotFoodPickupStores(_req: AuthRequest, res: Response) {
+  const soon = new Date(Date.now() + 10 * 86_400_000);
+  const recent = new Date(Date.now() - 2 * 86_400_000);
+  const stores = await prisma.store.findMany({
+    where: { isActive: true, hotFoodEnabled: true },
+    select: {
+      id: true, name: true, address: true, city: true, state: true, zipCode: true, phone: true, latitude: true, longitude: true,
+      hotFoodHours: true, storeHours: true,
+      storeHolidays: { where: { date: { gte: recent, lte: soon } } },
+    },
+    orderBy: { name: 'asc' },
+  });
+  const now = new Date();
+  res.json({
+    success: true,
+    data: stores.map(({ hotFoodHours, storeHours, storeHolidays, ...st }) => ({
+      ...st,
+      hours: hotFoodState({ hotFood: hotFoodHours, storeWeekly: storeHours, storeHolidays }, now),
+    })),
+  });
+}
+
 export async function getHotFoodStoresStatus(_req: AuthRequest, res: Response) {
   const soon = new Date(Date.now() + 10 * 86_400_000);
   const recent = new Date(Date.now() - 2 * 86_400_000);
