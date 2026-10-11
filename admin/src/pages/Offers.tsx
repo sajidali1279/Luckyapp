@@ -1366,8 +1366,8 @@ function OfferCard({ offer, onDelete, onReuse, onResults, onEdit, onEndNow, isPa
         {onReuse && <Button size="sm" icon={<RotateCcw />} onClick={onReuse} aria-label={`Reuse ${offer.title}`}>Reuse</Button>}
         {!isPast && onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Square />} onClick={onEndNow} aria-label={`End ${offer.title} now`}>End now</Button>}
-          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} aria-label={`Cancel ${offer.title}`}>Cancel</Button>}
+          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onEndNow} aria-label={`End ${offer.title} now`} title="End now" />}
+          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} aria-label={`Cancel ${offer.title}`} title="Cancel" />}
         </span>
       </div>
     </Card>
@@ -1389,8 +1389,8 @@ function DealCard({ offer, onDelete, onEdit, onEndNow, onReuse, isPast, isSchedu
         {onReuse && <Button size="sm" icon={<RotateCcw />} onClick={onReuse} aria-label={`Reuse ${offer.title}`}>Reuse</Button>}
         {!isPast && onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Square />} onClick={onEndNow} aria-label={`End ${offer.title} now`}>End now</Button>}
-          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} aria-label={`Cancel ${offer.title}`}>Cancel</Button>}
+          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onEndNow} aria-label={`End ${offer.title} now`} title="End now" />}
+          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} aria-label={`Cancel ${offer.title}`} title="Cancel" />}
         </span>
       </div>
     </Card>
