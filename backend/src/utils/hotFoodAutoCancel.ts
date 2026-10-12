@@ -8,6 +8,27 @@ import { escalateWaitingHotFoodOrders, ESCALATE_MINUTES } from './hotFoodRouting
 import { returnOrderPoints, pts } from './hotFoodPoints';
 
 export const AUTO_CANCEL_MINUTES = 20;
+/** A ready order not picked up after this long: the customer is reminded, once (2026-10-12) */
+export const READY_REMIND_MINUTES = 15;
+
+/** Ready orders waiting READY_REMIND_MINUTES: the customer is reminded where and what to pay, once each. Returns how many. */
+export async function remindReadyHotFoodOrders(now: Date = new Date()): Promise<number> {
+  const cutoff = new Date(now.getTime() - READY_REMIND_MINUTES * 60_000);
+  const waiting = await prisma.hotFoodOrder.findMany({
+    where: { status: 'READY', readyRemindedAt: null, readyAt: { lt: cutoff } },
+    select: { id: true, customerId: true, orderNumber: true, paidWithPoints: true, totalAmount: true, store: { select: { name: true, address: true } } },
+  });
+  let done = 0;
+  for (const o of waiting) {
+    const claimed = await prisma.hotFoodOrder.updateMany({ where: { id: o.id, status: 'READY', readyRemindedAt: null }, data: { readyRemindedAt: now } });
+    if (claimed.count === 0) continue;   // picked up or reminded a moment ago
+    done++;
+    sendPushToUser(o.customerId, `🔥 Order #${o.orderNumber} is waiting for you`,
+      `It is ready at ${o.store.name}${o.store.address ? `, ${o.store.address}` : ''}. ${o.paidWithPoints ? 'Paid with points: nothing to pay.' : `Pay $${o.totalAmount.toFixed(2)} at the counter.`}`,
+      'HOT_FOOD_ORDER', customerHotFoodUrl());
+  }
+  return done;
+}
 
 /** Cancels every order still waiting after AUTO_CANCEL_MINUTES. Each one only once (a claim on its status). Returns how many. */
 export async function cancelStaleHotFoodOrders(now: Date = new Date()): Promise<number> {
@@ -40,6 +61,7 @@ export function startHotFoodAutoCancelCron() {
   // An order waiting ESCALATE_MINUTES: its store's managers and everyone assigned there are told, once (checked every minute)
   cron.schedule('* * * * *', () => {
     escalateWaitingHotFoodOrders().catch((e) => console.error('[hot-food-escalate] run failed:', e?.message ?? e));
+    remindReadyHotFoodOrders().catch((e) => console.error('[hot-food-ready-reminder] run failed:', e?.message ?? e));
   }, { timezone: 'UTC' });
   console.log(`[hot-food-escalate] Orders waiting ${ESCALATE_MINUTES} minutes are escalated to the store's managers`);
 }

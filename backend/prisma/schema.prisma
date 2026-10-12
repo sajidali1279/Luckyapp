@@ -1609,6 +1609,8 @@ model HotFoodOrder {
   paidWithPoints   Boolean            @default(false)   // the whole order paid with the customer's points (utils/hotFoodPoints.ts)
   pointsAmount     Float?                               // the credit taken when it was placed (dollars; points = x 100)
   pointsReturnedAt DateTime?                            // when the points went back (declined, cancelled, not accepted)
+  readyAt          DateTime?                            // when it was marked ready (the pickup reminder counts from here)
+  readyRemindedAt  DateTime?                            // when the customer was reminded it is waiting, once (utils/hotFoodAutoCancel.ts)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 

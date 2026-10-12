@@ -529,7 +529,13 @@
     "paidWithPointsLine": "Paid with {{points}} points",
     "paidWithPointsNothingToPay": "Paid with {{points}} points: nothing to pay at the counter",
     "pointsReturned": "Your {{points}} points were returned",
-    "pointsBackToast": "Your {{points}} points are back."
+    "pointsBackToast": "Your {{points}} points are back.",
+    "pricesChangedTitle": "A price changed",
+    "pricesChanged": "Your order is now {{total}}. Check it and place it again.",
+    "itemsGoneTitle": "No longer available, taken out of your order",
+    "cartRepriced": "A price changed. Your order shows the new total.",
+    "searchMenu": "Search the menu",
+    "searchNothing": "Nothing on the menu matches \"{{text}}\"."
   },
   "customerLeaderboard": {
     "nameYou": " (You)",
@@ -924,7 +930,12 @@
     "backToStore": "Back to {{store}}",
     "backToStoreA11y": "Back to the orders for {{store}}",
     "paidWithPoints": "Paid with points: do not charge",
-    "paidWithPointsBody": "The customer paid the whole order with points in the app. Hand it over without taking payment, and do not give points for it."
+    "paidWithPointsBody": "The customer paid the whole order with points in the app. Hand it over without taking payment, and do not give points for it.",
+    "declineOrderTitle": "Decline order",
+    "declineOrderBody": "The customer is told it was declined and does not wait for it.",
+    "declineOrderBtn": "Decline",
+    "declineOrderA11y": "Decline order #{{number}}",
+    "collectAtCounter": "Collect {{total}} at pickup"
   },
   "employeeLeaderboard": {
     "headerTitle": "Staff Rankings",

@@ -70,6 +70,7 @@ interface FoodOrder {
 }
 
 const toPts = (dollars: number) => Math.round(dollars * 100);
+const MAX_PER_ITEM = 20;   // the server's limit per item (MAX_QTY_PER_ITEM)
 
 type Tab = 'menu' | 'orders';
 
@@ -164,9 +165,9 @@ function MenuCard({ item, qty, onAdd, onRemove, closed = false }: {
             </TouchableOpacity>
             <Text style={mc.stepQty}>{qty}</Text>
             <TouchableOpacity
-              style={[mc.stepBtn, mc.stepBtnAdd, closed && mc.btnClosed]}
+              style={[mc.stepBtn, mc.stepBtnAdd, (closed || qty >= MAX_PER_ITEM) && mc.btnClosed]}
               onPress={onAdd}
-              disabled={closed}
+              disabled={closed || qty >= MAX_PER_ITEM}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={t('customerHotFood.addOneMoreA11y', { name: item.name })}
@@ -370,6 +371,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
       items: cart.map(i => ({ menuItemId: i.id, quantity: i.qty })),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(payWithPoints ? { payWithPoints: true } : {}),
+      expectedTotal: Math.round(total * 100) / 100,
     }),
     onSuccess: (res: any) => {
       if (typeof res?.data?.pointsBalance === 'number') updateBalance(res.data.pointsBalance);
@@ -378,6 +380,12 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
     },
     onError: (e: any) => {
       const d = e.response?.data;
+      if (d?.code === 'PRICES_CHANGED') {
+        // The menu is read again and the cart takes the new prices (the screen does that when the menu comes back)
+        qc.invalidateQueries({ queryKey: ['customer-hot-food-menu'] });
+        Toast.show({ type: 'error', text1: t('customerHotFood.pricesChangedTitle'), text2: t('customerHotFood.pricesChanged', { total: fmtPrice(d.total) }) });
+        return;
+      }
       if (d?.code === 'NOT_ENOUGH_POINTS') {
         if (typeof d.have === 'number') updateBalance(d.have / 100);   // the balance in the app was out of date
         setUsePoints(false);
@@ -629,6 +637,24 @@ export default function CustomerHotFoodScreen() {
     refetchInterval: 60_000,   // the open / closed line follows the clock
   });
   const menuItems: MenuItem[] = menuData?.data?.data || [];
+  const [search, setSearch] = useState('');
+  const shownItems = search.trim()
+    ? menuItems.filter((m) => `${m.name} ${m.description ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
+    : menuItems;
+  useEffect(() => {
+    if (!menuData) return;
+    setCart((prev) => {
+      if (prev.length === 0) return prev;
+      const byId = new Map(menuItems.map((m) => [m.id, m]));
+      const gone = prev.filter((c) => !byId.has(c.id));
+      const next = prev.filter((c) => byId.has(c.id)).map((c) => ({ ...c, price: byId.get(c.id)!.price, name: byId.get(c.id)!.name }));
+      const repriced = prev.some((c) => byId.has(c.id) && byId.get(c.id)!.price !== c.price);
+      if (gone.length) Toast.show({ type: 'info', text1: t('customerHotFood.itemsGoneTitle'), text2: gone.map((g) => g.name).join(', ') });
+      else if (repriced) Toast.show({ type: 'info', text1: t('customerHotFood.cartRepriced') });
+      return gone.length || repriced ? next : prev;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [menuData]);
   const hours: HotFoodHours | undefined = menuData?.data?.hours;
   const closed = !!hours && !hours.open;
 
@@ -675,7 +701,7 @@ export default function CustomerHotFoodScreen() {
   const addToCart = useCallback((item: MenuItem) => {
     setCart(prev => {
       const existing = prev.find(c => c.id === item.id);
-      if (existing) return prev.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c);
+      if (existing) return prev.map(c => c.id === item.id ? { ...c, qty: Math.min(MAX_PER_ITEM, c.qty + 1) } : c);
       return [...prev, { ...item, qty: 1 }];
     });
   }, []);
@@ -793,7 +819,21 @@ export default function CustomerHotFoodScreen() {
           ) : (
             <FadeSlideIn style={{ flex: 1 }}>
               <FlatList
-                data={menuItems}
+                data={shownItems}
+                ListHeaderComponent={menuItems.length > 8 ? (
+                  <TextInput
+                    style={s.search}
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder={t('customerHotFood.searchMenu')}
+                    placeholderTextColor="#94A3B8"
+                    returnKeyType="search"
+                    clearButtonMode="while-editing"
+                    accessibilityLabel={t('customerHotFood.searchMenu')}
+                  />
+                ) : null}
+                ListEmptyComponent={search.trim() ? <Text style={s.searchEmpty}>{t('customerHotFood.searchNothing', { text: search.trim() })}</Text> : null}
+                keyboardShouldPersistTaps="handled"
                 keyExtractor={item => item.id}
                 contentContainerStyle={s.menuList}
                 onScroll={largeTitle.onScroll}
@@ -964,6 +1004,8 @@ const s = StyleSheet.create({
 
   // Menu
   menuList: { padding: 12, paddingBottom: 32 },
+  search: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E6E8EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: COLORS.text, marginBottom: 10 },
+  searchEmpty: { textAlign: 'center', color: COLORS.textMuted, fontSize: 14, marginTop: 24 },
 
   // Cart FAB
   cartFab: {

@@ -55,6 +55,41 @@ async function schedulesFor(storeId: string): Promise<HotFoodSchedules> {
 export const MAX_QTY_PER_ITEM = 20;
 export const MAX_ORDER_LINES = 30;
 export const MAX_NOTE_LENGTH = 300;
+// What one menu item may be (2026-10-12): a name, a price a hot food item can have, and a time a kitchen can give
+export const MAX_ITEM_PRICE = 500;
+const MAX_ITEM_NAME = 80;
+const MAX_ITEM_DESCRIPTION = 300;
+/** The fields of a menu or catalog item that were sent, checked. `error` when one is wrong (nothing is silently dropped). */
+function itemFields(body: any, { creating, priceMin }: { creating: boolean; priceMin: number }): { error: string } | { data: Record<string, any> } {
+  const data: Record<string, any> = {};
+  if (creating || body.name !== undefined) {
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!name) return { error: 'The item needs a name.' };
+    if (name.length > MAX_ITEM_NAME) return { error: `Keep the name under ${MAX_ITEM_NAME} characters.` };
+    data.name = name;
+  }
+  if (body.description !== undefined) {
+    const d = typeof body.description === 'string' ? body.description.trim() : '';
+    if (d.length > MAX_ITEM_DESCRIPTION) return { error: `Keep the description under ${MAX_ITEM_DESCRIPTION} characters.` };
+    data.description = d || null;
+  }
+  if (creating || body.price !== undefined) {
+    const p = Number(body.price);
+    if (body.price === '' || body.price == null || !Number.isFinite(p) || p < priceMin || p > MAX_ITEM_PRICE) {
+      return { error: priceMin > 0 ? `The price must be more than $0 and at most $${MAX_ITEM_PRICE}.` : `The price must be from $0 to $${MAX_ITEM_PRICE}.` };
+    }
+    data.price = Math.round(p * 100) / 100;
+  }
+  if (body.estimatedMinutes !== undefined) {
+    if (body.estimatedMinutes === '' || body.estimatedMinutes == null) data.estimatedMinutes = null;
+    else {
+      const m = Number(body.estimatedMinutes);
+      if (!Number.isInteger(m) || m < 1 || m > 240) return { error: 'The time to make it must be a whole number of minutes, from 1 to 240.' };
+      data.estimatedMinutes = m;
+    }
+  }
+  return { data };
+}
 
 function generateOrderNumber(): string {
   const ts = Date.now().toString(36).toUpperCase().slice(-5);
@@ -80,16 +115,9 @@ export async function getMenu(req: AuthRequest, res: Response) {
 
 // POST /hot-food/menu
 export async function createItem(req: AuthRequest, res: Response) {
-  const { name, description, category, price, estimatedMinutes, isAvailable } = req.body;
-  if (!name?.trim()) {
-    res.status(400).json({ success: false, error: 'name is required' });
-    return;
-  }
-  const parsedPrice = parseFloat(price);
-  if (isNaN(parsedPrice) || parsedPrice < 0) {
-    res.status(400).json({ success: false, error: 'price must be a non-negative number' });
-    return;
-  }
+  const { category, isAvailable } = req.body;
+  const checked = itemFields(req.body, { creating: true, priceMin: 0 });
+  if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
 
   // Employees/managers are scoped to their own store(s) — prefer an explicit
   // storeId from the client if it's actually one of their assigned stores,
@@ -110,12 +138,12 @@ export async function createItem(req: AuthRequest, res: Response) {
 
   const item = await prisma.hotFoodMenuItem.create({
     data: {
-      name: name.trim(),
-      description: description?.trim() || null,
-      category: category?.trim() || null,
-      price: parsedPrice,
+      name: checked.data.name,
+      description: checked.data.description ?? null,
+      category: typeof category === 'string' ? category.trim().slice(0, 40) || null : null,
+      price: checked.data.price,
       storeId,
-      estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : null,
+      estimatedMinutes: checked.data.estimatedMinutes ?? null,
       isAvailable: isAvailable !== false && isAvailable !== 'false',
       imageUrl,
     },
@@ -127,7 +155,7 @@ export async function createItem(req: AuthRequest, res: Response) {
 // PATCH /hot-food/menu/:id
 export async function updateItem(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const { name, description, category, price, estimatedMinutes, isAvailable } = req.body;
+  const { category, isAvailable } = req.body;
 
   const existing = await prisma.hotFoodMenuItem.findUnique({ where: { id } });
   if (!existing) {
@@ -135,25 +163,20 @@ export async function updateItem(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Employees may only edit items belonging to one of their stores
+  // Staff may only change items of their own stores; an item for every store is HQ's (it changes the price everywhere)
   const user = req.user!;
   if (user.role === 'EMPLOYEE' || user.role === 'STORE_MANAGER') {
     const employeeStoreIds: string[] = (user as any).storeIds ?? [];
-    if (existing.storeId && !employeeStoreIds.includes(existing.storeId)) {
-      res.status(403).json({ success: false, error: 'Cannot edit items from other stores' });
+    if (!existing.storeId || !employeeStoreIds.includes(existing.storeId)) {
+      res.status(403).json({ success: false, error: existing.storeId ? 'Cannot edit items from other stores' : 'This item is on every store\'s menu, so only HQ can change it.' });
       return;
     }
   }
 
-  const data: any = {};
-  if (name !== undefined) data.name = name.trim();
-  if (description !== undefined) data.description = description?.trim() || null;
-  if (category !== undefined) data.category = category?.trim() || null;
-  if (price !== undefined) {
-    const p = parseFloat(price);
-    if (!isNaN(p)) data.price = p;
-  }
-  if (estimatedMinutes !== undefined) data.estimatedMinutes = estimatedMinutes ? parseInt(estimatedMinutes) : null;
+  const checked = itemFields(req.body, { creating: false, priceMin: 0 });
+  if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
+  const data: any = { ...checked.data };
+  if (category !== undefined) data.category = typeof category === 'string' ? category.trim().slice(0, 40) || null : null;
   if (isAvailable !== undefined) data.isAvailable = isAvailable === true || isAvailable === 'true';
 
   // Image file uploaded — replace via Cloudinary
@@ -178,12 +201,12 @@ export async function deleteItem(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Employees may only delete items belonging to one of their stores
+  // Staff may only delete items of their own stores; an item for every store is HQ's
   const user = req.user!;
   if (user.role === 'EMPLOYEE' || user.role === 'STORE_MANAGER') {
     const employeeStoreIds: string[] = (user as any).storeIds ?? [];
-    if (existing.storeId && !employeeStoreIds.includes(existing.storeId)) {
-      res.status(403).json({ success: false, error: 'Cannot delete items from other stores' });
+    if (!existing.storeId || !employeeStoreIds.includes(existing.storeId)) {
+      res.status(403).json({ success: false, error: existing.storeId ? 'Cannot delete items from other stores' : 'This item is on every store\'s menu, so only HQ can remove it.' });
       return;
     }
   }
@@ -217,6 +240,7 @@ export async function getAllOrders(req: AuthRequest, res: Response) {
 
   // StoreManager: restrict to their own stores (check allStoresAccess flag in DB)
   let storeFilter: string | undefined = storeId;
+  let managerScope: string[] | undefined;
   if (user.role === 'STORE_MANAGER') {
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
@@ -229,11 +253,18 @@ export async function getAllOrders(req: AuthRequest, res: Response) {
         return;
       }
       storeFilter = storeId || (managerStoreIds.length === 1 ? managerStoreIds[0] : undefined);
+      // A manager of several stores with no store picked: their stores only (it showed every store's orders, names and phones)
+      if (!storeFilter) managerScope = managerStoreIds;
     }
+  }
+  if (status && !Object.prototype.hasOwnProperty.call(NEXT_STATUS, status)) {
+    res.status(400).json({ success: false, error: 'Unknown order status.' });
+    return;
   }
 
   const where: any = {};
   if (storeFilter) where.storeId = storeFilter;
+  else if (managerScope) where.storeId = { in: managerScope };
   if (status) where.status = status;
 
   const orders = await prisma.hotFoodOrder.findMany({
@@ -296,6 +327,7 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     const mins = parseInt(estimatedMinutes);
     if (!isNaN(mins) && mins > 0 && mins <= 240) updateData.estimatedMinutes = mins;
   }
+  if (next === 'READY') (updateData as any).readyAt = new Date();   // the pickup reminder counts from here
   if (next === 'CANCELLED') {
     // Declined by the store, with the reason the customer is told (optional)
     const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
@@ -332,8 +364,9 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     sendPushToUser(
       order.customerId,
       '✅ Your food is ready!',
-      `Order #${order.orderNumber} is ready. Head to the counter at ${order.store.name}${order.store.address ? `, ${order.store.address}${order.store.city ? `, ${order.store.city}` : ''}` : ''}.`,
+      `Order #${order.orderNumber} is ready. Head to the counter at ${order.store.name}${order.store.address ? `, ${order.store.address}${order.store.city ? `, ${order.store.city}` : ''}` : ''}.${order.paidWithPoints ? ' Paid with points: nothing to pay.' : ` Pay $${order.totalAmount.toFixed(2)} at the counter.`}`,
       'HOT_FOOD_ORDER',
+      customerHotFoodUrl(),   // tapping it opens the orders (it opened nothing)
     );
   }
 
@@ -366,8 +399,8 @@ export async function customerCancelOrder(req: AuthRequest, res: Response) {
 export async function getStoreMenu(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true } });
-  if (!store?.hotFoodEnabled) {
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true, isActive: true } });
+  if (!store?.hotFoodEnabled || store.isActive === false) {
     res.json({ success: true, data: [], hotFoodEnabled: false });
     return;
   }
@@ -404,7 +437,7 @@ export async function getStoreAllItems(req: AuthRequest, res: Response) {
 
   const menuItems = await prisma.hotFoodMenuItem.findMany({
     where: { OR: [{ storeId }, { storeId: null }] },
-    select: { id: true, name: true, description: true, category: true, price: true, estimatedMinutes: true, imageUrl: true, isAvailable: true },
+    select: { id: true, name: true, description: true, category: true, price: true, estimatedMinutes: true, imageUrl: true, isAvailable: true, storeId: true },
     orderBy: [{ isAvailable: 'desc' }, { name: 'asc' }],
   });
 
@@ -509,8 +542,8 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     return;
   }
 
-  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true, name: true } });
-  if (!store?.hotFoodEnabled) {
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true, name: true, isActive: true } });
+  if (!store?.hotFoodEnabled || store.isActive === false) {
     res.status(403).json({ success: false, error: 'Hot food ordering is not available at this location' });
     return;
   }
@@ -557,7 +590,26 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     });
   }
 
-  const totalAmount = orderLines.reduce((s, l) => s + l.price * l.quantity, 0);
+  const totalAmount = Math.round(orderLines.reduce((s, l) => s + l.price * l.quantity, 0) * 100) / 100;
+  // The total the customer saw: a price changed since the menu loaded is told, never charged silently (in money or points)
+  const expected = Number(req.body?.expectedTotal);
+  if (req.body?.expectedTotal != null && Number.isFinite(expected) && Math.abs(expected - totalAmount) > 0.005) {
+    res.status(409).json({ success: false, code: 'PRICES_CHANGED', total: totalAmount,
+      prices: orderLines.map((l) => ({ id: l.menuItemId ?? l.catalogItemId, price: l.price })),
+      error: `A price changed since you opened the menu. The order is now $${totalAmount.toFixed(2)}. Check it and order again.` });
+    return;
+  }
+  // The same order sent twice (a double tap, a retry after a slow network): the first one is the order, nothing is taken twice
+  const sameLines = (a: { name: string; quantity: number }[]) => a.map((l) => `${l.quantity}x${l.name}`).sort().join('|');
+  const recent = await prisma.hotFoodOrder.findFirst({
+    where: { customerId, storeId, status: { not: 'CANCELLED' }, totalAmount, paidWithPoints: req.body?.payWithPoints === true, createdAt: { gte: new Date(Date.now() - 60_000) } },
+    include: { store: { select: { id: true, name: true } }, items: true },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (recent && sameLines(recent.items) === sameLines(orderLines)) {
+    res.status(200).json({ success: true, data: recent, duplicate: true });
+    return;
+  }
   // Paying with points: the whole order, only when the balance covers all of it (no part payments)
   const payWithPoints = req.body?.payWithPoints === true;
   if (payWithPoints && req.user!.role !== 'CUSTOMER') {
@@ -616,6 +668,7 @@ export async function getMyOrders(req: AuthRequest, res: Response) {
     select: {
       id: true, orderNumber: true, status: true, totalAmount: true,
       note: true, estimatedMinutes: true, cancelledBy: true, cancelReason: true,
+      paidWithPoints: true, pointsAmount: true, pointsReturnedAt: true,
       createdAt: true, updatedAt: true,
       store: { select: { id: true, name: true, address: true, city: true, state: true, latitude: true, longitude: true } },
       items: { select: { name: true, quantity: true, price: true } },
@@ -693,16 +746,8 @@ export async function getCatalog(_req: AuthRequest, res: Response) {
 
 // POST /hot-food/catalog
 export async function createCatalogItem(req: AuthRequest, res: Response) {
-  const { name, description, price, estimatedMinutes } = req.body;
-  if (!name?.trim()) {
-    res.status(400).json({ success: false, error: 'name is required' });
-    return;
-  }
-  const parsedPrice = parseFloat(price);
-  if (isNaN(parsedPrice) || parsedPrice <= 0) {
-    res.status(400).json({ success: false, error: 'price must be a positive number' });
-    return;
-  }
+  const checked = itemFields(req.body, { creating: true, priceMin: 0.01 });
+  if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
 
   let imageUrl: string | undefined;
   if (req.file) {
@@ -711,10 +756,10 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
 
   const item = await prisma.hotFoodCatalogItem.create({
     data: {
-      name: name.trim(),
-      description: description?.trim() || null,
-      price: parsedPrice,
-      estimatedMinutes: estimatedMinutes ? parseInt(estimatedMinutes) : null,
+      name: checked.data.name,
+      description: checked.data.description ?? null,
+      price: checked.data.price,
+      estimatedMinutes: checked.data.estimatedMinutes ?? null,
       imageUrl: imageUrl ?? null,
     },
     include: { _count: { select: { stores: true } } },
@@ -728,16 +773,9 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   const existing = await prisma.hotFoodCatalogItem.findUnique({ where: { id } });
   if (!existing) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
 
-  const data: any = {};
-  if (req.body.name !== undefined) data.name = req.body.name.trim();
-  if (req.body.description !== undefined) data.description = req.body.description?.trim() || null;
-  if (req.body.price !== undefined) {
-    const p = parseFloat(req.body.price);
-    if (!isNaN(p) && p > 0) data.price = p;
-  }
-  if (req.body.estimatedMinutes !== undefined) {
-    data.estimatedMinutes = req.body.estimatedMinutes ? parseInt(req.body.estimatedMinutes) : null;
-  }
+  const checked = itemFields(req.body, { creating: false, priceMin: 0.01 });
+  if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
+  const data: any = checked.data;
 
   const item = await prisma.hotFoodCatalogItem.update({
     where: { id },
@@ -786,7 +824,12 @@ export async function getCatalogItemStores(req: AuthRequest, res: Response) {
 export async function assignCatalogItemToStore(req: AuthRequest, res: Response) {
   const { id } = req.params;
   const { storeId } = req.body;
-  if (!storeId) { res.status(400).json({ success: false, error: 'storeId is required' }); return; }
+  if (!storeId || typeof storeId !== 'string') { res.status(400).json({ success: false, error: 'storeId is required' }); return; }
+  const [item, store] = await Promise.all([
+    prisma.hotFoodCatalogItem.findUnique({ where: { id }, select: { id: true } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { id: true } }),
+  ]);
+  if (!item || !store) { res.status(404).json({ success: false, error: !item ? 'That item does not exist.' : 'That store does not exist.' }); return; }
 
   await prisma.hotFoodCatalogStore.upsert({
     where: { catalogItemId_storeId: { catalogItemId: id, storeId } },

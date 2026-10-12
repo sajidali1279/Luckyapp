@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { serverMessage } from '../lib/apiError';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { hotFoodApi, hotFoodCatalogApi, storesApi } from '../services/api';
@@ -125,16 +126,29 @@ function OrderCard({ order, onUpdate, updatingId }: {
 
       <div style={oc.actions}>
         {order.status === 'PENDING' && (
-          <button style={{ ...oc.btn, background: '#8a5300', opacity: busy ? 0.6 : 1 }}
-            onClick={() => onUpdate(order.id, 'ACCEPTED')} disabled={busy}>
-            {busy ? 'Updating…' : 'Accept Order'}
-          </button>
+          <>
+            <button style={{ ...oc.btn, background: '#8a5300', flex: 1, opacity: busy ? 0.6 : 1 }}
+              onClick={() => onUpdate(order.id, 'ACCEPTED')} disabled={busy}>
+              {busy ? 'Updating…' : 'Accept Order'}
+            </button>
+            {/* Decline a new order: the customer is told why and does not wait for the 20-minute cancel */}
+            <button style={{ ...oc.cancelBtn, opacity: busy ? 0.6 : 1 }}
+              onClick={() => onUpdate(order.id, 'CANCELLED')} disabled={busy} title="Decline order" aria-label={`Decline order ${order.orderNumber}`}>
+              <X size={13} color="#c42130" />
+            </button>
+          </>
         )}
         {order.status === 'ACCEPTED' && (
-          <button style={{ ...oc.btn, background: '#3c6e8f', opacity: busy ? 0.6 : 1 }}
-            onClick={() => onUpdate(order.id, 'READY')} disabled={busy}>
-            {busy ? 'Updating…' : 'Mark Ready'}
-          </button>
+          <>
+            <button style={{ ...oc.btn, background: '#3c6e8f', flex: 1, opacity: busy ? 0.6 : 1 }}
+              onClick={() => onUpdate(order.id, 'READY')} disabled={busy}>
+              {busy ? 'Updating…' : 'Mark Ready'}
+            </button>
+            <button style={{ ...oc.cancelBtn, opacity: busy ? 0.6 : 1 }}
+              onClick={() => onUpdate(order.id, 'CANCELLED')} disabled={busy} title="Cancel order" aria-label={`Cancel order ${order.orderNumber}`}>
+              <X size={13} color="#c42130" />
+            </button>
+          </>
         )}
         {order.status === 'READY' && (
           <>
@@ -144,7 +158,7 @@ function OrderCard({ order, onUpdate, updatingId }: {
               {busy ? 'Updating…' : 'Complete'}
             </button>
             <button style={{ ...oc.cancelBtn, opacity: busy ? 0.6 : 1 }}
-              onClick={() => onUpdate(order.id, 'CANCELLED')} disabled={busy} title="Cancel order">
+              onClick={() => onUpdate(order.id, 'CANCELLED')} disabled={busy} title="Cancel order" aria-label={`Cancel order ${order.orderNumber}`}>
               <X size={13} color="#c42130" />
             </button>
           </>
@@ -528,8 +542,10 @@ export default function HotFood() {
       await hotFoodApi.updateStatus(orderId, status, undefined, reason);
       qc.invalidateQueries({ queryKey: ['hot-food-orders-admin'] });
       toast.success(`Order ${STATUS_CFG[status].label.toLowerCase()}`);
-    } catch {
-      toast.error('Failed to update order');
+    } catch (e) {
+      // e.g. "Someone else just changed this order. It is ready now."
+      toast.error(serverMessage(e, 'Failed to update order'));
+      qc.invalidateQueries({ queryKey: ['hot-food-orders-admin'] });
     } finally {
       setUpdatingId(null);
     }
@@ -834,7 +850,7 @@ const pg: Record<string, React.CSSProperties> = {
   ghostBtn:     { display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 8, padding: '8px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#374151' },
 
   toolbar:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 },
-  tabs:         { display: 'flex', gap: 6 },
+  tabs:         { display: 'flex', gap: 6, flexWrap: 'wrap' },   // wraps on a phone (it ran 6px off the screen at 390px)
   tab:          { display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 20, border: 'none', background: '#f1f3f6', color: '#5a6472', fontWeight: 600, fontSize: 13, cursor: 'pointer' },
   tabOn:        { background: '#1D3557', color: '#fff' },
   tabBadge:     { background: '#e4e7ec', borderRadius: 8, padding: '1px 6px', fontSize: 11, fontWeight: 700, color: '#5a6472' },

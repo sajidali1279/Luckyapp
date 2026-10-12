@@ -63,6 +63,7 @@ interface MenuItem {
   estimatedMinutes?: number;
   imageUrl?: string;
   source: 'menu' | 'catalog';
+  storeId?: string | null;   // a store item; none = on every store's menu (only HQ changes it)
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -403,6 +404,29 @@ function OrderCard({
   const cfg      = STATUS_CONFIG[order.status];
   const total    = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const ageColor = ['PENDING', 'ACCEPTED'].includes(order.status) ? orderAgeColor(order.createdAt) : '#94A3B8';
+  // Decline a new order, or cancel one being made or not picked up; the customer is told why (and gets points back)
+  const askDecline = () => Alert.alert(
+    order.status === 'PENDING' ? t('employeeHotFood.declineOrderTitle') : t('employeeHotFood.cancelOrderTitle'),
+    order.status === 'PENDING' ? t('employeeHotFood.declineOrderBody') : t('employeeHotFood.cancelOrderBody'),
+    [
+      { text: t('employeeHotFood.no') },
+      // at most three buttons fit on Android
+      { text: t('employeeHotFood.declineOutOfStock'), onPress: () => onUpdateStatus(order.id, 'CANCELLED', t('employeeHotFood.reasonOutOfStock')) },
+      { text: order.status === 'PENDING' ? t('employeeHotFood.declineOrderBtn') : t('employeeHotFood.cancelOrderBtn'), style: 'destructive', onPress: () => onUpdateStatus(order.id, 'CANCELLED') },
+    ],
+  );
+  const declineButton = (
+    <TouchableOpacity
+      style={[s.cancelBtn, updating && s.actionBtnDisabled]}
+      onPress={askDecline}
+      disabled={updating}
+      activeOpacity={0.82}
+      accessibilityRole="button"
+      accessibilityLabel={order.status === 'PENDING' ? t('employeeHotFood.declineOrderA11y', { number: order.orderNumber }) : t('employeeHotFood.cancelOrderA11y', { number: order.orderNumber })}
+    >
+      <XIcon size={15} color="#EF4444" strokeWidth={2.5} />
+    </TouchableOpacity>
+  );
 
   return (
     <View style={s.card}>
@@ -443,6 +467,9 @@ function OrderCard({
         <Text style={s.totalLabel}>{t('employeeHotFood.totalLabel')}</Text>
         <Text style={s.totalValue}>${total.toFixed(2)}</Text>
       </View>
+      {!order.paidWithPoints && (order.status === 'READY' || order.status === 'ACCEPTED') && (
+        <Text style={s.collect}>{t('employeeHotFood.collectAtCounter', { total: `$${total.toFixed(2)}` })}</Text>
+      )}
       {order.paidWithPoints && (
         <View style={s.pointsPaid} accessibilityRole="text">
           <Text style={s.pointsPaidTitle}>{t('employeeHotFood.paidWithPoints')}</Text>
@@ -451,33 +478,39 @@ function OrderCard({
       )}
 
       {order.status === 'PENDING' && (
-        <TouchableOpacity
-          style={[s.actionBtn, { backgroundColor: '#F97316' }, updating && s.actionBtnDisabled]}
-          onPress={() => onUpdateStatus(order.id, 'ACCEPTED')}
-          disabled={updating}
-          activeOpacity={0.82}
-          accessibilityRole="button"
-          accessibilityLabel={t('employeeHotFood.acceptOrderA11y', { number: order.orderNumber })}
-        >
-          {updating
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={s.actionBtnText}>{t('employeeHotFood.acceptOrderBtn')}</Text>}
-        </TouchableOpacity>
+        <View style={s.readyActions}>
+          <TouchableOpacity
+            style={[s.actionBtn, { backgroundColor: '#F97316', flex: 1 }, updating && s.actionBtnDisabled]}
+            onPress={() => onUpdateStatus(order.id, 'ACCEPTED')}
+            disabled={updating}
+            activeOpacity={0.82}
+            accessibilityRole="button"
+            accessibilityLabel={t('employeeHotFood.acceptOrderA11y', { number: order.orderNumber })}
+          >
+            {updating
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={s.actionBtnText}>{t('employeeHotFood.acceptOrderBtn')}</Text>}
+          </TouchableOpacity>
+          {declineButton}
+        </View>
       )}
 
       {order.status === 'ACCEPTED' && (
-        <TouchableOpacity
-          style={[s.actionBtn, { backgroundColor: '#3B82F6' }, updating && s.actionBtnDisabled]}
-          onPress={() => onUpdateStatus(order.id, 'READY')}
-          disabled={updating}
-          activeOpacity={0.82}
-          accessibilityRole="button"
-          accessibilityLabel={t('employeeHotFood.markReadyA11y', { number: order.orderNumber })}
-        >
-          {updating
-            ? <ActivityIndicator color="#fff" size="small" />
-            : <Text style={s.actionBtnText}>{t('employeeHotFood.markReadyBtn')}</Text>}
-        </TouchableOpacity>
+        <View style={s.readyActions}>
+          <TouchableOpacity
+            style={[s.actionBtn, { backgroundColor: '#3B82F6', flex: 1 }, updating && s.actionBtnDisabled]}
+            onPress={() => onUpdateStatus(order.id, 'READY')}
+            disabled={updating}
+            activeOpacity={0.82}
+            accessibilityRole="button"
+            accessibilityLabel={t('employeeHotFood.markReadyA11y', { number: order.orderNumber })}
+          >
+            {updating
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={s.actionBtnText}>{t('employeeHotFood.markReadyBtn')}</Text>}
+          </TouchableOpacity>
+          {declineButton}
+        </View>
       )}
 
       {order.status === 'READY' && (
@@ -494,23 +527,7 @@ function OrderCard({
               ? <ActivityIndicator color="#fff" size="small" />
               : <><CheckCircleIcon size={15} color="#fff" strokeWidth={2.5} /><Text style={s.actionBtnText}>{t('employeeHotFood.completeBtn')}</Text></>}
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.cancelBtn, updating && s.actionBtnDisabled]}
-            onPress={() => {
-              Alert.alert(t('employeeHotFood.cancelOrderTitle'), t('employeeHotFood.cancelOrderBody'), [
-                { text: t('employeeHotFood.no') },
-                // The customer is told the reason (at most three buttons fit on Android)
-                { text: t('employeeHotFood.declineOutOfStock'), onPress: () => onUpdateStatus(order.id, 'CANCELLED', t('employeeHotFood.reasonOutOfStock')) },
-                { text: t('employeeHotFood.cancelOrderBtn'), style: 'destructive', onPress: () => onUpdateStatus(order.id, 'CANCELLED') },
-              ]);
-            }}
-            disabled={updating}
-            activeOpacity={0.82}
-            accessibilityRole="button"
-            accessibilityLabel={t('employeeHotFood.cancelOrderA11y', { number: order.orderNumber })}
-          >
-            <XIcon size={15} color="#EF4444" strokeWidth={2.5} />
-          </TouchableOpacity>
+          {declineButton}
         </View>
       )}
 
@@ -564,7 +581,7 @@ function MenuItemCard({
 
       <View style={s.menuCardRight}>
         {/* Edit button - only for store-specific items */}
-        {item.source === 'menu' && (
+        {item.source === 'menu' && !!item.storeId && (
           <TouchableOpacity
             style={s.editBtn}
             onPress={() => onEdit(item)}
@@ -698,8 +715,10 @@ export default function HotFoodOrders() {
       await hotFoodApi.updateStatus(orderId, status, estimatedMinutes, reason);
       queryClient.invalidateQueries({ queryKey: ['hot-food-orders'] });
       queryClient.invalidateQueries({ queryKey: ['hot-food-pending-count'] });
-    } catch {
-      Alert.alert(t('employeeHotFood.errorTitle'), t('employeeHotFood.updateStatusFailed'));
+    } catch (e: any) {
+      // e.g. "Someone else just changed this order. It is ready now.": say so, and show the order as it is
+      Alert.alert(t('employeeHotFood.errorTitle'), e?.response?.data?.error || t('employeeHotFood.updateStatusFailed'));
+      queryClient.invalidateQueries({ queryKey: ['hot-food-orders'] });
     } finally {
       setUpdatingId(null);
     }
@@ -735,8 +754,8 @@ export default function HotFoodOrders() {
         await hotFoodApi.updateItemAvailability(item.id, !item.isAvailable);
       }
       queryClient.invalidateQueries({ queryKey: ['hot-food-all-items'] });
-    } catch {
-      Alert.alert(t('employeeHotFood.errorTitle'), t('employeeHotFood.updateAvailabilityFailed'));
+    } catch (e: any) {
+      Alert.alert(t('employeeHotFood.errorTitle'), e?.response?.data?.error || t('employeeHotFood.updateAvailabilityFailed'));
     } finally {
       setUpdatingId(null);
     }
@@ -1007,6 +1026,7 @@ const s = StyleSheet.create({
   totalRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9', marginBottom: 12 },
   totalLabel:     { fontSize: 13, color: '#94A3B8', fontWeight: '600' },
   totalValue:     { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  collect:        { fontSize: 13, fontWeight: '700', color: '#0F172A', marginTop: -6, marginBottom: 12 },
   pointsPaid:     { backgroundColor: '#EDF7F0', borderWidth: 1, borderColor: '#B7E0C4', borderRadius: 10, padding: 10, marginBottom: 12 },
   pointsPaidTitle: { fontSize: 14, fontWeight: '800', color: '#17663A' },
   pointsPaidBody: { fontSize: 12.5, color: '#17663A', marginTop: 2, lineHeight: 17 },

@@ -529,7 +529,13 @@
     "paidWithPointsLine": "Pagado con {{points}} puntos",
     "paidWithPointsNothingToPay": "Pagado con {{points}} puntos: no pagas nada en la caja",
     "pointsReturned": "Tus {{points}} puntos fueron devueltos",
-    "pointsBackToast": "Tus {{points}} puntos regresaron."
+    "pointsBackToast": "Tus {{points}} puntos regresaron.",
+    "pricesChangedTitle": "Cambió un precio",
+    "pricesChanged": "Tu pedido ahora es {{total}}. Revísalo y hazlo de nuevo.",
+    "itemsGoneTitle": "Ya no disponible, se quitó de tu pedido",
+    "cartRepriced": "Cambió un precio. Tu pedido muestra el nuevo total.",
+    "searchMenu": "Buscar en el menú",
+    "searchNothing": "Nada en el menú coincide con \"{{text}}\"."
   },
   "customerLeaderboard": {
     "pointsValue": "{{points}} pts",
@@ -924,7 +930,12 @@
     "backToStore": "Volver a {{store}}",
     "backToStoreA11y": "Volver a los pedidos de {{store}}",
     "paidWithPoints": "Pagado con puntos: no cobrar",
-    "paidWithPointsBody": "El cliente pagó todo el pedido con puntos en la app. Entrégalo sin cobrar y no le des puntos por él."
+    "paidWithPointsBody": "El cliente pagó todo el pedido con puntos en la app. Entrégalo sin cobrar y no le des puntos por él.",
+    "declineOrderTitle": "Rechazar pedido",
+    "declineOrderBody": "Al cliente se le avisa que fue rechazado y no lo espera.",
+    "declineOrderBtn": "Rechazar",
+    "declineOrderA11y": "Rechazar pedido #{{number}}",
+    "collectAtCounter": "Cobrar {{total}} al recoger"
   },
   "employeeLeaderboard": {
     "avgReviews_one": "{{avg}} prom · {{count}} reseña",
