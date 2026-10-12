@@ -11,6 +11,7 @@ import { updateHoursSchema, dayProblem, dayWords, DAY_NAMES } from './storeHours
 import { refuse } from '../utils/refusal';
 import { audit } from '../utils/audit';
 import { tellStoreAboutOrder } from '../utils/hotFoodRouting';
+import { placeWithPoints, returnOrderPoints, recordPointsPickup, pts } from '../utils/hotFoodPoints';
 
 /** Open hot food orders (pending, being made, ready) one customer can have at once, across stores (2026-10-11) */
 export const MAX_OPEN_ORDERS = 3;
@@ -310,6 +311,9 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     res.status(409).json({ success: false, error: `Someone else just changed this order. It is ${STATUS_WORD[now]} now.` });
     return;
   }
+  // A points order: the points go back when it is declined; picked up, it counts as a redemption at the store (utils/hotFoodPoints.ts)
+  const returned = next === 'CANCELLED' ? await returnOrderPoints(id) : 0;
+  if (next === 'COMPLETED' && order.paidWithPoints && !order.pointsReturnedAt) await recordPointsPickup(order, req.user!.id);
   const updated = await prisma.hotFoodOrder.findUnique({ where: { id }, include });
 
   // The customer hears when it is accepted (with the time the store gave) and when it is declined (with the reason)
@@ -320,7 +324,7 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
   }
   if (next === 'CANCELLED') {
     sendPushToUser(order.customerId, `Order #${order.orderNumber} was declined`,
-      `${order.store.name} could not make your order${updateData.cancelReason ? `: ${updateData.cancelReason}${/[.!?]$/.test(updateData.cancelReason) ? '' : '.'}` : '.'} You were not charged.`, 'HOT_FOOD_ORDER', customerHotFoodUrl());
+      `${order.store.name} could not make your order${updateData.cancelReason ? `: ${updateData.cancelReason}${/[.!?]$/.test(updateData.cancelReason) ? '' : '.'}` : '.'} ${returned ? `Your ${pts(returned)} points are back.` : 'You were not charged.'}`, 'HOT_FOOD_ORDER', customerHotFoodUrl());
   }
 
   // Push to customer when their order is ready for pickup
@@ -350,9 +354,10 @@ export async function customerCancelOrder(req: AuthRequest, res: Response) {
     res.status(409).json({ success: false, error: 'The store has already started your order, so it cannot be cancelled in the app. Ask at the counter.' });
     return;
   }
+  const returned = await returnOrderPoints(id);   // paid with points: they go back
   // The staff board refreshes on its own; a push tells whoever is on shift not to start it
   tellStoreAboutOrder({ id: order.id, storeId: order.storeId }, 'Order cancelled', `The customer cancelled order #${order.orderNumber}. Do not make it.`).catch(() => {});
-  res.json({ success: true, changed: true });
+  res.json({ success: true, changed: true, pointsReturned: pts(returned) });
 }
 
 // ─── Menu (customer / mobile) ─────────────────────────────────────────────────
@@ -553,6 +558,12 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   }
 
   const totalAmount = orderLines.reduce((s, l) => s + l.price * l.quantity, 0);
+  // Paying with points: the whole order, only when the balance covers all of it (no part payments)
+  const payWithPoints = req.body?.payWithPoints === true;
+  if (payWithPoints && req.user!.role !== 'CUSTOMER') {
+    res.status(403).json({ success: false, error: 'Only customer accounts can pay with points.' });
+    return;
+  }
 
   // Generate unique order number with retry on collision
   let orderNumber = generateOrderNumber();
@@ -564,29 +575,37 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     attempts++;
   }
 
-  const order = await prisma.hotFoodOrder.create({
-    data: {
-      orderNumber,
-      storeId,
-      customerId,
-      note: note?.trim() || null,
-      totalAmount,
-      items: {
-        create: orderLines,
-      },
-    },
-    include: {
-      store: { select: { id: true, name: true } },
-      items: true,
-    },
-  });
+  const data = {
+    orderNumber,
+    storeId,
+    customerId,
+    note: note?.trim() || null,
+    totalAmount,
+    items: { create: orderLines },
+    ...(payWithPoints ? { paidWithPoints: true, pointsAmount: totalAmount } : {}),
+  };
+  const include = { store: { select: { id: true, name: true } }, items: true };
+  let order: any;
+  let pointsBalance: number | undefined;
+  if (payWithPoints) {
+    const r = await placeWithPoints(customerId, totalAmount, (tx) => tx.hotFoodOrder.create({ data, include }));
+    if ('short' in r) {
+      res.status(400).json({ success: false, code: 'NOT_ENOUGH_POINTS', need: pts(totalAmount), have: pts(r.balance),
+        error: `This order needs ${pts(totalAmount)} points and you have ${pts(r.balance)}. Points pay only for a whole order.` });
+      return;
+    }
+    order = r.order;
+    pointsBalance = r.balance;
+  } else {
+    order = await prisma.hotFoodOrder.create({ data, include });
+  }
 
   // The people working at the store now (from the schedule), else everyone assigned there (utils/hotFoodRouting.ts). Managers hear only
   // when nobody accepts it in a few minutes.
-  const itemSummary = orderLines.map(l => `${l.quantity}× ${l.name}`).join(', ');
+  const itemSummary = (payWithPoints ? 'Paid with points. ' : '') + orderLines.map(l => `${l.quantity}× ${l.name}`).join(', ');
   tellStoreAboutOrder({ id: order.id, storeId }, `🔥 New Order #${order.orderNumber}`, itemSummary).catch(() => {});
 
-  res.status(201).json({ success: true, data: order });
+  res.status(201).json({ success: true, data: order, ...(pointsBalance != null ? { pointsBalance } : {}) });
 }
 
 // GET /hot-food/orders/mine — customer's own orders

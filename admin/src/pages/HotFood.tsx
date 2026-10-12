@@ -28,6 +28,7 @@ interface FoodOrder  {
   store: { id: string; name: string };
   customer: { name: string; phone: string };
   items: OrderItem[]; note?: string; status: OrderStatus; createdAt: string;
+  paidWithPoints?: boolean;   // paid in full with the customer's points in the app
 }
 interface CatalogItem {
   id: string; name: string; description?: string;
@@ -108,6 +109,11 @@ function OrderCard({ order, onUpdate, updatingId }: {
           <span style={oc.totalLbl}>Total</span>
           <span style={oc.totalVal}>${total.toFixed(2)}</span>
         </div>
+        {order.paidWithPoints && (
+          <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#edf7f0', border: '1px solid #b7e0c4', color: '#17663a', fontSize: 13, fontWeight: 600 }}>
+            Paid with points: do not charge, and no points for it
+          </div>
+        )}
       </div>
 
       {order.note && (

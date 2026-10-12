@@ -10,6 +10,7 @@ import {
   Alert,
   Linking,
   Platform,
+  Switch,
 } from 'react-native';
 import { Text, TextInput } from '../../components/ScaledText';
 import RefreshControl from '../../components/AppRefreshControl';
@@ -19,7 +20,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
-import { hotFoodApi, storesApi } from '../../services/api';
+import { hotFoodApi, storesApi, authApi } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { FlameIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
@@ -61,7 +63,13 @@ interface FoodOrder {
   /** STORE (declined), CUSTOMER or AUTO (nobody accepted it in time) */
   cancelledBy?: string | null;
   cancelReason?: string | null;
+  /** Paid with points (the whole order); they go back when it is cancelled */
+  paidWithPoints?: boolean;
+  pointsAmount?: number | null;
+  pointsReturnedAt?: string | null;
 }
+
+const toPts = (dollars: number) => Math.round(dollars * 100);
 
 type Tab = 'menu' | 'orders';
 
@@ -253,6 +261,13 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
       </View>
 
       <Text style={oc.detail}>{t(cfg.detailKey)}</Text>
+      {order.paidWithPoints && order.pointsAmount ? (
+        <Text style={oc.points}>
+          {order.status === 'CANCELLED'
+            ? (order.pointsReturnedAt ? t('customerHotFood.pointsReturned', { points: toPts(order.pointsAmount) }) : t('customerHotFood.paidWithPointsLine', { points: toPts(order.pointsAmount) }))
+            : t('customerHotFood.paidWithPointsNothingToPay', { points: toPts(order.pointsAmount) })}
+        </Text>
+      ) : null}
       {order.status === 'CANCELLED' && order.cancelledBy && order.cancelledBy !== 'CUSTOMER' && (
         <Text style={oc.cancelReason}>
           {order.cancelledBy === 'AUTO'
@@ -334,19 +349,41 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const qc = useQueryClient();
   const [note, setNote] = useState('');
+  // Points pay only for the whole order: the choice is there only when the balance covers all of it
+  const balance = useAuthStore((st) => st.user?.pointsBalance ?? 0);
+  const updateBalance = useAuthStore((st) => st.updateBalance);
+  const needPts = toPts(total);
+  const havePts = toPts(balance);
+  const canUsePoints = needPts > 0 && havePts >= needPts;
+  const [usePoints, setUsePoints] = useState(false);
+  const payWithPoints = usePoints && canUsePoints;
+  // The balance in the app can be old (points approved since it opened): read it again when the order sheet opens
+  useEffect(() => {
+    authApi.getMe().then(({ data }) => {
+      if (typeof data?.data?.pointsBalance === 'number') updateBalance(data.data.pointsBalance);
+    }).catch(() => {});
+  }, [updateBalance]);
 
   const placeMutation = useMutation({
     mutationFn: () => hotFoodApi.placeOrder({
       storeId: store.id,
       items: cart.map(i => ({ menuItemId: i.id, quantity: i.qty })),
       ...(note.trim() ? { note: note.trim() } : {}),
+      ...(payWithPoints ? { payWithPoints: true } : {}),
     }),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
+      if (typeof res?.data?.pointsBalance === 'number') updateBalance(res.data.pointsBalance);
       qc.invalidateQueries({ queryKey: ['my-hot-food-orders'] });
       onOrderPlaced();
     },
     onError: (e: any) => {
       const d = e.response?.data;
+      if (d?.code === 'NOT_ENOUGH_POINTS') {
+        if (typeof d.have === 'number') updateBalance(d.have / 100);   // the balance in the app was out of date
+        setUsePoints(false);
+        Toast.show({ type: 'error', text1: t('customerHotFood.notEnoughPointsTitle'), text2: t('customerHotFood.notEnoughPoints', { need: d.need, have: d.have }) });
+        return;
+      }
       if (d?.code === 'TOO_MANY_OPEN_ORDERS') {
         Toast.show({ type: 'error', text1: t('customerHotFood.tooManyOpenTitle'), text2: t('customerHotFood.tooManyOpenSub') });
         return;
@@ -395,6 +432,23 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
               <Text style={cs.totalVal}>{fmtPrice(total)}</Text>
             </View>
 
+            <View style={[cs.pointsRow, !canUsePoints && { opacity: 0.6 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={cs.pointsTitle}>{t('customerHotFood.payWithPoints', { points: needPts })}</Text>
+                <Text style={cs.pointsSub}>
+                  {canUsePoints ? t('customerHotFood.payWithPointsHave', { have: havePts }) : t('customerHotFood.payWithPointsShort', { more: needPts - havePts, have: havePts })}
+                </Text>
+              </View>
+              <Switch
+                value={payWithPoints}
+                onValueChange={setUsePoints}
+                disabled={!canUsePoints}
+                trackColor={{ true: COLORS.primary, false: '#D1D5DB' }}
+                thumbColor="#fff"
+                accessibilityLabel={t('customerHotFood.payWithPoints', { points: needPts })}
+              />
+            </View>
+
             <View style={cs.noteSection}>
               <Text style={cs.noteLabel}>{t('customerHotFood.specialInstructions')}</Text>
               <TextInput
@@ -412,7 +466,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
 
             <View style={cs.infoBox}>
               <Text style={cs.infoText}>
-                {t('customerHotFood.payAtCounterInfo')}
+                {payWithPoints ? t('customerHotFood.paidWithPointsInfo') : t('customerHotFood.payAtCounterInfo')}
               </Text>
             </View>
           </ScrollView>
@@ -439,7 +493,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
             >
               {placeMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={cs.placeBtnText} numberOfLines={2}>{closedText ? t('customerHotFood.orderingClosedBtn') : t('customerHotFood.placeOrderAtBtn', { total: fmtPrice(total), store: store.name })}</Text>}
+                : <Text style={cs.placeBtnText} numberOfLines={2}>{closedText ? t('customerHotFood.orderingClosedBtn') : payWithPoints ? t('customerHotFood.placeOrderPointsBtn', { points: needPts, store: store.name }) : t('customerHotFood.placeOrderAtBtn', { total: fmtPrice(total), store: store.name })}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -588,9 +642,14 @@ export default function CustomerHotFoodScreen() {
   // Cancel an order the store has not started (the store is told not to make it)
   const cancelMutation = useMutation({
     mutationFn: (orderId: string) => hotFoodApi.cancelMyOrder(orderId),
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ['my-hot-food-orders'] });
-      Toast.show({ type: 'success', text1: t('customerHotFood.cancelledToast') });
+      const back = Number(res?.data?.pointsReturned) || 0;   // paid with points: they went back
+      if (back > 0) {
+        const st = useAuthStore.getState();
+        st.updateBalance((st.user?.pointsBalance ?? 0) + back / 100);
+      }
+      Toast.show({ type: 'success', text1: t('customerHotFood.cancelledToast'), text2: back > 0 ? t('customerHotFood.pointsBackToast', { points: back }) : undefined });
     },
     onError: (e: any) => {
       Toast.show({ type: 'error', text1: e?.response?.data?.error || t('customerHotFood.cancelFailed') });
@@ -1000,6 +1059,7 @@ const oc = StyleSheet.create({
   dirBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 8, borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F8FAFC' },
   dirBtnText: { fontSize: 12.5, fontWeight: '800', color: COLORS.secondary },
   cancelReason: { fontSize: 13, color: '#a51b28', marginTop: 4, lineHeight: 18 },
+  points: { fontSize: 13, fontWeight: '700', color: '#17663A', marginTop: 4 },
   cancelBtn: {
     alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
     borderWidth: 1, borderColor: '#f3cdd1', backgroundColor: '#fdf2f2',
@@ -1079,6 +1139,12 @@ const cs = StyleSheet.create({
   infoBox: {
     backgroundColor: '#F8F9FA', borderRadius: 12, padding: 12, marginBottom: 20,
   },
+  pointsRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16, padding: 12,
+    borderRadius: 12, borderWidth: 1, borderColor: '#E6E8EB', backgroundColor: '#FAFBFC',
+  },
+  pointsTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+  pointsSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2, lineHeight: 16 },
   infoText: { fontSize: 12, color: COLORS.textMuted, lineHeight: 17, textAlign: 'center' },
   footer: {
     paddingHorizontal: 20, paddingVertical: 16,

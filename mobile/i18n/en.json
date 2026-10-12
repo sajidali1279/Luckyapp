@@ -518,7 +518,18 @@
     "farTitle": "This store is far away",
     "farBody": "{{store}} is {{distance}} from you. Order for pickup there?",
     "farCancel": "Change store",
-    "farConfirm": "Yes, order there"
+    "farConfirm": "Yes, order there",
+    "payWithPoints": "Pay with points ({{points}} points)",
+    "payWithPointsHave": "You have {{have}} points. They pay for the whole order.",
+    "payWithPointsShort": "You need {{more}} more points (you have {{have}}). Points pay only for a whole order.",
+    "paidWithPointsInfo": "Paid with points: nothing to pay at the counter. If the order is cancelled, your points come back.",
+    "placeOrderPointsBtn": "Order at {{store}} with {{points}} points",
+    "notEnoughPointsTitle": "Not enough points",
+    "notEnoughPoints": "This order needs {{need}} points. You have {{have}}.",
+    "paidWithPointsLine": "Paid with {{points}} points",
+    "paidWithPointsNothingToPay": "Paid with {{points}} points: nothing to pay at the counter",
+    "pointsReturned": "Your {{points}} points were returned",
+    "pointsBackToast": "Your {{points}} points are back."
   },
   "customerLeaderboard": {
     "nameYou": " (You)",
@@ -911,7 +922,9 @@
     "reasonOutOfStock": "An item is out of stock",
     "showingStore": "Showing orders for {{store}}",
     "backToStore": "Back to {{store}}",
-    "backToStoreA11y": "Back to the orders for {{store}}"
+    "backToStoreA11y": "Back to the orders for {{store}}",
+    "paidWithPoints": "Paid with points: do not charge",
+    "paidWithPointsBody": "The customer paid the whole order with points in the app. Hand it over without taking payment, and do not give points for it."
   },
   "employeeLeaderboard": {
     "headerTitle": "Staff Rankings",

@@ -518,7 +518,18 @@
     "farTitle": "Esta tienda está lejos",
     "farBody": "{{store}} está a {{distance}} de ti. ¿Pedir para recoger ahí?",
     "farCancel": "Cambiar de tienda",
-    "farConfirm": "Sí, pedir ahí"
+    "farConfirm": "Sí, pedir ahí",
+    "payWithPoints": "Pagar con puntos ({{points}} puntos)",
+    "payWithPointsHave": "Tienes {{have}} puntos. Pagan todo el pedido.",
+    "payWithPointsShort": "Te faltan {{more}} puntos (tienes {{have}}). Los puntos solo pagan un pedido completo.",
+    "paidWithPointsInfo": "Pagado con puntos: no pagas nada en la caja. Si se cancela el pedido, tus puntos regresan.",
+    "placeOrderPointsBtn": "Pedir en {{store}} con {{points}} puntos",
+    "notEnoughPointsTitle": "No tienes suficientes puntos",
+    "notEnoughPoints": "Este pedido necesita {{need}} puntos. Tienes {{have}}.",
+    "paidWithPointsLine": "Pagado con {{points}} puntos",
+    "paidWithPointsNothingToPay": "Pagado con {{points}} puntos: no pagas nada en la caja",
+    "pointsReturned": "Tus {{points}} puntos fueron devueltos",
+    "pointsBackToast": "Tus {{points}} puntos regresaron."
   },
   "customerLeaderboard": {
     "pointsValue": "{{points}} pts",
@@ -911,7 +922,9 @@
     "reasonOutOfStock": "Un producto está agotado",
     "showingStore": "Mostrando pedidos de {{store}}",
     "backToStore": "Volver a {{store}}",
-    "backToStoreA11y": "Volver a los pedidos de {{store}}"
+    "backToStoreA11y": "Volver a los pedidos de {{store}}",
+    "paidWithPoints": "Pagado con puntos: no cobrar",
+    "paidWithPointsBody": "El cliente pagó todo el pedido con puntos en la app. Entrégalo sin cobrar y no le des puntos por él."
   },
   "employeeLeaderboard": {
     "avgReviews_one": "{{avg}} prom · {{count}} reseña",

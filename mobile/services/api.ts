@@ -476,7 +476,7 @@ export const hotFoodApi = {
   getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`),
   // Employee management view — legacy + catalog items merged with availability + source
   getStoreAllItems: (storeId: string) => api.get(`/hot-food/store/${storeId}/all-items`),
-  placeOrder:     (data: { storeId: string; items: { menuItemId: string; quantity: number }[]; note?: string }) =>
+  placeOrder:     (data: { storeId: string; items: { menuItemId: string; quantity: number }[]; note?: string; payWithPoints?: boolean }) =>
     api.post('/hot-food/orders', data),
   getMyOrders:    () => api.get('/hot-food/orders/mine'),
   // Where a customer can pick up: every store taking hot food, with address, location and open now (2026-10-11)

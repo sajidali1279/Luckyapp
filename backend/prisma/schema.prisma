@@ -1606,6 +1606,9 @@ model HotFoodOrder {
   cancelReason     String?            // what the customer is told
   cancelledAt      DateTime?
   escalatedAt      DateTime?          // when the store's managers were told nobody had accepted it (utils/hotFoodRouting.ts), once
+  paidWithPoints   Boolean            @default(false)   // the whole order paid with the customer's points (utils/hotFoodPoints.ts)
+  pointsAmount     Float?                               // the credit taken when it was placed (dollars; points = x 100)
+  pointsReturnedAt DateTime?                            // when the points went back (declined, cancelled, not accepted)
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 

@@ -5,6 +5,7 @@ import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
 import { customerHotFoodUrl } from './notificationRoutes';
 import { escalateWaitingHotFoodOrders, ESCALATE_MINUTES } from './hotFoodRouting';
+import { returnOrderPoints, pts } from './hotFoodPoints';
 
 export const AUTO_CANCEL_MINUTES = 20;
 
@@ -23,8 +24,9 @@ export async function cancelStaleHotFoodOrders(now: Date = new Date()): Promise<
     });
     if (moved.count === 0) continue;   // accepted or cancelled a moment ago
     done++;
+    const returned = await returnOrderPoints(o.id, now).catch((e) => { console.error('[hot-food-auto-cancel] points not returned:', o.id, e?.message ?? e); return 0; });
     sendPushToUser(o.customerId, `Order #${o.orderNumber} was cancelled`,
-      `${o.store.name} did not accept it within ${AUTO_CANCEL_MINUTES} minutes, so it was cancelled. You were not charged. You can order again.`,
+      `${o.store.name} did not accept it within ${AUTO_CANCEL_MINUTES} minutes, so it was cancelled. ${returned ? `Your ${pts(returned)} points are back.` : 'You were not charged.'} You can order again.`,
       'HOT_FOOD_ORDER', customerHotFoodUrl());
   }
   return done;

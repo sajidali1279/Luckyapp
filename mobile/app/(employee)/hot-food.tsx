@@ -51,6 +51,7 @@ interface FoodOrder {
   note?: string;
   status: OrderStatus;
   createdAt: string;
+  paidWithPoints?: boolean;   // the customer paid the whole order with points in the app
 }
 interface MenuItem {
   id: string;
@@ -442,6 +443,12 @@ function OrderCard({
         <Text style={s.totalLabel}>{t('employeeHotFood.totalLabel')}</Text>
         <Text style={s.totalValue}>${total.toFixed(2)}</Text>
       </View>
+      {order.paidWithPoints && (
+        <View style={s.pointsPaid} accessibilityRole="text">
+          <Text style={s.pointsPaidTitle}>{t('employeeHotFood.paidWithPoints')}</Text>
+          <Text style={s.pointsPaidBody}>{t('employeeHotFood.paidWithPointsBody')}</Text>
+        </View>
+      )}
 
       {order.status === 'PENDING' && (
         <TouchableOpacity
@@ -1000,6 +1007,9 @@ const s = StyleSheet.create({
   totalRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9', marginBottom: 12 },
   totalLabel:     { fontSize: 13, color: '#94A3B8', fontWeight: '600' },
   totalValue:     { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  pointsPaid:     { backgroundColor: '#EDF7F0', borderWidth: 1, borderColor: '#B7E0C4', borderRadius: 10, padding: 10, marginBottom: 12 },
+  pointsPaidTitle: { fontSize: 14, fontWeight: '800', color: '#17663A' },
+  pointsPaidBody: { fontSize: 12.5, color: '#17663A', marginTop: 2, lineHeight: 17 },
   actionBtn:         { borderRadius: 12, paddingVertical: 13, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 },
   actionBtnDisabled: { opacity: 0.6 },
   actionBtnText:     { color: '#fff', fontSize: 14, fontWeight: '700' },
