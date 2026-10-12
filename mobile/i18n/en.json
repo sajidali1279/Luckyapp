@@ -1772,7 +1772,8 @@
     "welcomeGiftConfirmTitle": "Give {{label}}?",
     "welcomeGiftConfirmBody": "This is the customer's welcome gift for today. It can only be given once a day.",
     "welcomeGiftConfirm": "Give it",
-    "welcomeGiftCancel": "Cancel"
+    "welcomeGiftCancel": "Cancel",
+    "checkPricePerGallon": "Check the price per gallon: it must be between $1.50 and $20."
   },
   "managerOrderList": {
     "failedToSubmitCategory": "Failed to submit category",

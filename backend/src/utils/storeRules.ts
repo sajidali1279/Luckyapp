@@ -3,9 +3,20 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 
-/** A gas or diesel price per gallon: from $0.50 to $20, at most three decimals (3.199). A typed 0.319 is caught by the page's own check on size. */
-export const GAS_PRICE_MIN = 0.5;
+/** A gas or diesel price per gallon: from $1.50 to $20, at most three decimals (3.199). A typed 0.319 is caught by the page's own check on size. */
+export const GAS_PRICE_MIN = 1.5;   // a typo such as 0.519 for 3.519 made every gas sale's gallons (and cashback) about 7 times too big (2026-10-12)
 export const GAS_PRICE_MAX = 20;
+
+/**
+ * Whether gallons fit the amount paid: the price per gallon they make (amount / gallons) is a real one, $1.50 to $20. The cashier app
+ * sends gallons worked out from a price the cashier can change; a slip there (0.52 for 3.52) made 7 times the gallons, and the Gold+
+ * gas bonus per gallon is not under the 10% ceiling (2026-10-12).
+ */
+export function gallonsFit(amount: number, gallons: number): boolean {
+  if (!(amount > 0) || !(gallons > 0)) return false;
+  const perGallon = amount / gallons;
+  return perGallon >= GAS_PRICE_MIN - 0.005 && perGallon <= GAS_PRICE_MAX + 0.005;
+}
 
 /** A store phone stored as +1 and ten digits, or null when it is not a full ten-digit US number ("(580) 924-9898", "580-924-9898" and "+1 580 924 9898" are one number). */
 export function storePhone(text: string): string | null {

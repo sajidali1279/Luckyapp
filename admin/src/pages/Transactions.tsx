@@ -735,6 +735,12 @@ export default function Transactions() {
               <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 4 }}>
                 {panelTx.store?.name || 'the store'} · {panelTx.category?.replace(/_/g, ' ')} · {storeDay(panelTx.createdAt)}, {storeTime(panelTx.createdAt)} (Central)
               </div>
+              {panelTx.isGas && panelTx.gasGallons != null && Number(panelTx.gasGallons) > 0 && (
+                <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 4 }}>
+                  {Number(panelTx.gasGallons).toFixed(3)} gallons at ${(Number(panelTx.purchaseAmount) / Number(panelTx.gasGallons)).toFixed(3)} a gallon
+                  {Number(panelTx.gasBonusPoints) > 0 ? ` · gas bonus ${Math.round(Number(panelTx.gasBonusPoints) * 100)} pts` : ''}
+                </div>
+              )}
               {parseFlags(panelTx.fraudFlags).includes('RECEIPT_SCAN') ? (
                 <>
                   <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 6 }}>Scanned by the customer in the app. Check the photo matches before approving.</div>

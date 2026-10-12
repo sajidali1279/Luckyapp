@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import { gallonsFit, GAS_PRICE_MIN, GAS_PRICE_MAX } from '../utils/storeRules';
 import { offerPaysAt } from '../utils/offerHours';
 import { forCustomer } from '../utils/offerAudience';
 import { promotionRoom, noteBudgetUse } from '../utils/offerBudget';
@@ -65,6 +66,13 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
   if (customer.id === employee.id) {
     res.status(403).json({ success: false, error: 'Cannot grant points to yourself' });
+    return;
+  }
+
+  // Gallons that make an impossible price per gallon are a slip in the price box: refused, so the cashier fixes it (utils/storeRules.ts)
+  if ((category === 'GAS' || category === 'DIESEL') && gasGallons != null && !gallonsFit(purchaseAmount, gasGallons)) {
+    res.status(400).json({ success: false, code: 'GALLONS_DO_NOT_FIT',
+      error: `${gasGallons.toFixed(3)} gallons for $${purchaseAmount.toFixed(2)} is $${(purchaseAmount / gasGallons).toFixed(3)} a gallon. Check the price per gallon (it must be $${GAS_PRICE_MIN.toFixed(2)} to $${GAS_PRICE_MAX.toFixed(2)}).` });
     return;
   }
 

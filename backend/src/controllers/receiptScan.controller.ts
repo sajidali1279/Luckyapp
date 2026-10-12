@@ -12,6 +12,7 @@ import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
 import { flaggedSaleRecipientIds } from '../utils/alertRecipients';
 import { computeSaleCashback } from '../utils/saleCashback';
+import { gallonsFit } from '../utils/storeRules';
 import { noteBudgetUse } from '../utils/offerBudget';
 import { storeDateKey, storeDayStart, storeDaysBetween, startOfStoreDate } from '../utils/storeTime';
 import {
@@ -159,7 +160,8 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
     return;
   }
   for (const [i, line] of saleRows.entries()) {
-    const priced = await computeSaleCashback({ customer, storeId: store.id, purchaseAmount: line.amount, category: line.category, gasGallons: line.gallons, now });
+    const gallons = line.gallons != null && gallonsFit(line.amount, line.gallons) ? line.gallons : null;   // a misread is estimated from the store price instead
+    const priced = await computeSaleCashback({ customer, storeId: store.id, purchaseAmount: line.amount, category: line.category, gasGallons: gallons, now });
     const lineFlags = [...flags, ...priced.rateCappedFlags];
     if (line.amount > 500 && !priced.isGasCategory) lineFlags.push('HIGH_AMOUNT');
     if (line.amount > 800) lineFlags.push('LARGE_PURCHASE');

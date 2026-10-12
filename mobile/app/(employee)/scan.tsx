@@ -370,23 +370,35 @@ export default function EmployeeScanScreen() {
   // Category bonus on top of tier base (only when live rates loaded)
   const currentCategoryBonusPts = liveTierRate ? (categoryRates[category] ?? 0) * 100 : 0;
   // For gas in ¢/gallon mode, estimate from gallons; otherwise use dollar × effective rate
-  const currentItemPts = isGasCat && validGallons && gasCentsPerGallon != null
-    ? Math.round(parsedGallons * gasCentsPerGallon)
-    : validAmount ? Math.round(parsedAmount * (tierMult + currentCategoryBonusPts)) : 0;
+  // The server never pays more than 10% of a sale (CASHBACK_RATE_CAP): the preview uses the same ceiling, so it never shows more than
+  // the customer gets (a $5.00 gas sale previewed 68 points and paid 50, 2026-10-12)
+  const ceilingPts = (amount: number) => Math.floor(amount * 10 + 1e-9);
+  const currentItemPts = Math.min(
+    isGasCat && validGallons && gasCentsPerGallon != null
+      ? Math.round(parsedGallons * gasCentsPerGallon)
+      : validAmount ? Math.round(parsedAmount * (tierMult + currentCategoryBonusPts)) : 0,
+    validAmount ? ceilingPts(parsedAmount) : 0,
+  );
   const committedPts = lineItems.reduce((sum, item) => {
     const itemIsGas = item.category === 'GAS' || item.category === 'DIESEL';
     const gallons = parseFloat(item.gasGallons || '');
+    const amt = parseFloat(item.amount) || 0;
     if (itemIsGas && !isNaN(gallons) && gallons > 0 && gasCentsPerGallon != null) {
-      return sum + Math.round(gallons * gasCentsPerGallon);
+      return sum + Math.min(Math.round(gallons * gasCentsPerGallon), ceilingPts(amt));
     }
     const itemCategoryBonusPts = liveTierRate ? (categoryRates[item.category] ?? 0) * 100 : 0;
-    return sum + Math.round((parseFloat(item.amount) || 0) * (tierMult + itemCategoryBonusPts));
+    return sum + Math.min(Math.round(amt * (tierMult + itemCategoryBonusPts)), ceilingPts(amt));
   }, 0);
   const estimatedCashback = (committedPts + currentItemPts) > 0 ? committedPts + currentItemPts : null;
 
   function addCurrentItem() {
     if (!validAmount || (isGasCat && !validGallons)) {
       Toast.show({ type: 'error', text1: t('employeeScan.enterValidAmountFirst') });
+      return;
+    }
+    // A price per gallon no pump shows (a slip such as 0.52 for 3.52) makes the gallons and the gas bonus many times too big
+    if (isGasCat && !(parsedPPG >= 1.5 && parsedPPG <= 20)) {
+      Toast.show({ type: 'error', text1: t('employeeScan.checkPricePerGallon') });
       return;
     }
     setLineItems(prev => [...prev, {
