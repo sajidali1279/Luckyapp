@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Animated, View, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { Animated, View, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { Text } from './ScaledText';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -160,11 +160,8 @@ const s = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: COLORS.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    // Soft card (2026-10-12): a faint shadow on iPhone only
+    ...Platform.select({ ios: { shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12 }, default: {} }), borderWidth: 1, borderColor: '#EEF0F3',
   },
   frontImage: { width: '100%', height: '100%' },
   frontImagePlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.primary + '12' },

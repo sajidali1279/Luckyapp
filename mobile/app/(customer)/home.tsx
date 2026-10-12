@@ -72,6 +72,14 @@ function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: number) 
 
 
 const SCREEN_W = Dimensions.get('window').width;
+
+// One soft look for Home's cards (2026-10-12): a hairline border, and a faint shadow on iPhone only. On Android the elevation shadow drew
+// grey blocks and square corners (a carousel clips it at its bottom edge; a card stretched taller than its white part shows it).
+const SOFT_SHADOW = Platform.select({
+  ios: { shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12 },
+  default: {},
+}) as object;
+const SOFT_BORDER = { borderWidth: 1, borderColor: '#EEF0F3' };
 const BANNER_W = SCREEN_W - 32;
 
 /* ─── Animated dot indicator ─────────────────────────────── */
@@ -306,6 +314,12 @@ function InlineModal({
   );
 }
 
+/** "2026-H2" as the months it covers ("Jul to Dec 2026"); anything else as it is. */
+function periodWords(p: string, t: (k: string, o?: any) => string): string {
+  const m = /^(\d{4})-H([12])$/.exec(p);
+  return m ? t(m[2] === '1' ? 'customerHome.periodH1' : 'customerHome.periodH2', { year: m[1] }) : p;
+}
+
 /* ─── Promo slideshow ──────────────────────────────────────── */
 const SLIDE_W = SCREEN_W - 32;
 const PLACEHOLDER_COLORS_FS = ['#FFF7ED', '#F0FDF4', '#EFF6FF', '#FEF9C3', '#FDF2F8', '#F0F9FF'];
@@ -313,19 +327,20 @@ const PLACEHOLDER_COLORS_FS = ['#FFF7ED', '#F0FDF4', '#EFF6FF', '#FEF9C3', '#FDF
 type PromoKind = 'cashback' | 'rewards' | 'tiers' | 'network';
 type PromoSlide = { id: PromoKind; bg: string; deco: string; eyebrow: string; headline: string; body: string; cta: string | null; route: string | null };
 
+// bg is a soft tint and deco the accent (2026-10-12; they were full-colour blocks)
 const PROMO_SLIDES: PromoSlide[] = [
-  { id: 'cashback', bg: '#B91C1C', deco: '#FDE68A', eyebrow: 'EARN CASH BACK',     headline: 'Every Visit Pays Off',          body: 'Get 1–5% back on every purchase - automatically added when the cashier scans your QR',  cta: 'View Earnings',  route: '/(customer)/history' },
-  { id: 'rewards',  bg: '#C2410C', deco: '#FCD34D', eyebrow: 'REDEEM POINTS',     headline: 'Free Products Await You',      body: 'Trade your points for real in-store items - no catch, no extra purchase',     cta: 'Browse Rewards', route: '/(customer)/rewards' },
-  { id: 'tiers',   bg: '#5B21B6', deco: '#C4B5FD', eyebrow: 'LOYALTY TIERS',     headline: 'Rise from Bronze to Platinum', body: 'Higher tier = higher cashback rate + free refills + gas bonuses. Climb every period', cta: 'My Status',      route: '/(customer)/profile' },
-  { id: 'network', bg: '#0F766E', deco: '#5EEAD4', eyebrow: '12 LOCATIONS',      headline: '1 Account. Every Location.',   body: 'Your balance and rewards follow you to any Lucky Stop - shop anywhere',       cta: null,             route: null },
+  { id: 'cashback', bg: '#FEF2F2', deco: '#B91C1C', eyebrow: 'EARN CASH BACK',     headline: 'Every Visit Pays Off',          body: 'Get 1–5% back on every purchase - automatically added when the cashier scans your QR',  cta: 'View Earnings',  route: '/(customer)/history' },
+  { id: 'rewards',  bg: '#FFF7ED', deco: '#C2410C', eyebrow: 'REDEEM POINTS',     headline: 'Free Products Await You',      body: 'Trade your points for real in-store items - no catch, no extra purchase',     cta: 'Browse Rewards', route: '/(customer)/rewards' },
+  { id: 'tiers',   bg: '#F5F3FF', deco: '#6D28D9', eyebrow: 'LOYALTY TIERS',     headline: 'Rise from Bronze to Platinum', body: 'Higher tier = higher cashback rate + free refills + gas bonuses. Climb every period', cta: 'My Status',      route: '/(customer)/profile' },
+  { id: 'network', bg: '#F0FDFA', deco: '#0F766E', eyebrow: '12 LOCATIONS',      headline: '1 Account. Every Location.',   body: 'Your balance and rewards follow you to any Lucky Stop - shop anywhere',       cta: null,             route: null },
 ];
 
-function promoIcon(kind: PromoKind, size: number) {
+function promoIcon(kind: PromoKind, size: number, color = '#fff') {
   switch (kind) {
-    case 'cashback': return <PercentIcon size={size} color="#fff" strokeWidth={2} />;
-    case 'rewards':  return <GiftIcon    size={size} color="#fff" strokeWidth={2} />;
-    case 'tiers':    return <StarIcon    size={size} color="#fff" strokeWidth={1.75} />;
-    case 'network':  return <MapPinIcon  size={size} color="#fff" strokeWidth={2} />;
+    case 'cashback': return <PercentIcon size={size} color={color} strokeWidth={2} />;
+    case 'rewards':  return <GiftIcon    size={size} color={color} strokeWidth={2} />;
+    case 'tiers':    return <StarIcon    size={size} color={color} strokeWidth={1.75} />;
+    case 'network':  return <MapPinIcon  size={size} color={color} strokeWidth={2} />;
   }
 }
 
@@ -371,17 +386,17 @@ const PromoSlideshow = memo(function PromoSlideshow() {
       accessibilityRole={item.route ? 'button' : undefined}
       accessibilityLabel={item.route ? `${item.headline}${item.cta ? `: ${item.cta}` : ''}` : undefined}
     >
-      <View style={[ps.slideClip, { backgroundColor: item.bg }]}>
-        <View style={[ps.decoCircleLg, { backgroundColor: item.deco + '22' }]} />
-        <View style={[ps.decoCircleSm, { backgroundColor: item.deco + '33' }]} />
+      <View style={[ps.slideClip, { backgroundColor: item.bg, borderWidth: 1, borderColor: item.deco + '1F' }]}>
+        <View style={[ps.decoCircleLg, { backgroundColor: item.deco + '0F' }]} />
+        <View style={[ps.decoCircleSm, { backgroundColor: item.deco + '0A' }]} />
         <View style={ps.slideInner}>
-          <View style={ps.iconBadge}>{promoIcon(item.id, 22)}</View>
-          <Text style={ps.eyebrow}>{item.eyebrow}</Text>
-          <Text style={ps.headline}>{item.headline}</Text>
-          <Text style={ps.body} numberOfLines={2}>{item.body}</Text>
+          <View style={[ps.iconBadge, { backgroundColor: item.deco + '14' }]}>{promoIcon(item.id, 22, item.deco)}</View>
+          <Text style={[ps.eyebrow, { color: item.deco }]}>{item.eyebrow}</Text>
+          <Text style={[ps.headline, { color: COLORS.text }]}>{item.headline}</Text>
+          <Text style={[ps.body, { color: COLORS.textMuted }]} numberOfLines={2}>{item.body}</Text>
           {item.cta && (
             <View style={[ps.cta, { backgroundColor: item.deco }]}>
-              <Text style={[ps.ctaText, { color: item.bg }]}>{item.cta} →</Text>
+              <Text style={[ps.ctaText, { color: '#fff' }]}>{item.cta} →</Text>
             </View>
           )}
         </View>
@@ -419,13 +434,15 @@ const PromoSlideshow = memo(function PromoSlideshow() {
 });
 
 /* ─── Deals slideshow ──────────────────────────────────────── */
+// Soft tints with a strong accent for the price (2026-10-12; they were full red, orange, purple, teal and pink blocks)
 const DEAL_SLIDE_PALETTE = [
-  { bg: '#DC2626', deco: '#FCA5A5' },
-  { bg: '#EA580C', deco: '#FDBA74' },
-  { bg: '#7C3AED', deco: '#C4B5FD' },
-  { bg: '#0891B2', deco: '#67E8F9' },
-  { bg: '#DB2777', deco: '#F9A8D4' },
+  { bg: '#FEF2F2', accent: '#B91C1C' },
+  { bg: '#FFF7ED', accent: '#C2410C' },
+  { bg: '#F5F3FF', accent: '#6D28D9' },
+  { bg: '#ECFEFF', accent: '#0E7490' },
+  { bg: '#FDF2F8', accent: '#BE185D' },
 ];
+const MAX_DOTS = 8;   // more slides than this: "3 / 30" instead of a row of dots
 
 const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { deals: any[]; onSelectOffer: (offer: any) => void }) {
   const { t } = useTranslation();
@@ -460,7 +477,7 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
         accessibilityRole="button"
         accessibilityLabel={t('customerHome.viewDealA11y', { title: item.title, deal: item.dealText })}
       >
-        <View style={[ds.slideClip, !item.imageUrl && { backgroundColor: palette.bg }]}>
+        <View style={[ds.slideClip, !item.imageUrl && { backgroundColor: palette.bg, borderWidth: 1, borderColor: palette.accent + '1F' }]}>
           {item.imageUrl ? (
             <>
               <Image source={{ uri: sized(item.imageUrl) }} style={ds.slideImage} contentFit="cover" />
@@ -468,19 +485,19 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
             </>
           ) : (
             <>
-              <View style={[ds.decoCircleLg, { backgroundColor: palette.deco + '22' }]} />
-              <View style={[ds.decoCircleSm, { backgroundColor: palette.deco + '33' }]} />
+              <View style={[ds.decoCircleLg, { backgroundColor: palette.accent + '0F' }]} />
+              <View style={[ds.decoCircleSm, { backgroundColor: palette.accent + '0A' }]} />
             </>
           )}
           <View style={ds.slideInner}>
-            <View style={ds.iconBadge}>
-              <TagIcon size={16} color="#fff" strokeWidth={2.5} />
+            <View style={[ds.iconBadge, !item.imageUrl && { backgroundColor: palette.accent + '14' }]}>
+              <TagIcon size={16} color={item.imageUrl ? '#fff' : palette.accent} strokeWidth={2.5} />
             </View>
-            <Text style={ds.dealTextBig} numberOfLines={1}>{item.dealText}</Text>
-            <Text style={ds.title} numberOfLines={1}>{item.title}</Text>
-            {item.regularPrice ? <Text style={ds.body} numberOfLines={1}>{t('customerHome.regularPrice', { price: priceText(item.regularPrice) })}</Text> : null}
+            <Text style={[ds.dealTextBig, !item.imageUrl && { color: palette.accent }]} numberOfLines={1}>{item.dealText}</Text>
+            <Text style={[ds.title, !item.imageUrl && { color: COLORS.text }]} numberOfLines={1}>{item.title}</Text>
+            {item.regularPrice ? <Text style={[ds.body, !item.imageUrl && { color: COLORS.textMuted }]} numberOfLines={1}>{t('customerHome.regularPrice', { price: priceText(item.regularPrice) })}</Text> : null}
             {item.description && item.description !== item.dealText && (
-              <Text style={ds.body} numberOfLines={1}>{item.description}</Text>
+              <Text style={[ds.body, !item.imageUrl && { color: COLORS.textMuted }]} numberOfLines={1}>{item.description}</Text>
             )}
           </View>
         </View>
@@ -508,7 +525,11 @@ const DealSlideshow = memo(function DealSlideshow({ deals, onSelectOffer }: { de
         onScrollToIndexFailed={() => {}}
         renderItem={renderSlide}
       />
-      {deals.length > 1 && (
+      {deals.length > MAX_DOTS ? (
+        <View style={ds.dots}>
+          <Text style={ds.counter} accessibilityLabel={t('customerHome.dealOfA11y', { n: activeIndex + 1, total: deals.length })}>{activeIndex + 1} / {deals.length}</Text>
+        </View>
+      ) : deals.length > 1 && (
         <View style={ds.dots}>
           {deals.map((_, i) => (
             <AnimatedDot key={i} active={i === activeIndex} color={COLORS.accent} />
@@ -1021,7 +1042,7 @@ export default function CustomerHome() {
               <View style={[styles.tierDot, { backgroundColor: tier?.color ?? '#CD7F32' }]} />
               <Text style={styles.tierBadgeText}>{t('customerHome.tierMember', { tier: tier?.label ?? 'Bronze' })}</Text>
             </View>
-            {user?.tierPeriod && <Text style={styles.tierPeriod}>{user.tierPeriod}</Text>}
+            {user?.tierPeriod && <Text style={styles.tierPeriod}>{periodWords(user.tierPeriod, t)}</Text>}
           </View>
           <Text style={styles.balanceLabel}>{t('customerHome.pointsBalance')}</Text>
           <Text style={styles.balanceAmount}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
@@ -1109,6 +1130,88 @@ export default function CustomerHome() {
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         <NotificationsOffBanner dismissible />
         <WelcomeBonusCard />
+      </Animated.View>
+
+      {/* Order (2026-10-12): hot food, today's deals, promotions, gas, HQ banners, rewards, challenges, invite, local businesses */}
+      {/* ── Hot Food: the store's combo deals, or its items; a tap opens the Hot Food screen (pickup store, hours, points) ── */}
+      {nearestStore && hotFoodMenu.length > 0 && (
+        <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
+          <View style={styles.section}>
+            <View style={styles.sectionRow}>
+              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label={hotFoodCombos.length > 0 ? t('customerHome.hotFoodDeals') : t('customerHome.hotFood')} />
+              <Text style={styles.sectionSubLabel}>{t('customerHome.orderAheadAt', { store: nearestStore.name })}</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotFoodRow}>
+              {(hotFoodCombos.length > 0 ? hotFoodCombos : hotFoodMenu).map((item: any) => {
+                const isCombo = hotFoodCombos.length > 0;
+                const name = isCombo && hotFoodEs && item.nameEs ? item.nameEs : item.name;
+                const img = isCombo ? item.item?.imageUrl : item.imageUrl;
+                const save = isCombo && item.regularPrice != null && item.regularPrice > item.price ? item.regularPrice - item.price : null;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.hotFoodCard}
+                    onPress={() => { haptic.tap(); router.push({ pathname: '/(customer)/hot-food', params: isCombo ? { combo: item.id } : { add: item.id } }); }}
+                    activeOpacity={0.82}
+                    accessibilityRole="button"
+                    accessibilityLabel={isCombo
+                      ? t('customerHome.comboA11y', { name, price: `$${Number(item.price).toFixed(2)}` })
+                      : t('customerHome.orderItemA11y', { name, price: `$${Number(item.price).toFixed(2)}` })}
+                  >
+                    <View style={styles.hotFoodClip}>
+                      {img
+                        ? <Image source={{ uri: sized(img, 200) }} style={styles.hotFoodImg} contentFit="cover" />
+                        : (
+                          <View style={styles.hotFoodImgPlaceholder}>
+                            <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
+                          </View>
+                        )
+                      }
+                      {isCombo && item.isFeatured ? <View style={styles.hotFoodTag}><Text style={styles.hotFoodTagText}>{t('customerHome.comboTag')}</Text></View> : null}
+                      <View style={styles.hotFoodCardBody}>
+                        <Text style={styles.hotFoodItemName} numberOfLines={2}>{name}</Text>
+                        {isCombo
+                          ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{t('customerHome.comboWithDrink')}</Text>
+                          : item.description ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text> : null}
+                        <View style={styles.hotFoodPriceRow}>
+                          <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
+                          {save != null ? <Text style={styles.hotFoodSave}>{t('customerHome.comboSave', { amount: `$${save.toFixed(2)}` })}</Text> : null}
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={[styles.hotFoodCard, styles.hotFoodMore]}
+                onPress={() => { haptic.tap(); router.push('/(customer)/hot-food'); }}
+                activeOpacity={0.82}
+                accessibilityRole="button"
+                accessibilityLabel={t('customerHome.seeAllHotFood')}
+              >
+                <FlameIcon size={26} color="#EA580C" strokeWidth={1.75} />
+                <Text style={styles.hotFoodMoreText}>{t('customerHome.seeAllHotFood')}</Text>
+                <ChevronRightIcon size={18} color={COLORS.secondary} />
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ── Today's Deals + History ── */}
+      <Animated.View style={{ opacity: fadeAnims[7], transform: [{ translateY: slideAnims[7] }] }}>
+        {!contentLoading && deals.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionRow}>
+              <SectionTitle icon={<TagIcon size={17} color={COLORS.accent} />} label={t('customerHome.todaysDeals')} />
+              {deals.length > 1 && (
+                <Text style={styles.sectionCount}>{t('customerHome.dealsCount', { count: deals.length })}</Text>
+              )}
+            </View>
+            <DealSlideshow deals={deals} onSelectOffer={setSelectedOffer} />
+          </View>
+        )}
+
       </Animated.View>
 
       {/* ── Active Promotions ── */}
@@ -1248,34 +1351,6 @@ export default function CustomerHome() {
         }
       </Animated.View>
 
-      {/* ── Challenges: the customer's own, with their progress ── */}
-      <View ref={challengesSectionRef}>
-        <ChallengesSection storeId={nearestStore?.id} enabled={locationReady} />
-      </View>
-
-      {/* ── Redeem with Points ── */}
-      {catalogItems.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <SectionTitle icon={<GiftIcon size={17} color={COLORS.primary} strokeWidth={1.75} />} label={t('customerHome.redeemWithPoints')} />
-            <TouchableOpacity
-              onPress={() => router.push('/(customer)/rewards')}
-              activeOpacity={0.7}
-              accessibilityRole="link"
-              accessibilityLabel={t('customerHome.seeAllRewardsA11y')}
-              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary }}>{t('customerHome.seeAllArrow')}</Text>
-            </TouchableOpacity>
-          </View>
-          <RewardsShelf items={catalogItems} userPts={userPts} />
-        </View>
-      )}
-
-      {/* ── Invite friends (2026-10-09): both get the bonus when the friend makes a first purchase ── */}
-      <InviteCard />
-      <ReceiptPhotoCard />
-
       {/* ── Gas Prices + Active Gas Offers ── */}
       <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>
         {contentLoading
@@ -1393,106 +1468,6 @@ export default function CustomerHome() {
         }
       </Animated.View>
 
-      {/* ── Promo Slideshow ── */}
-      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
-        <View style={styles.section}>
-          <View style={styles.sectionRow}>
-            <SectionTitle icon={<StarIcon size={17} color={COLORS.primary} strokeWidth={2} />} label={t('customerHome.whyLuckyStop')} />
-          </View>
-          <PromoSlideshow />
-        </View>
-      </Animated.View>
-
-      {/* ── Hot Food: the store's combo deals, or its items; a tap opens the Hot Food screen (pickup store, hours, points) ── */}
-      {nearestStore && hotFoodMenu.length > 0 && (
-        <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
-          <View style={styles.section}>
-            <View style={styles.sectionRow}>
-              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label={hotFoodCombos.length > 0 ? t('customerHome.hotFoodDeals') : t('customerHome.hotFood')} />
-              <Text style={styles.sectionSubLabel}>{t('customerHome.orderAheadAt', { store: nearestStore.name })}</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotFoodRow}>
-              {(hotFoodCombos.length > 0 ? hotFoodCombos : hotFoodMenu).map((item: any) => {
-                const isCombo = hotFoodCombos.length > 0;
-                const name = isCombo && hotFoodEs && item.nameEs ? item.nameEs : item.name;
-                const img = isCombo ? item.item?.imageUrl : item.imageUrl;
-                const save = isCombo && item.regularPrice != null && item.regularPrice > item.price ? item.regularPrice - item.price : null;
-                return (
-                  <TouchableOpacity
-                    key={item.id}
-                    style={styles.hotFoodCard}
-                    onPress={() => { haptic.tap(); router.push({ pathname: '/(customer)/hot-food', params: isCombo ? { combo: item.id } : { add: item.id } }); }}
-                    activeOpacity={0.82}
-                    accessibilityRole="button"
-                    accessibilityLabel={isCombo
-                      ? t('customerHome.comboA11y', { name, price: `$${Number(item.price).toFixed(2)}` })
-                      : t('customerHome.orderItemA11y', { name, price: `$${Number(item.price).toFixed(2)}` })}
-                  >
-                    <View style={styles.hotFoodClip}>
-                      {img
-                        ? <Image source={{ uri: sized(img, 200) }} style={styles.hotFoodImg} contentFit="cover" />
-                        : (
-                          <View style={styles.hotFoodImgPlaceholder}>
-                            <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
-                          </View>
-                        )
-                      }
-                      {isCombo && item.isFeatured ? <View style={styles.hotFoodTag}><Text style={styles.hotFoodTagText}>{t('customerHome.comboTag')}</Text></View> : null}
-                      <View style={styles.hotFoodCardBody}>
-                        <Text style={styles.hotFoodItemName} numberOfLines={2}>{name}</Text>
-                        {isCombo
-                          ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{t('customerHome.comboWithDrink')}</Text>
-                          : item.description ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text> : null}
-                        <View style={styles.hotFoodPriceRow}>
-                          <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
-                          {save != null ? <Text style={styles.hotFoodSave}>{t('customerHome.comboSave', { amount: `$${save.toFixed(2)}` })}</Text> : null}
-                        </View>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-              <TouchableOpacity
-                style={[styles.hotFoodCard, styles.hotFoodMore]}
-                onPress={() => { haptic.tap(); router.push('/(customer)/hot-food'); }}
-                activeOpacity={0.82}
-                accessibilityRole="button"
-                accessibilityLabel={t('customerHome.seeAllHotFood')}
-              >
-                <FlameIcon size={26} color="#EA580C" strokeWidth={1.75} />
-                <Text style={styles.hotFoodMoreText}>{t('customerHome.seeAllHotFood')}</Text>
-                <ChevronRightIcon size={18} color={COLORS.secondary} />
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </Animated.View>
-      )}
-
-      {/* ── Today's Deals + History ── */}
-      <Animated.View style={{ opacity: fadeAnims[7], transform: [{ translateY: slideAnims[7] }] }}>
-        {!contentLoading && deals.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionRow}>
-              <SectionTitle icon={<TagIcon size={17} color={COLORS.accent} />} label={t('customerHome.todaysDeals')} />
-              {deals.length > 1 && (
-                <Text style={styles.sectionCount}>{t('customerHome.dealsCount', { count: deals.length })}</Text>
-              )}
-            </View>
-            <DealSlideshow deals={deals} onSelectOffer={setSelectedOffer} />
-          </View>
-        )}
-
-        <TouchableOpacity
-          style={styles.historyLink}
-          onPress={() => router.push('/(customer)/history')}
-          accessibilityRole="link"
-          accessibilityLabel={t('customerHome.viewPointsHistoryA11y')}
-        >
-          <Text style={styles.historyLinkText}>{t('customerHome.viewPointsHistory')}</Text>
-          <ChevronRightIcon size={16} color={COLORS.primary} strokeWidth={2.5} />
-        </TouchableOpacity>
-      </Animated.View>
-
       {/* ── Banners ── */}
       <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
         {contentLoading
@@ -1508,6 +1483,34 @@ export default function CustomerHome() {
           )
         }
       </Animated.View>
+
+      {/* ── Redeem with Points ── */}
+      {catalogItems.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <SectionTitle icon={<GiftIcon size={17} color={COLORS.primary} strokeWidth={1.75} />} label={t('customerHome.redeemWithPoints')} />
+            <TouchableOpacity
+              onPress={() => router.push('/(customer)/rewards')}
+              activeOpacity={0.7}
+              accessibilityRole="link"
+              accessibilityLabel={t('customerHome.seeAllRewardsA11y')}
+              hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.primary }}>{t('customerHome.seeAllArrow')}</Text>
+            </TouchableOpacity>
+          </View>
+          <RewardsShelf items={catalogItems} userPts={userPts} />
+        </View>
+      )}
+
+      {/* ── Challenges: the customer's own, with their progress ── */}
+      <View ref={challengesSectionRef}>
+        <ChallengesSection storeId={nearestStore?.id} enabled={locationReady} />
+      </View>
+
+      {/* ── Invite friends (2026-10-09): both get the bonus when the friend makes a first purchase ── */}
+      <InviteCard />
+      <ReceiptPhotoCard />
 
       {/* ── Local Businesses (distinct from "Active Promotions" above, which
           is Lucky Stop's own store offers — this is third-party local
@@ -1526,6 +1529,18 @@ export default function CustomerHome() {
         </View>
       </Animated.View>
 
+
+      {/* ── Why Lucky Stop: for someone new (no points yet) ── */}
+      {userPts === 0 && periodPts === 0 && (
+      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
+        <View style={styles.section}>
+          <View style={styles.sectionRow}>
+            <SectionTitle icon={<StarIcon size={17} color={COLORS.primary} strokeWidth={2} />} label={t('customerHome.whyLuckyStop')} />
+          </View>
+          <PromoSlideshow />
+        </View>
+      </Animated.View>
+      )}
 
       {/* ── Rating prompt ── */}
       {pendingRating && (
@@ -2005,10 +2020,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: 28, paddingHorizontal: 22, paddingVertical: 12,
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.45, shadowRadius: 14, elevation: 10,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)', ...SOFT_SHADOW,
   },
   qrFabIcon: { fontSize: 18, color: '#fff' },
   qrFabLabel: { color: '#fff', fontSize: 13, fontWeight: '800', letterSpacing: 0.3 },
@@ -2090,9 +2102,7 @@ const styles = StyleSheet.create({
 
   balanceCard: {
     marginHorizontal: 16, marginTop: 16, marginBottom: 12,
-    backgroundColor: COLORS.secondary, borderRadius: 24, padding: 24, alignItems: 'center',
-    shadowColor: COLORS.secondary, shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.28, shadowRadius: 18, elevation: 10,
+    backgroundColor: COLORS.secondary, borderRadius: 24, padding: 24, alignItems: 'center', ...SOFT_SHADOW,
   },
   tierRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 14 },
   tierBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -2223,9 +2233,7 @@ const styles = StyleSheet.create({
 
   sliderRow: { gap: 10, paddingBottom: 4 },
   offerSlideCard: {
-    width: 220, borderRadius: 18,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
+    width: 220, borderRadius: 18, ...SOFT_SHADOW, ...SOFT_BORDER,
   },
   offerSlideClip: { backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden' },
   offerSlideImage: { width: 220, height: 110 },
@@ -2235,9 +2243,7 @@ const styles = StyleSheet.create({
   offerSlideContent: { padding: 12, gap: 4 },
 
   offerCard: {
-    borderRadius: 18, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
+    borderRadius: 18, marginBottom: 10, ...SOFT_SHADOW, ...SOFT_BORDER,
   },
   offerCardClip: {
     backgroundColor: COLORS.white, borderRadius: 18, overflow: 'hidden',
@@ -2273,9 +2279,7 @@ const styles = StyleSheet.create({
   gasPriceRow: { gap: 10, paddingBottom: 4, paddingTop: 8 },
   gasPriceCard: {
     backgroundColor: COLORS.white, borderRadius: 18, padding: 14, minWidth: 155,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
-    borderTopWidth: 3, borderTopColor: '#f97316',
+    ...SOFT_SHADOW, ...SOFT_BORDER,
   },
   gasStoreName: { fontSize: 13, fontWeight: '800', color: COLORS.text, marginBottom: 10 },
   gasPriceLine: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 },
@@ -2298,9 +2302,7 @@ const ps = StyleSheet.create({
   root:         { gap: 10 },
   slide: {
     width: SLIDE_W, marginRight: 12, borderRadius: 22,
-    height: 196,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.22, shadowRadius: 14, elevation: 8,
+    height: 196, ...SOFT_SHADOW,
   },
   slideClip: { flex: 1, borderRadius: 22, overflow: 'hidden' },
   decoCircleLg: { position: 'absolute', width: 220, height: 220, borderRadius: 110, top: -70, right: -55 },
@@ -2323,9 +2325,7 @@ const ds = StyleSheet.create({
   root: { gap: 10 },
   slide: {
     width: SLIDE_W, marginRight: 12, borderRadius: 22,
-    height: 176,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.22, shadowRadius: 14, elevation: 8,
+    height: 176, ...SOFT_SHADOW,
   },
   slideClip: { flex: 1, borderRadius: 22, overflow: 'hidden' },
   slideImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
@@ -2342,13 +2342,13 @@ const ds = StyleSheet.create({
   title:       { color: 'rgba(255,255,255,0.92)', fontSize: 14, fontWeight: '700', marginTop: 2 },
   body:        { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
   dots:        { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingTop: 10 },
+  counter:     { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, backgroundColor: '#F1F3F5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, overflow: 'hidden' },
 });
 
 const rs = StyleSheet.create({
   row:      { gap: 10, paddingRight: 16 },
   card: {
-    width: 136, backgroundColor: COLORS.white, borderRadius: 18, padding: 12, gap: 6,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
+    width: 136, backgroundColor: COLORS.white, borderRadius: 18, padding: 12, gap: 6, ...SOFT_SHADOW, ...SOFT_BORDER,
   },
   iconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   emoji:    { fontSize: 24 },
@@ -2365,8 +2365,7 @@ const rs = StyleSheet.create({
 const gp = StyleSheet.create({
   row:               { marginBottom: 10 },
   promoBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#1D3557', borderRadius: 18, padding: 14, marginBottom: 12,
-    shadowColor: '#1D3557', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#1D3557', borderRadius: 18, padding: 14, marginBottom: 12, ...SOFT_SHADOW,
   },
   promoIcon:   { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   promoTitle:  { color: '#fff', fontSize: 14, fontWeight: '800' },
@@ -2381,9 +2380,7 @@ const gp = StyleSheet.create({
   herePillText:  { fontSize: 11, fontWeight: '800', color: '#92400E' },
   priceCard: {
     backgroundColor: COLORS.white, borderRadius: 18, padding: 16,
-    borderTopWidth: 3, borderTopColor: '#f97316',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
+    ...SOFT_SHADOW, ...SOFT_BORDER,
   },
   storeName:   { fontSize: 14, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
   storeAddr:   { fontSize: 11, color: COLORS.textMuted, marginBottom: 5 },
@@ -2421,9 +2418,7 @@ const ti = StyleSheet.create({
 const bc = StyleSheet.create({
   root: { gap: 10 },
   slide: {
-    width: BANNER_W, marginRight: 12, borderRadius: 20,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.14, shadowRadius: 12, elevation: 6,
+    width: BANNER_W, marginRight: 12, borderRadius: 20, ...SOFT_SHADOW,
   },
   slideClip: { borderRadius: 20, overflow: 'hidden' },
   image: { width: BANNER_W, height: 190 },

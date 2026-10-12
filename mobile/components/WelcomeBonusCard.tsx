@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Modal } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, Platform } from 'react-native';
 import { Text } from './ScaledText';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -214,8 +214,8 @@ const st = StyleSheet.create({
   card: {
     marginHorizontal: 16, marginBottom: 12,
     backgroundColor: '#fff', borderRadius: 20, overflow: 'hidden',
-    shadowColor: GOLD, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.22, shadowRadius: 12, elevation: 5,
+    // Soft card (2026-10-12): a faint shadow on iPhone only
+    ...Platform.select({ ios: { shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12 }, default: {} }),
     borderWidth: 1.5, borderColor: GOLD + '44',
   },
   progressRow: {

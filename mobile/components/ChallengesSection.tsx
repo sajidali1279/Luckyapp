@@ -1,6 +1,6 @@
 // The customer's challenges on the home screen (backend utils/challenges.ts): each with its rule, their progress and the reward. Only
 // approved sales count, so a purchase shows here once its receipt is approved. In Spanish where HQ wrote it.
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { Text } from './ScaledText';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -55,7 +55,8 @@ const s = StyleSheet.create({
   section: { paddingHorizontal: 16, marginTop: 18, gap: 10 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headText: { fontSize: 17, fontWeight: '800', color: COLORS.text },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 14, gap: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3 },
+  // Soft card (2026-10-12): a hairline border, a faint shadow on iPhone only (Android's elevation drew grey edges)
+  card: { backgroundColor: '#fff', borderRadius: 18, padding: 14, gap: 4, ...Platform.select({ ios: { shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12 }, default: {} }), borderWidth: 1, borderColor: '#EEF0F3' },
   title: { fontSize: 15, fontWeight: '800', color: COLORS.text },
   rule: { fontSize: 13, fontWeight: '700', color: COLORS.primary },
   small: { fontSize: 12, color: COLORS.textMuted },

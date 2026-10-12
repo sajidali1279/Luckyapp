@@ -2446,7 +2446,10 @@
     "comboTag": "Combo",
     "comboWithDrink": "With a drink of your choice",
     "comboSave": "Save {{amount}}",
-    "seeAllHotFood": "See all hot food"
+    "seeAllHotFood": "See all hot food",
+    "periodH1": "Jan to Jun {{year}}",
+    "periodH2": "Jul to Dec {{year}}",
+    "dealOfA11y": "Deal {{n}} of {{total}}"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Free Fountain Drink",

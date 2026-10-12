@@ -2446,7 +2446,10 @@
     "comboTag": "Combo",
     "comboWithDrink": "Con la bebida que elijas",
     "comboSave": "Ahorra {{amount}}",
-    "seeAllHotFood": "Ver toda la comida caliente"
+    "seeAllHotFood": "Ver toda la comida caliente",
+    "periodH1": "ene a jun {{year}}",
+    "periodH2": "jul a dic {{year}}",
+    "dealOfA11y": "Oferta {{n}} de {{total}}"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Refresco de Fuente Gratis",
