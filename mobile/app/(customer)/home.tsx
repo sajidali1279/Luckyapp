@@ -856,9 +856,13 @@ export default function CustomerHome() {
     queryKey: ['hot-food-customer-menu', nearestStore?.id],
     queryFn: () => hotFoodApi.getCustomerMenu(nearestStore!.id),
     enabled: !!nearestStore,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,   // open / closed follows the clock while Home is open
   });
   const hotFoodMenu: any[] = hotFoodData?.data?.data ?? [];
+  // Outside the store's hot food hours the section is not shown (the menu still comes back, so ordering would only fail);
+  // an older server sends no hours: shown as before
+  const hotFoodOpen = hotFoodData?.data?.hours?.open !== false;
   // The store's hot food combos (2026-10-12): when it has some, Home shows them instead of the items, with "See all hot food"
   const hotFoodCombos: any[] = Array.isArray(hotFoodData?.data?.combos) ? hotFoodData.data.combos : [];
   const hotFoodEs = i18n.language?.startsWith('es');
@@ -1134,7 +1138,7 @@ export default function CustomerHome() {
 
       {/* Order (2026-10-12): hot food, today's deals, promotions, gas, HQ banners, rewards, challenges, invite, local businesses */}
       {/* ── Hot Food: the store's combo deals, or its items; a tap opens the Hot Food screen (pickup store, hours, points) ── */}
-      {nearestStore && hotFoodMenu.length > 0 && (
+      {nearestStore && hotFoodOpen && hotFoodMenu.length > 0 && (
         <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
           <View style={styles.section}>
             <View style={styles.sectionRow}>
