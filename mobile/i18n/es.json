@@ -1773,7 +1773,8 @@
     "welcomeGiftConfirmBody": "Es el regalo de bienvenida de hoy para este cliente. Solo se puede dar una vez al día.",
     "welcomeGiftConfirm": "Dar",
     "welcomeGiftCancel": "Cancelar",
-    "checkPricePerGallon": "Revisa el precio por galón: debe estar entre $1.50 y $20."
+    "checkPricePerGallon": "Revisa el precio por galón: debe estar entre $1.50 y $20.",
+    "promotionLabel": "Promoción"
   },
   "managerOrderList": {
     "failedToSubmitCategory": "Error al enviar la categoría",

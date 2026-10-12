@@ -89,6 +89,9 @@ export const pointsApi = {
   getMyBenefitStatus: () => api.get('/points/my-benefit-status'),
   initiateGrant: (data: { customerQrCode: string; storeId: string; purchaseAmount: number; category?: string; notes?: string; isGas?: boolean; gasGallons?: number; gasPricePerGallon?: number }) =>
     api.post('/points/grant', data),
+  /** What a grant of these lines would pay (the server's own math, promotions included); nothing is saved */
+  previewGrant: (data: { customerQrCode: string; storeId: string; lines: { category: string; amount: number; gasGallons?: number }[] }) =>
+    api.post('/points/preview', data),
   uploadReceipt: async (transactionId: string, receiptFile: FormData) => {
     const res = await fetchWithAuth(`/points/grant/${transactionId}/receipt`, { method: 'POST', body: receiptFile as any });
     const json = await res.json();

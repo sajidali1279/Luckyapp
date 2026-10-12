@@ -389,7 +389,32 @@ export default function EmployeeScanScreen() {
     const itemCategoryBonusPts = liveTierRate ? (categoryRates[item.category] ?? 0) * 100 : 0;
     return sum + Math.min(Math.round(amt * (tierMult + itemCategoryBonusPts)), ceilingPts(amt));
   }, 0);
-  const estimatedCashback = (committedPts + currentItemPts) > 0 ? committedPts + currentItemPts : null;
+  const localEstimate = (committedPts + currentItemPts) > 0 ? committedPts + currentItemPts : null;
+
+  // The server's own number for these lines (2026-10-12): the promotion that applies to this customer here and now is included, which
+  // the local estimate cannot know. Asked again 400 ms after a change; the local estimate shows until it answers (or on an older server).
+  const [serverPreview, setServerPreview] = useState<{ key: string; total: number; promotion: string | null } | null>(null);
+  const previewLines = [
+    ...lineItems.map((i) => ({ category: i.category, amount: parseFloat(i.amount) || 0, gasGallons: i.gasGallons ? parseFloat(i.gasGallons) : undefined })),
+    ...(validAmount && (!isGasCat || validGallons) ? [{ category, amount: parsedAmount, gasGallons: isGasCat ? parsedGallons : undefined }] : []),
+  ].filter((l) => l.amount > 0);
+  const previewKey = JSON.stringify([customerQr, storeId, previewLines]);
+  useEffect(() => {
+    if (!customerQr || !storeId || previewLines.length === 0) return;
+    const key = previewKey;
+    const timer = setTimeout(() => {
+      pointsApi.previewGrant({ customerQrCode: customerQr, storeId, lines: previewLines })
+        .then(({ data }) => {
+          const d = data?.data;
+          if (typeof d?.total === 'number') setServerPreview({ key, total: d.total, promotion: (d.lines ?? []).find((l: any) => l.promotion)?.promotion ?? null });
+        })
+        .catch(() => {});
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey]);
+  const fresh = serverPreview && serverPreview.key === previewKey ? serverPreview : null;
+  const estimatedCashback = fresh ? (fresh.total > 0 ? fresh.total : null) : localEstimate;
 
   function addCurrentItem() {
     if (!validAmount || (isGasCat && !validGallons)) {
@@ -1204,6 +1229,12 @@ export default function EmployeeScanScreen() {
                     : t('employeeScan.rateDollar', { mult: tierMultDisplay, tier: customerTier })}
                 </Text>
               </View>
+              {fresh?.promotion ? (
+                <View style={s.previewRow}>
+                  <Text style={s.previewLabel}>{t('employeeScan.promotionLabel')}</Text>
+                  <Text style={s.previewRate} numberOfLines={2}>{fresh.promotion}</Text>
+                </View>
+              ) : null}
               <View style={s.previewDivider} />
               <Text style={s.previewNote}>{t('employeeScan.finalAmountNote')}</Text>
             </View>

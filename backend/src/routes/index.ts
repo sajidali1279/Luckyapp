@@ -8,7 +8,7 @@ import { clientKey } from '../utils/rateLimitKey';
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
 import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, removePushToken, setLanguage, setBirthday, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
-  initiateGrant,
+  initiateGrant, previewGrant,
   uploadReceiptAndApprove,
   reviewFlaggedTransaction,
   voidTransaction,
@@ -307,6 +307,7 @@ router.post('/points/tier-benefit', authenticate, requireRole(Role.EMPLOYEE), re
 router.post('/points/catalog-redeem', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, processCatalogRedemption);
 
 router.post('/points/grant', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, initiateGrant);
+router.post('/points/preview', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, previewGrant);   // the cashier's points preview, the grant's own math, nothing saved
 router.post('/points/redeem', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, redeemCredits);
 router.post(
   '/points/grant/:transactionId/receipt',

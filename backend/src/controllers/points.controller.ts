@@ -47,6 +47,36 @@ const grantSchema = z.object({
   gasPricePerGallon: z.number().positive().optional(),
 });
 
+// The cashier's points preview (2026-10-12): what a grant of these lines would pay this customer at this store now, worked out by the
+// same code as the grant (tier, category, the promotion that applies to them, the 10% ceiling, the Gold+ gas bonus). Nothing is saved.
+const previewSchema = z.object({
+  customerQrCode: z.string().min(1),
+  storeId: z.string().uuid(),
+  lines: z.array(z.object({
+    category: z.nativeEnum(ProductCategory),
+    amount: z.number().positive().max(100_000),
+    gasGallons: z.number().positive().optional(),
+  })).min(1).max(20),
+});
+
+/** POST /points/preview */
+export async function previewGrant(req: AuthRequest, res: Response) {
+  const parsed = previewSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ success: false, error: parsed.error.flatten() }); return; }
+  const { customerQrCode, storeId, lines } = parsed.data;
+  const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
+  if (!customer || !isCustomerAccount(customer)) { res.status(404).json({ success: false, error: 'Customer QR code not found' }); return; }
+  const now = new Date();
+  const out: { points: number; promotion: string | null; capped: boolean; gallonsFit: boolean }[] = [];
+  for (const l of lines) {
+    const isGasLine = l.category === ProductCategory.GAS || l.category === ProductCategory.DIESEL;
+    const fits = !isGasLine || l.gasGallons == null || gallonsFit(l.amount, l.gasGallons);
+    const p = await computeSaleCashback({ customer, storeId, purchaseAmount: l.amount, category: l.category, gasGallons: fits ? l.gasGallons ?? null : null, now });
+    out.push({ points: Math.round((p.pointsAwarded + p.gasBonusPoints) * 10000) / 100, promotion: p.promotionApplied, capped: p.rateCappedFlags.length > 0, gallonsFit: fits });
+  }
+  res.json({ success: true, data: { lines: out, total: Math.round(out.reduce((n, l) => n + l.points, 0)) } });
+}
+
 export async function initiateGrant(req: AuthRequest, res: Response) {
   const parsed = grantSchema.safeParse(req.body);
   if (!parsed.success) {
