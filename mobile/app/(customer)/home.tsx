@@ -9,14 +9,13 @@ import {
   Modal,
   Animated,
   Linking,
-  Alert,
   Easing,
   useWindowDimensions,
   Pressable,
   BackHandler,
   Platform,
 } from 'react-native';
-import { Text, TextInput } from '../../components/ScaledText';
+import { Text } from '../../components/ScaledText';
 import RefreshControl from '../../components/AppRefreshControl';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,7 +45,6 @@ import {
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
-import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { haptic } from '../../utils/haptics';
 import * as Brightness from 'expo-brightness';
@@ -715,10 +713,6 @@ export default function CustomerHome() {
   }, [scrollTo]));
 
   // Hot food order state
-  const [selectedFoodItem, setSelectedFoodItem] = useState<any>(null);
-  const [foodQty, setFoodQty] = useState(1);
-  const [foodNote, setFoodNote] = useState('');
-  const [foodOrdering, setFoodOrdering] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -844,6 +838,9 @@ export default function CustomerHome() {
     staleTime: 5 * 60 * 1000,
   });
   const hotFoodMenu: any[] = hotFoodData?.data?.data ?? [];
+  // The store's hot food combos (2026-10-12): when it has some, Home shows them instead of the items, with "See all hot food"
+  const hotFoodCombos: any[] = Array.isArray(hotFoodData?.data?.combos) ? hotFoodData.data.combos : [];
+  const hotFoodEs = i18n.language?.startsWith('es');
 
   const { data: catalogData, refetch: refetchCatalog } = useQuery({
     queryKey: ['catalog-active'],
@@ -933,24 +930,6 @@ export default function CustomerHome() {
     refetchCatalog();
     qc.invalidateQueries({ queryKey: ['welcome-bonus'] });
     qc.invalidateQueries({ queryKey: ['my-challenges'] });
-  }
-
-  async function placeHotFoodOrder() {
-    if (!nearestStore || !selectedFoodItem || foodOrdering) return;
-    setFoodOrdering(true);
-    try {
-      await hotFoodApi.placeOrder({
-        storeId: nearestStore.id,
-        items: [{ menuItemId: selectedFoodItem.id, quantity: foodQty }],
-        note: foodNote.trim() || undefined,
-      });
-      setSelectedFoodItem(null);
-      Alert.alert(t('customerHome.orderPlacedTitle'), t('customerHome.orderPlacedBody'));
-    } catch {
-      Alert.alert(t('customerHome.errorTitle'), t('customerHome.orderFailedBody'));
-    } finally {
-      setFoodOrdering(false);
-    }
   }
 
   const tier = TIER_CONFIG[user?.tier || 'BRONZE'];
@@ -1424,43 +1403,66 @@ export default function CustomerHome() {
         </View>
       </Animated.View>
 
-      {/* ── Hot Food ── */}
+      {/* ── Hot Food: the store's combo deals, or its items; a tap opens the Hot Food screen (pickup store, hours, points) ── */}
       {nearestStore && hotFoodMenu.length > 0 && (
         <Animated.View style={{ opacity: fadeAnims[6], transform: [{ translateY: slideAnims[6] }] }}>
           <View style={styles.section}>
             <View style={styles.sectionRow}>
-              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label={t('customerHome.hotFood')} />
+              <SectionTitle icon={<FlameIcon size={17} color="#EA580C" strokeWidth={2} />} label={hotFoodCombos.length > 0 ? t('customerHome.hotFoodDeals') : t('customerHome.hotFood')} />
               <Text style={styles.sectionSubLabel}>{t('customerHome.orderAheadAt', { store: nearestStore.name })}</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotFoodRow}>
-              {hotFoodMenu.map((item: any) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.hotFoodCard}
-                  onPress={() => { setSelectedFoodItem(item); setFoodQty(1); setFoodNote(''); }}
-                  activeOpacity={0.82}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('customerHome.orderItemA11y', { name: item.name, price: `$${Number(item.price).toFixed(2)}` })}
-                >
-                  <View style={styles.hotFoodClip}>
-                    {item.imageUrl
-                      ? <Image source={{ uri: sized(item.imageUrl, 200) }} style={styles.hotFoodImg} contentFit="cover" />
-                      : (
-                        <View style={styles.hotFoodImgPlaceholder}>
-                          <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
+              {(hotFoodCombos.length > 0 ? hotFoodCombos : hotFoodMenu).map((item: any) => {
+                const isCombo = hotFoodCombos.length > 0;
+                const name = isCombo && hotFoodEs && item.nameEs ? item.nameEs : item.name;
+                const img = isCombo ? item.item?.imageUrl : item.imageUrl;
+                const save = isCombo && item.regularPrice != null && item.regularPrice > item.price ? item.regularPrice - item.price : null;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.hotFoodCard}
+                    onPress={() => { haptic.tap(); router.push({ pathname: '/(customer)/hot-food', params: isCombo ? { combo: item.id } : { add: item.id } }); }}
+                    activeOpacity={0.82}
+                    accessibilityRole="button"
+                    accessibilityLabel={isCombo
+                      ? t('customerHome.comboA11y', { name, price: `$${Number(item.price).toFixed(2)}` })
+                      : t('customerHome.orderItemA11y', { name, price: `$${Number(item.price).toFixed(2)}` })}
+                  >
+                    <View style={styles.hotFoodClip}>
+                      {img
+                        ? <Image source={{ uri: sized(img, 200) }} style={styles.hotFoodImg} contentFit="cover" />
+                        : (
+                          <View style={styles.hotFoodImgPlaceholder}>
+                            <FlameIcon size={30} color="#EA580C" strokeWidth={1.5} />
+                          </View>
+                        )
+                      }
+                      {isCombo && item.isFeatured ? <View style={styles.hotFoodTag}><Text style={styles.hotFoodTagText}>{t('customerHome.comboTag')}</Text></View> : null}
+                      <View style={styles.hotFoodCardBody}>
+                        <Text style={styles.hotFoodItemName} numberOfLines={2}>{name}</Text>
+                        {isCombo
+                          ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{t('customerHome.comboWithDrink')}</Text>
+                          : item.description ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text> : null}
+                        <View style={styles.hotFoodPriceRow}>
+                          <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
+                          {save != null ? <Text style={styles.hotFoodSave}>{t('customerHome.comboSave', { amount: `$${save.toFixed(2)}` })}</Text> : null}
                         </View>
-                      )
-                    }
-                    <View style={styles.hotFoodCardBody}>
-                      <Text style={styles.hotFoodItemName} numberOfLines={2}>{item.name}</Text>
-                      {item.description
-                        ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text>
-                        : null}
-                      <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={[styles.hotFoodCard, styles.hotFoodMore]}
+                onPress={() => { haptic.tap(); router.push('/(customer)/hot-food'); }}
+                activeOpacity={0.82}
+                accessibilityRole="button"
+                accessibilityLabel={t('customerHome.seeAllHotFood')}
+              >
+                <FlameIcon size={26} color="#EA580C" strokeWidth={1.75} />
+                <Text style={styles.hotFoodMoreText}>{t('customerHome.seeAllHotFood')}</Text>
+                <ChevronRightIcon size={18} color={COLORS.secondary} />
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </Animated.View>
@@ -1524,92 +1526,6 @@ export default function CustomerHome() {
         </View>
       </Animated.View>
 
-      {/* ── Hot Food Order Modal ── */}
-      <Modal visible={!!selectedFoodItem} transparent animationType="slide" onRequestClose={() => setSelectedFoodItem(null)}>
-        <KeyboardSafe style={{ flex: 1 }}>
-        <View style={hf.overlay}>
-          <View style={hf.sheet}>
-            <View style={hf.handle} />
-            {selectedFoodItem && (
-              <>
-                {selectedFoodItem.imageUrl
-                  ? <Image source={{ uri: sized(selectedFoodItem.imageUrl) }} style={hf.itemImg} contentFit="cover" />
-                  : (
-                    <View style={hf.itemImgPlaceholder}>
-                      <FlameIcon size={40} color="#EA580C" strokeWidth={1.5} />
-                    </View>
-                  )
-                }
-                <Text style={hf.itemName}>{selectedFoodItem.name}</Text>
-                {selectedFoodItem.description
-                  ? <Text style={hf.itemDesc}>{selectedFoodItem.description}</Text>
-                  : null}
-
-                <View style={hf.qtyRow}>
-                  <TouchableOpacity
-                    onPress={() => setFoodQty(q => Math.max(1, q - 1))}
-                    style={hf.qtyBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('customerHome.decreaseQtyA11y')}
-                    hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
-                  >
-                    <Text style={hf.qtyBtnText}>−</Text>
-                  </TouchableOpacity>
-                  <Text style={hf.qty}>{foodQty}</Text>
-                  <TouchableOpacity
-                    onPress={() => setFoodQty(q => Math.min(10, q + 1))}
-                    style={hf.qtyBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('customerHome.increaseQtyA11y')}
-                    hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
-                  >
-                    <Text style={hf.qtyBtnText}>+</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <TextInput
-                  style={hf.noteInput}
-                  placeholder={t('customerHome.specialInstructions')}
-                  placeholderTextColor={COLORS.textMuted}
-                  value={foodNote}
-                  onChangeText={setFoodNote}
-                  multiline
-                  maxLength={200}
-                />
-
-                <View style={hf.totalRow}>
-                  <Text style={hf.totalLabel}>{t('customerHome.total')}</Text>
-                  <Text style={hf.totalValue}>${(Number(selectedFoodItem.price) * foodQty).toFixed(2)}</Text>
-                </View>
-
-                <TouchableOpacity
-                  style={[hf.orderBtn, foodOrdering && { opacity: 0.6 }]}
-                  onPress={placeHotFoodOrder}
-                  disabled={foodOrdering}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={foodOrdering ? t('customerHome.placingOrderA11y') : t('customerHome.placeOrderForA11y', { name: selectedFoodItem.name, total: `$${(Number(selectedFoodItem.price) * foodQty).toFixed(2)}` })}
-                >
-                  <FlameIcon size={16} color="#fff" strokeWidth={2} />
-                  <Text style={hf.orderBtnText}>{foodOrdering ? t('customerHome.placingOrder') : t('customerHome.placeOrder')}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setSelectedFoodItem(null)}
-                  style={hf.cancelLink}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('customerHome.cancelOrderA11y')}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Text style={hf.cancelLinkText}>{t('customerHome.cancel')}</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-        </KeyboardSafe>
-        <ModalToastHost />
-      </Modal>
 
       {/* ── Rating prompt ── */}
       {pendingRating && (
@@ -2287,8 +2203,17 @@ const styles = StyleSheet.create({
 
   // Hot food cards
   hotFoodRow:          { paddingHorizontal: 16, gap: 12, paddingBottom: 4 },
-  hotFoodCard:         { width: 148, borderRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6, elevation: 3 },
-  hotFoodClip:         { backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden' },
+  // The card itself is white and the shadow is iPhone only: the row makes every card as tall as the tallest, and on Android the elevation
+  // of a card shorter inside drew a white and gray block under it (2026-10-12)
+  hotFoodCard:         { width: 148, borderRadius: 16, backgroundColor: COLORS.white, borderWidth: Platform.OS === 'android' ? 1 : 0, borderColor: '#E6E8EB',
+                         ...(Platform.OS === 'ios' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6 } : {}) },
+  hotFoodClip:         { flex: 1, backgroundColor: COLORS.white, borderRadius: 16, overflow: 'hidden' },
+  hotFoodTag:          { position: 'absolute', top: 8, left: 8, backgroundColor: COLORS.primary, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 },
+  hotFoodTagText:      { color: '#fff', fontSize: 10.5, fontWeight: '800' },
+  hotFoodPriceRow:     { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  hotFoodSave:         { fontSize: 10.5, fontWeight: '800', color: '#17663A', backgroundColor: '#EDF7F0', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, overflow: 'hidden' },
+  hotFoodMore:         { width: 112, alignItems: 'center', justifyContent: 'center', gap: 6, padding: 12, backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1 },
+  hotFoodMoreText:     { fontSize: 13, fontWeight: '800', color: COLORS.secondary, textAlign: 'center' },
   hotFoodImg:          { width: 148, height: 96 },
   hotFoodImgPlaceholder:{ width: 148, height: 96, backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center' },
   hotFoodCardBody:     { padding: 10 },
@@ -2595,24 +2520,3 @@ const ag = StyleSheet.create({
   backBtnText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
 });
 
-const hf = StyleSheet.create({
-  overlay:          { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet:            { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  handle:           { width: 36, height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  itemImg:          { width: '100%', height: 160, borderRadius: 14, marginBottom: 16 },
-  itemImgPlaceholder:{ width: '100%', height: 120, backgroundColor: '#FFF7ED', borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  itemName:         { fontSize: 20, fontWeight: '800', color: COLORS.text, marginBottom: 4 },
-  itemDesc:         { fontSize: 13, color: COLORS.textMuted, marginBottom: 16, lineHeight: 18 },
-  qtyRow:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24, marginVertical: 16 },
-  qtyBtn:           { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  qtyBtnText:       { fontSize: 24, fontWeight: '300', color: COLORS.text, lineHeight: 28 },
-  qty:              { fontSize: 26, fontWeight: '800', color: COLORS.text, minWidth: 36, textAlign: 'center' },
-  noteInput:        { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 12, fontSize: 14, color: COLORS.text, minHeight: 56, textAlignVertical: 'top', marginBottom: 16 },
-  totalRow:         { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  totalLabel:       { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
-  totalValue:       { fontSize: 22, fontWeight: '900', color: COLORS.text },
-  orderBtn:         { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#EA580C', borderRadius: 14, paddingVertical: 16, marginBottom: 12 },
-  orderBtnText:     { color: '#fff', fontSize: 16, fontWeight: '700' },
-  cancelLink:       { alignItems: 'center', paddingVertical: 8 },
-  cancelLinkText:   { color: COLORS.textMuted, fontSize: 14 },
-});

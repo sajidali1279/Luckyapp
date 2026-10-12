@@ -535,7 +535,9 @@
     "itemsGoneTitle": "Ya no disponible, se quitó de tu pedido",
     "cartRepriced": "Cambió un precio. Tu pedido muestra el nuevo total.",
     "searchMenu": "Buscar en el menú",
-    "searchNothing": "Nada en el menú coincide con \"{{text}}\"."
+    "searchNothing": "Nada en el menú coincide con \"{{text}}\".",
+    "addedFromHome": "{{name}} está en tu pedido",
+    "notOnThisMenu": "Eso no está en el menú de {{store}} ahora."
   },
   "customerLeaderboard": {
     "pointsValue": "{{points}} pts",
@@ -2438,7 +2440,13 @@
     "shelfReady": "Listo para canjear",
     "shelfToGo": "Faltan {{pts}} pts",
     "shelfSeeAll": "Ver todo",
-    "shelfSeeAllSub": "{{count}} premios"
+    "shelfSeeAllSub": "{{count}} premios",
+    "hotFoodDeals": "Ofertas de comida caliente",
+    "comboA11y": "Combo {{name}}, {{price}}. Abre comida caliente para elegir la bebida",
+    "comboTag": "Combo",
+    "comboWithDrink": "Con la bebida que elijas",
+    "comboSave": "Ahorra {{amount}}",
+    "seeAllHotFood": "Ver toda la comida caliente"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Refresco de Fuente Gratis",

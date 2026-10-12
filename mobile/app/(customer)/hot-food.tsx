@@ -22,6 +22,7 @@ import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import { hotFoodApi, storesApi, authApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { router, useLocalSearchParams } from 'expo-router';
 import { COLORS } from '../../constants';
 import { FlameIcon, ClockIcon, CheckCircleIcon, MapPinIcon } from '../../components/Icons';
 import ErrorState from '../../components/ErrorState';
@@ -721,6 +722,19 @@ export default function CustomerHotFoodScreen() {
   }
   const comboCount = useCallback((comboId: string) => cart.filter(c => c.comboId === comboId).reduce((n, c) => n + c.qty, 0), [cart]);
 
+  // From Home (2026-10-12): an item tapped there goes in the cart here, a combo opens its drink choice; both once the menu is in
+  const { combo: openCombo, add: addParam } = useLocalSearchParams<{ combo?: string; add?: string }>();
+  useEffect(() => {
+    if (!addParam || !menuData) return;
+    const item = menuItems.find((m) => m.id === addParam);
+    if (item) { addToCart(item); Toast.show({ type: 'success', text1: t('customerHotFood.addedFromHome', { name: item.name }) }); }
+    else Toast.show({ type: 'info', text1: t('customerHotFood.notOnThisMenu', { store: store?.name ?? '' }) });
+    setTab('menu');
+    router.setParams({ add: '' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addParam, menuData]);
+  useEffect(() => { if (openCombo) setTab('menu'); }, [openCombo]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const removeFromCart = useCallback((item: MenuItem) => {
     setCart(prev => {
       const existing = prev.find(c => c.id === item.id);
@@ -837,7 +851,16 @@ export default function CustomerHotFoodScreen() {
                 data={shownItems}
                 ListHeaderComponent={
                   <View>
-                    {!search.trim() && <ComboStrip combos={combos} closed={closed} countOf={comboCount} onAdd={addCombo} />}
+                    {!search.trim() && (
+                      <ComboStrip
+                        combos={combos} closed={closed} countOf={comboCount} onAdd={addCombo}
+                        openComboId={menuData ? openCombo || null : null}
+                        onOpened={(found) => {
+                          if (!found) Toast.show({ type: 'info', text1: t('customerHotFood.notOnThisMenu', { store: store?.name ?? '' }) });
+                          router.setParams({ combo: '' });
+                        }}
+                      />
+                    )}
                     {menuItems.length > 8 ? (
                       <TextInput
                         style={s.search}

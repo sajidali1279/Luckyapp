@@ -1,6 +1,6 @@
 // Hot food combos on the customer's menu (2026-10-12): the combos on at this store now (featured first), as a row of cards above the
 // menu. Add opens the drink choice (only the drinks HQ allowed for that combo); each combo with a drink is its own line in the order.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
@@ -45,12 +45,21 @@ export function useComboWords() {
   };
 }
 
-export function ComboStrip({ combos, closed, countOf, onAdd }: {
+export function ComboStrip({ combos, closed, countOf, onAdd, openComboId, onOpened }: {
   combos: Combo[]; closed: boolean; countOf: (comboId: string) => number; onAdd: (combo: Combo, drink: string) => void;
+  /** A combo tapped on Home: its drink choice opens by itself (once); onOpened says whether it is on here */
+  openComboId?: string | null; onOpened?: (found: boolean) => void;
 }) {
   const { t } = useTranslation();
   const w = useComboWords();
   const [picking, setPicking] = useState<Combo | null>(null);
+  useEffect(() => {
+    if (!openComboId) return;
+    const c = combos.find((x) => x.id === openComboId);
+    if (c && !closed) setPicking(c);
+    onOpened?.(!!c);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openComboId]);
   if (combos.length === 0) return null;
   return (
     <View style={st.wrap}>

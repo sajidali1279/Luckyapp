@@ -535,7 +535,9 @@
     "itemsGoneTitle": "No longer available, taken out of your order",
     "cartRepriced": "A price changed. Your order shows the new total.",
     "searchMenu": "Search the menu",
-    "searchNothing": "Nothing on the menu matches \"{{text}}\"."
+    "searchNothing": "Nothing on the menu matches \"{{text}}\".",
+    "addedFromHome": "{{name}} is in your order",
+    "notOnThisMenu": "That is not on the menu at {{store}} right now."
   },
   "customerLeaderboard": {
     "nameYou": " (You)",
@@ -2438,7 +2440,13 @@
     "shelfReady": "Ready to redeem",
     "shelfToGo": "{{pts}} pts to go",
     "shelfSeeAll": "See all",
-    "shelfSeeAllSub": "{{count}} rewards"
+    "shelfSeeAllSub": "{{count}} rewards",
+    "hotFoodDeals": "Hot food deals",
+    "comboA11y": "Combo {{name}}, {{price}}. Opens hot food to choose the drink",
+    "comboTag": "Combo",
+    "comboWithDrink": "With a drink of your choice",
+    "comboSave": "Save {{amount}}",
+    "seeAllHotFood": "See all hot food"
   },
   "customerWelcomeBonus": {
     "optionFountain": "Free Fountain Drink",
