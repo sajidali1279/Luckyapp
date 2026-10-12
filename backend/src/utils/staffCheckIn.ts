@@ -7,6 +7,7 @@ import prisma from '../config/prisma';
 import { DayOfWeek } from '@prisma/client';
 import { storeDateKey, storeDayStart, storeDayEnd, storeMinutes, storeWeekday } from './storeTime';
 import { sendPushToUser } from './push';
+import { rule } from './appSettings';
 
 /** Where the alert opens: the manager app's Where staff are tab (managers); HQ reads it on the admin site. */
 const CHECK_INS_URL = '/(manager)/schedule?tab=where';
@@ -42,7 +43,8 @@ export async function shiftsToday(userIds: string[], now: Date = new Date()): Pr
     if (offIds.has(t.employeeId)) continue;
     const start = mins(t.startTime); const end = mins(t.endTime); const overnight = end <= start;
     let isNow: boolean; let counts = true;
-    if (t.dayOfWeek === today) isNow = overnight ? minute >= start - EARLY_MINUTES : minute >= start - EARLY_MINUTES && minute < end;
+    const early = rule('staffEarlyMinutes');   // Settings > Staff (default EARLY_MINUTES)
+    if (t.dayOfWeek === today) isNow = overnight ? minute >= start - early : minute >= start - early && minute < end;
     else { counts = overnight && minute < end; isNow = counts; }   // yesterday's: only while it runs past midnight
     if (!counts) continue;
     const list = out.get(t.employeeId) ?? [];

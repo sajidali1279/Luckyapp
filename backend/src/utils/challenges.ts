@@ -12,6 +12,7 @@ import prisma from '../config/prisma';
 import { DEFAULT_DEV_CUT_RATE } from '../config/constants';
 import { forCustomer } from './offerAudience';
 import { sendPushToUser } from './push';
+import { feature } from './appSettings';
 
 type Db = Prisma.TransactionClient | PrismaClient;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -34,6 +35,7 @@ export async function creditChallenges(db: Db, saleId: string, now: Date = new D
     where: { id: saleId },
     select: { id: true, customerId: true, storeId: true, category: true, purchaseAmount: true, createdAt: true, challengeId: true, status: true, store: { select: { transactionFeeRate: true } } },
   });
+  if (!feature('challenges')) return [];   // switched off in Settings: nothing moves on, nothing is paid
   if (!sale || sale.challengeId || sale.status !== TransactionStatus.APPROVED) return [];   // a reward line never counts
   const at = sale.createdAt;   // the challenge has to have been running when the purchase was made
   const running = await db.challenge.findMany({
@@ -96,6 +98,7 @@ export async function pushChallengeAwards(awards: ChallengeAward[]): Promise<voi
 
 /** The running challenges for a customer (theirs only), with their progress, for the app. */
 export async function challengesFor(customerId: string, storeId: string | null, now: Date = new Date()) {
+  if (!feature('challenges')) return [];   // switched off in Settings
   const running = await prisma.challenge.findMany({
     where: { isActive: true, startDate: { lte: now }, endDate: { gte: now }, ...(storeId ? { OR: [{ storeId: null }, { storeId }] } : {}) },
     orderBy: { endDate: 'asc' },

@@ -9,13 +9,14 @@ import { saveNotificationMany } from './push';
 import { sendExpoBatch } from './pushSend';
 import { storeHour, storeDayEnd } from './storeTime';
 import { membersInAudience } from './offerAudience';
+import { rule } from './appSettings';
 
-export const LAST_DAY_HOUR = 10;
+export const LAST_DAY_HOUR = 10;   // the default; Settings > Rewards & offers (rule offerLastDayHour)
 const MIN_LENGTH_MS = 3 * 86_400_000 - 60 * 60_000;   // 3 days (a Monday-to-Wednesday promotion counts)
 
 /** Sends today's last-day reminders that are due. Returns how many promotions were reminded about. Safe to run any number of times. */
 export async function remindLastDays(now: Date = new Date()): Promise<number> {
-  if (storeHour(now) < LAST_DAY_HOUR) return 0;
+  if (storeHour(now) < rule('offerLastDayHour')) return 0;
   const offers = await prisma.offer.findMany({
     where: {
       isActive: true, lastDayReminder: true, lastDayRemindedAt: null, budgetReachedAt: null,   // a used-up budget: no "last day" for it

@@ -135,7 +135,7 @@ export default function ReceiptPhotoScreen() {
                   {(['tip1', 'tip2', 'tip3', 'tip4'] as const).map((k) => (
                     <View key={k} style={st.tipRow}>
                       <Ionicons name="checkmark" size={18} color={COLORS.secondary} />
-                      <Text style={st.tip}>{t(`receiptPhoto.${k}`)}</Text>
+                      <Text style={st.tip}>{t(`receiptPhoto.${k}`, { days: access.data?.data?.data?.maxDays ?? 3, perDay: access.data?.data?.data?.perDay ?? 3 })}</Text>
                     </View>
                   ))}
                   <TouchableOpacity style={st.primaryBtn} onPress={takePhoto} accessibilityRole="button">

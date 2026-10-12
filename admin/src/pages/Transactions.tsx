@@ -439,7 +439,7 @@ export default function Transactions() {
         )}
       />
 
-      {isSuperAdmin && <p style={{ fontSize: 13, color: TEXT_MUTED, margin: '0 0 12px' }}>Receipt scanning (who can use it, the latest scans) is in <Link to="/settings?tab=app" style={{ color: PRIMARY, fontWeight: 600 }}>Settings &gt; App</Link>.</p>}
+      {isSuperAdmin && <p style={{ fontSize: 13, color: TEXT_MUTED, margin: '0 0 12px' }}>Receipt scanning (who can use it, the latest scans) is in <Link to="/settings?tab=receipts" style={{ color: PRIMARY, fontWeight: 600 }}>Settings &gt; Receipt scanning</Link>.</p>}
 
       {/* ── Filters ── */}
       <div style={s.filterBar}>

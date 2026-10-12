@@ -72,7 +72,7 @@ interface FoodOrder {
 }
 
 const toPts = (dollars: number) => Math.round(dollars * 100);
-const MAX_PER_ITEM = 20;   // the server's limit per item (MAX_QTY_PER_ITEM)
+let MAX_PER_ITEM = 20;   // the most of one item: HQ sets it (Settings > Hot food), the menu says it; 20 until it loads
 
 type Tab = 'menu' | 'orders';
 
@@ -341,10 +341,11 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
 
 // ─── Cart Sheet ───────────────────────────────────────────────────────────────
 
-function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
+function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllowed = true }: {
   cart: CartItem[];
   store: PickupStore;
   closedText: string | null;
+  pointsAllowed?: boolean;
   onClose: () => void;
   onOrderPlaced: () => void;
 }) {
@@ -359,7 +360,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
   const havePts = toPts(balance);
   const canUsePoints = needPts > 0 && havePts >= needPts;
   const [usePoints, setUsePoints] = useState(false);
-  const payWithPoints = usePoints && canUsePoints;
+  const payWithPoints = pointsAllowed && usePoints && canUsePoints;
   // The balance in the app can be old (points approved since it opened): read it again when the order sheet opens
   useEffect(() => {
     authApi.getMe().then(({ data }) => {
@@ -442,7 +443,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
               <Text style={cs.totalVal}>{fmtPrice(total)}</Text>
             </View>
 
-            <View style={[cs.pointsRow, !canUsePoints && { opacity: 0.6 }]}>
+            {pointsAllowed && <View style={[cs.pointsRow, !canUsePoints && { opacity: 0.6 }]}>
               <View style={{ flex: 1 }}>
                 <Text style={cs.pointsTitle}>{t('customerHotFood.payWithPoints', { points: needPts })}</Text>
                 <Text style={cs.pointsSub}>
@@ -457,7 +458,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
                 thumbColor="#fff"
                 accessibilityLabel={t('customerHotFood.payWithPoints', { points: needPts })}
               />
-            </View>
+            </View>}
 
             <View style={cs.noteSection}>
               <Text style={cs.noteLabel}>{t('customerHotFood.specialInstructions')}</Text>
@@ -639,6 +640,8 @@ export default function CustomerHotFoodScreen() {
     refetchInterval: 60_000,   // the open / closed line follows the clock
   });
   const menuItems: MenuItem[] = menuData?.data?.data || [];
+  if (typeof menuData?.data?.limits?.maxPerItem === 'number') MAX_PER_ITEM = menuData.data.limits.maxPerItem;
+  const pointsAllowed = menuData?.data?.payWithPoints !== false;   // HQ can switch paying with points off
   const combos: Combo[] = Array.isArray(menuData?.data?.combos) ? menuData.data.combos : [];
   const comboWords = useComboWords();
   const [search, setSearch] = useState('');
@@ -979,6 +982,7 @@ export default function CustomerHotFoodScreen() {
           store={store!}
           onClose={() => setShowCart(false)}
           onOrderPlaced={handleOrderPlaced}
+          pointsAllowed={pointsAllowed}
         />
       )}
 

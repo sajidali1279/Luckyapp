@@ -13,9 +13,11 @@ interface Props {
   title: string;
   content: string;
   headerColor?: string;
+  /** Shown under the guide (the customer guide: HQ's contact details) */
+  footer?: React.ReactNode;
 }
 
-export default function GuideScreen({ title, content, headerColor = COLORS.secondary }: Props) {
+export default function GuideScreen({ title, content, headerColor = COLORS.secondary, footer }: Props) {
   const { t } = useTranslation();
   return (
     <View style={s.root}>
@@ -42,6 +44,7 @@ export default function GuideScreen({ title, content, headerColor = COLORS.secon
         showsVerticalScrollIndicator={false}
       >
         <FadeSlideIn>
+          {footer}
           <MarkdownView>{content}</MarkdownView>
         </FadeSlideIn>
         <View style={{ height: 32 }} />

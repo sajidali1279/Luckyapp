@@ -104,6 +104,7 @@ import {
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
+import { getSettings, putRules, putFeatures, putBusiness, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
   getUnreadCount as getSupportUnreadCount, updatePriority, getSupportStats,
@@ -700,6 +701,13 @@ router.get('/hot-food/catalog/:id/stores',              authenticate, requireRol
 router.post('/hot-food/catalog/:id/stores',             authenticate, requireRole(Role.SUPER_ADMIN),   assignHotFoodCatalogItemToStore);
 router.delete('/hot-food/catalog/:id/stores/:storeId',  authenticate, requireRole(Role.SUPER_ADMIN),   removeHotFoodCatalogItemFromStore);
 // Hot food combos (2026-10-12): an item with a drink the customer chooses, one price; HQ makes them, the app's menu shows them
+// HQ settings (2026-10-12): the rules, the feature switches, the business details, the history; the app reads /settings/app
+router.get('/settings',                 authenticate, requireRole(Role.SUPER_ADMIN),   getSettings);
+router.put('/settings/rules',           authenticate, requireRole(Role.SUPER_ADMIN),   putRules);
+router.put('/settings/features',        authenticate, requireRole(Role.SUPER_ADMIN),   putFeatures);
+router.put('/settings/business',        authenticate, requireRole(Role.SUPER_ADMIN),   putBusiness);
+router.get('/settings/history',         authenticate, requireRole(Role.SUPER_ADMIN),   getSettingsHistory);
+router.get('/settings/app',             authenticate,                                   getAppSettings);
 router.get('/hot-food/combos',          authenticate, requireRole(Role.SUPER_ADMIN),   listCombos);
 router.post('/hot-food/combos',         authenticate, requireRole(Role.SUPER_ADMIN),   createCombo);
 router.patch('/hot-food/combos/:id',    authenticate, requireRole(Role.SUPER_ADMIN),   updateCombo);

@@ -451,6 +451,11 @@ export const managerApi = {
 };
 
 // Where staff are working (2026-10-11): the check-in when the app opens during a shift, and the "Where staff are" calendar
+// What HQ set in admin Settings that the app needs (2026-10-12): features on or off, contact details, a few limits
+export const settingsAppApi = {
+  get: () => api.get('/settings/app'),
+};
+
 export const staffApi = {
   today: () => api.get('/staff/today'),
   checkIn: (data: { storeId: string; method: 'AUTO' | 'CHOSEN'; distanceFeet?: number | null }) => api.post('/staff/check-in', data),

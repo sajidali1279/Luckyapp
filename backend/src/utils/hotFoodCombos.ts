@@ -6,6 +6,7 @@ import prisma from '../config/prisma';
 import { storeMinutes } from './storeTime';
 import { loadDealLimits } from './dealLimits';
 import { limitFor } from './dealSuggest';
+import { feature } from './appSettings';
 
 /** The drinks a combo can come with. The English name goes on the order the store sees; the app shows its own words. */
 export const DRINKS: Record<string, string> = {
@@ -37,6 +38,7 @@ type ComboRow = {
 
 /** The combos a customer can order at this store right now: active, the store's item on, the store chosen (or all), within hours. */
 export async function combosAt(storeId: string, now: Date = new Date()): Promise<ComboRow[]> {
+  if (!feature('hotFoodCombos')) return [];   // switched off in Settings
   const [combos, onHere] = await Promise.all([
     prisma.hotFoodCombo.findMany({
       where: { isActive: true },

@@ -14,9 +14,12 @@ import { COLORS } from '../constants';
 import { staffApi } from '../services/api';
 import { milesBetween } from '../utils/pickupStore';
 import { MapPinIcon } from './Icons';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 /** Within this distance of a store (feet), the phone is "at" it. */
-export const AT_STORE_FEET = 800;
+export const AT_STORE_FEET = 800;   // the default; HQ sets it (Settings > Staff), read below
+let atStoreFeet = AT_STORE_FEET;
+export function setAtStoreFeet(feet: number) { if (Number.isFinite(feet) && feet >= 100) atStoreFeet = feet; }
 /** A fix rougher than this (meters) is not used to decide anything. */
 const ROUGH_METERS = 300;
 /** How often (at most) it looks again when the app comes back to the front. */
@@ -47,7 +50,7 @@ export function storeAt(stores: StaffStore[], here: { latitude: number; longitud
     const feet = Math.round(milesBetween(here.latitude, here.longitude, s.latitude, s.longitude) * 5280);
     if (!best || feet < best.feet) best = { store: s, feet };
   }
-  return best && best.feet <= AT_STORE_FEET ? best : null;
+  return best && best.feet <= atStoreFeet ? best : null;
 }
 
 export type CheckInOutcome = 'checked-in' | 'already' | 'ask' | 'not-at-store' | 'no-shift' | 'no-location';
@@ -75,6 +78,8 @@ export async function runCheckIn(onAsk: (a: Ask) => void, force = false): Promis
 
 /** Mounted once in the staff app: looks when the app opens and when it comes back to the front, and shows the question. */
 export default function ShiftCheckIn() {
+  const appSettings = useAppSettings();
+  setAtStoreFeet(appSettings.limits.staffAtStoreFeet);
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [ask, setAsk] = useState<Ask | null>(null);

@@ -11,8 +11,9 @@ import prisma from '../config/prisma';
 import { audit } from './audit';
 import { sendPushToUser } from './push';
 import { flaggedSaleRecipientIds } from './alertRecipients';
+import { rule } from './appSettings';
 
-export const ABANDON_AFTER_HOURS = 24;
+export const ABANDON_AFTER_HOURS = 24;   // the default; Settings > Sales review (rule reviewPendingExpiryHours)
 
 let running = false;
 
@@ -20,7 +21,8 @@ export async function expireAbandonedPendingSales(now: Date = new Date()): Promi
   if (running) return { expired: 0, stores: 0 };
   running = true;
   try {
-    const cutoff = new Date(now.getTime() - ABANDON_AFTER_HOURS * 60 * 60 * 1000);
+    const hours = rule('reviewPendingExpiryHours');
+    const cutoff = new Date(now.getTime() - hours * 60 * 60 * 1000);
     const stale = await prisma.pointsTransaction.findMany({
       where: { status: TransactionStatus.PENDING, createdAt: { lt: cutoff } },
       select: { id: true, storeId: true, purchaseAmount: true, customerId: true },
@@ -33,14 +35,14 @@ export async function expireAbandonedPendingSales(now: Date = new Date()): Promi
       // on it in the same instant this job reads it).
       const moved = await prisma.pointsTransaction.updateMany({
         where: { id: tx.id, status: TransactionStatus.PENDING },
-        data: { status: TransactionStatus.REJECTED, notes: `Automatically expired: no receipt was uploaded within ${ABANDON_AFTER_HOURS} hours.` },
+        data: { status: TransactionStatus.REJECTED, notes: `Automatically expired: no receipt was uploaded within ${hours} hours.` },
       });
       if (moved.count === 0) continue;
       perStore.set(tx.storeId, (perStore.get(tx.storeId) ?? 0) + 1);
       audit({
         actorId: 'system', actorName: 'Pending-sale expiry (automatic)', actorRole: 'DEV_ADMIN',
         action: 'AUTO_EXPIRE_PENDING', entity: 'transaction', entityId: tx.id,
-        details: { purchaseAmount: tx.purchaseAmount, customerId: tx.customerId, abandonAfterHours: ABANDON_AFTER_HOURS },
+        details: { purchaseAmount: tx.purchaseAmount, customerId: tx.customerId, abandonAfterHours: hours },
         storeId: tx.storeId,
       });
     }

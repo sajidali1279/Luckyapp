@@ -6,6 +6,7 @@
 import { TransactionStatus } from '@prisma/client';
 import prisma from '../config/prisma';
 import { storeDateKey } from './storeTime';
+import { rule } from './appSettings';
 
 export const AUDIENCES = ['EVERYONE', 'TIER_UP', 'LAPSED', 'NEW', 'BIRTHDAY'] as const;
 export type Audience = (typeof AUDIENCES)[number];
@@ -28,11 +29,11 @@ export function inAudience(o: Targeted, c: CustomerFacts, now: Date = new Date()
       return TIER_ORDER.indexOf(c.tier) >= TIER_ORDER.indexOf(o.audienceTier ?? 'BRONZE');
     case 'LAPSED': {
       // has bought before (a win-back is for someone who has been here), but not in the last N days
-      const days = o.audienceDays ?? DEFAULT_LAPSED_DAYS;
+      const days = o.audienceDays ?? rule('offerLapsedDays');
       return c.lastPurchaseAt != null && now.getTime() - c.lastPurchaseAt.getTime() >= days * DAY_MS;
     }
     case 'NEW':
-      return now.getTime() - c.createdAt.getTime() <= (o.audienceDays ?? DEFAULT_NEW_DAYS) * DAY_MS;
+      return now.getTime() - c.createdAt.getTime() <= (o.audienceDays ?? rule('offerNewDays')) * DAY_MS;
     case 'BIRTHDAY':
       return c.birthMonth != null && c.birthMonth === Number(storeDateKey(now).slice(5, 7));
     default:
@@ -75,8 +76,8 @@ export async function membersInAudience<M extends { id: string }>(o: Targeted, m
 export function audienceText(o: Targeted): string {
   switch (o.audience ?? 'EVERYONE') {
     case 'TIER_UP': return o.audienceTier === 'PLATINUM' ? 'Platinum members' : `${TIER_NAME[o.audienceTier ?? 'BRONZE']} and above`;
-    case 'LAPSED': return `Customers who have not bought in ${o.audienceDays ?? DEFAULT_LAPSED_DAYS} days`;
-    case 'NEW': return `New customers (joined in the last ${o.audienceDays ?? DEFAULT_NEW_DAYS} days)`;
+    case 'LAPSED': return `Customers who have not bought in ${o.audienceDays ?? rule('offerLapsedDays')} days`;
+    case 'NEW': return `New customers (joined in the last ${o.audienceDays ?? rule('offerNewDays')} days)`;
     case 'BIRTHDAY': return 'Customers whose birthday is this month';
     default: return 'Everyone';
   }

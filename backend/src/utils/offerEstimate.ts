@@ -10,6 +10,7 @@ import prisma from '../config/prisma';
 import { ProductCategory } from '@prisma/client';
 import { offerPaysAt, OfferHours } from './offerHours';
 import { getTierBonusRate } from './tier';
+import { rule } from './appSettings';
 
 export const ESTIMATE_BASIS_DAYS = 28;
 
@@ -58,7 +59,7 @@ export async function estimateOffer(input: EstimateInput, now: Date = new Date()
     select: { purchaseAmount: true, gasGallons: true, createdAt: true, customerId: true, customer: { select: { tier: true, createdAt: true, birthMonth: true } } },
   });
   // A win-back needs each customer's visits before each sale: the approved sales on record from N days before the basis
-  const lapsedDays = input.audience === 'LAPSED' ? (input.audienceDays ?? DEFAULT_LAPSED_DAYS) : 0;
+  const lapsedDays = input.audience === 'LAPSED' ? (input.audienceDays ?? rule('offerLapsedDays')) : 0;
   const visits = new Map<string, number[]>();
   if (lapsedDays) {
     const rows = await prisma.pointsTransaction.findMany({

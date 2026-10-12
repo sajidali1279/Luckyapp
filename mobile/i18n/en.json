@@ -3054,10 +3054,10 @@
     "notAvailable": "Scanning receipts is not available for your account yet.",
     "loadError": "Could not load this page.",
     "howTitle": "How to take the photo",
-    "tip1": "A Lucky Stop receipt from the last 3 days that did not get points at the register.",
+    "tip1": "A Lucky Stop receipt from the last {{days}} days that did not get points at the register.",
     "tip2": "Lay it flat in good light, with the whole receipt in the photo.",
     "tip3": "The store's address at the top, the date and the total must be readable.",
-    "tip4": "One receipt per photo. You can send 3 a day.",
+    "tip4": "One receipt per photo. You can send {{perDay}} a day.",
     "take": "Take a photo",
     "previewA11y": "The receipt photo",
     "checkPhoto": "Can you read the store, the date and the total? If not, take it again.",
@@ -3098,5 +3098,10 @@
     "drink_CAN_12": "12oz can",
     "drink_COFFEE": "Coffee",
     "drink_WATER": "Bottled water"
+  },
+  "contact": {
+    "title": "Contact us",
+    "callA11y": "Call {{phone}}",
+    "emailA11y": "Email {{email}}"
   }
 }

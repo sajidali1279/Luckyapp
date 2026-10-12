@@ -30,6 +30,7 @@ import { transactionSearchWhere } from '../utils/transactionSearch';
 import { lockCustomer, REPEAT_WINDOW_MS } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { computeSaleCashback } from '../utils/saleCashback';
+import { rule } from '../utils/appSettings';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
 const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
@@ -146,17 +147,18 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     res.status(409).json({ success: false, error: 'Duplicate transaction detected. This customer was just served by you within the last 2 minutes.' });
     return;
   }
-  if (purchaseAmount > 2000) {
-    res.status(400).json({ success: false, error: 'Transaction amount exceeds the maximum allowed ($2,000). Contact your manager.' });
+  if (purchaseAmount > rule('reviewMaxSale')) {
+    res.status(400).json({ success: false, error: `Transaction amount exceeds the maximum allowed ($${rule('reviewMaxSale').toLocaleString('en-US')}). Contact your manager.` });
     return;
   }
 
   // Soft flags — create as FLAGGED, hold points for manager review
   const fraudFlags: string[] = [...rateCappedFlags];
-  if (purchaseAmount > 500 && !isGasCategory) fraudFlags.push('HIGH_AMOUNT');
-  if (purchaseAmount > 800)                   fraudFlags.push('LARGE_PURCHASE');
-  if (customerTodayCount >= 4)                fraudFlags.push('CUSTOMER_VELOCITY');
-  if (employeeHourCount >= 15)                fraudFlags.push('EMPLOYEE_VELOCITY');
+  // The amounts and counts are HQ's (Settings > Sales review); the defaults are $500, $800, 4 a day and 15 an hour
+  if (purchaseAmount > rule('reviewHighAmount') && !isGasCategory) fraudFlags.push('HIGH_AMOUNT');
+  if (purchaseAmount > rule('reviewLargePurchase'))                fraudFlags.push('LARGE_PURCHASE');
+  if (customerTodayCount >= rule('reviewCustomerSalesPerDay'))     fraudFlags.push('CUSTOMER_VELOCITY');
+  if (employeeHourCount >= rule('reviewCashierGrantsPerHour'))     fraudFlags.push('EMPLOYEE_VELOCITY');
   if (pairTodayCount >= 2)                    fraudFlags.push('REPEAT_PAIR');
 
   const isFlagged = fraudFlags.length > 0;

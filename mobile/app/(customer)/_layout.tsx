@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
 import { notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import {
   HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
   BriefcaseIcon, ShoppingBagIcon, BellIcon, FlameIcon,
@@ -19,6 +20,7 @@ export default function CustomerLayout() {
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
+  const appSettings = useAppSettings();   // HQ's switches (admin Settings > Features)
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(customer)/home',    icon: (p) => <HomeIcon {...p} strokeWidth={2} />, label: t('nav.home') },
     { route: '/(customer)/rewards', icon: (p) => <StarIcon {...p} strokeWidth={2} />, label: t('nav.rewards') },
@@ -31,7 +33,7 @@ export default function CustomerLayout() {
         { route: '/(customer)/home',     icon: (p) => <HomeIcon {...p} />,    label: t('nav.home') },
         { route: '/(customer)/rewards',  icon: (p) => <StarIcon {...p} />,    label: t('nav.rewards') },
         { route: '/(customer)/history',  icon: (p) => <ClockIcon {...p} />,   label: t('nav.history') },
-        { route: '/(customer)/hot-food', icon: (p) => <FlameIcon {...p} />,   label: t('nav.hotFood') },
+        ...(appSettings.features.hotFoodOrdering ? [{ route: '/(customer)/hot-food', icon: (p: any) => <FlameIcon {...p} />, label: t('nav.hotFood') }] : []),
       ],
     },
     {

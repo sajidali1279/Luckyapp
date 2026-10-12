@@ -13,9 +13,10 @@ import { audit } from '../utils/audit';
 import { tellStoreAboutOrder } from '../utils/hotFoodRouting';
 import { placeWithPoints, returnOrderPoints, recordPointsPickup, pts } from '../utils/hotFoodPoints';
 import { combosAt, comboLineName, DRINKS } from '../utils/hotFoodCombos';
+import { rule, feature } from '../utils/appSettings';
 
 /** Open hot food orders (pending, being made, ready) one customer can have at once, across stores (2026-10-11) */
-export const MAX_OPEN_ORDERS = 3;
+export const MAX_OPEN_ORDERS = 3;   // the default; Settings > Hot food (rule hotFoodMaxOpenOrders)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ async function schedulesFor(storeId: string): Promise<HotFoodSchedules> {
 }
 
 // What one order may hold
-export const MAX_QTY_PER_ITEM = 20;
+export const MAX_QTY_PER_ITEM = 20;   // the default; Settings > Hot food (rule hotFoodMaxPerItem)
 export const MAX_ORDER_LINES = 30;
 export const MAX_NOTE_LENGTH = 300;
 // What one menu item may be (2026-10-12): a name, a price a hot food item can have, and a time a kitchen can give
@@ -401,7 +402,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true, isActive: true } });
-  if (!store?.hotFoodEnabled || store.isActive === false) {
+  if (!store?.hotFoodEnabled || store.isActive === false || !feature('hotFoodOrdering')) {
     res.json({ success: true, data: [], hotFoodEnabled: false });
     return;
   }
@@ -435,7 +436,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime,
     item: { id: c.catalogItem.id, name: c.catalogItem.name, imageUrl: c.catalogItem.imageUrl }, estimatedMinutes: c.catalogItem.estimatedMinutes,
   }));
-  res.json({ success: true, data: all, hours, combos });
+  res.json({ success: true, data: all, hours, combos, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
 }
 
 // GET /hot-food/store/:storeId/all-items — all items with availability (employee management view)
@@ -510,6 +511,10 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   const customerId = req.user!.id;
   const { storeId, items, note } = req.body;
 
+  if (!feature('hotFoodOrdering')) {
+    res.status(403).json({ success: false, code: 'HOT_FOOD_OFF', error: 'Hot food ordering is switched off right now.' });
+    return;
+  }
   if (!storeId || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ success: false, error: 'storeId and items[] are required' });
     return;
@@ -542,15 +547,15 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       return;
     }
     qtyById.set(itemId, (qtyById.get(itemId) ?? 0) + qty);
-    if (qtyById.get(itemId)! > MAX_QTY_PER_ITEM) {
-      res.status(400).json({ success: false, error: `You can order up to ${MAX_QTY_PER_ITEM} of one item at a time.` });
+    if (qtyById.get(itemId)! > rule('hotFoodMaxPerItem')) {
+      res.status(400).json({ success: false, error: `You can order up to ${rule('hotFoodMaxPerItem')} of one item at a time.` });
       return;
     }
   }
 
   // A few open orders at a time (a mistake or a prank should not fill a kitchen): pending, being made or ready, at any store
   const open = await prisma.hotFoodOrder.count({ where: { customerId: req.user!.id, status: { in: ['PENDING', 'ACCEPTED', 'READY'] } } });
-  if (open >= MAX_OPEN_ORDERS) {
+  if (open >= rule('hotFoodMaxOpenOrders')) {
     res.status(429).json({ success: false, code: 'TOO_MANY_OPEN_ORDERS', error: `You already have ${open} orders open. Pick them up or cancel one before ordering again.` });
     return;
   }
@@ -640,6 +645,10 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   }
   // Paying with points: the whole order, only when the balance covers all of it (no part payments)
   const payWithPoints = req.body?.payWithPoints === true;
+  if (payWithPoints && !feature('hotFoodPayWithPoints')) {
+    res.status(403).json({ success: false, code: 'POINTS_OFF', error: 'Paying with points is switched off right now. Pay at the counter.' });
+    return;
+  }
   if (payWithPoints && req.user!.role !== 'CUSTOMER') {
     res.status(403).json({ success: false, error: 'Only customer accounts can pay with points.' });
     return;
@@ -950,6 +959,7 @@ export async function clearHotFoodHours(req: AuthRequest, res: Response) {
  * customer choose where to pick up.
  */
 export async function getHotFoodPickupStores(_req: AuthRequest, res: Response) {
+  if (!feature('hotFoodOrdering')) { res.json({ success: true, data: [] }); return; }   // switched off in Settings
   const soon = new Date(Date.now() + 10 * 86_400_000);
   const recent = new Date(Date.now() - 2 * 86_400_000);
   const stores = await prisma.store.findMany({

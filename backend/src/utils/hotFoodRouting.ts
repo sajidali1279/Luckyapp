@@ -7,8 +7,9 @@ import { saveNotificationMany, sendPushToStoreEmployees, sendPushToStoreManagers
 import { sendExpoBatch } from './pushSend';
 import { workingAt } from './staffCheckIn';
 import { hotFoodOrderUrl } from './notificationRoutes';
+import { rule } from './appSettings';
 
-export const ESCALATE_MINUTES = 5;
+export const ESCALATE_MINUTES = 5;   // the default; Settings > Hot food (rule hotFoodEscalateMinutes)
 
 /**
  * The people working at a store at `now`: on a shift now and checked in there today, or not checked in anywhere today and scheduled there
@@ -40,7 +41,8 @@ export async function tellStoreAboutOrder(order: { id: string; storeId: string }
 
 /** Orders still waiting after ESCALATE_MINUTES, each once: the store's managers and everyone assigned there are told. Returns how many. */
 export async function escalateWaitingHotFoodOrders(now: Date = new Date()): Promise<number> {
-  const cutoff = new Date(now.getTime() - ESCALATE_MINUTES * 60_000);
+  const escalate = rule('hotFoodEscalateMinutes');
+  const cutoff = new Date(now.getTime() - escalate * 60_000);
   const waiting = await prisma.hotFoodOrder.findMany({
     where: { status: 'PENDING', escalatedAt: null, createdAt: { lt: cutoff } },
     select: { id: true, storeId: true, orderNumber: true, createdAt: true, store: { select: { name: true } } },
@@ -50,11 +52,11 @@ export async function escalateWaitingHotFoodOrders(now: Date = new Date()): Prom
     const claimed = await prisma.hotFoodOrder.updateMany({ where: { id: o.id, status: 'PENDING', escalatedAt: null }, data: { escalatedAt: now } });
     if (claimed.count === 0) continue;   // accepted, cancelled or escalated a moment ago
     done++;
-    const waited = Math.max(ESCALATE_MINUTES, Math.round((now.getTime() - o.createdAt.getTime()) / 60_000));
+    const waited = Math.max(escalate, Math.round((now.getTime() - o.createdAt.getTime()) / 60_000));
     await sendPushToStoreEmployees(o.storeId, `⏰ Order #${o.orderNumber} is waiting`,
       `A customer's hot food order at ${o.store.name} has waited ${waited} minutes. Accept it or decline it.`, 'HOT_FOOD_ORDER', hotFoodOrderUrl(o.id, o.storeId));
     await sendPushToStoreManagers(o.storeId, `⏰ Order #${o.orderNumber} at ${o.store.name} is waiting`,
-      `Nobody has accepted it in ${waited} minutes. Make sure someone at the store answers it; it cancels by itself at 20 minutes.`, 'HOT_FOOD_ORDER');
+      `Nobody has accepted it in ${waited} minutes. Make sure someone at the store answers it; it cancels by itself at ${rule('hotFoodAutoCancelMinutes')} minutes.`, 'HOT_FOOD_ORDER');
   }
   return done;
 }

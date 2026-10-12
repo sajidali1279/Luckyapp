@@ -571,6 +571,15 @@ export const hotFoodCombosApi = {
   remove: (id: string) => api.delete(`/hot-food/combos/${id}`),
 };
 
+// HQ settings (2026-10-12): rules, feature switches, business details and the history of every settings change
+export const settingsApi = {
+  get: () => api.get('/settings'),
+  saveRules: (values: Record<string, number>) => api.put('/settings/rules', { values }),
+  saveFeatures: (features: Record<string, boolean>) => api.put('/settings/features', { features }),
+  saveBusiness: (data: { supportPhone: string; supportEmail: string; supportHours: string }) => api.put('/settings/business', data),
+  history: (limit = 100) => api.get('/settings/history', { params: { limit } }),
+};
+
 export const hotFoodCatalogApi = {
   getAll: () => api.get('/hot-food/catalog'),
   create: (formData: FormData) =>

@@ -24,6 +24,7 @@ import { startWeeklySummaryCron } from './utils/weekly-summary';
 import { startPendingExpiryCron } from './utils/pending-expiry-cron';
 import { startPriceReminderCron } from './utils/price-reminder-cron';
 import { clientKey } from './utils/rateLimitKey';
+import { startSettingsRefresh } from './utils/appSettings';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -136,6 +137,7 @@ app.listen(PORT, () => {
   startOfferAnnounceCron();
   startOfferLastDayCron();
   startNoticeAnnounceCron();
+  startSettingsRefresh();   // HQ settings: read now and every 30 seconds (utils/appSettings.ts)
   startHotFoodAutoCancelCron();
   startMorningSummaryCron();
   startWeeklySummaryCron();

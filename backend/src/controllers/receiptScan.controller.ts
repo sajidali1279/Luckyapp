@@ -15,6 +15,7 @@ import { computeSaleCashback } from '../utils/saleCashback';
 import { gallonsFit } from '../utils/storeRules';
 import { noteBudgetUse } from '../utils/offerBudget';
 import { storeDateKey, storeDayStart, storeDaysBetween, startOfStoreDate } from '../utils/storeTime';
+import { rule } from '../utils/appSettings';
 import {
   RECEIPT_SCAN_KEY, READ_PROMPT, canScan, loadScanSettings, matchStore, parseRead, phoneKey, saleLines, type ReceiptRead,
 } from '../utils/receiptScan';
@@ -30,7 +31,7 @@ const READ_MODEL = 'claude-sonnet-5';
 export async function getScanAccess(req: AuthRequest, res: Response) {
   const settings = await loadScanSettings();
   const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { phone: true, role: true } });
-  res.json({ success: true, data: { enabled: !!user && canScan(settings, user), testing: settings.mode !== 'ALL' } });
+  res.json({ success: true, data: { enabled: !!user && canScan(settings, user), testing: settings.mode !== 'ALL', perDay: rule('receiptScansPerDay'), maxDays: rule('receiptMaxDays') } });
 }
 
 async function readReceipt(buffer: Buffer, mediaType: string): Promise<ReceiptRead | null> {
@@ -68,7 +69,8 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   if (!process.env.ANTHROPIC_API_KEY) { res.status(503).json({ success: false, error: 'Receipt reading is not set up on the server.' }); return; }
 
   const todays = await prisma.receiptScan.findMany({ where: { customerId: customer.id, createdAt: { gte: storeDayStart() } }, select: { status: true } });
-  if (todays.filter((t) => t.status !== 'ERROR').length >= MAX_SCANS_PER_DAY || todays.length >= MAX_TRIES_PER_DAY) { res.status(429).json({ success: false, code: 'TOO_MANY_SCANS', error: `You can scan ${MAX_SCANS_PER_DAY} receipts a day. Try again tomorrow.` }); return; }
+  const perDay = rule('receiptScansPerDay');
+  if (todays.filter((t) => t.status !== 'ERROR').length >= perDay || todays.length >= Math.max(MAX_TRIES_PER_DAY, perDay + 5)) { res.status(429).json({ success: false, code: 'TOO_MANY_SCANS', error: `You can scan ${perDay} receipts a day. Try again tomorrow.` }); return; }
 
   const imageHash = createHash('sha256').update(req.file.buffer).digest('hex');
   const used = await prisma.receiptScan.findUnique({ where: { imageHash }, select: { id: true } })
@@ -107,10 +109,11 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   const age = storeDaysBetween(read.date, todayKey);
   const receiptAt = read.time ? new Date(startOfStoreDate(read.date).getTime() + (Number(read.time.slice(0, 2)) * 60 + Number(read.time.slice(3))) * 60_000) : startOfStoreDate(read.date);
   if (age < 0) return refuseScan('The date on the receipt is in the future.', { storeId: store.id, receiptAt });
-  if (age > MAX_RECEIPT_DAYS) return refuseScan(`Receipts can be scanned for ${MAX_RECEIPT_DAYS} days. This one is from ${read.date}.`, { storeId: store.id, receiptAt });
+  const maxDays = rule('receiptMaxDays');
+  if (age > maxDays) return refuseScan(maxDays === 0 ? `Only today's receipts can be scanned. This one is from ${read.date}.` : `Receipts can be scanned for ${maxDays} days. This one is from ${read.date}.`, { storeId: store.id, receiptAt });
   const total = read.total ?? (read.subtotal != null ? read.subtotal + (read.tax ?? 0) : null);
   if (total == null || total <= 0) return refuseScan("We couldn't read the total on the receipt.", { storeId: store.id, receiptAt });
-  if (total > MAX_RECEIPT_TOTAL) return refuseScan(`Receipts over $${MAX_RECEIPT_TOTAL} can't be scanned. Ask the cashier.`, { storeId: store.id, receiptAt, total });
+  if (total > rule('receiptMaxTotal')) return refuseScan(`Receipts over $${rule('receiptMaxTotal')} can't be scanned. Ask the cashier.`, { storeId: store.id, receiptAt, total });
 
   // The same receipt photographed again (a different photo of it)
   const receiptKey = `${store.id}|${read.date}|${(read.receiptNumber ?? '').replace(/\s/g, '')}|${total.toFixed(2)}${read.receiptNumber ? '' : `|${read.time ?? ''}`}`;
@@ -163,8 +166,8 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
     const gallons = line.gallons != null && gallonsFit(line.amount, line.gallons) ? line.gallons : null;   // a misread is estimated from the store price instead
     const priced = await computeSaleCashback({ customer, storeId: store.id, purchaseAmount: line.amount, category: line.category, gasGallons: gallons, now });
     const lineFlags = [...flags, ...priced.rateCappedFlags];
-    if (line.amount > 500 && !priced.isGasCategory) lineFlags.push('HIGH_AMOUNT');
-    if (line.amount > 800) lineFlags.push('LARGE_PURCHASE');
+    if (line.amount > rule('reviewHighAmount') && !priced.isGasCategory) lineFlags.push('HIGH_AMOUNT');
+    if (line.amount > rule('reviewLargePurchase')) lineFlags.push('LARGE_PURCHASE');
     const sale = await prisma.pointsTransaction.create({
       data: {
         customerId: customer.id, grantedById: customer.id, storeId: store.id,
