@@ -103,6 +103,7 @@ import {
 } from '../controllers/schedule.controller';
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
+import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
   getUnreadCount as getSupportUnreadCount, updatePriority, getSupportStats,
@@ -697,6 +698,11 @@ router.delete('/hot-food/catalog/:id',                  authenticate, requireRol
 router.get('/hot-food/catalog/:id/stores',              authenticate, requireRole(Role.SUPER_ADMIN),   getHotFoodCatalogItemStores);
 router.post('/hot-food/catalog/:id/stores',             authenticate, requireRole(Role.SUPER_ADMIN),   assignHotFoodCatalogItemToStore);
 router.delete('/hot-food/catalog/:id/stores/:storeId',  authenticate, requireRole(Role.SUPER_ADMIN),   removeHotFoodCatalogItemFromStore);
+// Hot food combos (2026-10-12): an item with a drink the customer chooses, one price; HQ makes them, the app's menu shows them
+router.get('/hot-food/combos',          authenticate, requireRole(Role.SUPER_ADMIN),   listCombos);
+router.post('/hot-food/combos',         authenticate, requireRole(Role.SUPER_ADMIN),   createCombo);
+router.patch('/hot-food/combos/:id',    authenticate, requireRole(Role.SUPER_ADMIN),   updateCombo);
+router.delete('/hot-food/combos/:id',   authenticate, requireRole(Role.SUPER_ADMIN),   deleteCombo);
 
 // ─── Daily Reports ────────────────────────────────────────────────────────────
 router.post('/daily-reports',       authenticate, requireRole(Role.EMPLOYEE), upload.single('image'), createReport);

@@ -3066,5 +3066,24 @@
     "stRefused": "No aceptado",
     "stError": "No leído",
     "points": "{{points}} puntos"
+  },
+  "hotFoodCombos": {
+    "title": "Combos en oferta",
+    "featured": "Destacado",
+    "withDrink": "Con bebida: {{drinks}}",
+    "save": "Ahorra {{amount}}",
+    "hours": "Solo de {{from}} a {{to}}",
+    "add": "Agregar combo",
+    "addAnother": "Agregar otro ({{count}} en el pedido)",
+    "addA11y": "Agregar el combo {{name}}, {{price}}",
+    "chooseDrink": "Elige tu bebida",
+    "addToOrder": "Agregar al pedido, {{price}}",
+    "added": "{{name}} con {{drink}} agregado",
+    "closeA11y": "Cerrar la elección de bebida",
+    "drink_FOUNTAIN": "Refresco de máquina",
+    "drink_BOTTLE_20": "Botella de 20oz",
+    "drink_CAN_12": "Lata de 12oz",
+    "drink_COFFEE": "Café",
+    "drink_WATER": "Agua embotellada"
   }
 }

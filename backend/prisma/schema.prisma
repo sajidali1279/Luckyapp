@@ -1628,6 +1628,8 @@ model HotFoodOrderItem {
   orderId       String
   menuItemId    String? // null when ordered from catalog item
   catalogItemId String? // set when ordered from catalog item (no FK — name/price are snapshotted)
+  comboId       String? // set when ordered as a combo (no FK, the name with the drink and the price are snapshotted)
+  drink         String? // the drink the customer chose for a combo (utils/hotFoodCombos.ts DRINKS)
   name          String  // snapshot at order time
   price         Float   // snapshot at order time
   quantity      Int     @default(1)
@@ -1651,8 +1653,34 @@ model HotFoodCatalogItem {
   updatedAt        DateTime @updatedAt
 
   stores HotFoodCatalogStore[]
+  combos HotFoodCombo[]
 
   @@map("hot_food_catalog_items")
+}
+
+// A hot food combo (2026-10-12): one catalog item with a drink the customer chooses, for one price, set by HQ. Featured ones lead the
+// app's hot food menu. Available where the store has the item on; optionally only some stores and some hours (store time).
+model HotFoodCombo {
+  id            String   @id @default(uuid())
+  name          String
+  nameEs        String?
+  description   String?
+  catalogItemId String
+  drinks        String[]                    // the drinks the customer may choose (utils/hotFoodCombos.ts DRINKS)
+  price         Float
+  regularPrice  Float?                      // the item and the drink bought apart, for "Save $X" (kept within the deal limit)
+  storeIds      String[] @default([])       // empty: every store that has the item on
+  fromTime      String?                     // "HH:MM" store time; with toTime, only then (e.g. coffee combos 05:00 to 11:00)
+  toTime        String?
+  isFeatured    Boolean  @default(true)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  catalogItem HotFoodCatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@map("hot_food_combos")
 }
 
 model HotFoodCatalogStore {

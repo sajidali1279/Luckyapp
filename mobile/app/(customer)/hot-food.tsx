@@ -33,6 +33,7 @@ import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTit
 import { sized } from '../../utils/imageUrl';
 import { byDistance, choosePickup, closerStore, locationQuality, loadSavedPickup, savePickup, addressLine, openDirections, milesText, FAR_MILES, type Here, type PickupStore } from '../../utils/pickupStore';
 import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } from '../../components/HotFoodPickup';
+import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../components/HotFoodCombos';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ interface MenuItem {
   imageUrl?: string;
 }
 
-interface CartItem extends MenuItem { qty: number }
+interface CartItem extends MenuItem { qty: number; comboId?: string; drink?: string }   // a combo line: its drink too
 
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -368,7 +369,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced }: {
   const placeMutation = useMutation({
     mutationFn: () => hotFoodApi.placeOrder({
       storeId: store.id,
-      items: cart.map(i => ({ menuItemId: i.id, quantity: i.qty })),
+      items: cart.map(i => (i.comboId && i.drink ? { comboId: i.comboId, drink: i.drink, quantity: i.qty } : { menuItemId: i.id, quantity: i.qty })),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(payWithPoints ? { payWithPoints: true } : {}),
       expectedTotal: Math.round(total * 100) / 100,
@@ -637,6 +638,8 @@ export default function CustomerHotFoodScreen() {
     refetchInterval: 60_000,   // the open / closed line follows the clock
   });
   const menuItems: MenuItem[] = menuData?.data?.data || [];
+  const combos: Combo[] = Array.isArray(menuData?.data?.combos) ? menuData.data.combos : [];
+  const comboWords = useComboWords();
   const [search, setSearch] = useState('');
   const shownItems = search.trim()
     ? menuItems.filter((m) => `${m.name} ${m.description ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
@@ -645,7 +648,8 @@ export default function CustomerHotFoodScreen() {
     if (!menuData) return;
     setCart((prev) => {
       if (prev.length === 0) return prev;
-      const byId = new Map(menuItems.map((m) => [m.id, m]));
+      const byId = new Map<string, { price: number; name: string }>(menuItems.map((m) => [m.id, m]));
+      for (const c of combos) for (const d of c.drinks) byId.set(comboCartId(c.id, d), { price: c.price, name: `${comboWords.name(c)} + ${comboWords.drink(d)}` });
       const gone = prev.filter((c) => !byId.has(c.id));
       const next = prev.filter((c) => byId.has(c.id)).map((c) => ({ ...c, price: byId.get(c.id)!.price, name: byId.get(c.id)!.name }));
       const repriced = prev.some((c) => byId.has(c.id) && byId.get(c.id)!.price !== c.price);
@@ -705,6 +709,17 @@ export default function CustomerHotFoodScreen() {
       return [...prev, { ...item, qty: 1 }];
     });
   }, []);
+
+  function addCombo(combo: Combo, drink: string) {
+    const id = comboCartId(combo.id, drink);
+    setCart(prev => {
+      const existing = prev.find(c => c.id === id);
+      if (existing) return prev.map(c => c.id === id ? { ...c, qty: Math.min(MAX_PER_ITEM, c.qty + 1) } : c);
+      return [...prev, { id, name: `${comboWords.name(combo)} + ${comboWords.drink(drink)}`, price: combo.price, imageUrl: combo.item.imageUrl ?? undefined, qty: 1, comboId: combo.id, drink }];
+    });
+    Toast.show({ type: 'success', text1: t('hotFoodCombos.added', { name: comboWords.name(combo), drink: comboWords.drink(drink) }) });
+  }
+  const comboCount = useCallback((comboId: string) => cart.filter(c => c.comboId === comboId).reduce((n, c) => n + c.qty, 0), [cart]);
 
   const removeFromCart = useCallback((item: MenuItem) => {
     setCart(prev => {
@@ -820,18 +835,23 @@ export default function CustomerHotFoodScreen() {
             <FadeSlideIn style={{ flex: 1 }}>
               <FlatList
                 data={shownItems}
-                ListHeaderComponent={menuItems.length > 8 ? (
-                  <TextInput
-                    style={s.search}
-                    value={search}
-                    onChangeText={setSearch}
-                    placeholder={t('customerHotFood.searchMenu')}
-                    placeholderTextColor="#94A3B8"
-                    returnKeyType="search"
-                    clearButtonMode="while-editing"
-                    accessibilityLabel={t('customerHotFood.searchMenu')}
-                  />
-                ) : null}
+                ListHeaderComponent={
+                  <View>
+                    {!search.trim() && <ComboStrip combos={combos} closed={closed} countOf={comboCount} onAdd={addCombo} />}
+                    {menuItems.length > 8 ? (
+                      <TextInput
+                        style={s.search}
+                        value={search}
+                        onChangeText={setSearch}
+                        placeholder={t('customerHotFood.searchMenu')}
+                        placeholderTextColor="#94A3B8"
+                        returnKeyType="search"
+                        clearButtonMode="while-editing"
+                        accessibilityLabel={t('customerHotFood.searchMenu')}
+                      />
+                    ) : null}
+                  </View>
+                }
                 ListEmptyComponent={search.trim() ? <Text style={s.searchEmpty}>{t('customerHotFood.searchNothing', { text: search.trim() })}</Text> : null}
                 keyboardShouldPersistTaps="handled"
                 keyExtractor={item => item.id}

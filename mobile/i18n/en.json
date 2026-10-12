@@ -3066,5 +3066,24 @@
     "stRefused": "Not accepted",
     "stError": "Not read",
     "points": "{{points}} points"
+  },
+  "hotFoodCombos": {
+    "title": "Combo deals",
+    "featured": "Featured",
+    "withDrink": "With a drink: {{drinks}}",
+    "save": "Save {{amount}}",
+    "hours": "{{from}} to {{to}} only",
+    "add": "Add combo",
+    "addAnother": "Add another ({{count}} in order)",
+    "addA11y": "Add the {{name}} combo, {{price}}",
+    "chooseDrink": "Choose your drink",
+    "addToOrder": "Add to order, {{price}}",
+    "added": "{{name}} with {{drink}} added",
+    "closeA11y": "Close the drink choice",
+    "drink_FOUNTAIN": "Fountain drink",
+    "drink_BOTTLE_20": "20oz bottle",
+    "drink_CAN_12": "12oz can",
+    "drink_COFFEE": "Coffee",
+    "drink_WATER": "Bottled water"
   }
 }

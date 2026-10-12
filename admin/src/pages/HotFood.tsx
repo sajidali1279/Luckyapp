@@ -11,6 +11,7 @@ import {
 import ConfirmModal from '../components/ConfirmModal';
 import HotFoodHoursModal, { hotFoodNowText, HotFoodNow } from '../components/HotFoodHoursModal';
 import HotFoodImportModal from '../components/HotFoodImportModal';
+import HotFoodCombosPanel from '../components/HotFoodCombosPanel';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
@@ -19,7 +20,7 @@ import Glyph from '../components/Glyph';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MainView   = 'orders' | 'catalog' | 'availability';
+type MainView   = 'orders' | 'catalog' | 'combos' | 'availability';
 type OrderTab   = 'PENDING' | 'ACCEPTED' | 'READY' | 'ALL';
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -556,7 +557,7 @@ export default function HotFood() {
   const { data: catalogData, isLoading: catalogLoading, isError: catalogError, refetch: refetchCatalog } = useQuery({
     queryKey: ['hot-food-catalog'],
     queryFn: hotFoodCatalogApi.getAll,
-    enabled: view === 'catalog',
+    enabled: view === 'catalog' || view === 'combos',   // the combos pick their item from the catalog
     staleTime: 2 * 60_000,
   });
   const catalogItems: CatalogItem[] = catalogData?.data?.data ?? [];
@@ -591,6 +592,8 @@ export default function HotFood() {
           ? pendingCount > 0 ? `${pendingCount} pending order${pendingCount !== 1 ? 's' : ''} · auto-refreshes every 20s` : 'Live order board · auto-refreshes every 20s'
           : view === 'catalog'
           ? `${catalogItems.length} item${catalogItems.length !== 1 ? 's' : ''} in catalog`
+          : view === 'combos'
+          ? 'Hot food with a drink, one price; featured ones lead the app menu'
           : `${stores.filter(s => s.hotFoodEnabled).length} of ${stores.length} stores taking orders`}
         actions={view === 'orders' ? (
           <Button icon={<RefreshCw style={isRefetching ? { animation: 'spin 1s linear infinite' } : {}} />} onClick={() => refetch()}>Refresh</Button>
@@ -609,6 +612,7 @@ export default function HotFood() {
         tabs={[
           { value: 'orders', label: 'Orders', count: pendingCount > 0 ? pendingCount : undefined },
           { value: 'catalog', label: 'Catalog' },
+          { value: 'combos', label: 'Combos' },
           { value: 'availability', label: 'Availability' },
         ]}
       />
@@ -738,6 +742,8 @@ export default function HotFood() {
       )}
 
       {/* ── Availability view ───────────────────────────────────────────── */}
+      {view === 'combos' && <HotFoodCombosPanel catalog={catalogItems} stores={stores} />}
+
       {view === 'availability' && (
         <>
           <p style={pg.availabilityHint}>

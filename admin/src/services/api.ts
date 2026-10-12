@@ -559,6 +559,18 @@ export const hotFoodApi = {
   getStoresStatus: () => api.get('/hot-food/stores-status'),
 };
 
+// Hot food combos (HQ, 2026-10-12): an item with a drink the customer chooses, one price; featured ones lead the app's menu
+export type HotFoodComboInput = {
+  name: string; nameEs?: string | null; description?: string | null; catalogItemId: string; drinks: string[]; price: number;
+  regularPrice?: number | null; storeIds: string[]; fromTime?: string | null; toTime?: string | null; isFeatured: boolean; isActive: boolean;
+};
+export const hotFoodCombosApi = {
+  list: () => api.get('/hot-food/combos'),
+  create: (data: HotFoodComboInput) => api.post('/hot-food/combos', data),
+  update: (id: string, data: HotFoodComboInput | { isActive?: boolean; isFeatured?: boolean }) => api.patch(`/hot-food/combos/${id}`, data),
+  remove: (id: string) => api.delete(`/hot-food/combos/${id}`),
+};
+
 export const hotFoodCatalogApi = {
   getAll: () => api.get('/hot-food/catalog'),
   create: (formData: FormData) =>
