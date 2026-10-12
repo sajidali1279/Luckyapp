@@ -54,6 +54,7 @@ import {
   ChevronRight,
   Barcode,
   Printer,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -387,6 +388,7 @@ export function AppSidebar() {
                   {isSuperAdmin && (
                     <SidebarNavItem to="/my-billing" icon={<CreditCard size={16} />} label="Billing" badge={billingPendingCount} />
                   )}
+                  <SidebarNavItem to="/settings" icon={<SlidersHorizontal size={16} />} label="Settings" />
                   <SidebarNavItem
                     to="/notifications"
                     icon={<Bell size={16} />}

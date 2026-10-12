@@ -14,10 +14,9 @@ import CombinedInvoiceModal from '../components/CombinedInvoiceModal';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { Link } from 'react-router-dom';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
-import { PageHeader, Tabs, Button, MenuButton, HowItWorks } from '../components/kit';
+import { PageHeader, Tabs, Button, MenuButton, HowItWorks, Notice } from '../components/kit';
 import { Download, FilePlus2, CalendarRange, Send, FlaskConical, ListChecks } from 'lucide-react';
 import Glyph from '../components/Glyph';
-import AppVersionsCard from '../components/AppVersionsCard';
 
 type Tab = 'stores' | 'monthly' | 'manual' | 'settings';
 
@@ -494,7 +493,7 @@ export default function Billing() {
           { value: 'stores', label: 'Stores' },
           { value: 'monthly', label: 'Monthly Bills', count: billingPendingCount > 0 ? billingPendingCount : undefined },
           { value: 'manual', label: 'Manual Charges' },
-          { value: 'settings', label: 'Platform Settings' },
+          { value: 'settings', label: 'Fees' },
         ]}
       />
 
@@ -1163,7 +1162,7 @@ export default function Billing() {
             )}
           </div>
 
-          <AppVersionsCard />
+          <Notice>App updates (the oldest app version allowed) moved to <Link to="/settings?tab=app">Settings &gt; App</Link>.</Notice>
         </div>
         </>
       )}

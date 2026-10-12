@@ -8,7 +8,7 @@ import { referralsApi, type ReferralSettings } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { storeDayLong } from '../lib/storeDates';
 import { C, FONT, INPUT } from '../lib/theme';
-import { Card, SectionTitle, StatTile, Badge, Button, Chip, EmptyState, Field, HowItWorks } from './kit';
+import { Card, SectionTitle, StatTile, Badge, Button, Chip, EmptyState, Field, HowItWorks, Notice } from './kit';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table';
 import ErrorState from './ErrorState';
 import CardSkeleton from './CardSkeleton';
@@ -18,7 +18,8 @@ const TONE: Record<string, 'success' | 'warning' | 'neutral'> = { REWARDED: 'suc
 const WORD: Record<string, string> = { REWARDED: 'Paid', PENDING: 'Waiting for a purchase', EXPIRED: 'Expired', CANCELLED: 'Cancelled' };
 const th = { fontSize: FONT.caption, fontWeight: 600, color: C.muted, whiteSpace: 'nowrap' as const };
 
-export default function ReferralsPanel() {
+/** part: 'list' = the numbers, every referral and the leaders (Customers > Referrals); 'deal' = the deal only (Settings > Rewards). */
+export default function ReferralsPanel({ part = 'list' }: { part?: 'list' | 'deal' }) {
   const qc = useQueryClient();
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -48,6 +49,28 @@ export default function ReferralsPanel() {
   const set = (k: keyof ReferralSettings, v: string) => setForm((f) => ({ ...f!, [k]: v.replace(/[^0-9.]/g, '') }));
   const s = d.settings as ReferralSettings;
   const changed = enabled !== s.enabled || (['referrerReward', 'friendReward', 'minPurchase', 'monthlyLimit', 'windowDays'] as const).some((k) => Number(form[k]) !== s[k]);
+
+  const dealCard = (
+        <Card>
+          <SectionTitle>The deal</SectionTitle>
+          <HowItWorks>
+            A customer shares their code from the app. When the friend's first purchase of at least the minimum is approved within the window, both are
+            paid in credits at that store (the store's platform fee applies, like a challenge reward). Changes apply to rewards paid from now on.
+          </HowItWorks>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: FONT.body, marginBottom: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> Accept invite codes
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 14 }}>
+            <Field label="Person who shared gets ($)" htmlFor="r-ref"><input id="r-ref" style={INPUT} inputMode="decimal" value={form.referrerReward} onChange={(e) => set('referrerReward', e.target.value)} /></Field>
+            <Field label="New friend gets ($)" htmlFor="r-fr"><input id="r-fr" style={INPUT} inputMode="decimal" value={form.friendReward} onChange={(e) => set('friendReward', e.target.value)} /></Field>
+            <Field label="Friend's purchase at least ($)" htmlFor="r-min"><input id="r-min" style={INPUT} inputMode="decimal" value={form.minPurchase} onChange={(e) => set('minPurchase', e.target.value)} /></Field>
+            <Field label="Paid friends per person a month" htmlFor="r-lim"><input id="r-lim" style={INPUT} inputMode="numeric" value={form.monthlyLimit} onChange={(e) => set('monthlyLimit', e.target.value)} /></Field>
+            <Field label="Days the friend has to buy" htmlFor="r-days"><input id="r-days" style={INPUT} inputMode="numeric" value={form.windowDays} onChange={(e) => set('windowDays', e.target.value)} /></Field>
+          </div>
+          <Button variant="primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
+        </Card>
+  );
+  if (part === 'deal') return dealCard;
 
   return (
     <>
@@ -89,25 +112,8 @@ export default function ReferralsPanel() {
           </div>
         )}
       </Card>
+      <Notice style={{ marginBottom: 16 }}>The deal (rewards, minimum purchase, limits, on or off) is in <Link to="/settings?tab=rewards">Settings &gt; Rewards</Link>.</Notice>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 16 }}>
-        <Card>
-          <SectionTitle>The deal</SectionTitle>
-          <HowItWorks>
-            A customer shares their code from the app. When the friend's first purchase of at least the minimum is approved within the window, both are
-            paid in credits at that store (the store's platform fee applies, like a challenge reward). Changes apply to rewards paid from now on.
-          </HowItWorks>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: FONT.body, marginBottom: 12, cursor: 'pointer' }}>
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> Accept invite codes
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 14 }}>
-            <Field label="Person who shared gets ($)" htmlFor="r-ref"><input id="r-ref" style={INPUT} inputMode="decimal" value={form.referrerReward} onChange={(e) => set('referrerReward', e.target.value)} /></Field>
-            <Field label="New friend gets ($)" htmlFor="r-fr"><input id="r-fr" style={INPUT} inputMode="decimal" value={form.friendReward} onChange={(e) => set('friendReward', e.target.value)} /></Field>
-            <Field label="Friend's purchase at least ($)" htmlFor="r-min"><input id="r-min" style={INPUT} inputMode="decimal" value={form.minPurchase} onChange={(e) => set('minPurchase', e.target.value)} /></Field>
-            <Field label="Paid friends per person a month" htmlFor="r-lim"><input id="r-lim" style={INPUT} inputMode="numeric" value={form.monthlyLimit} onChange={(e) => set('monthlyLimit', e.target.value)} /></Field>
-            <Field label="Days the friend has to buy" htmlFor="r-days"><input id="r-days" style={INPUT} inputMode="numeric" value={form.windowDays} onChange={(e) => set('windowDays', e.target.value)} /></Field>
-          </div>
-          <Button variant="primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
-        </Card>
         <Card>
           <SectionTitle>Bring the most friends</SectionTitle>
           {d.topReferrers.length === 0 ? <EmptyState title="Nobody has been paid for a friend yet" /> : d.topReferrers.map((p: any) => (

@@ -20,6 +20,7 @@ import Privacy from './pages/Privacy';
 const Dashboard              = lazy(() => import('./pages/Dashboard'));
 const StoreManagerDashboard  = lazy(() => import('./pages/StoreManagerDashboard'));
 const Billing                = lazy(() => import('./pages/Billing'));
+const Settings               = lazy(() => import('./pages/Settings'));
 const Analytics              = lazy(() => import('./pages/Analytics'));
 const Offers                 = lazy(() => import('./pages/Offers'));
 const Banners                = lazy(() => import('./pages/Banners'));
@@ -167,6 +168,7 @@ export default function App() {
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/rates" element={<Rates />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="/stores" element={<Stores />} />
                 <Route path="/activity" element={<ActivityLog />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />

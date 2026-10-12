@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { CheckCircle2, Printer, Sparkles, Wrench, Link2, Lightbulb, RotateCcw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { labelsApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, RADIUS } from '../lib/theme';
@@ -257,7 +258,7 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
               </details>
             </Card>
           )}
-          {view === 'settings' && <DealLimitsCard />}
+          {view === 'settings' && <Notice style={{ marginBottom: 12 }}>Deal limits (how much a suggestion may take off, per category) are in <Link to="/settings?tab=deals">Settings &gt; Deals</Link>.</Notice>}
           {view === 'settings' && learning.length > 0 && (
             <Card padding={0}>
               <details open data-testid="deal-learning">
@@ -433,7 +434,7 @@ const s: Record<string, React.CSSProperties> = {
 
 /** HQ's max discount per category (Labels > Deals): what keeps a suggested deal from costing the owner too much, since the system has no
  *  cost per item. A category can also be left out (Tobacco by default). */
-function DealLimitsCard() {
+export function DealLimitsCard() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ['deal-settings'], queryFn: () => labelsApi.getDealSettings() });
   const saved: Limits | undefined = data?.data?.data?.limits;

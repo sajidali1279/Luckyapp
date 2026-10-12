@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { pointsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -18,7 +18,6 @@ import { useDialog } from '../hooks/useDialog';
 import { PageHeader, HeaderStat, Button } from '../components/kit';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
-import ReceiptScanPanel from '../components/ReceiptScanPanel';
 
 const CATEGORIES = [
   { value: 'GAS', label: 'Gas' },
@@ -440,7 +439,7 @@ export default function Transactions() {
         )}
       />
 
-      {isSuperAdmin && <ReceiptScanPanel />}
+      {isSuperAdmin && <p style={{ fontSize: 13, color: TEXT_MUTED, margin: '0 0 12px' }}>Receipt scanning (who can use it, the latest scans) is in <Link to="/settings?tab=app" style={{ color: PRIMARY, fontWeight: 600 }}>Settings &gt; App</Link>.</p>}
 
       {/* ── Filters ── */}
       <div style={s.filterBar}>
