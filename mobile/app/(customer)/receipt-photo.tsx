@@ -9,14 +9,15 @@ import RefreshControl from '../../components/AppRefreshControl';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import BackButton from '../../components/BackButton';
 import ErrorState from '../../components/ErrorState';
-import { receiptScanApi } from '../../services/api';
+import { receiptScanApi, authApi } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { haptic } from '../../utils/haptics';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 // Scan a receipt (2026-10-11, in testing): the customer photographs a paper receipt that did not get points at the register. The server
 // reads it and holds it for the store to approve; nothing is credited here. Only customers HQ allows see this (receipt-scan/access).
-type Result = { status: 'HELD'; store: string; date: string; total: number; points: number; lines: { category: string; amount: number }[] };
+type Result = { status: 'HELD' | 'APPROVED'; store: string; date: string; total: number; points: number; lines: { category: string; amount: number }[] };
 const CAT_KEYS: Record<string, string> = {
   GAS: 'catGas', DIESEL: 'catDiesel', HOT_FOODS: 'catHotFoods', GROCERIES: 'catGroceries',
   FROZEN_FOODS: 'catFrozenFoods', FRESH_FOODS: 'catFreshFoods', OTHER: 'catOther',
@@ -60,6 +61,10 @@ export default function ReceiptPhotoScreen() {
       const { data } = await receiptScanApi.send(photo);
       haptic.success();
       setResult(data.data); setPhoto(null);
+      if (data.data?.status === 'APPROVED') {
+        // credited at once: the balance shown in the app is read again
+        authApi.getMe().then(({ data: me }) => { if (typeof me?.data?.pointsBalance === 'number') useAuthStore.getState().updateBalance(me.data.pointsBalance); }).catch(() => {});
+      }
       qc.invalidateQueries({ queryKey: ['receipt-scan-mine'] });
     } catch (e: any) {
       haptic.error();
@@ -102,15 +107,15 @@ export default function ReceiptPhotoScreen() {
               {result ? (
                 <View style={[st.card, st.doneCard]} accessibilityLiveRegion="polite">
                   <Ionicons name="checkmark-circle" size={40} color="#17663A" />
-                  <Text style={st.cardTitle} accessibilityRole="header">{t('receiptPhoto.sentTitle')}</Text>
-                  <Text style={st.body}>{t('receiptPhoto.sentBody', { store: result.store, total: money(result.total) })}</Text>
+                  <Text style={st.cardTitle} accessibilityRole="header">{result.status === 'APPROVED' ? t('receiptPhoto.approvedTitle') : t('receiptPhoto.sentTitle')}</Text>
+                  <Text style={st.body}>{result.status === 'APPROVED' ? t('receiptPhoto.approvedBody', { store: result.store, total: money(result.total) }) : t('receiptPhoto.sentBody', { store: result.store, total: money(result.total) })}</Text>
                   {result.lines.map((l, i) => (
                     <View key={i} style={st.lineRow}>
                       <Text style={st.lineName}>{t(`customerScanReceipt.${CAT_KEYS[l.category] ?? 'catOther'}`)}</Text>
                       <Text style={st.lineAmt}>{money(l.amount)}</Text>
                     </View>
                   ))}
-                  <Text style={st.estimate}>{t('receiptPhoto.estimate', { points: result.points })}</Text>
+                  <Text style={st.estimate}>{result.status === 'APPROVED' ? t('receiptPhoto.added', { points: result.points }) : t('receiptPhoto.estimate', { points: result.points })}</Text>
                   <TouchableOpacity style={st.secondaryBtn} onPress={() => setResult(null)} accessibilityRole="button">
                     <Text style={st.secondaryBtnText}>{t('receiptPhoto.another')}</Text>
                   </TouchableOpacity>

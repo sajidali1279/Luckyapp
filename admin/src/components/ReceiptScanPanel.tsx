@@ -21,6 +21,7 @@ const money = (n: number | null | undefined) => (n == null ? '' : `$${Number(n).
 
 function outcome(scan: any): { word: string; tone: 'success' | 'danger' | 'warning' | 'neutral' } {
   if (scan.status === 'REFUSED') return { word: 'Refused', tone: 'neutral' };
+  if (scan.status === 'AUTO') return { word: 'Approved automatically', tone: 'success' };
   if (scan.status === 'ERROR') return { word: 'Could not read', tone: 'danger' };
   const sales: any[] = scan.sales ?? [];
   if (sales.length && sales.every((x) => x.status === 'APPROVED')) return { word: 'Approved', tone: 'success' };
@@ -64,8 +65,9 @@ export default function ReceiptScanPanel() {
           <HowItWorks style={{ marginBottom: 14 }}>
             The customer takes a photo of their paper receipt in the app. AI reads the store, date, total and lines; the checks refuse a photo used
             before, the same receipt twice, receipts older than 3 days, other stores' receipts and ones the cashier already gave points for. What
-            passes becomes held sales (one per category) with the photo, and the store's managers and HQ are told. Nothing is credited until someone
-            approves it in the list below, like any held sale. Each customer can scan 3 receipts a day.
+            passes becomes sales (one per category) with the photo. A clean scan under the limit is credited at once (a random share is still held
+            as a spot check); anything unclear is held, and the store's managers and HQ are told, to approve in the list below like any held sale.
+            The same receipt photographed again is caught even when it is read a little differently. The limits are below.
           </HowItWorks>
           {q.isLoading ? <div style={{ color: TEXT_MUTED }}>Loading…</div> : q.isError || !saved ? <Notice tone="danger">Could not load the receipt scanning settings.</Notice> : (
             <>

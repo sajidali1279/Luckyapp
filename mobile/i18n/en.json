@@ -3050,7 +3050,7 @@
     "cardBody": "Didn't get points at the register? Send a photo of the receipt.",
     "title": "Scan a receipt",
     "subtitle": "Points for a purchase you forgot to scan",
-    "testingNote": "You are testing this. Every receipt is checked by the store before the points are added.",
+    "testingNote": "You are testing this. Clear receipts are approved at once; others are checked by the store first.",
     "notAvailable": "Scanning receipts is not available for your account yet.",
     "loadError": "Could not load this page.",
     "howTitle": "How to take the photo",
@@ -3068,7 +3068,7 @@
     "slow": "This is taking too long. Check your connection and try again.",
     "sendFailed": "The receipt could not be sent. Try again.",
     "sentTitle": "Sent for review",
-    "sentBody": "Your {{total}} receipt from {{store}} is with the store. You get the points once they approve it, usually within a day.",
+    "sentBody": "Your {{total}} receipt from {{store}} is being checked. You get the points once it is approved.",
     "estimate": "About {{points}} points",
     "another": "Scan another receipt",
     "mine": "Your receipts",
@@ -3078,7 +3078,10 @@
     "stRejected": "Not approved",
     "stRefused": "Not accepted",
     "stError": "Not read",
-    "points": "{{points}} points"
+    "points": "{{points}} points",
+    "approvedTitle": "Approved",
+    "approvedBody": "Your {{total}} receipt from {{store}} was approved.",
+    "added": "{{points}} points added"
   },
   "hotFoodCombos": {
     "title": "Combo deals",

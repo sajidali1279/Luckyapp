@@ -54,6 +54,8 @@ const FRAUD_FLAG_LABELS: Record<string, string> = {
   TOTALS_DIFFER:     'The lines do not add up to the subtotal',
   NO_RECEIPT_NUMBER: 'No receipt number on the photo',
   NO_TIME:           'No time on the photo',
+  SPOT_CHECK:        'A clean scan picked at random for a check',
+  RECEIPT_SCANNED:   'The customer scanned a receipt here in the last 3 hours: maybe the same purchase',
 };
 
 function fmt$(n: number) {

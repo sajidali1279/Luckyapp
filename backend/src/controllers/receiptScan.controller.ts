@@ -16,6 +16,11 @@ import { gallonsFit } from '../utils/storeRules';
 import { noteBudgetUse } from '../utils/offerBudget';
 import { storeDateKey, storeDayStart, storeDaysBetween, startOfStoreDate } from '../utils/storeTime';
 import { rule } from '../utils/appSettings';
+import { sameReceipt, cleanRead } from '../utils/receiptScan';
+import { approveAndCredit } from '../utils/saleDecision';
+import { pushChallengeAwards } from '../utils/challenges';
+import { pushReferralAwards } from '../utils/referrals';
+import { updateCustomerTierIfNeeded } from '../utils/tier';
 import {
   RECEIPT_SCAN_KEY, READ_PROMPT, canScan, loadScanSettings, matchStore, parseRead, phoneKey, saleLines, type ReceiptRead,
 } from '../utils/receiptScan';
@@ -115,9 +120,19 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   if (total == null || total <= 0) return refuseScan("We couldn't read the total on the receipt.", { storeId: store.id, receiptAt });
   if (total > rule('receiptMaxTotal')) return refuseScan(`Receipts over $${rule('receiptMaxTotal')} can't be scanned. Ask the cashier.`, { storeId: store.id, receiptAt, total });
 
-  // The same receipt photographed again (a different photo of it)
+  // The same receipt photographed again (a different photo of it). It is never read exactly the same way twice, so the exact key below
+  // is backed by a near match (utils/receiptScan.ts sameReceipt): same store, date and total, then the same receipt digits or time
   const receiptKey = `${store.id}|${read.date}|${(read.receiptNumber ?? '').replace(/\s/g, '')}|${total.toFixed(2)}${read.receiptNumber ? '' : `|${read.time ?? ''}`}`;
   if (await prisma.receiptScan.findUnique({ where: { receiptKey }, select: { id: true } })) {
+    return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
+  }
+  const dayStart = startOfStoreDate(read.date);
+  const sameDay = await prisma.receiptScan.findMany({
+    where: { storeId: store.id, status: { in: ['HELD', 'AUTO'] }, receiptAt: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 3600_000) }, total: { gte: total - 0.005, lte: total + 0.005 } },
+    select: { customerId: true, read: true },
+  });
+  const here = { customerId: customer.id, date: read.date, time: read.time, receiptNumber: read.receiptNumber, total };
+  if (sameDay.some((s) => { const r = (s.read ?? {}) as any; return sameReceipt(here, { customerId: s.customerId, date: r.date ?? null, time: r.time ?? null, receiptNumber: r.receiptNumber ?? null, total }); })) {
     return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
   }
   // Points already given at the register for this purchase
@@ -184,16 +199,54 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   }
   await prisma.receiptScan.update({ where: { id: scanId }, data: { imageUrl, transactionIds: created.map((c) => c.id) } });
 
-  // The people who review held sales at that store are told
-  const who = customer.name || 'A customer';
-  for (const id of await flaggedSaleRecipientIds(store.id)) {
-    sendPushToUser(id, '📸 Receipt scan to review', `${who} scanned a $${total.toFixed(2)} receipt from ${store.name}. Check the photo and approve or reject it.`, 'ALERT');
+  // A clean scan is credited at once (Settings > Receipt scanning): clearly read, nothing odd, under the amount, an account that is not
+  // brand new, under the weekly number, and not picked for the random spot check. Everything else waits for a manager.
+  const lineFlagsAll = await prisma.pointsTransaction.findMany({ where: { id: { in: created.map((c) => c.id) } }, select: { fraudFlags: true } });
+  const allFlags = [...new Set(lineFlagsAll.flatMap((l) => { try { return JSON.parse(l.fraudFlags ?? '[]') as string[]; } catch { return ['UNREADABLE']; } }))];
+  const accountDays = customer.createdAt ? (now.getTime() - new Date(customer.createdAt).getTime()) / 86_400_000 : 0;
+  const autoThisWeek = await prisma.receiptScan.count({ where: { customerId: customer.id, status: 'AUTO', createdAt: { gte: new Date(now.getTime() - 7 * 86_400_000) } } });
+  const clean = cleanRead(read, allFlags) && total <= rule('receiptAutoApproveMax') && accountDays >= rule('receiptAutoMinAccountDays') && autoThisWeek < rule('receiptAutoPerWeek');
+  const spotCheck = clean && Math.random() * 100 < rule('receiptSpotCheckPercent');
+  let approved = false;
+  if (clean && !spotCheck) {
+    let latest: any = null;
+    for (const c of created) {
+      const sale = await prisma.pointsTransaction.findUnique({ where: { id: c.id } });
+      if (!sale) continue;
+      const credited = await prisma.$transaction((db) => approveAndCredit(db, sale, TransactionStatus.FLAGGED));
+      if (credited) {
+        latest = credited;
+        pushChallengeAwards(credited.challengeAwards).catch(() => {});
+        pushReferralAwards(credited.referralAwards).catch(() => {});
+      }
+    }
+    if (latest) {
+      approved = true;
+      await updateCustomerTierIfNeeded(customer.id, latest.periodPoints, latest.tier).catch(() => {});
+      await prisma.receiptScan.update({ where: { id: scanId }, data: { status: 'AUTO', flags: JSON.stringify([...flags, 'AUTO_APPROVED']) } });
+      sendPushToUser(customer.id, '💰 Receipt approved', `Your $${total.toFixed(2)} receipt from ${store.name} was approved. ${created.reduce((n, c) => n + c.points, 0)} pts added.`, 'POINTS');
+    }
+  }
+  if (!approved) {
+    if (spotCheck) {
+      await prisma.receiptScan.update({ where: { id: scanId }, data: { flags: JSON.stringify([...flags, 'SPOT_CHECK']) } });
+      for (const c of created) {
+        const sale = await prisma.pointsTransaction.findUnique({ where: { id: c.id }, select: { fraudFlags: true } });
+        const f = (() => { try { return JSON.parse(sale?.fraudFlags ?? '[]') as string[]; } catch { return [] as string[]; } })();
+        await prisma.pointsTransaction.update({ where: { id: c.id }, data: { fraudFlags: JSON.stringify([...f, 'SPOT_CHECK']) } });
+      }
+    }
+    // The people who review held sales at that store are told
+    const who = customer.name || 'A customer';
+    for (const id of await flaggedSaleRecipientIds(store.id)) {
+      sendPushToUser(id, '📸 Receipt scan to review', `${who} scanned a $${total.toFixed(2)} receipt from ${store.name}. Check the photo and approve or reject it.`, 'ALERT');
+    }
   }
   audit({ actorId: customer.id, actorName: customer.name, actorRole: customer.role, action: 'RECEIPT_SCAN', entity: 'transaction', entityId: created[0].id,
-    details: { summary: `Scanned a $${total.toFixed(2)} receipt from ${store.name} (${read.date}); held for review`, flags }, storeId: store.id });
+    details: { summary: `Scanned a $${total.toFixed(2)} receipt from ${store.name} (${read.date}); ${approved ? 'approved at once' : spotCheck ? 'held as a spot check' : 'held for review'}`, flags }, storeId: store.id });
 
   res.status(201).json({ success: true, data: {
-    status: 'HELD', store: store.name, date: read.date, time: read.time, total,
+    status: approved ? 'APPROVED' : 'HELD', store: store.name, date: read.date, time: read.time, total,
     lines: created.map(({ category, amount, points }) => ({ category, amount, points })),
     points: created.reduce((n, c) => n + c.points, 0),
   } });
@@ -209,7 +262,7 @@ export async function getMyScans(req: AuthRequest, res: Response) {
   const sales = ids.length ? await prisma.pointsTransaction.findMany({ where: { id: { in: ids } }, select: { id: true, status: true, pointsAwarded: true, gasBonusPoints: true } }) : [];
   res.json({ success: true, data: scans.map((s) => {
     const mine = sales.filter((x) => s.transactionIds.includes(x.id));
-    const outcome = s.status !== 'HELD' ? s.status : mine.every((x) => x.status === 'APPROVED') ? 'APPROVED' : mine.some((x) => x.status === 'REJECTED') ? 'REJECTED' : 'WAITING';
+    const outcome = s.status !== 'HELD' && s.status !== 'AUTO' ? s.status : mine.every((x) => x.status === 'APPROVED') ? 'APPROVED' : mine.some((x) => x.status === 'REJECTED') ? 'REJECTED' : 'WAITING';
     return { id: s.id, status: outcome, reason: s.reason, store: s.store?.name ?? null, total: s.total, receiptAt: s.receiptAt, createdAt: s.createdAt,
       points: Math.round(mine.reduce((n, x) => n + x.pointsAwarded + x.gasBonusPoints, 0) * 100) };
   }) });

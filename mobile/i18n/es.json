@@ -3050,7 +3050,7 @@
     "cardBody": "¿No recibiste puntos en la caja? Envía una foto del recibo.",
     "title": "Escanear un recibo",
     "subtitle": "Puntos por una compra que olvidaste escanear",
-    "testingNote": "Estás probando esto. La tienda revisa cada recibo antes de agregar los puntos.",
+    "testingNote": "Estás probando esto. Los recibos claros se aprueban al momento; los demás los revisa la tienda primero.",
     "notAvailable": "Escanear recibos aún no está disponible para tu cuenta.",
     "loadError": "No se pudo cargar esta página.",
     "howTitle": "Cómo tomar la foto",
@@ -3068,7 +3068,7 @@
     "slow": "Está tardando demasiado. Revisa tu conexión e inténtalo de nuevo.",
     "sendFailed": "No se pudo enviar el recibo. Inténtalo de nuevo.",
     "sentTitle": "Enviado para revisión",
-    "sentBody": "Tu recibo de {{total}} de {{store}} está con la tienda. Recibes los puntos cuando lo aprueben, normalmente en un día.",
+    "sentBody": "Estamos revisando tu recibo de {{total}} de {{store}}. Recibes los puntos cuando se apruebe.",
     "estimate": "Unos {{points}} puntos",
     "another": "Escanear otro recibo",
     "mine": "Tus recibos",
@@ -3078,7 +3078,10 @@
     "stRejected": "No aprobado",
     "stRefused": "No aceptado",
     "stError": "No leído",
-    "points": "{{points}} puntos"
+    "points": "{{points}} puntos",
+    "approvedTitle": "Aprobado",
+    "approvedBody": "Tu recibo de {{total}} de {{store}} fue aprobado.",
+    "added": "Se agregaron {{points}} puntos"
   },
   "hotFoodCombos": {
     "title": "Combos en oferta",

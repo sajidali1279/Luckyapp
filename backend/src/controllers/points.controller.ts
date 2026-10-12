@@ -160,6 +160,11 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   if (customerTodayCount >= rule('reviewCustomerSalesPerDay'))     fraudFlags.push('CUSTOMER_VELOCITY');
   if (employeeHourCount >= rule('reviewCashierGrantsPerHour'))     fraudFlags.push('EMPLOYEE_VELOCITY');
   if (pairTodayCount >= 2)                    fraudFlags.push('REPEAT_PAIR');
+  // The customer already scanned a receipt at this store in the last 3 hours: this may be the same purchase twice (2026-10-12)
+  const scannedHere = await prisma.receiptScan.findFirst({
+    where: { customerId: customer.id, storeId, status: { in: ['HELD', 'AUTO'] }, createdAt: { gte: new Date(Date.now() - 3 * 3600_000) } }, select: { id: true },
+  });
+  if (scannedHere)                            fraudFlags.push('RECEIPT_SCANNED');
 
   const isFlagged = fraudFlags.length > 0;
 

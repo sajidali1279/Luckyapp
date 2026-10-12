@@ -176,3 +176,31 @@ export function saleLines(read: ReceiptRead, storeCategories: ProductCategory[])
     .filter((l) => l.amount >= 0.01);
   return { lines, leftOut };
 }
+
+// ── The same receipt again ───────────────────────────────────────────────────
+
+export interface ScanFacts { customerId: string; date: string | null; time: string | null; receiptNumber: string | null; total: number | null }
+const digitsOf = (n: string | null) => (n ?? '').replace(/\D/g, '').replace(/^0+/, '');
+const minutesOf = (t: string | null) => (t && /^\d{2}:\d{2}$/.test(t) ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null);
+
+/**
+ * Whether two scans at the same store are the same receipt (2026-10-12). Another photo of a receipt is never read exactly the same way
+ * ("Trans #1234" and "1234", a number missed, the time a minute off), so this is not an exact match: the same date and total, and then the
+ * same receipt number digits, or times within 3 minutes. With nothing else to tell them apart, it counts as the same. A customer's second
+ * purchase of the same total on the same day (two coffees) is a different receipt: its number and time differ.
+ */
+export function sameReceipt(a: ScanFacts, b: ScanFacts): boolean {
+  if (!a.date || a.date !== b.date || a.total == null || b.total == null || Math.abs(a.total - b.total) > 0.005) return false;
+  const da = digitsOf(a.receiptNumber), db = digitsOf(b.receiptNumber);
+  if (da.length >= 3 && db.length >= 3) return da === db || da.endsWith(db) || db.endsWith(da);
+  const ma = minutesOf(a.time), mb = minutesOf(b.time);
+  if (ma != null && mb != null) return Math.abs(ma - mb) <= 3;
+  return true;
+}
+
+/** The checks a scan passes to be approved at once (the rest of the rules, amount, account age, spot check, are in the controller). */
+export function cleanRead(read: ReceiptRead, flags: string[]): boolean {
+  return read.readable === 'good' && read.concerns.length === 0 && !!read.receiptNumber && !!read.time && read.items.length > 0
+    && flags.every((f) => f === 'RECEIPT_SCAN');
+}
+
