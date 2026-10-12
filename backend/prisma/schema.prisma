@@ -263,6 +263,7 @@ model User {
   shiftTemplates       ShiftTemplate[]      @relation("EmployeeShifts")
   shiftRequests        ShiftRequest[]       @relation("EmployeeRequests")
   checkIns             StaffCheckIn[]       @relation("StaffCheckIns")
+  receiptScans         ReceiptScan[]        @relation("ReceiptScans")
   chatMessages         ChatMessage[]
   chatReads            ChatRead[]
   submittedStoreRequests StoreRequest[]
@@ -368,6 +369,7 @@ model Store {
   shiftTemplates    ShiftTemplate[]
   shiftRequests     ShiftRequest[]
   staffCheckIns     StaffCheckIn[]
+  receiptScans      ReceiptScan[]
   chatMessages      ChatMessage[]
   chatReads         ChatRead[]
   storeRequests     StoreRequest[]
@@ -971,6 +973,33 @@ model StaffCheckIn {
   @@index([userId, storeDay])
   @@index([storeId, storeDay])
   @@map("staff_check_ins")
+}
+
+// A customer's photo of their receipt (2026-10-11, testing; utils/receiptScan.ts). AI reads the store, date, total and items; the
+// checks run; a receipt that passes becomes held sales (FLAGGED, one per category) for a manager or HQ to approve like any held sale.
+// A refused one is kept with its reason, so the testing shows what the reader gets wrong.
+model ReceiptScan {
+  id             String   @id @default(uuid())
+  customerId     String
+  storeId        String?
+  imageUrl       String?
+  imageHash      String   @unique                // the same photo is never used twice
+  receiptKey     String?  @unique                // store, date, receipt number and total: the same receipt photographed again
+  receiptAt      DateTime?
+  total          Float?
+  status         String                          // HELD | REFUSED | ERROR
+  reason         String?                         // why it was refused, in words the customer reads
+  flags          String?                         // JSON array: what the reviewer should look at
+  read           Json?                           // what the AI read
+  transactionIds String[] @default([])
+  createdAt      DateTime @default(now())
+
+  customer User   @relation("ReceiptScans", fields: [customerId], references: [id], onDelete: Cascade)
+  store    Store? @relation(fields: [storeId], references: [id], onDelete: SetNull)
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@map("receipt_scans")
 }
 
 // ─── Store Chat ───────────────────────────────────────────────────────────────

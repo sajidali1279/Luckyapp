@@ -34,7 +34,7 @@ import { useAuthStore } from '../../store/authStore';
 import { offerBonusText } from '../../utils/offerRate';
 import { spanishOffer } from '../../utils/offerText';
 import ChallengesSection from '../../components/ChallengesSection';
-import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi } from '../../services/api';
+import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
 import ErrorState from '../../components/ErrorState';
@@ -533,6 +533,23 @@ const CAT_LABEL_KEYS: Record<string, string> = {
   HOT_FOODS: 'customerRewards.categoryHotFoods',
 };
 const CAT_FALLBACK_COLORS = ['#8B5CF6', '#06B6D4', '#10B981', '#F59E0B', '#6366F1'];
+
+/** "Scan a receipt" (2026-10-11, in testing): only for the customers HQ allows; everyone else never sees it. */
+const ReceiptPhotoCard = memo(function ReceiptPhotoCard() {
+  const { t } = useTranslation();
+  const q = useQuery({ queryKey: ['receipt-scan-access'], queryFn: () => receiptScanApi.access(), staleTime: 10 * 60 * 1000 });
+  if (q.data?.data?.data?.enabled !== true) return null;
+  return (
+    <TouchableOpacity style={inv.card} activeOpacity={0.85} accessibilityRole="button" onPress={() => { haptic.tap(); router.push('/(customer)/receipt-photo'); }}>
+      <View style={[inv.icon, { backgroundColor: COLORS.secondary }]}><ReceiptIcon size={22} color={COLORS.white} /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={inv.title}>{t('receiptPhoto.cardTitle')}</Text>
+        <Text style={inv.body}>{t('receiptPhoto.cardBody')}</Text>
+      </View>
+      <ChevronRightIcon size={20} color={COLORS.secondary} />
+    </TouchableOpacity>
+  );
+});
 
 /** "Invite friends, get $5": opens Invite friends. Hidden while invites are switched off or before the deal has loaded. */
 const InviteCard = memo(function InviteCard() {
@@ -1278,6 +1295,7 @@ export default function CustomerHome() {
 
       {/* ── Invite friends (2026-10-09): both get the bonus when the friend makes a first purchase ── */}
       <InviteCard />
+      <ReceiptPhotoCard />
 
       {/* ── Gas Prices + Active Gas Offers ── */}
       <Animated.View style={{ opacity: fadeAnims[4], transform: [{ translateY: slideAnims[4] }] }}>

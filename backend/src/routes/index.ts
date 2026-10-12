@@ -102,6 +102,7 @@ import {
   getVacancies,
 } from '../controllers/schedule.controller';
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
+import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
   getUnreadCount as getSupportUnreadCount, updatePriority, getSupportStats,
@@ -482,6 +483,13 @@ router.get('/schedule/requests/pending-by-store', authenticate, requireRole(Role
 router.get('/staff/today', authenticate, requireRole(Role.EMPLOYEE), getMyStaffToday);
 router.post('/staff/check-in', authenticate, requireRole(Role.EMPLOYEE), staffCheckIn);
 router.get('/staff/attendance', authenticate, requireRole(Role.EMPLOYEE), getStaffAttendance);
+// Receipt scanning (2026-10-11, in testing): customers photograph their receipt, it is held for review; HQ decides who can use it
+router.get('/receipt-scan/access', authenticate, getScanAccess);
+router.post('/receipt-scan', authenticate, requireRole(Role.CUSTOMER), upload.single('image'), scanReceipt);
+router.get('/receipt-scan/mine', authenticate, getMyScans);
+router.get('/receipt-scan/settings', authenticate, requireRole(Role.SUPER_ADMIN), getScanSettings);
+router.put('/receipt-scan/settings', authenticate, requireRole(Role.SUPER_ADMIN), putScanSettings);
+router.get('/receipt-scan/recent', authenticate, requireRole(Role.SUPER_ADMIN), getRecentScans);
 router.patch('/schedule/requests/:requestId', authenticate, requireRole(Role.STORE_MANAGER), updateShiftRequest);
 router.get('/schedule/vacancies', authenticate, getVacancies);                                       // Vacant shift slots (all roles)
 

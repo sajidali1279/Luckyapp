@@ -136,6 +136,8 @@ export async function submitRating(req: AuthRequest, res: Response) {
   if (tx.customerId !== customerId) return res.status(403).json({ success: false, error: 'Not your transaction' });
   if (tx.status !== TransactionStatus.APPROVED) return res.status(400).json({ success: false, error: 'Can only rate approved transactions' });
   if (tx.rating) return res.status(409).json({ success: false, error: 'Already rated' });
+  // A receipt the customer scanned or claimed themselves has no cashier to rate
+  if (tx.grantedById === customerId) return res.status(400).json({ success: false, error: 'There is no cashier to rate on this sale.' });
 
   const result = await prisma.employeeRating.create({
     data: { transactionId, customerId, employeeId: tx.grantedById, storeId: tx.storeId, rating },
@@ -159,6 +161,7 @@ export async function getPendingRatings(req: AuthRequest, res: Response) {
       rating: null,
       challengeId: null,   // a challenge's reward had no cashier to rate
       referralId: null,    // nor a referral's
+      grantedById: { not: customerId },   // nor a receipt the customer scanned themselves
     },
     select: {
       id: true,

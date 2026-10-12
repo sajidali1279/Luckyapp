@@ -614,6 +614,13 @@ export const referralsApi = {
 };
 
 // App versions the phones compare themselves with (read: anyone; save: Dev Admin)
+// Receipt scanning (HQ, in testing 2026-10-11): who can scan (off, test phones, everyone) and the latest scans with what the AI read
+export const receiptScanApi = {
+  getSettings: () => api.get('/receipt-scan/settings'),
+  saveSettings: (data: { mode: 'OFF' | 'TEST' | 'ALL'; testPhones: string[] }) => api.put('/receipt-scan/settings', data),
+  recent: (limit = 30) => api.get('/receipt-scan/recent', { params: { limit } }),
+};
+
 export const appVersionApi = {
   get: () => api.get('/app/version'),
   save: (data: { android: string; ios: string }) => api.put('/app/versions', data),   // the oldest version allowed per platform

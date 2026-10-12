@@ -10,7 +10,7 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import DataTablePagination from '../components/DataTablePagination';
 import TableSkeleton from '../components/TableSkeleton';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY, C } from '../lib/theme';
 import { storeToday, addDays, storeDay, storeTime } from '../lib/storeDates';
 import { badgeInk } from './dashboard/shared';
 import { serverMessage } from '../lib/apiError';
@@ -18,6 +18,7 @@ import { useDialog } from '../hooks/useDialog';
 import { PageHeader, HeaderStat, Button } from '../components/kit';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import ReceiptScanPanel from '../components/ReceiptScanPanel';
 
 const CATEGORIES = [
   { value: 'GAS', label: 'Gas' },
@@ -47,6 +48,13 @@ const FRAUD_FLAG_LABELS: Record<string, string> = {
   CUSTOMER_VELOCITY: 'Customer has 4+ transactions today',
   EMPLOYEE_VELOCITY: 'Cashier granted 15+ times this hour',
   REPEAT_PAIR:       'Same cashier → same customer 2×+ today',
+  RECEIPT_SCAN:      'The customer scanned this receipt (read by AI): check the photo',
+  ITEMS_UNREAD:      'AI could not read the lines: one sale for the whole receipt',
+  READ_PARTIAL:      'Part of the receipt was unclear',
+  READER_CONCERNS:   'AI noticed something odd (see the note)',
+  TOTALS_DIFFER:     'The lines do not add up to the subtotal',
+  NO_RECEIPT_NUMBER: 'No receipt number on the photo',
+  NO_TIME:           'No time on the photo',
 };
 
 function fmt$(n: number) {
@@ -432,6 +440,8 @@ export default function Transactions() {
         )}
       />
 
+      {isSuperAdmin && <ReceiptScanPanel />}
+
       {/* ── Filters ── */}
       <div style={s.filterBar}>
         {isSuperAdmin && (
@@ -635,7 +645,7 @@ export default function Transactions() {
                   <TableCell style={s.td}>
                     <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || ' - '}</span>
                   </TableCell>
-                  <TableCell style={s.td}>{tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
+                  <TableCell style={s.td}>{flags.includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
                   <TableCell style={s.td}>
                     <div>
                       <span style={{ ...s.badge, background: badgeBg, color: badgeInk(badgeBg) }}>
@@ -725,7 +735,14 @@ export default function Transactions() {
               <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 4 }}>
                 {panelTx.store?.name || 'the store'} · {panelTx.category?.replace(/_/g, ' ')} · {storeDay(panelTx.createdAt)}, {storeTime(panelTx.createdAt)} (Central)
               </div>
-              <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14 }}>Granted by {panelTx.grantedBy?.name || panelTx.grantedBy?.phone || 'an employee'}</div>
+              {parseFlags(panelTx.fraudFlags).includes('RECEIPT_SCAN') ? (
+                <>
+                  <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 6 }}>Scanned by the customer in the app. Check the photo matches before approving.</div>
+                  {panelTx.notes && <div style={{ fontSize: 13, color: C.text2, marginBottom: 14, lineHeight: 1.45 }}>{panelTx.notes}</div>}
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14 }}>Granted by {panelTx.grantedBy?.name || panelTx.grantedBy?.phone || 'an employee'}</div>
+              )}
 
               {parseFlags(panelTx.fraudFlags).length > 0 && (
                 <ul style={s.dialogFlags}>
@@ -755,8 +772,8 @@ export default function Transactions() {
                 ))
               )}
 
-              <div style={s.panelSectionTitle}>{panelTx.grantedBy?.name || 'This employee'}'s recent grants</div>
-              {(panelEmpTx?.data?.data?.transactions ?? []).length === 0 ? (
+              {!parseFlags(panelTx.fraudFlags).includes('RECEIPT_SCAN') && <div style={s.panelSectionTitle}>{panelTx.grantedBy?.name || 'This employee'}'s recent grants</div>}
+              {parseFlags(panelTx.fraudFlags).includes('RECEIPT_SCAN') ? null : (panelEmpTx?.data?.data?.transactions ?? []).length === 0 ? (
                 <div style={s.panelEmptyNote}>Nothing else on file.</div>
               ) : (
                 (panelEmpTx?.data?.data?.transactions ?? []).map((t: any) => (

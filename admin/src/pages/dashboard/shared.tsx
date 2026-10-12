@@ -96,6 +96,13 @@ export const FRAUD_FLAG_LABELS: Record<string, string> = {
   CUSTOMER_VELOCITY: 'Customer has 4+ transactions today',
   EMPLOYEE_VELOCITY: 'Cashier granted 15+ times this hour',
   REPEAT_PAIR:       'Same cashier, same customer 2+ times today',
+  RECEIPT_SCAN:      'The customer scanned this receipt (read by AI): check the photo',
+  ITEMS_UNREAD:      'AI could not read the lines: one sale for the whole receipt',
+  READ_PARTIAL:      'Part of the receipt was unclear',
+  READER_CONCERNS:   'AI noticed something odd (see the note)',
+  TOTALS_DIFFER:     'The lines do not add up to the subtotal',
+  NO_RECEIPT_NUMBER: 'No receipt number on the photo',
+  NO_TIME:           'No time on the photo',
 };
 
 export function readSetting<T extends string>(key: string, allowed: readonly T[], fallback: T): T {

@@ -60,6 +60,7 @@ export default function CustomerLayout() {
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
         <Tabs.Screen name="scan-receipt" options={{ href: null }} />
+        <Tabs.Screen name="receipt-photo" options={{ href: null }} />
         <Tabs.Screen name="rewards" />
         <Tabs.Screen name="ads" />
         <Tabs.Screen name="history" />

@@ -1,0 +1,250 @@
+// Customer receipt scanning, in testing (2026-10-11). See utils/receiptScan.ts. A scan that passes every check becomes held sales (FLAGGED,
+// one per category, with the photo) for the store's managers and HQ to approve or reject in the usual review; nothing is credited before.
+import { createHash } from 'crypto';
+import { Response } from 'express';
+import { z } from 'zod';
+import { ProductCategory, TransactionStatus } from '@prisma/client';
+import prisma from '../config/prisma';
+import cloudinary from '../config/cloudinary';
+import { AuthRequest } from '../types';
+import { refuse } from '../utils/refusal';
+import { audit } from '../utils/audit';
+import { sendPushToUser } from '../utils/push';
+import { flaggedSaleRecipientIds } from '../utils/alertRecipients';
+import { computeSaleCashback } from '../utils/saleCashback';
+import { noteBudgetUse } from '../utils/offerBudget';
+import { storeDateKey, storeDayStart, storeDaysBetween, startOfStoreDate } from '../utils/storeTime';
+import {
+  RECEIPT_SCAN_KEY, READ_PROMPT, canScan, loadScanSettings, matchStore, parseRead, phoneKey, saleLines, type ReceiptRead,
+} from '../utils/receiptScan';
+
+export const MAX_SCANS_PER_DAY = 3;          // per customer, per store day (held or refused)
+export const MAX_TRIES_PER_DAY = 8;          // counting the ones the reader could not read, so failures cannot run up the AI bill
+export const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // the AI's limit for one image; the app sends a smaller one
+export const MAX_RECEIPT_DAYS = 3;           // a receipt from today or up to this many days back
+export const MAX_RECEIPT_TOTAL = 2000;       // like the cashier's hard limit
+const READ_MODEL = 'claude-sonnet-5';
+
+/** GET /receipt-scan/access: whether this person can scan receipts (the app shows the scanner only then). */
+export async function getScanAccess(req: AuthRequest, res: Response) {
+  const settings = await loadScanSettings();
+  const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { phone: true, role: true } });
+  res.json({ success: true, data: { enabled: !!user && canScan(settings, user), testing: settings.mode !== 'ALL' } });
+}
+
+async function readReceipt(buffer: Buffer, mediaType: string): Promise<ReceiptRead | null> {
+  const { default: Anthropic } = await import('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const msg = await client.messages.create({
+    model: READ_MODEL,
+    max_tokens: 2500,
+    messages: [{ role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg', data: buffer.toString('base64') } },
+      { type: 'text', text: READ_PROMPT },
+    ] }],
+  }, { timeout: 45_000 });
+  const text = msg.content.map((c) => (c.type === 'text' ? c.text : '')).join('');
+  return parseRead(text);
+}
+
+function upload(buffer: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream({ folder: 'luckystop/receipts', resource_type: 'image' }, (error, result) => {
+      if (error || !result) reject(error ?? new Error('upload failed')); else resolve(result.secure_url);
+    });
+    stream.end(buffer);
+  });
+}
+
+/** POST /receipt-scan (customer, multipart "image"): read the receipt, check it, and hold it for review. */
+export async function scanReceipt(req: AuthRequest, res: Response) {
+  const settings = await loadScanSettings();
+  const customer = await prisma.user.findUnique({ where: { id: req.user!.id } });
+  if (!customer || !canScan(settings, customer)) { res.status(403).json({ success: false, code: 'RECEIPT_SCAN_OFF', error: 'Receipt scanning is not available for your account yet.' }); return; }
+  if (!req.file) { res.status(400).json({ success: false, error: 'Take a photo of the receipt.' }); return; }
+  if (!/^image\/(jpeg|png|webp)$/.test(req.file.mimetype)) { res.status(400).json({ success: false, error: 'The photo must be a JPG, PNG or WebP image.' }); return; }
+  if (req.file.size > MAX_PHOTO_BYTES) { res.status(413).json({ success: false, error: 'The photo is too large. Take it again.' }); return; }
+  if (!process.env.ANTHROPIC_API_KEY) { res.status(503).json({ success: false, error: 'Receipt reading is not set up on the server.' }); return; }
+
+  const todays = await prisma.receiptScan.findMany({ where: { customerId: customer.id, createdAt: { gte: storeDayStart() } }, select: { status: true } });
+  if (todays.filter((t) => t.status !== 'ERROR').length >= MAX_SCANS_PER_DAY || todays.length >= MAX_TRIES_PER_DAY) { res.status(429).json({ success: false, code: 'TOO_MANY_SCANS', error: `You can scan ${MAX_SCANS_PER_DAY} receipts a day. Try again tomorrow.` }); return; }
+
+  const imageHash = createHash('sha256').update(req.file.buffer).digest('hex');
+  const used = await prisma.receiptScan.findUnique({ where: { imageHash }, select: { id: true } })
+    ?? await prisma.pointsTransaction.findFirst({ where: { receiptImageHash: imageHash }, select: { id: true } });
+  if (used) { res.status(409).json({ success: false, code: 'ALREADY_USED', error: 'This photo has already been used.' }); return; }
+
+  let read: ReceiptRead | null;
+  try { read = await readReceipt(req.file.buffer, req.file.mimetype); } catch (e: any) {
+    console.error('[receipt-scan] read failed:', e?.message ?? e);
+    // Kept for the daily limit; the fingerprint is changed so the same photo can be tried again
+    await prisma.receiptScan.create({ data: { customerId: customer.id, imageHash: `${imageHash}:error:${Date.now()}`, status: 'ERROR', reason: String(e?.message ?? e).slice(0, 300) } });
+    res.status(502).json({ success: false, code: 'READ_FAILED', error: 'We could not read the receipt right now. Try again in a minute.' });
+    return;
+  }
+
+  // A refusal is kept (with the photo's fingerprint) so the testing shows what was read and why it was refused
+  const refuseScan = async (reason: string, extra: { storeId?: string | null; receiptAt?: Date | null; total?: number | null } = {}) => {
+    try {
+      await prisma.receiptScan.create({ data: { customerId: customer.id, imageHash, status: 'REFUSED', reason, read: (read ?? undefined) as any, storeId: extra.storeId ?? null, receiptAt: extra.receiptAt ?? null, total: extra.total ?? null } });
+    } catch (e: any) {
+      if (e?.code === 'P2002') { res.status(409).json({ success: false, code: 'ALREADY_USED', error: 'This photo has already been used.' }); return; }
+      throw e;
+    }
+    res.status(422).json({ success: false, code: 'REFUSED', error: reason });
+  };
+
+  if (!read || !read.isReceipt) return refuseScan("That doesn't look like a store receipt. Take a photo of the whole paper receipt.");
+  if (read.readable === 'poor') return refuseScan('The receipt could not be read. Lay it flat in good light and take the photo again, with the whole receipt in it.');
+  const stores = await prisma.store.findMany({ select: { id: true, name: true, address: true, city: true, zipCode: true, phone: true, isActive: true, enabledCategories: true } });
+  const store = matchStore(read, stores);
+  if (!store) return refuseScan("We couldn't tell which Lucky Stop this receipt is from. Make sure the top of the receipt, with the store's address, is in the photo.");
+  const full = stores.find((s) => s.id === store.id)!;
+  if (!read.date) return refuseScan("We couldn't read the date on the receipt. Take the photo again with the date in it.", { storeId: store.id });
+
+  const todayKey = storeDateKey();
+  const age = storeDaysBetween(read.date, todayKey);
+  const receiptAt = read.time ? new Date(startOfStoreDate(read.date).getTime() + (Number(read.time.slice(0, 2)) * 60 + Number(read.time.slice(3))) * 60_000) : startOfStoreDate(read.date);
+  if (age < 0) return refuseScan('The date on the receipt is in the future.', { storeId: store.id, receiptAt });
+  if (age > MAX_RECEIPT_DAYS) return refuseScan(`Receipts can be scanned for ${MAX_RECEIPT_DAYS} days. This one is from ${read.date}.`, { storeId: store.id, receiptAt });
+  const total = read.total ?? (read.subtotal != null ? read.subtotal + (read.tax ?? 0) : null);
+  if (total == null || total <= 0) return refuseScan("We couldn't read the total on the receipt.", { storeId: store.id, receiptAt });
+  if (total > MAX_RECEIPT_TOTAL) return refuseScan(`Receipts over $${MAX_RECEIPT_TOTAL} can't be scanned. Ask the cashier.`, { storeId: store.id, receiptAt, total });
+
+  // The same receipt photographed again (a different photo of it)
+  const receiptKey = `${store.id}|${read.date}|${(read.receiptNumber ?? '').replace(/\s/g, '')}|${total.toFixed(2)}${read.receiptNumber ? '' : `|${read.time ?? ''}`}`;
+  if (await prisma.receiptScan.findUnique({ where: { receiptKey }, select: { id: true } })) {
+    return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
+  }
+  // Points already given at the register for this purchase
+  const from = read.time ? new Date(receiptAt.getTime() - 45 * 60_000) : startOfStoreDate(read.date);
+  const to = read.time ? new Date(receiptAt.getTime() + 120 * 60_000) : new Date(startOfStoreDate(read.date).getTime() + 30 * 3600_000);
+  const atRegister = await prisma.pointsTransaction.findFirst({
+    where: { customerId: customer.id, storeId: store.id, createdAt: { gte: from, lte: to }, status: { not: TransactionStatus.REJECTED }, grantedById: { not: customer.id }, challengeId: null, referralId: null },
+    select: { id: true },
+  });
+  if (atRegister) return refuseScan('This purchase already earned points at the register.', { storeId: store.id, receiptAt, total });
+
+  const { lines, leftOut } = saleLines(read, full.enabledCategories);
+  const flags: string[] = ['RECEIPT_SCAN'];
+  let saleRows = lines;
+  if (read.items.length === 0) { saleRows = [{ category: ProductCategory.OTHER, amount: read.subtotal ?? total, gallons: null }]; flags.push('ITEMS_UNREAD'); }
+  if (saleRows.length === 0) return refuseScan('Nothing on this receipt earns points (for example lottery or gift cards).', { storeId: store.id, receiptAt, total });
+  if (read.readable === 'partial') flags.push('READ_PARTIAL');
+  if (read.concerns.length) flags.push('READER_CONCERNS');
+  if (!read.receiptNumber) flags.push('NO_RECEIPT_NUMBER');
+  if (!read.time) flags.push('NO_TIME');
+  const itemsSum = read.items.reduce((n, it) => n + it.amount, 0);
+  const expected = read.subtotal ?? (read.total != null && read.tax != null ? read.total - read.tax : null);
+  if (expected != null && read.items.length && Math.abs(itemsSum - expected) > Math.max(1, expected * 0.05)) flags.push('TOTALS_DIFFER');
+
+  // The scan is saved first: the same photo or receipt sent twice at once stops here, so it makes one set of sales
+  let scanId: string;
+  try {
+    scanId = (await prisma.receiptScan.create({ data: {
+      customerId: customer.id, storeId: store.id, imageHash, receiptKey, receiptAt, total, status: 'HELD', flags: JSON.stringify(flags), read: read as any,
+    }, select: { id: true } })).id;
+  } catch (e: any) {
+    if (e?.code === 'P2002') { res.status(409).json({ success: false, code: 'ALREADY_USED', error: 'This receipt has already been scanned.' }); return; }
+    throw e;
+  }
+
+  // Price each line like a cashier's grant, then hold every one for review
+  const now = new Date();
+  const created: { id: string; category: ProductCategory; amount: number; points: number }[] = [];
+  let imageUrl: string;
+  try { imageUrl = await upload(req.file.buffer); } catch (e: any) {
+    await prisma.receiptScan.update({ where: { id: scanId }, data: { status: 'ERROR', reason: `Photo upload failed: ${String(e?.message ?? e).slice(0, 200)}`, imageHash: `${imageHash}:error:${Date.now()}`, receiptKey: null } });
+    res.status(502).json({ success: false, code: 'UPLOAD_FAILED', error: 'The photo could not be saved. Try again in a minute.' });
+    return;
+  }
+  for (const [i, line] of saleRows.entries()) {
+    const priced = await computeSaleCashback({ customer, storeId: store.id, purchaseAmount: line.amount, category: line.category, gasGallons: line.gallons, now });
+    const lineFlags = [...flags, ...priced.rateCappedFlags];
+    if (line.amount > 500 && !priced.isGasCategory) lineFlags.push('HIGH_AMOUNT');
+    if (line.amount > 800) lineFlags.push('LARGE_PURCHASE');
+    const sale = await prisma.pointsTransaction.create({
+      data: {
+        customerId: customer.id, grantedById: customer.id, storeId: store.id,
+        purchaseAmount: line.amount, pointsAwarded: priced.pointsAwarded, devCut: priced.devCut, storeCost: priced.storeCost,
+        cashbackRate: priced.effectiveCashbackRate, category: line.category, status: TransactionStatus.FLAGGED, fraudFlags: JSON.stringify(lineFlags),
+        notes: `Receipt scan: ${read.date}${read.time ? ` ${read.time}` : ''}${read.receiptNumber ? `, receipt ${read.receiptNumber}` : ''}, total $${total.toFixed(2)} (read by AI)${leftOut.length ? `. Left out: ${leftOut.slice(0, 5).join(', ')}` : ''}${read.concerns.length ? `. Reader notes: ${read.concerns.join('; ')}` : ''}`,
+        isGas: priced.isGasCategory, gasGallons: priced.effectiveGallons ?? null, gasBonusPoints: priced.gasBonusPoints,
+        offerId: priced.promotionApplied ? priced.activeOffer!.id : null, offerCashback: priced.offerCashback,
+        receiptImageUrl: imageUrl, receiptImageHash: i === 0 ? imageHash : null,
+      },
+    });
+    if (priced.promotionApplied && priced.activeOffer?.budgetCap != null) noteBudgetUse(priced.activeOffer, now).catch(() => {});
+    created.push({ id: sale.id, category: line.category, amount: line.amount, points: Math.round((priced.pointsAwarded + priced.gasBonusPoints) * 100) });
+  }
+  await prisma.receiptScan.update({ where: { id: scanId }, data: { imageUrl, transactionIds: created.map((c) => c.id) } });
+
+  // The people who review held sales at that store are told
+  const who = customer.name || 'A customer';
+  for (const id of await flaggedSaleRecipientIds(store.id)) {
+    sendPushToUser(id, '📸 Receipt scan to review', `${who} scanned a $${total.toFixed(2)} receipt from ${store.name}. Check the photo and approve or reject it.`, 'ALERT');
+  }
+  audit({ actorId: customer.id, actorName: customer.name, actorRole: customer.role, action: 'RECEIPT_SCAN', entity: 'transaction', entityId: created[0].id,
+    details: { summary: `Scanned a $${total.toFixed(2)} receipt from ${store.name} (${read.date}); held for review`, flags }, storeId: store.id });
+
+  res.status(201).json({ success: true, data: {
+    status: 'HELD', store: store.name, date: read.date, time: read.time, total,
+    lines: created.map(({ category, amount, points }) => ({ category, amount, points })),
+    points: created.reduce((n, c) => n + c.points, 0),
+  } });
+}
+
+/** GET /receipt-scan/mine: the customer's latest scans and what became of them. */
+export async function getMyScans(req: AuthRequest, res: Response) {
+  const scans = await prisma.receiptScan.findMany({
+    where: { customerId: req.user!.id }, orderBy: { createdAt: 'desc' }, take: 20,
+    select: { id: true, status: true, reason: true, total: true, receiptAt: true, createdAt: true, transactionIds: true, store: { select: { name: true } } },
+  });
+  const ids = scans.flatMap((s) => s.transactionIds);
+  const sales = ids.length ? await prisma.pointsTransaction.findMany({ where: { id: { in: ids } }, select: { id: true, status: true, pointsAwarded: true, gasBonusPoints: true } }) : [];
+  res.json({ success: true, data: scans.map((s) => {
+    const mine = sales.filter((x) => s.transactionIds.includes(x.id));
+    const outcome = s.status !== 'HELD' ? s.status : mine.every((x) => x.status === 'APPROVED') ? 'APPROVED' : mine.some((x) => x.status === 'REJECTED') ? 'REJECTED' : 'WAITING';
+    return { id: s.id, status: outcome, reason: s.reason, store: s.store?.name ?? null, total: s.total, receiptAt: s.receiptAt, createdAt: s.createdAt,
+      points: Math.round(mine.reduce((n, x) => n + x.pointsAwarded + x.gasBonusPoints, 0) * 100) };
+  }) });
+}
+
+const settingsSchema = z.object({
+  mode: z.enum(['OFF', 'TEST', 'ALL'], { message: 'Choose Off, Test accounts or Everyone.' }),
+  testPhones: z.array(z.string()).max(50, 'At most 50 test phones.'),
+});
+
+/** GET /receipt-scan/settings (HQ) */
+export async function getScanSettings(_req: AuthRequest, res: Response) {
+  res.json({ success: true, data: await loadScanSettings() });
+}
+
+/** PUT /receipt-scan/settings (HQ): who can scan receipts. Turning it on for everyone is its own step, after testing. */
+export async function putScanSettings(req: AuthRequest, res: Response) {
+  const parsed = settingsSchema.safeParse(req.body ?? {});
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const testPhones = [...new Set(parsed.data.testPhones.map(phoneKey))];
+  const bad = parsed.data.testPhones.filter((p) => phoneKey(p).length !== 10);
+  if (bad.length) { res.status(400).json({ success: false, error: `Not a phone number: ${bad.slice(0, 3).join(', ')}` }); return; }
+  const before = await loadScanSettings();
+  const value = { mode: parsed.data.mode, testPhones };
+  await prisma.appConfig.upsert({ where: { key: RECEIPT_SCAN_KEY }, create: { key: RECEIPT_SCAN_KEY, value: JSON.stringify(value) }, update: { value: JSON.stringify(value) } });
+  const word = { OFF: 'off', TEST: 'test accounts only', ALL: 'everyone' };
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'RECEIPT_SCAN_SETTINGS', entity: 'app_config', entityId: RECEIPT_SCAN_KEY,
+    details: { summary: `Receipt scanning: ${word[before.mode]} to ${word[value.mode]}; ${testPhones.length} test phone${testPhones.length === 1 ? '' : 's'}` }, storeId: null });
+  res.json({ success: true, data: value });
+}
+
+/** GET /receipt-scan/recent (HQ): the latest scans with what the AI read, for checking how well it reads while testing. */
+export async function getRecentScans(req: AuthRequest, res: Response) {
+  const take = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  const scans = await prisma.receiptScan.findMany({
+    orderBy: { createdAt: 'desc' }, take,
+    select: { id: true, status: true, reason: true, flags: true, total: true, receiptAt: true, createdAt: true, imageUrl: true, read: true, transactionIds: true,
+      customer: { select: { id: true, name: true, phone: true } }, store: { select: { name: true } } },
+  });
+  const ids = scans.flatMap((s) => s.transactionIds);
+  const sales = ids.length ? await prisma.pointsTransaction.findMany({ where: { id: { in: ids } }, select: { id: true, status: true, category: true, purchaseAmount: true, pointsAwarded: true } }) : [];
+  res.json({ success: true, data: scans.map((s) => ({ ...s, flags: s.flags ? JSON.parse(s.flags) : [], sales: sales.filter((x) => s.transactionIds.includes(x.id)) })) });
+}

@@ -454,6 +454,24 @@ export const staffApi = {
   attendance: (params: { from: string; to: string; storeId?: string }) => api.get('/staff/attendance', { params }),
 };
 
+// Receipt scanning (2026-10-11, in testing): only the customers HQ allows see it. The photo is read on the server and held for review.
+export const receiptScanApi = {
+  access: () => api.get('/receipt-scan/access'),
+  mine: () => api.get('/receipt-scan/mine'),
+  send: async (uri: string) => {
+    const form = new FormData();
+    form.append('image', { uri, name: 'receipt.jpg', type: 'image/jpeg' } as any);
+    const stop = new AbortController();
+    const timer = setTimeout(() => stop.abort(), 90_000);   // reading a receipt can take half a minute
+    try {
+      const res = await fetchWithAuth('/receipt-scan', { method: 'POST', body: form as any, signal: stop.signal });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw { response: { data: json, status: res.status } };
+      return { data: json };
+    } finally { clearTimeout(timer); }
+  },
+};
+
 export const hotFoodApi = {
   getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`),
   // Employee management view — legacy + catalog items merged with availability + source
