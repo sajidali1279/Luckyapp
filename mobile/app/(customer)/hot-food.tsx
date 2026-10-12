@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { Text, TextInput } from '../../components/ScaledText';
 import RefreshControl from '../../components/AppRefreshControl';
@@ -942,14 +943,20 @@ const s = StyleSheet.create({
   goMenuBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 });
 
+// A card's soft shadow on iPhone only. On Android the elevation shadow drew a pale white and gray band under some cards inside the
+// list's fade-in, so there the card keeps just its border (2026-10-11).
+const cardShadow = Platform.select({
+  ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4 },
+  default: { elevation: 0 },
+});
+
 // ─── Menu card styles ─────────────────────────────────────────────────────────
 const mc = StyleSheet.create({
   card: {
     backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 10,
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
-    borderWidth: 1, borderColor: '#F0F1F2',
+    ...cardShadow,
+    borderWidth: 1, borderColor: Platform.OS === 'ios' ? '#F0F1F2' : '#E6E8EB',
   },
   left: { flexShrink: 0 },
   iconRing: {
@@ -1000,9 +1007,8 @@ const oc = StyleSheet.create({
   cancelBtnText: { fontSize: 13, fontWeight: '700', color: '#a51b28' },
   card: {
     backgroundColor: '#fff', borderRadius: 16, padding: 14, marginBottom: 10,
-    borderLeftWidth: 4, borderWidth: 1, borderColor: '#F0F1F2',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    borderLeftWidth: 4, borderWidth: 1, borderColor: Platform.OS === 'ios' ? '#F0F1F2' : '#E6E8EB',
+    ...cardShadow,
   },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   topLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
