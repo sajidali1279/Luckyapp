@@ -1,0 +1,132 @@
+name: iOS simulator smoke test
+
+# Apple rejected 1.3.2 (63): it crashed 0.2 s after launch on an iPad Air (5th generation) with iPadOS 27.0, from a JavaScript
+# error that the crash log does not name. This builds the app the way the App Store build is made (Xcode 26.2, Release, Hermes),
+# opens it on the newest iPad and iPhone simulators the runner has, and keeps what the app printed, so the error has a name.
+# No signing, nothing uploaded to Apple.
+
+on:
+  push:
+    branches: [ios-sim-smoke]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: macos-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: What this runner has
+        run: |
+          sw_vers
+          ls -d /Applications/Xcode*.app
+          xcrun simctl list runtimes
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Select Xcode 26.2 (the one the App Store build uses)
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app
+
+      - name: Decode GoogleService-Info.plist
+        working-directory: ./mobile
+        run: echo "${{ secrets.GOOGLE_SERVICES_INFO_PLIST_B64 }}" | base64 -d > GoogleService-Info.plist
+
+      - name: Prebuild iOS
+        working-directory: ./mobile
+        run: npx expo prebuild --platform ios --clean
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Remove GoogleService-Info.plist
+        if: always()
+        working-directory: ./mobile
+        run: rm -f GoogleService-Info.plist
+
+      - name: Build for the simulator (Release)
+        working-directory: ./mobile
+        run: |
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build | tail -40
+          APP=$(find build/Build/Products -maxdepth 2 -name "*.app" | head -1)
+          echo "APP=$PWD/$APP" >> "$GITHUB_ENV"
+          ls -la "$APP" | head
+
+      # The newest Xcode on the runner has the newest simulators; if it has no iOS 27 runtime yet, ask for it
+      - name: Newest simulators (try to get iOS 27)
+        continue-on-error: true
+        timeout-minutes: 45
+        run: |
+          NEWEST=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          echo "Newest Xcode: $NEWEST"
+          echo "SIM_XCODE=$NEWEST" >> "$GITHUB_ENV"
+          if ! DEVELOPER_DIR="$NEWEST/Contents/Developer" xcrun simctl list runtimes | grep -q "iOS 27"; then
+            echo "No iOS 27 runtime installed, downloading"
+            sudo DEVELOPER_DIR="$NEWEST/Contents/Developer" xcodebuild -downloadPlatform iOS || true
+          fi
+          DEVELOPER_DIR="$NEWEST/Contents/Developer" xcrun simctl list runtimes
+
+      - name: Open the app on an iPad and an iPhone
+        working-directory: ./mobile
+        run: |
+          export DEVELOPER_DIR="${SIM_XCODE:-/Applications/Xcode_26.2.app}/Contents/Developer"
+          mkdir -p out
+          RUNTIME=$(xcrun simctl list runtimes -j | python3 -c "
+          import json, sys
+          rts = [r for r in json.load(sys.stdin)['runtimes'] if r['platform'] == 'iOS' and r['isAvailable']]
+          rts.sort(key=lambda r: [int(x) for x in r['version'].split('.')])
+          print(rts[-1]['identifier'])")
+          echo "Runtime: $RUNTIME" | tee out/runtime.txt
+          pick() {  # the first device type whose name contains $1
+            xcrun simctl list devicetypes -j | python3 -c "
+          import json, sys
+          want = sys.argv[1]
+          ts = [t for t in json.load(sys.stdin)['devicetypes'] if want in t['name']]
+          print(ts[0]['identifier'] if ts else '')" "$1"
+          }
+          run_on() {  # $1 label, $2 device type
+            local label=$1 type=$2
+            [ -z "$type" ] && { echo "no device type for $label"; return; }
+            local udid=$(xcrun simctl create "smoke-$label" "$type" "$RUNTIME")
+            echo "== $label: $type ($udid)"
+            xcrun simctl boot "$udid"; xcrun simctl bootstatus "$udid" -b > /dev/null
+            xcrun simctl install "$udid" "$APP"
+            xcrun simctl spawn "$udid" log stream --level debug --style compact --predicate 'process == "LuckyStop"' > "out/$label-log.txt" 2>&1 &
+            local logpid=$!
+            sleep 2
+            ( xcrun simctl launch --console-pty "$udid" com.luckystop.app > "out/$label-console.txt" 2>&1 & )
+            sleep 25
+            xcrun simctl io "$udid" screenshot "out/$label.png" || true
+            kill $logpid 2>/dev/null || true
+            if xcrun simctl spawn "$udid" launchctl list | grep -q com.luckystop.app; then echo "$label: STILL RUNNING after 25 s" | tee -a out/summary.txt
+            else echo "$label: NOT RUNNING (crashed or quit)" | tee -a out/summary.txt; fi
+            echo "---- $label: errors the app printed" | tee -a out/summary.txt
+            grep -hiE "Unhandled JS Exception|RCTFatal|TypeError|ReferenceError|RangeError|SyntaxError|Invariant|Terminating app|uncaught exception|is not a function|undefined is not|Error:" "out/$label-console.txt" "out/$label-log.txt" | head -40 | tee -a out/summary.txt
+            xcrun simctl shutdown "$udid" || true
+          }
+          run_on ipad "$(pick 'iPad Air (5th generation)')"
+          run_on ipad-any "$(pick 'iPad Air')"
+          run_on iphone "$(pick 'iPhone 16')"
+          cp ~/Library/Logs/DiagnosticReports/LuckyStop* out/ 2>/dev/null || true
+          echo; echo "==== SUMMARY"; cat out/summary.txt
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-smoke
+          path: mobile/out
