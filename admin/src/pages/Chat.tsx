@@ -11,6 +11,7 @@ import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import Glyph from '../components/Glyph';
 import { serverMessage } from '../lib/apiError';
+import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#1a7f45',
@@ -121,8 +122,9 @@ export default function Chat() {
   const unreadByStore: Record<string, number> = unreadByStoreData?.data?.data || {};
 
   useEffect(() => {
-    if (stores.length > 0 && !selectedStoreId) setSelectedStoreId(stores[0].id);
+    if (stores.length > 0 && !selectedStoreId) setSelectedStoreId(pickStore('chat', stores.map((st) => st.id)));   // the last one looked at
   }, [stores, selectedStoreId]);
+  useEffect(() => { rememberStore('chat', selectedStoreId); }, [selectedStoreId]);
 
   const { data: initialData } = useQuery({
     queryKey: ['chat-messages-init', selectedStoreId],

@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { leaderboardApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
@@ -7,6 +7,7 @@ import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { PageHeader } from '../components/kit';
 import Glyph from '../components/Glyph';
+import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
 interface Store { id: string; name: string }
 interface CustomerEntry { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }
@@ -31,6 +32,11 @@ export default function LeaderboardPage() {
     queryFn: storesApi.getAll,
   });
   const stores: Store[] = storesData?.data?.data || [];
+  // Employee ratings open on the store looked at last (or the first), not on "Choose a store"
+  useEffect(() => {
+    if (!employeeStoreId && stores.length > 0) setEmployeeStoreId(pickStore('leaderboard', stores.map((st) => st.id)) ?? '');
+  }, [stores, employeeStoreId]);
+  useEffect(() => { if (employeeStoreId) rememberStore('leaderboard', employeeStoreId); }, [employeeStoreId]);
 
   const { data: custData, isLoading: custLoading, isError: custError, refetch: refetchCust } = useQuery({
     queryKey: ['leaderboard-customers', customerStoreId],

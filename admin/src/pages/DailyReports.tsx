@@ -229,8 +229,7 @@ export default function DailyReports() {
 const s: Record<string, CSSProperties> = {
   page: {
     padding: '28px 32px',
-    maxWidth: 860,
-    margin: '0 auto',
+    maxWidth: 1100,   // left-aligned like the other pages (it sat centred)
   },
   header: {
     display: 'flex',

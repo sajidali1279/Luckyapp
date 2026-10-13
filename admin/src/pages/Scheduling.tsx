@@ -10,6 +10,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import Glyph from '../components/Glyph';
+import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -73,7 +74,12 @@ export default function Scheduling() {
     if (isStoreManager && !selectedStoreId && (storesData?.data?.data?.length ?? 0) > 0) {
       setSelectedStoreId(storesData!.data.data[0].id);
     }
+    // HQ opens on the store it looked at last (or the first), not on an empty "Select a store"
+    if (!isStoreManager && !selectedStoreId && (storesData?.data?.data?.length ?? 0) > 0) {
+      setSelectedStoreId(pickStore('scheduling', storesData!.data.data.map((st: any) => st.id)));
+    }
   }, [isStoreManager, selectedStoreId, storesData]);
+  useEffect(() => { rememberStore('scheduling', selectedStoreId); }, [selectedStoreId]);
 
   const { data: scheduleData, isLoading: scheduleLoading, isError: scheduleError, refetch: refetchSchedule } = useQuery({
     queryKey: ['schedule', selectedStoreId],
