@@ -10,6 +10,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import Glyph from '../components/Glyph';
+import { serverMessage } from '../lib/apiError';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#1a7f45',
@@ -171,9 +172,9 @@ export default function Chat() {
       const newMsg: Message = res.data.data;
       setMessages((prev) => [...prev, newMsg]);
       setLastTimestamp(newMsg.createdAt);
-    } catch {
+    } catch (e) {
       setInputText(text);
-      toast.error('Failed to send message');
+      toast.error(serverMessage(e, 'Failed to send message'));
     }
     setSending(false);
     inputRef.current?.focus();
@@ -235,7 +236,7 @@ export default function Chat() {
 
           <div style={s.storeList}>
             {filteredStores.length === 0 && (
-              <div style={s.storeListEmpty}>No stores match "{storeFilter}"</div>
+              <div style={s.storeListEmpty}>{storeFilter.trim() ? `No stores match "${storeFilter}"` : 'No stores yet'}</div>
             )}
             {filteredStores.map((store) => {
               const i = stores.findIndex((s2) => s2.id === store.id);

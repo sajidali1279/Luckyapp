@@ -117,10 +117,10 @@ export default function TopBar() {
       {OWN_TITLE_MISSING.some((p) => pathname.startsWith(p))
         ? <h1 style={s.title}>{titleFor(pathname)}</h1>
         : <span style={s.title}>{titleFor(pathname)}</span>}
-      <button type="button" style={s.searchBtn} onClick={() => setPaletteOpen(true)}>
-        <Search size={14} aria-hidden="true" />
-        <span style={s.searchBtnText}>Search</span>
-        <kbd style={s.kbd}>{navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl K'}</kbd>
+      <button type="button" style={isMobile ? s.iconBtn : s.searchBtn} onClick={() => setPaletteOpen(true)} aria-label={isMobile ? "Find a page or record" : undefined}>
+        <Search size={isMobile ? 15 : 14} aria-hidden="true" />
+        {!isMobile && <span style={s.searchBtnText}>Search</span>}
+        {!isMobile && <kbd style={s.kbd}>{navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl K'}</kbd>}
       </button>
       <div style={s.right}>
         {!isMobile && <span style={s.freshness}>Updated {timeAgo(refreshedAt)}</span>}

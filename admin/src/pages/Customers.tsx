@@ -19,6 +19,7 @@ import Glyph from '../components/Glyph';
 import ReferralsPanel from '../components/ReferralsPanel';
 
 function fmt$(n: number) {
+  if (!Number.isFinite(Number(n))) n = 0;   // never $NaN
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

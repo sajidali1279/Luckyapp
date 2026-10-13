@@ -59,6 +59,7 @@ const FRAUD_FLAG_LABELS: Record<string, string> = {
 };
 
 function fmt$(n: number) {
+  if (!Number.isFinite(Number(n))) n = 0;   // a total the server left out shows $0.00, not $NaN
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -359,8 +360,8 @@ export default function Transactions() {
       a.download = match ? match[1] : 'transactions.csv';
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Export failed - try again');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Export failed, try again'));
     } finally {
       setExporting(false);
     }

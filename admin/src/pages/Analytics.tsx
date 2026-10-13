@@ -16,6 +16,7 @@ import { PageHeader, Button, Chip, Tabs } from '../components/kit';
 import { CustomersTab, PromotionsTab, PointsTab, StaffTab, BusyTab, ScorecardsTab } from '../components/analytics/InsightTabs';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import { serverMessage } from '../lib/apiError';
 
 type Range = '7d' | '30d' | '90d' | 'custom';
 const RANGE_LABEL: Record<Range, string> = { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', custom: 'Custom' };
@@ -49,7 +50,7 @@ function checkCustom(from: string, to: string, today: string): { prompt?: string
   return {};
 }
 
-function fmt$(n: number) { return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+function fmt$(n: number) { return `$${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
 const CATEGORY_COLORS = [PRIMARY, '#c42130', '#8a5300', '#1a7f45', '#3c6e8f', '#4f6d8f', '#fd7e14', '#20c997'];
 const DOLLAR_SERIES = ['$', 'volume', 'cut', 'revenue', 'cashback', 'redeemed', 'amount'];
@@ -174,8 +175,8 @@ export default function Analytics() {
       a.download = match ? match[1] : 'analytics.csv';
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Export failed - try again');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Export failed, try again'));
     } finally {
       setExporting(false);
     }

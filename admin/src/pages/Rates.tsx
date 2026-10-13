@@ -410,7 +410,7 @@ export default function Rates() {
                         {shown(tierKey, 'gasCentsPerGallon') !== '' ? <span style={s.suffix}>¢</span> : null}
                       </div>
                       {r.gasCentsPerGallon != null && !dirty && (
-                        <div style={s.gasActive}>Active: {r.gasCentsPerGallon}¢/gal for GAS & DIESEL</div>
+                        <div style={s.gasActive}>In use: {r.gasCentsPerGallon}¢ a gallon, gas and diesel</div>
                       )}
                     </TableCell>
 
@@ -452,7 +452,7 @@ export default function Rates() {
             </TableBody>
           </Table>
           <div style={s.lastChange}>
-            {last
+            {last && (last.by || last.summary)
               ? <>Last changed by <strong>{last.by}</strong>, {storeDayTime(last.at)}: {last.summary}</>
               : 'No change has been recorded yet. From now on every change to a rate is recorded here and in the Activity Log.'}
           </div>
@@ -806,7 +806,7 @@ const s: Record<string, React.CSSProperties> = {
   tableWrap: {
     background: '#fff', borderRadius: 12,
     boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
-    overflow: 'hidden', marginBottom: 28,
+    overflowX: 'auto', marginBottom: 28,   // the wide table scrolls inside the card (it was cut off at the right)
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { background: '#f7f8fa' },
@@ -816,7 +816,7 @@ const s: Record<string, React.CSSProperties> = {
     textTransform: 'uppercase' as const, letterSpacing: 0.5,
     borderBottom: '2px solid #e4e7ec',
   },
-  thSub: { fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, color: TEXT_MUTED, fontSize: 12, marginTop: 2 },
+  thSub: { fontWeight: 400, textTransform: 'none' as const, letterSpacing: 0, color: TEXT_MUTED, fontSize: 12, marginTop: 2, whiteSpace: 'normal', maxWidth: 200 },   // wraps, so the table fits a laptop screen
   tr: { borderBottom: '1px solid #e4e7ec', transition: 'background 0.15s' },
   trDirty: { background: '#fffbf0' },
   td: { padding: '14px 16px', verticalAlign: 'middle' as const },
@@ -836,7 +836,7 @@ const s: Record<string, React.CSSProperties> = {
   inputDirty: { borderColor: '#8a5300' },
   suffix: { fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   preview: { fontSize: 13, color: GREEN_TEXT, fontStyle: 'italic' },
-  gasActive: { fontSize: 13, color: AMBER_TEXT, marginTop: 4 },
+  gasActive: { fontSize: 13, color: AMBER_TEXT, marginTop: 4, whiteSpace: 'normal', maxWidth: 220 },
 
   saveBtn: {
     padding: '6px 14px', background: GREEN_TEXT, color: '#fff',
@@ -847,7 +847,7 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid #e4e7ec', borderRadius: 6,
     cursor: 'pointer', fontSize: 15, color: TEXT_MUTED,
   },
-  savedTag: { fontSize: 14, color: GREEN_TEXT, fontWeight: 600 },
+  savedTag: { fontSize: 14, color: GREEN_TEXT, fontWeight: 600, whiteSpace: 'nowrap' },
   lastChange: { padding: '12px 16px', fontSize: 14, color: TEXT_MUTED, borderTop: '1px solid #e4e7ec' },
 
   sectionHeader: {

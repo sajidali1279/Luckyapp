@@ -760,7 +760,7 @@ export default function Stores() {
                 </div>
                 {hasCoords && (
                   <div style={s.detailRow}>
-                    <span style={s.detailLabel}>Coordinates</span>
+                    <span style={s.detailLabel}>Location</span>
                     <span style={s.coordText}>{store.latitude!.toFixed(5)}, {store.longitude!.toFixed(5)}</span>
                   </div>
                 )}

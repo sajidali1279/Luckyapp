@@ -285,7 +285,7 @@ export default function Profile() {
                 <ol style={s.activity}>
                   {account.activity.map((a) => (
                     <li key={a.id} style={s.activityRow}>
-                      <span style={{ color: C.text, fontSize: FONT.small, lineHeight: 1.45 }}>{a.summary || a.action.replace(/_/g, ' ').toLowerCase()}</span>
+                      <span style={{ color: C.text, fontSize: FONT.small, lineHeight: 1.45 }}>{a.summary || (a.action.charAt(0) + a.action.slice(1).replace(/_/g, ' ').toLowerCase())}</span>
                       <span style={{ color: C.muted, fontSize: FONT.caption, whiteSpace: 'nowrap' }}>{storeDayTime(a.createdAt)}</span>
                     </li>
                   ))}

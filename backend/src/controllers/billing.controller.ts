@@ -24,6 +24,9 @@ import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
 import { withSharedReads } from './adminNotificationReads.controller';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
+/** PUMP_OUT_OF_ORDER as "Pump out of order" (a store alert with no note showed the code) */
+const alertWords = (t: string) => { const w = String(t ?? '').replace(/_/g, ' ').toLowerCase(); return w.charAt(0).toUpperCase() + w.slice(1); };
+
 export async function getStoreById(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const store = await prisma.store.findUnique({
@@ -1712,7 +1715,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       type: 'REQUEST',
       category: 'requests',
       title: `Store Alert - ${r.submitterName || 'Employee'}`,
-      message: `${r.notes || r.type} at ${r.store.name}`,
+      message: `${r.notes || alertWords(r.type)} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
       severity: r.priority === 'HIGH' ? 'error' : 'info',
@@ -1971,7 +1974,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       type: 'REQUEST',
       category: 'requests',
       title: `Store Alert - ${r.submitterName || 'Employee'}`,
-      message: `${r.notes || r.type} at ${r.store.name}`,
+      message: `${r.notes || alertWords(r.type)} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
       severity: r.priority === 'HIGH' ? 'error' : 'info',

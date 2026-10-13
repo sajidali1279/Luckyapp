@@ -232,8 +232,8 @@ function AddEditModal({ item, onClose, onSaved }: {
       }
       onSaved();
       onClose();
-    } catch {
-      toast.error('Failed to save item');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Failed to save item'));
     } finally {
       setSaving(false);
     }
@@ -353,8 +353,8 @@ function AssignModal({ item, stores, onClose, onEdit }: {
       const n = localSelected.size;
       toast.success(`Assigned to ${n} store${n !== 1 ? 's' : ''}`);
       onClose();
-    } catch {
-      toast.error('Could not save store assignments');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Could not save store assignments'));
     } finally {
       setSaving(false);
     }
@@ -366,8 +366,8 @@ function AssignModal({ item, stores, onClose, onEdit }: {
       qc.invalidateQueries({ queryKey: ['hot-food-catalog'] });
       toast.success('Item removed from catalog');
       onClose();
-    } catch {
-      toast.error('Could not delete item');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Could not delete item'));
     }
   }
 
@@ -506,8 +506,8 @@ export default function HotFood() {
       qc.invalidateQueries({ queryKey: ['stores'] });
       qc.invalidateQueries({ queryKey: ['hot-food-stores-status'] });
       toast.success(store.hotFoodEnabled ? `Hot food disabled at ${store.name}` : `Hot food enabled at ${store.name}`);
-    } catch {
-      toast.error('Failed to update hot food setting');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Failed to update hot food setting'));
     } finally {
       setTogglingHotFood(null);
     }
