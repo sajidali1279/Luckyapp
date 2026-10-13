@@ -41,6 +41,7 @@ import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../compon
 interface MenuItem {
   id: string;
   name: string;
+  category?: string | null;   // the menu's section (HQ sets it in admin Hot Food > Catalog)
   description?: string;
   price: number;
   estimatedMinutes?: number;
@@ -645,9 +646,24 @@ export default function CustomerHotFoodScreen() {
   const combos: Combo[] = Array.isArray(menuData?.data?.combos) ? menuData.data.combos : [];
   const comboWords = useComboWords();
   const [search, setSearch] = useState('');
+  // The menu in sections (2026-10-13): the server's category order, then "More" for items with none; while searching, a plain list
+  const categoryOrder: string[] = Array.isArray(menuData?.data?.categories) ? menuData.data.categories : [];
+  const listRef = useRef<FlatList<any>>(null);
   const shownItems = search.trim()
     ? menuItems.filter((m) => `${m.name} ${m.description ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
     : menuItems;
+  const sectionsShown: string[] = (() => {
+    const has = new Set(menuItems.map((m) => m.category).filter(Boolean) as string[]);
+    const ordered = [...categoryOrder.filter((c) => has.has(c)), ...[...has].filter((c) => !categoryOrder.includes(c))];
+    return menuItems.some((m) => !m.category) && ordered.length > 0 ? [...ordered, ''] : ordered;   // '' is "More", the items with none
+  })();
+  const menuRows: any[] = search.trim() || sectionsShown.length === 0
+    ? shownItems.map((item) => ({ kind: 'item', item }))
+    : sectionsShown.flatMap((c) => {
+        const inIt = shownItems.filter((m) => (c === '' ? !m.category : m.category === c));
+        return inIt.length ? [{ kind: 'header', title: c }, ...inIt.map((item) => ({ kind: 'item', item }))] : [];
+      });
+  const catLabel = (c: string) => (c === '' ? t('hotFoodCat.More') : t(`hotFoodCat.${c}`, { defaultValue: c }));
   useEffect(() => {
     if (!menuData) return;
     setCart((prev) => {
@@ -851,7 +867,12 @@ export default function CustomerHotFoodScreen() {
           ) : (
             <FadeSlideIn style={{ flex: 1 }}>
               <FlatList
-                data={shownItems}
+                ref={listRef}
+                data={menuRows}
+                onScrollToIndexFailed={(info) => {
+                  listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+                  setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, animated: true, viewOffset: 4 }), 250);
+                }}
                 ListHeaderComponent={
                   <View>
                     {!search.trim() && (
@@ -863,6 +884,16 @@ export default function CustomerHotFoodScreen() {
                           router.setParams({ combo: '' });
                         }}
                       />
+                    )}
+                    {!search.trim() && sectionsShown.length > 1 && (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catChips}>
+                        {sectionsShown.map((c) => (
+                          <TouchableOpacity key={c || '-more'} style={s.catChip} accessibilityRole="button"
+                            onPress={() => { const i = menuRows.findIndex((r: any) => r.kind === 'header' && r.title === c); if (i >= 0) listRef.current?.scrollToIndex({ index: i, animated: true, viewOffset: 4 }); }}>
+                            <Text style={s.catChipText}>{catLabel(c)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
                     )}
                     {menuItems.length > 8 ? (
                       <TextInput
@@ -880,19 +911,21 @@ export default function CustomerHotFoodScreen() {
                 }
                 ListEmptyComponent={search.trim() ? <Text style={s.searchEmpty}>{t('customerHotFood.searchNothing', { text: search.trim() })}</Text> : null}
                 keyboardShouldPersistTaps="handled"
-                keyExtractor={item => item.id}
+                keyExtractor={(row: any) => (row.kind === 'header' ? `h:${row.title}` : row.item.id)}
                 contentContainerStyle={s.menuList}
                 onScroll={largeTitle.onScroll}
                 scrollEventThrottle={largeTitle.scrollEventThrottle}
                 refreshControl={
                   <RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />
                 }
-                renderItem={({ item }) => (
+                renderItem={({ item: row }: { item: any }) => row.kind === 'header' ? (
+                  <Text style={s.catHeader} accessibilityRole="header">{catLabel(row.title)}</Text>
+                ) : (
                   <MenuCard
-                    item={item}
-                    qty={getQty(item.id)}
-                    onAdd={() => addToCart(item)}
-                    onRemove={() => removeFromCart(item)}
+                    item={row.item}
+                    qty={getQty(row.item.id)}
+                    onAdd={() => addToCart(row.item)}
+                    onRemove={() => removeFromCart(row.item)}
                     closed={closed}
                   />
                 )}
@@ -1051,6 +1084,10 @@ const s = StyleSheet.create({
 
   // Menu
   menuList: { padding: 12, paddingBottom: 32 },
+  catChips: { gap: 8, paddingBottom: 10, paddingRight: 4 },
+  catChip: { borderRadius: 999, borderWidth: 1, borderColor: '#E6E8EB', backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8 },
+  catChipText: { fontSize: 14, fontWeight: '700', color: COLORS.secondary },
+  catHeader: { fontSize: 18, fontWeight: '900', color: COLORS.text, marginTop: 14, marginBottom: 8, marginLeft: 2 },
   search: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E6E8EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: COLORS.text, marginBottom: 10 },
   searchEmpty: { textAlign: 'center', color: COLORS.textMuted, fontSize: 14, marginTop: 24 },
 

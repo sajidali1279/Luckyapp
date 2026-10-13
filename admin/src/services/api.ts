@@ -584,7 +584,7 @@ export const hotFoodCatalogApi = {
   getAll: () => api.get('/hot-food/catalog'),
   create: (formData: FormData) =>
     api.post('/hot-food/catalog', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  update: (id: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null }>) =>
+  update: (id: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null; category: string | null }>) =>
     api.patch(`/hot-food/catalog/${id}`, data),
   updateImage: (id: string, formData: FormData) =>
     api.patch(`/hot-food/catalog/${id}/image`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),

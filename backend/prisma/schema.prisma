@@ -1646,6 +1646,7 @@ model HotFoodCatalogItem {
   id               String   @id @default(uuid())
   name             String
   description      String?
+  category         String?                     // Chicken, Wings, Sides, Family Meals... (utils/hotFoodCategories.ts); the app's menu is grouped by it
   price            Float
   imageUrl         String?
   estimatedMinutes Int?

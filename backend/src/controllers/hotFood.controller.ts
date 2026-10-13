@@ -13,6 +13,7 @@ import { audit } from '../utils/audit';
 import { tellStoreAboutOrder } from '../utils/hotFoodRouting';
 import { placeWithPoints, returnOrderPoints, recordPointsPickup, pts } from '../utils/hotFoodPoints';
 import { combosAt, comboLineName, DRINKS } from '../utils/hotFoodCombos';
+import { cleanCategory, orderCategories } from '../utils/hotFoodCategories';
 import { rule, feature } from '../utils/appSettings';
 
 /** Open hot food orders (pending, being made, ready) one customer can have at once, across stores (2026-10-11) */
@@ -142,7 +143,7 @@ export async function createItem(req: AuthRequest, res: Response) {
     data: {
       name: checked.data.name,
       description: checked.data.description ?? null,
-      category: typeof category === 'string' ? category.trim().slice(0, 40) || null : null,
+      category: cleanCategory(category),
       price: checked.data.price,
       storeId,
       estimatedMinutes: checked.data.estimatedMinutes ?? null,
@@ -178,7 +179,7 @@ export async function updateItem(req: AuthRequest, res: Response) {
   const checked = itemFields(req.body, { creating: false, priceMin: 0 });
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
   const data: any = { ...checked.data };
-  if (category !== undefined) data.category = typeof category === 'string' ? category.trim().slice(0, 40) || null : null;
+  if (category !== undefined) data.category = cleanCategory(category);
   if (isAvailable !== undefined) data.isAvailable = isAvailable === true || isAvailable === 'true';
 
   // Image file uploaded — replace via Cloudinary
@@ -411,7 +412,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
 
   const menuItems = await prisma.hotFoodMenuItem.findMany({
     where: { isAvailable: true, OR: [{ storeId }, { storeId: null }] },
-    select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
+    select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true },
     orderBy: { name: 'asc' },
   });
 
@@ -420,7 +421,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     where: { storeId, isAvailable: true },
     select: {
       catalogItem: {
-        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
+        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true },
       },
     },
   });
@@ -436,7 +437,9 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime,
     item: { id: c.catalogItem.id, name: c.catalogItem.name, imageUrl: c.catalogItem.imageUrl }, estimatedMinutes: c.catalogItem.estimatedMinutes,
   }));
-  res.json({ success: true, data: all, hours, combos, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
+  // The menu's sections, in order (utils/hotFoodCategories.ts); an item with none is under "More" in the app
+  const categories = orderCategories(all.map((i) => (i as { category?: string | null }).category ?? null));
+  res.json({ success: true, data: all, hours, combos, categories, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
 }
 
 // GET /hot-food/store/:storeId/all-items — all items with availability (employee management view)
@@ -797,6 +800,7 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
       description: checked.data.description ?? null,
       price: checked.data.price,
       estimatedMinutes: checked.data.estimatedMinutes ?? null,
+      category: cleanCategory(req.body.category),
       imageUrl: imageUrl ?? null,
     },
     include: { _count: { select: { stores: true } } },
@@ -813,6 +817,7 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   const checked = itemFields(req.body, { creating: false, priceMin: 0.01 });
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
   const data: any = checked.data;
+  if (req.body.category !== undefined) data.category = cleanCategory(req.body.category);
 
   const item = await prisma.hotFoodCatalogItem.update({
     where: { id },

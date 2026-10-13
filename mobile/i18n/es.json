@@ -3106,5 +3106,19 @@
     "title": "Contáctanos",
     "callA11y": "Llamar al {{phone}}",
     "emailA11y": "Escribir a {{email}}"
+  },
+  "hotFoodCat": {
+    "Chicken": "Pollo",
+    "Tenders": "Tiras de pollo",
+    "Wings": "Alitas",
+    "Seafood": "Mariscos",
+    "Sandwiches": "Sándwiches",
+    "Family Meals": "Comidas familiares",
+    "Sides": "Acompañantes",
+    "Breakfast": "Desayuno",
+    "Snacks": "Botanas",
+    "Desserts": "Postres",
+    "Drinks": "Bebidas",
+    "More": "Más"
   }
 }

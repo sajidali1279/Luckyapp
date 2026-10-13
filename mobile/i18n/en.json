@@ -3106,5 +3106,19 @@
     "title": "Contact us",
     "callA11y": "Call {{phone}}",
     "emailA11y": "Email {{email}}"
+  },
+  "hotFoodCat": {
+    "Chicken": "Chicken",
+    "Tenders": "Tenders",
+    "Wings": "Wings",
+    "Seafood": "Seafood",
+    "Sandwiches": "Sandwiches",
+    "Family Meals": "Family Meals",
+    "Sides": "Sides",
+    "Breakfast": "Breakfast",
+    "Snacks": "Snacks",
+    "Desserts": "Desserts",
+    "Drinks": "Drinks",
+    "More": "More"
   }
 }
