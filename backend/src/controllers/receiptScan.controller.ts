@@ -17,6 +17,7 @@ import { noteBudgetUse } from '../utils/offerBudget';
 import { storeDateKey, storeDayStart, storeDaysBetween, startOfStoreDate } from '../utils/storeTime';
 import { rule } from '../utils/appSettings';
 import { sameReceipt, cleanRead, factsOf } from '../utils/receiptScan';
+import { checkScanCard, brandKey } from '../utils/receiptCards';
 import { approveAndCredit } from '../utils/saleDecision';
 import { pushChallengeAwards } from '../utils/challenges';
 import { pushReferralAwards } from '../utils/referrals';
@@ -145,6 +146,11 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   });
   if (atRegister) return refuseScan('This purchase already earned points at the register.', { storeId: store.id, receiptAt, total });
 
+  // The cards this customer's receipts were paid with (utils/receiptCards.ts): a new card, another account's card, many cards, cash
+  const card = { last4: read.cardLast4, brand: read.cardBrand, method: read.paymentMethod };
+  const cardCheck = await checkScanCard(customer.id, card);
+  if (cardCheck.refuse) return refuseScan(cardCheck.refuse, { storeId: store.id, receiptAt, total });
+
   const { lines, leftOut } = saleLines(read, full.enabledCategories);
   const flags: string[] = ['RECEIPT_SCAN'];
   let saleRows = lines;
@@ -154,6 +160,7 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   if (read.concerns.length) flags.push('READER_CONCERNS');
   if (!read.receiptNumber) flags.push('NO_RECEIPT_NUMBER');
   if (!read.time) flags.push('NO_TIME');
+  flags.push(...cardCheck.flags);
   const itemsSum = read.items.reduce((n, it) => n + it.amount, 0);
   const expected = read.subtotal ?? (read.total != null && read.tax != null ? read.total - read.tax : null);
   if (expected != null && read.items.length && Math.abs(itemsSum - expected) > Math.max(1, expected * 0.05)) flags.push('TOTALS_DIFFER');
@@ -163,6 +170,7 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   try {
     scanId = (await prisma.receiptScan.create({ data: {
       customerId: customer.id, storeId: store.id, imageHash, receiptKey, receiptAt, total, status: 'HELD', flags: JSON.stringify(flags), read: read as any,
+      paymentMethod: read.paymentMethod, cardLast4: read.cardLast4, cardBrand: brandKey(read.cardBrand),
     }, select: { id: true } })).id;
   } catch (e: any) {
     if (e?.code === 'P2002') { res.status(409).json({ success: false, code: 'ALREADY_USED', error: 'This receipt has already been scanned.' }); return; }

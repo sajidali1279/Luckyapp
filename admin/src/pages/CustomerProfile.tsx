@@ -17,7 +17,7 @@ import CardSkeleton from '../components/CardSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAuthStore } from '../store/authStore';
 
-type Tab = 'overview' | 'activity' | 'referrals' | 'notes' | 'devices' | 'history';
+type Tab = 'overview' | 'activity' | 'referrals' | 'notes' | 'devices' | 'cards' | 'history';
 const fmt$ = (n: number | null | undefined) => (n == null ? '-' : `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const KIND_LABEL: Record<string, string> = { all: 'Everything', sales: 'Purchases', rewards: 'Rewards', redemptions: 'Redemptions', disputes: 'Reports', hotfood: 'Hot food', credits: 'Credits' };
@@ -81,7 +81,7 @@ export default function CustomerProfile() {
       <Tabs ariaLabel="Customer profile" value={tab} onChange={setTab} tabs={[
         { value: 'overview', label: 'Overview' }, { value: 'activity', label: 'Activity' }, { value: 'referrals', label: 'Referrals' },
         { value: 'notes', label: 'Notes', count: d.notes || undefined }, { value: 'devices', label: 'Devices', count: d.devices.length || undefined },
-        { value: 'history', label: 'Account history' },
+        { value: 'cards', label: 'Receipt cards' }, { value: 'history', label: 'Account history' },
       ]} />
 
       {tab === 'overview' && <Overview id={id} d={d} onChanged={refresh} />}
@@ -89,6 +89,7 @@ export default function CustomerProfile() {
       {tab === 'referrals' && <Referrals d={d} />}
       {tab === 'notes' && <Notes id={id} meId={me?.id} isDev={me?.role === 'DEV_ADMIN'} onChanged={refresh} />}
       {tab === 'devices' && <Devices devices={d.devices} />}
+      {tab === 'cards' && <ReceiptCards id={id} />}
       {tab === 'history' && <History id={id} />}
     </Page>
   );
@@ -319,6 +320,65 @@ function Devices({ devices }: { devices: any[] }) {
         </Table>
       )}
     </Card>
+  );
+}
+
+// The cards on the customer's scanned receipts (2026-10-13, backend utils/receiptCards.ts). HQ only: customers never see this. Only the
+// brand and the last 4 digits are kept. A new card, another account's card, many cards and cash are held for a manager.
+function ReceiptCards({ id }: { id: string }) {
+  const q = useQuery({ queryKey: ['customer-receipt-cards', id], queryFn: () => customersApi.receiptCards(id) });
+  const v: any = q.data?.data?.data;
+  if (q.isError) return <Card><ErrorState onRetry={q.refetch} /></Card>;
+  if (q.isLoading || !v) return <CardSkeleton count={2} />;
+  const many = v.cardsLast30Days > v.maxCards30Days;
+  const shared = v.cards.filter((c: any) => c.otherAccounts.length > 0);
+  return (
+    <>
+      <Card style={{ marginBottom: 16 }}>
+        <SectionTitle>Receipt scans</SectionTitle>
+        <p style={{ margin: '-4px 0 12px', color: C.muted, fontSize: FONT.small }}>
+          The cards their scanned receipts were paid with, so receipts picked up off the floor stand out. Only the card brand and the last 4 digits are kept, and customers never see this page.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: many || shared.length ? 12 : 0 }}>
+          {([['Scans', String(v.scans.total), false], ['Approved', String(v.scans.approved), false], ['Waiting', String(v.scans.held), false],
+            ['Rejected', String(v.scans.rejected), v.scans.rejected > 0], ['Cards, last 30 days', `${v.cardsLast30Days} of ${v.maxCards30Days}`, many]] as [string, string, boolean][]).map(([label, value, bad]) => (
+            <div key={label} style={{ border: `1px solid ${bad ? C.danger : C.border}`, borderRadius: 10, padding: '8px 14px', minWidth: 96 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: bad ? C.danger : C.text, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+              <div style={{ fontSize: FONT.caption, color: C.muted }}>{label}</div>
+            </div>
+          ))}
+        </div>
+        {many && <Notice tone="danger" style={{ marginBottom: shared.length ? 8 : 0 }}>{v.cardsLast30Days} different cards in 30 days, more than the {v.maxCards30Days} allowed: every scan with a new card waits for a manager. Many cards can mean receipts picked up off the floor.</Notice>}
+        {shared.length > 0 && <Notice tone="warning">{shared.length === 1 ? 'One of their cards is' : `${shared.length} of their cards are`} also on another customer's receipts. It can be family sharing a card; check before approving.</Notice>}
+      </Card>
+      <Card>
+        <SectionTitle>Cards</SectionTitle>
+        {v.cards.length === 0 ? <EmptyState title="No card on their scanned receipts yet" /> : (
+          <Table>
+            <TableHeader><TableRow>
+              {['Card', 'First seen', 'Last seen', 'Approved', 'Waiting', 'Rejected', 'Also on'].map((h, i) => <TableHead key={h} style={{ ...th, ...(i >= 3 && i <= 5 ? num : {}) }}>{h}</TableHead>)}
+            </TableRow></TableHeader>
+            <TableBody>
+              {v.cards.map((c: any) => (
+                <TableRow key={`${c.brand}-${c.last4}`}>
+                  <TableCell style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{c.brand ? statusText(c.brand) : 'Card'} ending {c.last4}</TableCell>
+                  <TableCell>{storeDayLong(c.firstSeen)}</TableCell>
+                  <TableCell>{storeDayLong(c.lastSeen)}</TableCell>
+                  <TableCell style={num}>{c.approved}</TableCell>
+                  <TableCell style={num}>{c.held}</TableCell>
+                  <TableCell style={{ ...num, color: c.rejected ? C.danger : undefined }}>{c.rejected}</TableCell>
+                  <TableCell>{c.otherAccounts.length === 0 ? <span style={{ color: C.muted }}>No one else</span>
+                    : c.otherAccounts.map((a: any, i: number) => <span key={a.id}>{i > 0 ? ', ' : ''}<Link to={`/customers/${a.id}`} style={{ color: PRIMARY, fontWeight: 600 }}>{a.name || 'Customer'}</Link></span>)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <p style={{ margin: '12px 0 0', color: C.muted, fontSize: FONT.small }}>
+          Paid in cash or no card on the receipt: {v.noCard.approved} approved, {v.noCard.held} waiting, {v.noCard.rejected} rejected. The limits are in Settings &gt; Receipt scanning.
+        </p>
+      </Card>
+    </>
   );
 }
 

@@ -258,6 +258,7 @@ export const customersApi = {
   deleteNote: (userId: string, noteId: string) => api.delete(`/users/customers/${userId}/notes/${noteId}`),
   unlock: (userId: string) => api.post(`/users/customers/${userId}/unlock`),
   history: (userId: string) => api.get(`/users/customers/${userId}/history`),
+  receiptCards: (userId: string) => api.get(`/users/customers/${userId}/receipt-cards`),
   goodwillCredit: (userId: string, amount: number, reason: string) =>
     api.post(`/users/customers/${userId}/goodwill-credit`, { amount, reason }),
   // Say which state you want: restricting twice, or a double click, cannot switch the account back on

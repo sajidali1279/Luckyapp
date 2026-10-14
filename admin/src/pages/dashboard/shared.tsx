@@ -105,6 +105,11 @@ export const FRAUD_FLAG_LABELS: Record<string, string> = {
   NO_TIME:           'No time on the photo',
   SPOT_CHECK:        'A clean scan picked at random for a check',
   RECEIPT_SCANNED:   'The customer scanned a receipt here in the last 3 hours: maybe the same purchase',
+  NEW_CARD:          'Paid with a card this customer has not had approved before: check the photo is theirs',
+  CARD_OTHER_ACCOUNT:'This card is on another customer\'s approved scan (family, or a receipt picked up?)',
+  MANY_CARDS:        'Many different cards on this customer\'s receipts in 30 days',
+  NO_CARD:           'Paid in cash, or no card on the receipt',
+  PAST_REJECTED:     'One of this customer\'s scans was rejected recently',
 };
 
 export function readSetting<T extends string>(key: string, allowed: readonly T[], fallback: T): T {

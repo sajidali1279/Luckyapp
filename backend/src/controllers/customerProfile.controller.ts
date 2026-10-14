@@ -12,6 +12,7 @@ import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { getNextTierProgress, getStoredThresholds } from '../utils/tier';
 import { shortName } from '../utils/referrals';
 import { isTestPhone } from '../utils/testAccounts';
+import { customerReceiptCards } from '../utils/receiptCards';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const DAY = 86_400_000;
@@ -19,6 +20,13 @@ const SALE_ONLY = { challengeId: null, referralId: null };
 
 async function findCustomer(id: string) {
   return prisma.user.findFirst({ where: { id, role: Role.CUSTOMER, ...excludeDeletedCustomers } });
+}
+
+/** GET /users/customers/:userId/receipt-cards: the cards on the customer's scanned receipts (HQ only; customers never see this). */
+export async function getCustomerReceiptCards(req: AuthRequest, res: Response) {
+  const c = await findCustomer(req.params.userId);
+  if (!c) { res.status(404).json({ success: false, error: 'That customer no longer exists.' }); return; }
+  res.json({ success: true, data: await customerReceiptCards(c.id) });
 }
 
 /** GET /users/customers/:userId/profile */

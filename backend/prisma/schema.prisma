@@ -987,6 +987,9 @@ model ReceiptScan {
   receiptKey     String?  @unique                // store, date, receipt number and total: the same receipt photographed again
   receiptAt      DateTime?
   total          Float?
+  paymentMethod  String?                         // CASH | CARD | OTHER, as read (2026-10-13)
+  cardLast4      String?                         // the card's last 4 digits and brand, never more (utils/receiptCards.ts)
+  cardBrand      String?
   status         String                          // HELD | REFUSED | ERROR
   reason         String?                         // why it was refused, in words the customer reads
   flags          String?                         // JSON array: what the reviewer should look at
@@ -999,6 +1002,7 @@ model ReceiptScan {
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
+  @@index([cardLast4])
   @@map("receipt_scans")
 }
 
