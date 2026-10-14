@@ -47,6 +47,8 @@ export interface ReceiptRead {
   receiptNumber: string | null;
   subtotal: number | null; tax: number | null; total: number | null;
   items: { name: string; amount: number; category: ReadCategory; gallons: number | null }[];
+  // How it was paid (2026-10-13): the card's last 4 digits and the authorization code tell one purchase from another
+  paymentMethod: 'CASH' | 'CARD' | 'OTHER' | null; cardBrand: string | null; cardLast4: string | null; authCode: string | null;
   readable: 'good' | 'partial' | 'poor';
   concerns: string[];
 }
@@ -68,6 +70,10 @@ Read it carefully and return ONLY a JSON object (no markdown, no explanation) wi
     TOBACCO (cigarettes, cigars, vapes), ALCOHOL (beer, wine), NOT_ELIGIBLE (lottery, money order, gift card, prepaid card, bill payment,
     cash back, deposit, fee), OTHER,
     "gallons": the gallons for a fuel line, else null},
+  "paymentMethod": "CASH", "CARD" (credit, debit, EBT card) or "OTHER", or null if not printed,
+  "cardBrand": the card brand as printed (e.g. "VISA", "MASTERCARD", "AMEX", "DISCOVER", "DEBIT"), or null,
+  "cardLast4": the last 4 digits of the card number (from e.g. "XXXXXXXXXXXX1234" or "****1234"), or null,
+  "authCode": the card approval / authorization code (e.g. "AUTH: 012345", "APPR CODE 4H7K2B"), or null,
   "readable": "good" if everything above was clear, "partial" if some of it was cut off or blurry, "poor" if most of it could not be read,
   "concerns": a list of short notes about anything suspicious: the numbers look edited or written over, it is a photo of a screen,
     several receipts in one photo, the total does not match the lines, the receipt is cut off; [] when nothing looks wrong
@@ -112,6 +118,10 @@ export function parseRead(text: string): ReceiptRead | null {
       category: (READ_CATEGORIES as readonly string[]).includes(it?.category) ? it.category : 'OTHER',
       gallons: num(it?.gallons),
     })).filter((it: { name: string; amount: number }) => it.name || it.amount),
+    paymentMethod: ['CASH', 'CARD', 'OTHER'].includes(o.paymentMethod) ? o.paymentMethod : null,
+    cardBrand: str(o.cardBrand)?.toUpperCase().slice(0, 20) ?? null,
+    cardLast4: /^\d{4}$/.test(String(o.cardLast4 ?? '').trim()) ? String(o.cardLast4).trim() : null,
+    authCode: (() => { const a = String(o.authCode ?? '').toUpperCase().replace(/[^A-Z0-9]/g, ''); return a.length >= 4 && a.length <= 12 ? a : null; })(),
     readable: ['good', 'partial', 'poor'].includes(o.readable) ? o.readable : 'poor',
     concerns: (Array.isArray(o.concerns) ? o.concerns : []).map(str).filter(Boolean).slice(0, 10) as string[],
   };
@@ -179,23 +189,57 @@ export function saleLines(read: ReceiptRead, storeCategories: ProductCategory[])
 
 // ── The same receipt again ───────────────────────────────────────────────────
 
-export interface ScanFacts { customerId: string; date: string | null; time: string | null; receiptNumber: string | null; total: number | null }
+export interface ScanFacts {
+  customerId: string; date: string | null; time: string | null; receiptNumber: string | null; total: number | null;
+  items?: number[] | null; cardLast4?: string | null; authCode?: string | null;
+}
+/** A scan's facts from what the AI read. */
+export function factsOf(customerId: string, r: any, total: number | null): ScanFacts {
+  return {
+    customerId, date: r?.date ?? null, time: r?.time ?? null, receiptNumber: r?.receiptNumber ?? null, total,
+    items: Array.isArray(r?.items) ? r.items.map((it: any) => Number(it?.amount)).filter((n: number) => Number.isFinite(n) && n !== 0) : null,
+    cardLast4: r?.cardLast4 ?? null, authCode: r?.authCode ?? null,
+  };
+}
+const sameAmounts = (a?: number[] | null, b?: number[] | null) => {
+  if (!a?.length || !b?.length || a.length !== b.length) return false;
+  const x = [...a].sort((p, q) => p - q), y = [...b].sort((p, q) => p - q);
+  return x.every((v, i) => Math.abs(v - y[i]) < 0.005);
+};
 const digitsOf = (n: string | null) => (n ?? '').replace(/\D/g, '').replace(/^0+/, '');
 const minutesOf = (t: string | null) => (t && /^\d{2}:\d{2}$/.test(t) ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3)) : null);
 
 /**
- * Whether two scans at the same store are the same receipt (2026-10-12). Another photo of a receipt is never read exactly the same way
- * ("Trans #1234" and "1234", a number missed, the time a minute off), so this is not an exact match: the same date and total, and then the
- * same receipt number digits, or times within 3 minutes. With nothing else to tell them apart, it counts as the same. A customer's second
- * purchase of the same total on the same day (two coffees) is a different receipt: its number and time differ.
+ * Whether two scans at the same store are the same receipt. Another photo of a receipt is never read exactly the same way: "Trans #1234"
+ * and "1234", a number missed, the time a minute off, and (found in testing 2026-10-13) a DIFFERENT number picked, since a receipt prints
+ * several (transaction, register, ticket). So, on the same date:
+ *  - the card's authorization code decides when both have one; two different cards are two purchases;
+ *  - the same receipt number digits, at about the same time, is the same receipt even if the total was misread;
+ *  - the same money (the total, or every line amount) within 3 minutes is the same receipt for the same customer, and for another customer
+ *    when two or more line amounts match too (two people buying a $1.99 coffee a minute apart are two receipts);
+ *  - with no time on one of them: the same money is the same receipt unless both numbers were read and differ.
+ * A customer's second purchase of the same total on the same day (two coffees) is a different receipt: its time differs.
  */
 export function sameReceipt(a: ScanFacts, b: ScanFacts): boolean {
-  if (!a.date || a.date !== b.date || a.total == null || b.total == null || Math.abs(a.total - b.total) > 0.005) return false;
+  if (!a.date || a.date !== b.date) return false;
+  if (a.authCode && b.authCode) return a.authCode === b.authCode;
+  if (a.cardLast4 && b.cardLast4 && a.cardLast4 !== b.cardLast4) return false;
   const da = digitsOf(a.receiptNumber), db = digitsOf(b.receiptNumber);
-  if (da.length >= 3 && db.length >= 3) return da === db || da.endsWith(db) || db.endsWith(da);
+  const bothNumbers = da.length >= 3 && db.length >= 3;
+  const sameNumber = bothNumbers && (da === db || da.endsWith(db) || db.endsWith(da));
   const ma = minutesOf(a.time), mb = minutesOf(b.time);
-  if (ma != null && mb != null) return Math.abs(ma - mb) <= 3;
-  return true;
+  const timesKnown = ma != null && mb != null;
+  const closeInTime = timesKnown && Math.abs(ma! - mb!) <= 3;
+  if (sameNumber && (!timesKnown || closeInTime)) return true;
+  const sameTotal = a.total != null && b.total != null && Math.abs(a.total - b.total) < 0.005;
+  const sameLines = sameAmounts(a.items, b.items);
+  if (!sameTotal && !sameLines) return false;
+  if (timesKnown) {
+    if (!closeInTime) return false;
+    if (a.customerId === b.customerId) return true;
+    return (sameLines && (a.items?.length ?? 0) >= 2) || !bothNumbers;   // one $1.99 coffee each is not proof
+  }
+  return !bothNumbers || sameNumber;
 }
 
 /** The checks a scan passes to be approved at once (the rest of the rules, amount, account age, spot check, are in the controller). */

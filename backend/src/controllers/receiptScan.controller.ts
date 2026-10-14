@@ -16,7 +16,7 @@ import { gallonsFit } from '../utils/storeRules';
 import { noteBudgetUse } from '../utils/offerBudget';
 import { storeDateKey, storeDayStart, storeDaysBetween, startOfStoreDate } from '../utils/storeTime';
 import { rule } from '../utils/appSettings';
-import { sameReceipt, cleanRead } from '../utils/receiptScan';
+import { sameReceipt, cleanRead, factsOf } from '../utils/receiptScan';
 import { approveAndCredit } from '../utils/saleDecision';
 import { pushChallengeAwards } from '../utils/challenges';
 import { pushReferralAwards } from '../utils/referrals';
@@ -127,12 +127,13 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
     return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
   }
   const dayStart = startOfStoreDate(read.date);
+  // Every held or approved scan of that store's day, whatever total was read (a misread total skipped this check before 2026-10-13)
   const sameDay = await prisma.receiptScan.findMany({
-    where: { storeId: store.id, status: { in: ['HELD', 'AUTO'] }, receiptAt: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 3600_000) }, total: { gte: total - 0.005, lte: total + 0.005 } },
-    select: { customerId: true, read: true },
+    where: { storeId: store.id, status: { in: ['HELD', 'AUTO'] }, receiptAt: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 3600_000) } },
+    select: { customerId: true, read: true, total: true },
   });
-  const here = { customerId: customer.id, date: read.date, time: read.time, receiptNumber: read.receiptNumber, total };
-  if (sameDay.some((s) => { const r = (s.read ?? {}) as any; return sameReceipt(here, { customerId: s.customerId, date: r.date ?? null, time: r.time ?? null, receiptNumber: r.receiptNumber ?? null, total }); })) {
+  const here = factsOf(customer.id, read, total);
+  if (sameDay.some((s) => sameReceipt(here, factsOf(s.customerId, s.read, s.total)))) {
     return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
   }
   // Points already given at the register for this purchase
