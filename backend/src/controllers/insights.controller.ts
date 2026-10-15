@@ -215,7 +215,7 @@ export async function getStaffInsights(req: AuthRequest, res: Response) {
   const [txs, ratings, disputes] = await Promise.all([
     prisma.pointsTransaction.findMany({
       where: { isTestData: false, challengeId: null, referralId: null, ...storeScope(w), createdAt: at },
-      select: { grantedById: true, customerId: true, status: true, purchaseAmount: true, fraudFlags: true, storeId: true },
+      select: { grantedById: true, servedById: true, customerId: true, status: true, purchaseAmount: true, fraudFlags: true, storeId: true },
     }),
     prisma.employeeRating.groupBy({ by: ['employeeId'], where: { ...storeScope(w), createdAt: at }, _avg: { rating: true }, _count: { _all: true } }),
     prisma.pointsDispute.findMany({ where: { ...storeScope(w), createdAt: at }, select: { storeId: true, status: true, createdAt: true, updatedAt: true, store: { select: { name: true } } } }),
@@ -223,12 +223,13 @@ export async function getStaffInsights(req: AuthRequest, res: Response) {
   const byEmp = new Map<string, { total: number; approved: number; amount: number; flagged: number; rejected: number }>();
   for (const t of txs) {
     if (t.grantedById === t.customerId) continue;   // a self-claim, not a cashier's sale
-    const r = byEmp.get(t.grantedById) ?? { total: 0, approved: 0, amount: 0, flagged: 0, rejected: 0 };
+    const cashier = t.servedById ?? t.grantedById;   // HQ entered it for this employee (utils/servedBy.ts)
+    const r = byEmp.get(cashier) ?? { total: 0, approved: 0, amount: 0, flagged: 0, rejected: 0 };
     r.total++;
     if (t.status === 'APPROVED') { r.approved++; r.amount += t.purchaseAmount; }
     if (t.fraudFlags) r.flagged++;
     if (t.status === 'REJECTED' || t.status === 'VOIDED') r.rejected++;
-    byEmp.set(t.grantedById, r);
+    byEmp.set(cashier, r);
   }
   const people = await prisma.user.findMany({ where: { id: { in: [...byEmp.keys()] } }, select: { id: true, name: true, phone: true, storeRoles: { select: { store: { select: { name: true } } }, take: 1 } } });
   const name = new Map(people.map((p) => [p.id, { name: p.name || p.phone, store: p.storeRoles[0]?.store.name ?? '' }]));

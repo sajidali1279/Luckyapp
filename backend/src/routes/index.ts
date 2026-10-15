@@ -28,6 +28,8 @@ import {
   getMyBenefitStatus,
   claimTierBenefit,
   processCatalogRedemption,
+  hqFindCustomers,
+  hqStoreStaff,
 } from '../controllers/points.controller';
 import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem, customerInitiateRedemption, getMyRedemptions, cancelRedemption, getPendingRedemptionsForCustomer, confirmRedemption } from '../controllers/catalog.controller';
 import {
@@ -300,6 +302,9 @@ router.get('/points/my-history', authenticate, requireRole(Role.CUSTOMER), getMy
 // ─── Points (Employee) ────────────────────────────────────────────────────────
 // Customer info lookup (cashier use — before grant/redeem)
 router.get('/points/customer-info/:qrCode', authenticate, requireRole(Role.EMPLOYEE), getCustomerInfo);
+// HQ's Grant & Redeem page (2026-10-15): find a customer when the QR photo will not read, and the store's staff for "Served by"
+router.get('/points/hq/customers', authenticate, requireRole(Role.SUPER_ADMIN), hqFindCustomers);
+router.get('/points/hq/staff/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), hqStoreStaff);
 router.get('/points/my-benefit-status', authenticate, requireRole(Role.CUSTOMER), getMyBenefitStatus);
 
 // Tier benefit claiming (Employee)

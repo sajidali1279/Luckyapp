@@ -603,6 +603,45 @@ export const welcomeBonusApi = {
   confirm:         (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
 };
 
+export type GrantLine = { category: string; amount: number; gasGallons?: number; gasPricePerGallon?: number };
+
+// HQ's Grant & Redeem page (2026-10-15): the cashier's scan screen on the admin site, for an employee with no phone who sends HQ photos of
+// the customer's QR and the receipt. The same server calls as the app; each one names the employee who served (servedById).
+export const counterApi = {
+  findCustomers: (q: string) => api.get('/points/hq/customers', { params: { q } }),
+  storeStaff: (storeId: string) => api.get(`/points/hq/staff/${storeId}`),
+  stores: () => api.get('/stores/gas-prices'),
+  customerInfo: (qrCode: string) => api.get(`/points/customer-info/${encodeURIComponent(qrCode)}`),
+  heldRewards: (qrCode: string) => api.get(`/catalog/pending/${encodeURIComponent(qrCode)}`),
+  welcomeGift: (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`, { params: { offer: 1 } }),
+  rewards: () => api.get('/catalog'),
+  preview: (customerQrCode: string, storeId: string, lines: { category: string; amount: number; gasGallons?: number }[]) =>
+    api.post('/points/preview', { customerQrCode, storeId, lines }),
+  // One line of the sale; siblingIds = the lines of this sale already created, so this one is not taken for a duplicate
+  grant: (customerQrCode: string, storeId: string, servedById: string, line: GrantLine, siblingIds: string[]) =>
+    api.post('/points/grant', {
+      customerQrCode, storeId, servedById, siblingIds, purchaseAmount: line.amount, category: line.category,
+      ...(line.gasGallons ? { isGas: true, gasGallons: line.gasGallons, ...(line.gasPricePerGallon ? { gasPricePerGallon: line.gasPricePerGallon } : {}) } : {}),
+    }),
+  uploadReceipt: (transactionId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('receipt', file);
+    return api.post(`/points/grant/${transactionId}/receipt`, fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60_000 });
+  },
+  redeem: (customerQrCode: string, storeId: string, servedById: string, amount: number) =>
+    api.post('/points/redeem', { customerQrCode, storeId, servedById, amount }),
+  tierBenefit: (customerQrCode: string, storeId: string, servedById: string) =>
+    api.post('/points/tier-benefit', { customerQrCode, storeId, servedById }),
+  catalogRedeem: (customerQrCode: string, storeId: string, servedById: string, catalogItemId: string) =>
+    api.post('/points/catalog-redeem', { customerQrCode, storeId, servedById, catalogItemId }),
+  confirmHeld: (redemptionId: string, storeId: string, servedById: string) =>
+    api.post(`/catalog/redeem/${redemptionId}/confirm`, { storeId, servedById }),
+  confirmWelcome: (claimCode: string, storeId: string, servedById: string) =>
+    api.post('/welcome-bonus/confirm', { claimCode, storeId, servedById }),
+  giveWelcome: (qrCode: string, rewardType: string, storeId: string, servedById: string) =>
+    api.post('/welcome-bonus/give', { qrCode, rewardType, storeId, servedById }),
+};
+
 export const dailyReportApi = {
   getByDate: (storeId?: string, date?: string) => {
     const params = new URLSearchParams();

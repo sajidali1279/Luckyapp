@@ -13,6 +13,7 @@ import { lockCustomer, settlePendingRedemption } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { usableStoreIds } from '../utils/storeAccess';
 import { pointsForPrice } from '../utils/rewardPoints';
+import { resolveServedBy, servedByDetails } from '../utils/servedBy';
 
 const HOLD_MINUTES = 30;
 
@@ -350,6 +351,9 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
     if (!all?.allStoresAccess) { res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' }); return; }
   }
 
+  const served = await resolveServedBy(req.user!, req.body.servedById, storeId);   // HQ's Grant & Redeem page
+  if (!served.ok) { res.status(served.status).json({ success: false, error: served.error }); return; }
+
   const redemption = await prisma.catalogRedemption.findUnique({
     where: { id },
     include: { catalogItem: true, customer: true },
@@ -382,7 +386,7 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CATALOG_CONFIRM', entity: 'catalog_redemption', entityId: id,
-    details: { item: redemption.catalogItem.title, customer: redemption.customer.name },
+    details: { item: redemption.catalogItem.title, customer: redemption.customer.name, ...servedByDetails(served.servedBy) },
     storeId,
   });
 

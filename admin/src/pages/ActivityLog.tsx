@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { auditApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
@@ -30,6 +30,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   CLAIM_TIER_BENEFIT:        { label: 'Tier Perk Used',         color: '#8a5300', bg: '#b8860b18', icon: '⭐' },
   CATALOG_REDEMPTION:        { label: 'Reward Redeemed',        color: '#3c6e8f', bg: '#457b9d18', icon: '🎁' },
   CATALOG_CONFIRM:           { label: 'Reward Handed Out',      color: '#3c6e8f', bg: '#457b9d18', icon: '✅' },
+  WELCOME_GIFT:              { label: 'Welcome Gift Given',     color: '#3c6e8f', bg: '#457b9d18', icon: '🎉' },
   // Rewards and notices
   CATALOG_ITEM_CREATE:       { label: 'Reward Added',           color: PRIMARY, bg: '#1D355718', icon: '🎁' },
   CATALOG_ITEM_UPDATE:       { label: 'Reward Changed',         color: PRIMARY, bg: '#1D355718', icon: '✏️' },
@@ -190,6 +191,8 @@ function fmtDetails(details: string | null): string {
     if (d.priceText)              parts.push(`$${d.priceText}`);
     if (d.labelCount != null)     parts.push(`${d.labelCount} label${d.labelCount === 1 ? '' : 's'}`);
     if (d.totalCopies != null)    parts.push(`${d.totalCopies} cop${d.totalCopies === 1 ? 'y' : 'ies'} printed`);
+    // HQ's Grant & Redeem page: who served the customer
+    if (d.enteredByHQ)            parts.push(`served by ${d.servedByName || 'an employee'}, entered by HQ`);
     return parts.join(' · ');
   } catch {
     return '';
@@ -284,7 +287,7 @@ export default function ActivityLog() {
         <select style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
           <option value="">All Actions</option>
           <optgroup label="── Points ──">
-            {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
+            {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','WELCOME_GIFT','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

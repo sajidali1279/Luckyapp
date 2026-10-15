@@ -31,6 +31,9 @@ import { lockCustomer, REPEAT_WINDOW_MS } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { computeSaleCashback } from '../utils/saleCashback';
 import { rule } from '../utils/appSettings';
+import { resolveServedBy, servedByDetails, storeStaff } from '../utils/servedBy';
+import { customerSearchWhere } from '../utils/customerSearch';
+import { excludeDeletedCustomers } from '../utils/accountDeletion';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
 const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
@@ -46,6 +49,11 @@ const grantSchema = z.object({
   isGas: z.boolean().optional().default(false),
   gasGallons: z.number().positive().optional(),
   gasPricePerGallon: z.number().positive().optional(),
+  // HQ's Grant & Redeem page: the employee who served the customer (utils/servedBy.ts). HQ only.
+  servedById: z.string().max(64).optional(),
+  // The lines of this same sale already created (HQ's page sends a multi-line sale one line at a time, so a retry carries on where it
+  // stopped): they are not a duplicate of this line nor a repeat sale. Only this granter's own unfinished lines for this customer count.
+  siblingIds: z.array(z.string().uuid()).max(19).optional(),
 });
 
 // The cashier's points preview (2026-10-12): what a grant of these lines would pay this customer at this store now, worked out by the
@@ -85,8 +93,14 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { customerQrCode, storeId, purchaseAmount, category, notes, isGas, gasGallons, gasPricePerGallon } = parsed.data;
+  const { customerQrCode, storeId, purchaseAmount, category, notes, isGas, gasGallons, gasPricePerGallon, servedById, siblingIds } = parsed.data;
   const employee = req.user!;
+  const served = await resolveServedBy(employee, servedById, storeId);
+  if (!served.ok) { res.status(served.status).json({ success: false, error: served.error }); return; }
+  const servedBy = served.servedBy;
+  // The cashier the checks below are about: the employee HQ entered it for, or whoever is granting
+  const cashierId = servedBy?.id ?? employee.id;
+  const byCashier: Prisma.PointsTransactionWhereInput = servedBy ? { OR: [{ grantedById: cashierId }, { servedById: cashierId }] } : { grantedById: cashierId };
 
   // Prevent employee from granting to themselves
   const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
@@ -127,24 +141,34 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const oneHourAgo    = new Date(Date.now() - 60 * 60 * 1000);
   const startOfToday  = storeDayStart();
 
+  // The earlier lines of this same sale (siblingIds above), checked: this granter's own unfinished lines for this customer, made just now
+  const siblings = siblingIds?.length ? (await prisma.pointsTransaction.findMany({
+    where: { id: { in: siblingIds }, customerId: customer.id, grantedById: employee.id, storeId, receiptImageUrl: null,
+      status: { in: [TransactionStatus.PENDING, TransactionStatus.FLAGGED] }, createdAt: { gte: twoMinutesAgo } },
+    select: { id: true },
+  })).map((t) => t.id) : [];
+  const notSibling: Prisma.PointsTransactionWhereInput = siblings.length ? { id: { notIn: siblings } } : {};
+
   const [recentDuplicate, customerTodayCount, employeeHourCount, pairTodayCount] = await Promise.all([
     prisma.pointsTransaction.findFirst({
-      where: { customerId: customer.id, grantedById: employee.id, createdAt: { gte: twoMinutesAgo }, status: { not: TransactionStatus.REJECTED } },
+      where: { customerId: customer.id, ...byCashier, ...notSibling, createdAt: { gte: twoMinutesAgo }, status: { not: TransactionStatus.REJECTED } },
     }),
     prisma.pointsTransaction.count({
-      where: { customerId: customer.id, storeId, createdAt: { gte: startOfToday }, status: { not: TransactionStatus.REJECTED } },
+      where: { customerId: customer.id, storeId, ...notSibling, createdAt: { gte: startOfToday }, status: { not: TransactionStatus.REJECTED } },
     }),
     prisma.pointsTransaction.count({
-      where: { grantedById: employee.id, createdAt: { gte: oneHourAgo }, status: { not: TransactionStatus.REJECTED } },
+      where: { ...byCashier, ...notSibling, createdAt: { gte: oneHourAgo }, status: { not: TransactionStatus.REJECTED } },
     }),
     prisma.pointsTransaction.count({
-      where: { customerId: customer.id, grantedById: employee.id, createdAt: { gte: startOfToday }, status: { not: TransactionStatus.REJECTED } },
+      where: { customerId: customer.id, ...byCashier, ...notSibling, createdAt: { gte: startOfToday }, status: { not: TransactionStatus.REJECTED } },
     }),
   ]);
 
   // Hard auto-reject
   if (recentDuplicate) {
-    res.status(409).json({ success: false, error: 'Duplicate transaction detected. This customer was just served by you within the last 2 minutes.' });
+    res.status(409).json({ success: false, error: servedBy
+      ? `Duplicate transaction detected. A sale for this customer by ${servedBy.name || 'this employee'} was entered in the last 2 minutes. Check Transactions before entering it again.`
+      : 'Duplicate transaction detected. This customer was just served by you within the last 2 minutes.' });
     return;
   }
   if (purchaseAmount > rule('reviewMaxSale')) {
@@ -173,6 +197,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     data: {
       customerId: customer.id,
       grantedById: employee.id,
+      servedById: servedBy?.id ?? null,
       storeId,
       purchaseAmount,
       pointsAwarded,
@@ -206,7 +231,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       emailHQ(
         `Sale held for review: $${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}`,
         'A large sale is held for review',
-        [`$${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}, granted by ${employee.name || 'a cashier'} for ${customer.name || customer.phone}.`, `Held because: ${fraudFlags.join(', ')}.`, 'It is not credited until a manager or HQ approves it.'],
+        [`$${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}, granted by ${servedBy ? `${servedBy.name || 'an employee'} (entered by HQ, ${employee.name || 'HQ'})` : employee.name || 'a cashier'} for ${customer.name || customer.phone}.`, `Held because: ${fraudFlags.join(', ')}.`, 'It is not credited until a manager or HQ approves it.'],
         { path: '/transactions', label: 'Review the sale' },
         'LARGE_SALE',
       );
@@ -366,6 +391,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
       pointsAwarded: transaction.pointsAwarded,
       category: transaction.category,
       customerId: transaction.customerId,
+      ...(transaction.servedById ? servedByDetails(await prisma.user.findUnique({ where: { id: transaction.servedById }, select: { id: true, name: true } })) : {}),
     },
     storeId: transaction.storeId,
   });
@@ -382,6 +408,7 @@ const redeemSchema = z.object({
   customerQrCode: z.string(),
   storeId: z.string().uuid(),
   amount: z.number().positive(),
+  servedById: z.string().max(64).optional(),   // HQ's Grant & Redeem page (utils/servedBy.ts)
 });
 
 export async function redeemCredits(req: AuthRequest, res: Response) {
@@ -391,9 +418,11 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { customerQrCode, storeId, amount } = parsed.data;
+  const { customerQrCode, storeId, amount, servedById } = parsed.data;
   const employee = req.user!;
   if (await refuseIfStoreClosed(res, storeId)) return;
+  const served = await resolveServedBy(employee, servedById, storeId);
+  if (!served.ok) { res.status(served.status).json({ success: false, error: served.error }); return; }
 
   const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
   if (!customer) {
@@ -444,7 +473,7 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
   audit({
     actorId: employee.id, actorName: employee.name, actorRole: employee.role,
     action: 'REDEEM_CREDITS', entity: 'credit_redemption',
-    details: { amount, customerId: customer.id, customerName: customer.name, customerPhone: customer.phone },
+    details: { amount, customerId: customer.id, customerName: customer.name, customerPhone: customer.phone, ...servedByDetails(served.servedBy) },
     storeId,
   });
 
@@ -707,7 +736,7 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
     where: { storeId },
     orderBy: { createdAt: 'desc' },
     take: 5,
-    include: { customer: { select: { name: true, phone: true } }, grantedBy: { select: { name: true } } },
+    include: { customer: { select: { name: true, phone: true } }, grantedBy: { select: { name: true } }, servedBy: { select: { name: true } } },
   });
 
   res.json({
@@ -750,6 +779,7 @@ export async function getStoreTransactions(req: AuthRequest, res: Response) {
       include: {
         customer: { select: { id: true, name: true, phone: true } },
         grantedBy: { select: { id: true, name: true, phone: true } },
+        servedBy: { select: { id: true, name: true, phone: true } },
       },
     }),
     prisma.pointsTransaction.count({ where: { storeId, ...(status && { status }) } }),
@@ -1048,6 +1078,25 @@ export async function getCustomerInfo(req: AuthRequest, res: Response) {
   });
 }
 
+// GET /points/hq/customers?q= (HQ only, the Grant & Redeem page): find a customer by phone or name when the QR photo will not read.
+// Answers their QR code, which every other step of the page uses, as the cashier's app does.
+export async function hqFindCustomers(req: AuthRequest, res: Response) {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (q.length < 3 || q.length > 60) { res.status(400).json({ success: false, error: 'Type at least 3 letters of the name or digits of the phone number.' }); return; }
+  const rows = await prisma.user.findMany({
+    where: { AND: [{ role: Role.CUSTOMER, qrCode: { not: null } }, excludeDeletedCustomers, customerSearchWhere(q)] },
+    select: { id: true, name: true, phone: true, qrCode: true, isActive: true },
+    orderBy: { createdAt: 'desc' },
+    take: 8,
+  });
+  res.json({ success: true, data: rows });
+}
+
+// GET /points/hq/staff/:storeId (HQ only): who may be named as "Served by" at this store (utils/servedBy.ts)
+export async function hqStoreStaff(req: AuthRequest, res: Response) {
+  res.json({ success: true, data: await storeStaff(req.params.storeId) });
+}
+
 // GET /points/my-benefit-status — customer checks their own benefit availability
 export async function getMyBenefitStatus(req: AuthRequest, res: Response) {
   const userId = req.user!.id;
@@ -1082,12 +1131,14 @@ export async function getMyBenefitStatus(req: AuthRequest, res: Response) {
 }
 
 export async function claimTierBenefit(req: AuthRequest, res: Response) {
-  const { customerQrCode, storeId } = req.body as { customerQrCode: string; storeId: string };
+  const { customerQrCode, storeId, servedById } = req.body as { customerQrCode: string; storeId: string; servedById?: string };
   if (!customerQrCode || !storeId) {
     res.status(400).json({ success: false, error: 'customerQrCode and storeId required' });
     return;
   }
   if (await refuseIfStoreClosed(res, storeId)) return;
+  const served = await resolveServedBy(req.user!, servedById, storeId);
+  if (!served.ok) { res.status(served.status).json({ success: false, error: served.error }); return; }
 
   const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
   if (!customer) {
@@ -1127,7 +1178,7 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CLAIM_TIER_BENEFIT', entity: 'tier_benefit_claim', entityId: customer.id,
-    details: { tier, benefitType, customerName: customer.name, customerPhone: customer.phone },
+    details: { tier, benefitType, customerName: customer.name, customerPhone: customer.phone, ...servedByDetails(served.servedBy) },
     storeId,
   });
 
@@ -1135,12 +1186,14 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
 }
 
 export async function processCatalogRedemption(req: AuthRequest, res: Response) {
-  const { customerQrCode, catalogItemId, storeId } = req.body as { customerQrCode: string; catalogItemId: string; storeId: string };
+  const { customerQrCode, catalogItemId, storeId, servedById } = req.body as { customerQrCode: string; catalogItemId: string; storeId: string; servedById?: string };
   if (!customerQrCode || !catalogItemId || !storeId) {
     res.status(400).json({ success: false, error: 'customerQrCode, catalogItemId, storeId required' });
     return;
   }
   if (await refuseIfStoreClosed(res, storeId)) return;
+  const served = await resolveServedBy(req.user!, servedById, storeId);
+  if (!served.ok) { res.status(served.status).json({ success: false, error: served.error }); return; }
 
   const [customer, item] = await Promise.all([
     prisma.user.findUnique({ where: { qrCode: customerQrCode } }),
@@ -1189,7 +1242,7 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CATALOG_REDEMPTION', entity: 'catalog_redemption', entityId: customer.id,
-    details: { item: item.title, pointsCost: item.pointsCost, customerName: customer.name },
+    details: { item: item.title, pointsCost: item.pointsCost, customerName: customer.name, ...servedByDetails(served.servedBy) },
     storeId,
   });
 
@@ -1240,7 +1293,8 @@ function parseTransactionFilters(q: Record<string, unknown>):
   }
 
   if (customerId) where.customerId = customerId;
-  if (grantedById) where.grantedById = grantedById;
+  // An employee's sales include the ones HQ entered for them (utils/servedBy.ts). AND, so it never collides with the search's OR.
+  if (grantedById) where.AND = [{ OR: [{ grantedById }, { servedById: grantedById }] }];
 
   if (search !== undefined && search.trim() !== '') {
     if (search.length > 100) return { error: '"search" is too long (100 characters at most)' };
@@ -1299,6 +1353,7 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
       include: {
         customer:  { select: { id: true, name: true, phone: true } },
         grantedBy: { select: { id: true, name: true, phone: true } },
+        servedBy:  { select: { id: true, name: true, phone: true } },
         store:     { select: { id: true, name: true } },
       },
     }),
@@ -1350,12 +1405,13 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
     include: {
       customer:  { select: { name: true, phone: true } },
       grantedBy: { select: { name: true, phone: true } },
+      servedBy:  { select: { name: true, phone: true } },
       store:     { select: { name: true } },
     },
   });
   const truncated = rows.length === TAKE;
 
-  const header = 'Transaction ID,Date (Central),Time (Central),Store,Customer Name,Customer Phone,Employee Name,Employee Phone,Category,Purchase Amount,Points Awarded,Gallons,Status,Fraud Flags,Receipt Link,Test Data\n';
+  const header = 'Transaction ID,Date (Central),Time (Central),Store,Customer Name,Customer Phone,Employee Name,Employee Phone,Category,Purchase Amount,Points Awarded,Gallons,Status,Fraud Flags,Receipt Link,Test Data,Entered By HQ\n';
   const lines = rows.map(t => {
     const d = new Date(t.createdAt);
     let flags: string[] = [];
@@ -1367,8 +1423,9 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
       csvText(t.store.name),
       csvText(t.customer.name),
       csvText(t.customer.phone),
-      csvText(t.grantedBy?.name),
-      csvText(t.grantedBy?.phone),
+      // The employee who served: the one HQ entered the sale for, when it did (last column names HQ)
+      csvText((t.servedBy ?? t.grantedBy)?.name),
+      csvText((t.servedBy ?? t.grantedBy)?.phone),
       t.category,
       Number(t.purchaseAmount).toFixed(2),
       Number(t.pointsAwarded).toFixed(2),
@@ -1377,6 +1434,7 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
       csvText(flags.join('; ')),
       csvText(t.receiptImageUrl),
       t.isTestData ? 'Yes' : '',
+      t.servedBy ? csvText(t.grantedBy?.name) : '',
     ].join(',');
   }).join('\n');
   const notice = truncated ? `\n"Showing the first ${TAKE.toLocaleString()} rows for this filter. Narrow the dates or store to see the rest."\n` : '';

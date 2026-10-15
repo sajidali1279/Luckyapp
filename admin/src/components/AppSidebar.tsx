@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
@@ -31,6 +31,7 @@ import {
   Calendar,
   Users,
   UserCircle,
+  ScanLine,
   ClipboardList,
   ShoppingCart,
   Briefcase,
@@ -336,6 +337,9 @@ export function AppSidebar() {
               )}
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to={disputesPendingCount > 0 ? '/customers?tab=disputes' : '/customers'} icon={<UserCircle size={16} />} label="Customers" badge={disputesPendingCount} />
+              )}
+              {(isDevAdmin || isSuperAdmin) && (
+                <SidebarNavItem to="/grant-redeem" icon={<ScanLine size={16} />} label="Grant & Redeem" />
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
               {(isDevAdmin || isSuperAdmin) && (

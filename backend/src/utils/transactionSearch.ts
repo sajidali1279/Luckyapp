@@ -17,10 +17,12 @@ export function transactionSearchWhere(raw: string): Prisma.PointsTransactionWhe
     { id: { contains: q, mode: 'insensitive' } },
     { customer:  { name: { contains: q, mode: 'insensitive' } } },
     { grantedBy: { name: { contains: q, mode: 'insensitive' } } },
+    { servedBy:  { name: { contains: q, mode: 'insensitive' } } },   // the employee HQ entered the sale for (utils/servedBy.ts)
   ];
   if (ten.length > 0) {
     or.push({ customer:  { phone: { contains: ten } } });
     or.push({ grantedBy: { phone: { contains: ten } } });
+    or.push({ servedBy:  { phone: { contains: ten } } });
   }
   return { OR: or };
 }

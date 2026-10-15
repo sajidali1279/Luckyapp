@@ -251,6 +251,7 @@ model User {
   resolvedDisputes     PointsDispute[]  @relation("DisputeResolver")
   pointsEarned         PointsTransaction[]  @relation("PointsEarner")
   pointsGranted        PointsTransaction[]  @relation("PointsGranter")
+  pointsServed         PointsTransaction[]  @relation("PointsServer")
   redemptions          Redemption[]
   creditRedemptions    CreditRedemption[]   @relation("CustomerRedemptions")
   processedRedemptions CreditRedemption[]   @relation("ProcessorRedemptions")
@@ -521,6 +522,9 @@ model PointsTransaction {
   // A referral reward (2026-10-09, utils/referrals.ts): like a challenge reward, its own approved line with no purchase, never a
   // sale. Both the person who shared and the friend get one, at the store of the friend's qualifying purchase.
   referralId        String?
+  // The employee who actually served the customer, when HQ entered the sale for them from photos (2026-10-15, admin Grant & Redeem
+  // page, for an employee with no phone). grantedById is then HQ. Cashier stats and ratings go to servedById when it is set.
+  servedById        String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -528,6 +532,7 @@ model PointsTransaction {
   offer       Offer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
   challenge   Challenge? @relation(fields: [challengeId], references: [id], onDelete: SetNull)
   grantedBy   User  @relation("PointsGranter", fields: [grantedById], references: [id])
+  servedBy    User? @relation("PointsServer", fields: [servedById], references: [id])
   store       Store @relation(fields: [storeId], references: [id])
   rating      EmployeeRating?
   disputes    PointsDispute[]
@@ -541,6 +546,7 @@ model PointsTransaction {
   @@index([challengeId])
   @@index([rewardForSaleId])
   @@index([referralId])
+  @@index([servedById])
   @@map("points_transactions")
 }
 

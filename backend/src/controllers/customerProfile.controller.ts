@@ -105,7 +105,7 @@ export async function getCustomerActivity(req: AuthRequest, res: Response) {
     want('sales') ? prisma.pointsTransaction.findMany({
       where: { customerId: id, ...SALE_ONLY }, orderBy: { createdAt: 'desc' }, take,
       select: { id: true, createdAt: true, purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true, status: true, category: true, receiptImageUrl: true, voidReason: true, fraudFlags: true,
-        store: { select: { name: true } }, grantedBy: { select: { name: true } }, offer: { select: { title: true } } },
+        store: { select: { name: true } }, grantedBy: { select: { name: true } }, servedBy: { select: { name: true } }, offer: { select: { title: true } } },
     }) : [],
     want('rewards') ? prisma.pointsTransaction.findMany({
       where: { customerId: id, OR: [{ challengeId: { not: null } }, { referralId: { not: null } }] }, orderBy: { createdAt: 'desc' }, take,
@@ -121,7 +121,8 @@ export async function getCustomerActivity(req: AuthRequest, res: Response) {
   const items: Item[] = [
     ...sales.map((t): Item => ({
       kind: 'sales', id: t.id, at: t.createdAt, title: `Purchase${t.category ? `, ${String(t.category).replace(/_/g, ' ').toLowerCase()}` : ''}`,
-      amount: t.purchaseAmount, points: r2(t.pointsAwarded + t.gasBonusPoints), status: t.status, store: t.store?.name ?? null, by: t.grantedBy?.name ?? null,
+      amount: t.purchaseAmount, points: r2(t.pointsAwarded + t.gasBonusPoints), status: t.status, store: t.store?.name ?? null,
+      by: t.servedBy ? `${t.servedBy.name ?? 'Employee'} (entered by ${t.grantedBy?.name ?? 'HQ'})` : t.grantedBy?.name ?? null,
       detail: [t.offer?.title ? `Promotion: ${t.offer.title}` : null, t.voidReason ? `Voided: ${t.voidReason}` : null, t.fraudFlags ? 'Flagged for review' : null].filter(Boolean).join(' · ') || null,
       receiptImageUrl: t.receiptImageUrl,
     })),

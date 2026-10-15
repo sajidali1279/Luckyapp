@@ -4,6 +4,19 @@ import { AuthRequest as Request } from '../types';
 import { storeDateKey, storeDaysBetween } from '../utils/storeTime';
 import { canUseStore } from '../utils/storeAccess';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
+import { resolveServedBy, servedByDetails, ServedBy } from '../utils/servedBy';
+import { audit } from '../utils/audit';
+
+// HQ's Grant & Redeem page (2026-10-15) hands the gift out for an employee with no phone: the Activity Log keeps who served
+function auditHQGift(req: Request, servedBy: ServedBy | null, customerId: string, rewardType: string, day: number, storeId?: string) {
+  if (!servedBy) return;
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+    action: 'WELCOME_GIFT', entity: 'welcome_bonus_claim', entityId: customerId,
+    details: { rewardType, day, ...servedByDetails(servedBy) },
+    storeId: storeId ?? null,
+  });
+}
 
 const VALID_REWARD_TYPES = ['FOUNTAIN_DRINK', 'COFFEE', 'SODA_12OZ', 'HOT_SNACK'];
 
@@ -201,6 +214,8 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
     if (storeId && !(req.user!.storeIds ?? []).includes(storeId) && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
       return res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' });
     }
+    const served = await resolveServedBy(req.user!, req.body.servedById, storeId);
+    if (!served.ok) return res.status(served.status).json({ success: false, error: served.error });
 
     // Only if still unconfirmed, so a double tap cannot confirm (and log) the same free item twice
     const { count } = await prisma.welcomeBonusClaim.updateMany({
@@ -209,6 +224,7 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
     });
     if (count === 0) return res.status(400).json({ success: false, error: 'Already confirmed' });
     const confirmed = await prisma.welcomeBonusClaim.findUniqueOrThrow({ where: { claimCode } });
+    auditHQGift(req, served.servedBy, confirmed.customerId, confirmed.rewardType, confirmed.day, storeId);
 
     const reward = REWARD_LABELS[confirmed.rewardType];
     return res.json({
@@ -238,6 +254,8 @@ export async function giveWelcomeBonus(req: Request, res: Response) {
     if (storeId && !(req.user!.storeIds ?? []).includes(storeId) && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
       return res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' });
     }
+    const served = await resolveServedBy(req.user!, req.body.servedById, storeId);
+    if (!served.ok) return res.status(served.status).json({ success: false, error: served.error });
     const given = { confirmedAt: new Date(), confirmedById: req.user!.id, storeId: storeId ?? null, rewardType };
     const existing = await prisma.welcomeBonusClaim.findUnique({ where: { customerId_day: { customerId: customer.id, day } } });
     if (existing) {
@@ -254,6 +272,7 @@ export async function giveWelcomeBonus(req: Request, res: Response) {
         throw e;
       }
     }
+    auditHQGift(req, served.servedBy, customer.id, rewardType, day, storeId);
     const reward = REWARD_LABELS[rewardType];
     return res.json({ success: true, data: { rewardLabel: reward?.label, rewardEmoji: reward?.emoji, day } });
   } catch (err) {

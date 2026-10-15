@@ -163,7 +163,7 @@ export default function StoreManagerDashboard() {
                 <div style={s.pendingLeft}>
                   <div style={s.pendingCustomer}>{tx.customer?.name || tx.customer?.phone}</div>
                   <div style={s.pendingMeta}>
-                    by {tx.grantedBy?.name || 'Staff'} · {new Date(tx.createdAt).toLocaleDateString()}
+                    by {(tx.servedBy ?? tx.grantedBy)?.name || 'Staff'} · {new Date(tx.createdAt).toLocaleDateString()}
                   </div>
                 </div>
                 <div style={s.pendingRight}>

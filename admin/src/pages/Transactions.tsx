@@ -330,9 +330,10 @@ export default function Transactions() {
     enabled: panelActive && !!panelTx?.customer?.id,
   });
   const { data: panelEmpTx } = useQuery({
-    queryKey: ['tx-panel-employee', panelTx?.grantedBy?.id],
-    queryFn: () => pointsApi.getAllTransactions({ grantedById: panelTx.grantedBy.id, limit: '5', includeTestData: 'true' }),
-    enabled: panelActive && !!panelTx?.grantedBy?.id,
+    // The employee who served: the one HQ entered the sale for, when it did (Grant & Redeem page)
+    queryKey: ['tx-panel-employee', (panelTx?.servedBy ?? panelTx?.grantedBy)?.id],
+    queryFn: () => pointsApi.getAllTransactions({ grantedById: (panelTx.servedBy ?? panelTx.grantedBy).id, limit: '5', includeTestData: 'true' }),
+    enabled: panelActive && !!(panelTx?.servedBy ?? panelTx?.grantedBy)?.id,
   });
   const panelDialogRef = useRef<HTMLDivElement>(null);
   useDialog(!!panelTx, panelDialogRef, () => setPanelId(null), false);
@@ -647,7 +648,7 @@ export default function Transactions() {
                   <TableCell style={s.td}>
                     <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || ' - '}</span>
                   </TableCell>
-                  <TableCell style={s.td}>{flags.includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
+                  <TableCell style={s.td}>{flags.includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : tx.servedBy ? <span title={`Entered by HQ (${tx.grantedBy?.name || 'HQ'})`}>{tx.servedBy.name || tx.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
                   <TableCell style={s.td}>
                     <div>
                       <span style={{ ...s.badge, background: badgeBg, color: badgeInk(badgeBg) }}>
@@ -749,7 +750,9 @@ export default function Transactions() {
                   {panelTx.notes && <div style={{ fontSize: 13, color: C.text2, marginBottom: 14, lineHeight: 1.45 }}>{panelTx.notes}</div>}
                 </>
               ) : (
-                <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14 }}>Granted by {panelTx.grantedBy?.name || panelTx.grantedBy?.phone || 'an employee'}</div>
+                <div style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14 }}>{panelTx.servedBy
+                  ? <>Served by {panelTx.servedBy.name || panelTx.servedBy.phone}, entered by HQ ({panelTx.grantedBy?.name || 'HQ'}) from photos</>
+                  : <>Granted by {panelTx.grantedBy?.name || panelTx.grantedBy?.phone || 'an employee'}</>}</div>
               )}
 
               {parseFlags(panelTx.fraudFlags).length > 0 && (
@@ -780,7 +783,7 @@ export default function Transactions() {
                 ))
               )}
 
-              {!parseFlags(panelTx.fraudFlags).includes('RECEIPT_SCAN') && <div style={s.panelSectionTitle}>{panelTx.grantedBy?.name || 'This employee'}'s recent grants</div>}
+              {!parseFlags(panelTx.fraudFlags).includes('RECEIPT_SCAN') && <div style={s.panelSectionTitle}>{(panelTx.servedBy ?? panelTx.grantedBy)?.name || 'This employee'}'s recent grants</div>}
               {parseFlags(panelTx.fraudFlags).includes('RECEIPT_SCAN') ? null : (panelEmpTx?.data?.data?.transactions ?? []).length === 0 ? (
                 <div style={s.panelEmptyNote}>Nothing else on file.</div>
               ) : (

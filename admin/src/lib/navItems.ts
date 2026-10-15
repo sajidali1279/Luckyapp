@@ -5,7 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, TrendingUp, Package, Tag, Image, Gift, MessageSquare, Calendar, Users, UserCircle,
   ClipboardList, ShoppingCart, Briefcase, Trophy, Percent, Megaphone, Receipt, Activity, Store, CreditCard,
-  Bell, Headphones, FileText, ClipboardCheck, ListChecks, Barcode, Printer, Flame, User, Pin,
+  Bell, Headphones, FileText, ClipboardCheck, ListChecks, Barcode, Printer, Flame, User, Pin, ScanLine,
 } from 'lucide-react';
 import type { BadgeKey } from '../hooks/useAdminBadges';
 
@@ -36,6 +36,7 @@ export const NAV_ITEMS: NavEntry[] = [
   { to: '/scheduling', label: 'Scheduling', icon: Calendar, group: 'People', badgeKey: 'schedulingPendingCount' },
   { to: '/staff', label: 'Staff', icon: Users, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
   { to: '/customers', label: 'Customers', icon: UserCircle, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'], badgeKey: 'disputesPendingCount' },
+  { to: '/grant-redeem', label: 'Grant & Redeem', icon: ScanLine, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
   { to: '/store-requests', label: 'Requests', icon: ClipboardList, group: 'People', badgeKey: 'requestsPendingCount' },
   { to: '/order-list', label: 'Order List', icon: ShoppingCart, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'], badgeKey: 'categoriesPendingCount' },
   { to: '/scanned-products', label: 'Scanned Products', icon: Barcode, group: 'People' },
