@@ -24,6 +24,7 @@ async function removeThisDevicesPushToken(): Promise<void> {
 }
 
 let ending = false;   // endSession is running
+let accountInFlight: Promise<void> | null = null;   // refreshAccount: one request at a time
 
 export type UserRole = 'DEV_ADMIN' | 'SUPER_ADMIN' | 'STORE_MANAGER' | 'EMPLOYEE' | 'CUSTOMER';
 
@@ -59,6 +60,9 @@ interface AuthState {
   endSession: () => Promise<void>;
   /** Re-read the account; saves a renewed session when the server sends one. */
   refreshSession: () => Promise<void>;
+  /** Re-read the balance, tier and the rest of the account from the server (2026-10-16): pull to refresh, the app coming back, a push
+   *  arriving. Several calls at once share one request. */
+  refreshAccount: () => Promise<void>;
   loadFromStorage: () => Promise<void>;
   updateBalance: (newBalance: number) => void;
   setAge21Confirmed: () => void;
@@ -116,6 +120,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const fresh = data?.data?.token;
       if (fresh) get().setAuth(get().user!, fresh);
     } catch { /* a refused session is handled by the API layer; no network leaves it as it is */ }
+  },
+
+  refreshAccount: () => {
+    if (accountInFlight) return accountInFlight;
+    const run = (async () => {
+      if (!get().user || !get().token) return;
+      try {
+        const { data } = await authApi.getMe();
+        // Read the store again: fields (like avatarUrl) may have changed while the request was out
+        const { user: u, token: t } = get();
+        if (!data?.data || !u || !t) return;
+        await get().setAuth({
+          ...u,
+          pointsBalance: data.data.pointsBalance,
+          tier: data.data.tier,
+          periodPoints: data.data.periodPoints,
+          tierPeriod: data.data.tierPeriod,
+          avatarUrl: data.data.avatarUrl ?? u.avatarUrl,
+          age21Confirmed: data.data.age21Confirmed,
+          age21Declined: data.data.age21Declined,
+          birthMonth: data.data.birthMonth ?? null,   // the birthday they gave (Profile), for birthday-month promotions
+          birthDay: data.data.birthDay ?? null,
+        }, data.data.token ?? t);   // a renewed session when the server sent one (GET /auth/me)
+      } catch (err: any) {
+        // Account no longer exists or was deactivated server-side: a locally cached session should not keep the app usable.
+        // (A refused session, 401, is signed out by the API layer for every screen.) No network: the balance stays as it was.
+        if (err?.response?.status === 404) await get().endSession();
+      }
+    })();
+    accountInFlight = run.finally(() => { accountInFlight = null; });
+    return accountInFlight;
   },
 
   loadFromStorage: async () => {

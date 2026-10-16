@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -27,7 +27,7 @@ import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { haptic } from '../../utils/haptics';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 
 
 
@@ -362,6 +362,8 @@ export default function RewardsScreen() {
   const { t } = useTranslation();
   const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
+  // The balance as it is now each time Rewards comes into view: what a reward costs is checked against it
+  useFocusEffect(useCallback(() => { useAuthStore.getState().refreshAccount(); }, []));
   const qc = useQueryClient();
   const highlightedId = useHighlightParam();
   const { tierConfig, liveRates } = useLiveTierConfig();
@@ -480,7 +482,7 @@ export default function RewardsScreen() {
         numColumns={2}
         columnWrapperStyle={r.row}
         contentContainerStyle={r.body}
-        onRefresh={refetch}
+        onRefresh={() => { refetch(); useAuthStore.getState().refreshAccount(); }}   // the balance too (2026-10-16)
         refreshing={isRefetching}
         showsVerticalScrollIndicator={false}
         onScroll={largeTitle.onScroll}

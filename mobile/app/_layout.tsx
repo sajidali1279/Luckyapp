@@ -112,6 +112,22 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [user?.id]);
 
+  // A customer's balance as it is now (2026-10-16): points an employee granted only showed after the app was closed and opened again.
+  // Re-read when the app comes back to the front (at most every 15 seconds) and as soon as a notification arrives while it is open
+  // ("Points credited", a redemption, a hot food order paid with points).
+  const lastAccountRead = useRef(0);
+  useEffect(() => {
+    if (!user?.id || user.role !== 'CUSTOMER') return;
+    const read = (force = false) => {
+      if (!force && Date.now() - lastAccountRead.current < 15_000) return;
+      lastAccountRead.current = Date.now();
+      useAuthStore.getState().refreshAccount();
+    };
+    const app = AppState.addEventListener('change', (s) => { if (s === 'active') read(); });
+    const push = Notifications.addNotificationReceivedListener(() => read(true));
+    return () => { app.remove(); push.remove(); };
+  }, [user?.id, user?.role]);
+
   // Catch OS-level notification taps while the app is foregrounded or
   // backgrounded (process still alive). The cold-start case (app was fully
   // killed) is handled separately below, inside the auth-resolved navigate().

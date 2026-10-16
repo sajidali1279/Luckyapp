@@ -726,34 +726,9 @@ export default function CustomerHome() {
 
   // Hot food order state
 
-  useFocusEffect(
-    useCallback(() => {
-      authApi.getMe().then(({ data }) => {
-        // Use getState() for a fresh reference — avoids stale closure overwriting
-        // fields (like avatarUrl) that were updated after this callback was created.
-        const { user: u, token: t, setAuth: sa } = useAuthStore.getState();
-        if (data?.data && u && t) {
-          sa({
-            ...u,
-            pointsBalance: data.data.pointsBalance,
-            tier: data.data.tier,
-            periodPoints: data.data.periodPoints,
-            tierPeriod: data.data.tierPeriod,
-            avatarUrl: data.data.avatarUrl ?? u.avatarUrl,
-            age21Confirmed: data.data.age21Confirmed,
-            age21Declined: data.data.age21Declined,
-            birthMonth: data.data.birthMonth ?? null,   // the birthday they gave (Profile), for birthday-month promotions
-            birthDay: data.data.birthDay ?? null,
-          }, data.data.token ?? t);   // a renewed session when the server sent one (GET /auth/me)
-        }
-      }).catch((err: any) => {
-        // Account no longer exists or was deactivated server-side — a locally
-        // cached session shouldn't keep showing the app as usable.
-        // (A refused session, 401, is signed out by the API layer for every screen.)
-        if (err.response?.status === 404) useAuthStore.getState().endSession();
-      });
-    }, [t])
-  );
+  // The balance, tier and the rest of the account each time Home comes into view (also on pull to refresh, the app coming back
+  // and a push arriving: store/authStore.ts refreshAccount, app/_layout.tsx)
+  useFocusEffect(useCallback(() => { useAuthStore.getState().refreshAccount(); }, []));
 
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
@@ -939,6 +914,7 @@ export default function CustomerHome() {
   }
 
   function onRefresh() {
+    useAuthStore.getState().refreshAccount();   // the balance too (points an employee just granted)
     refetchBanners();
     refetchOffers();
     refetchGasPrices();
