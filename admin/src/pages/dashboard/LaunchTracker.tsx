@@ -5,6 +5,7 @@ import { formatInteger } from '../../components/formater';
 import { TEXT_MUTED, PRIMARY } from '../../lib/theme';
 import { s, storeBadge, storeColor, badgeInk, SectionHeader, SkeletonBox, SkeletonCards, PanelError, readSetting, writeSetting } from './shared';
 import { useLaunchStats } from './queries';
+import { storeToday } from '../../lib/storeDates';
 
 // How the launch is going: who signed up, who claimed the welcome reward, who has bought something.
 // The server counts from launch day only, so test accounts from before it never show up here.
@@ -225,7 +226,8 @@ function StoreTable({ stores }: { stores: StoreRow[] }) {
 // ── The section ──────────────────────────────────────────────────────────────
 
 export default function LaunchTracker() {
-  const [hidden, setHidden] = useState(() => readSetting('dash-launch', VIEWS, 'shown') === 'hidden');
+  // Shown for the first month after launch (Oct 5, 2026), then folded unless HQ chose to keep it (2026-10-16: a shorter Dashboard)
+  const [hidden, setHidden] = useState(() => readSetting('dash-launch', VIEWS, storeToday() > '2026-11-05' ? 'hidden' : 'shown') === 'hidden');
   const q = useLaunchStats(!hidden);
   const setShown = (show: boolean) => { setHidden(!show); writeSetting('dash-launch', show ? 'shown' : 'hidden'); };
 

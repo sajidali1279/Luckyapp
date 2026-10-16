@@ -158,9 +158,11 @@ const s: Record<string, React.CSSProperties> = {
     color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
   },
   spin: { animation: 'spin 0.8s linear infinite' },
+  // On the bell's corner, with a white ring (2026-10-16): inside the button, "99+" covered the bell itself
   bellDot: {
-    position: 'absolute', top: 2, right: 2, minWidth: 15, height: 15, borderRadius: 8, background: '#a51b28', color: '#fff',
-    fontSize: 9.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px', lineHeight: 1,
+    position: 'absolute', top: 0, right: 0, transform: 'translate(38%, -32%)', minWidth: 18, height: 18, borderRadius: 999, background: '#a51b28', color: '#fff',
+    fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', lineHeight: 1,
+    border: '2px solid #fff', boxSizing: 'border-box' as const, pointerEvents: 'none' as const, fontVariantNumeric: 'tabular-nums',
   },
   popover: {
     position: 'absolute', top: 40, right: 0, width: 320, maxHeight: 380, overflowY: 'auto' as const,

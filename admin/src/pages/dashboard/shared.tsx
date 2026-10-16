@@ -1,3 +1,4 @@
+import React from 'react';
 import Glyph from '../../components/Glyph';
 import { useNavigate } from 'react-router-dom';
 import ErrorState from '../../components/ErrorState';
@@ -121,6 +122,33 @@ export function readSetting<T extends string>(key: string, allowed: readonly T[]
 }
 export function writeSetting(key: string, value: string) {
   try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }
+}
+
+/**
+ * A Dashboard section that can be folded to one line (2026-10-16: the page had grown long). Folded, it shows its title and a short
+ * summary with Show; open, its content with a quiet Hide. The choice is remembered in this browser; `defaultOpen` is used until then.
+ */
+export function Foldable({ storageKey, title, summary, defaultOpen, children }: {
+  storageKey: string; title: string; summary?: React.ReactNode; defaultOpen: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = React.useState<boolean>(() => readSetting(storageKey, ['open', 'folded'] as const, defaultOpen ? 'open' : 'folded') === 'open');
+  const flip = () => { setOpen((o) => { writeSetting(storageKey, o ? 'folded' : 'open'); return !o; }); };
+  if (!open) {
+    return (
+      <div className="ui-soft-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '10px 14px', marginBottom: 16,
+        background: '#fff', border: '1px solid #e4e7ec', borderRadius: 12 }}>
+        <div style={{ minWidth: 0, fontSize: 14, color: '#374151' }}><strong style={{ color: '#111827' }}>{title}</strong>{summary ? <span style={{ color: TEXT_MUTED }}> · {summary}</span> : null}</div>
+        <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={flip} aria-expanded={false}>Show</button>
+      </div>
+    );
+  }
+  return (
+    <div className="ui-soft-in" style={{ position: 'relative' }}>
+      <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={flip} aria-expanded={true} aria-label={`Hide ${title}`}
+        style={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}>Hide</button>
+      {children}
+    </div>
+  );
 }
 
 // ── Loading and failure states, one per panel ────────────────────────────────

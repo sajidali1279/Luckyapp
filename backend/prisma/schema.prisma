@@ -745,6 +745,9 @@ model Banner {
   storeId   String?
   isActive  Boolean   @default(true)
   sortOrder Int       @default(0)
+  // Shown from / until (2026-10-16): the start of the first store day and the end of the last; empty = from now / no end
+  startAt   DateTime?
+  endAt     DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 

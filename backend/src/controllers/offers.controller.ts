@@ -9,7 +9,7 @@ import { announceOffer } from '../utils/offerAnnounce';
 import { hasMinRole } from '../middleware/auth';
 import { CASHBACK_RATE_CAP } from '../config/constants';
 import { refuse } from '../utils/refusal';
-import { startOfStoreDate } from '../utils/storeTime';
+import { startOfStoreDate, endOfStoreDate, isRealDateKey } from '../utils/storeTime';
 import { storeDateKey } from '../utils/storeTime';
 import { checkHours, offerPaysAt, hoursText } from '../utils/offerHours';
 import { shelfDealsForStore } from '../utils/shelfDeals';
@@ -500,7 +500,17 @@ const bannerSchema = z.object({
     .optional()),
   sortOrder: z.preprocess(blankToUndefined, z.coerce.number().int('The order must be a whole number.').min(0, 'The order must be between 0 and 999.').max(999, 'The order must be between 0 and 999.').optional()),
   storeId: z.preprocess(blankToUndefined, z.string().uuid('Choose a store from the list.').optional()),
+  // Shown from / until (2026-10-16): store days written YYYY-MM-DD; empty = from now / no end
+  startDate: z.preprocess(blankToUndefined, z.string().refine(isRealDateKey, 'Write the first day like 2026-11-01.').optional()),
+  endDate: z.preprocess(blankToUndefined, z.string().refine(isRealDateKey, 'Write the last day like 2026-11-30.').optional()),
 });
+
+/** The banner's dates as instants (the start of the first store day, the end of the last), or the sentence that refuses them. */
+function bannerWindow(startDate?: string, endDate?: string): { startAt: Date | null; endAt: Date | null } | { error: string } {
+  if (startDate && endDate && endDate < startDate) return { error: 'The last day is before the first day.' };
+  if (endDate && endDate < storeDateKey()) return { error: 'The last day has already passed.' };
+  return { startAt: startDate ? startOfStoreDate(startDate) : null, endAt: endDate ? endOfStoreDate(endDate) : null };
+}
 
 export async function createBanner(req: AuthRequest, res: Response) {
   const parsed = bannerSchema.safeParse(req.body);
@@ -509,6 +519,8 @@ export async function createBanner(req: AuthRequest, res: Response) {
     return;
   }
   const { title, linkUrl, sortOrder } = parsed.data;
+  const win = bannerWindow(parsed.data.startDate, parsed.data.endDate);
+  if ('error' in win) { res.status(400).json({ success: false, error: win.error }); return; }
 
   // Store managers can target any of their assigned stores — prefer the
   // store picked in the UI, falling back to their first store if the
@@ -552,6 +564,8 @@ export async function createBanner(req: AuthRequest, res: Response) {
       storeId,
       linkUrl: linkUrl || null,
       sortOrder: sortOrder ?? 0,
+      startAt: win.startAt,
+      endAt: win.endAt,
     },
   });
 
@@ -571,6 +585,10 @@ export async function getActiveBanners(req: AuthRequest, res: Response) {
   // With none: HQ (web admin) sees every banner so a one-store banner can still be found and removed, and a store
   // manager sees the all-store banners plus their own stores'. Anyone else gets the all-store banners only.
   let where: Prisma.BannerWhereInput;
+  // The apps get only the banners inside their dates (2026-10-16). The admin's Banners page asks for all=1: scheduled and ended ones too.
+  const now = new Date();
+  const showing: Prisma.BannerWhereInput = { AND: [{ OR: [{ startAt: null }, { startAt: { lte: now } }] }, { OR: [{ endAt: null }, { endAt: { gt: now } }] }] };
+  const everything = req.query.all === '1' && hasMinRole(req.user!.role, Role.STORE_MANAGER);
   if (!storeId && hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
     where = { isActive: true };
   } else if (!storeId && req.user!.role === Role.STORE_MANAGER) {
@@ -580,11 +598,59 @@ export async function getActiveBanners(req: AuthRequest, res: Response) {
   }
 
   const banners = await prisma.banner.findMany({
-    where,
+    where: everything ? where : { AND: [where, showing] },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
   });
 
   res.json({ success: true, data: banners });
+}
+
+const bannerEditSchema = bannerSchema.partial().extend({
+  // Sent as "" to clear: the store (every store), the link, a date
+  clear: z.preprocess((v) => (typeof v === 'string' ? v.split(',').filter(Boolean) : v), z.array(z.enum(['storeId', 'linkUrl', 'startDate', 'endDate'])).optional()),
+});
+
+/** PATCH /banners/:bannerId (multipart, a new image optional): its words, link, order, store (HQ), dates. A manager: their store's only. */
+export async function updateBanner(req: AuthRequest, res: Response) {
+  const parsed = bannerEditSchema.safeParse(req.body ?? {});
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const d = parsed.data;
+  const existing = await prisma.banner.findUnique({ where: { id: req.params.bannerId } });
+  if (!existing || !existing.isActive) { res.status(404).json({ success: false, error: 'That banner was removed.' }); return; }
+  const manager = req.user!.role === Role.STORE_MANAGER;
+  if (manager && !req.user!.storeIds?.includes(existing.storeId ?? '')) { res.status(403).json({ success: false, error: 'You can only change banners for your store' }); return; }
+  const clear = new Set(d.clear ?? []);
+  let storeId = existing.storeId;
+  if (d.storeId !== undefined || clear.has('storeId')) {
+    if (manager) { res.status(403).json({ success: false, error: 'HQ decides which stores a banner is for.' }); return; }
+    storeId = clear.has('storeId') ? null : d.storeId!;
+    if (storeId && !(await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } }))) { res.status(400).json({ success: false, error: 'That store does not exist. Choose one from the list.' }); return; }
+  }
+  // The dates: the new one, cleared, or as they were
+  const dayOf = (at: Date | null) => (at ? storeDateKey(at) : undefined);
+  const startDate = clear.has('startDate') ? undefined : d.startDate ?? dayOf(existing.startAt);
+  const endDate = clear.has('endDate') ? undefined : d.endDate ?? dayOf(existing.endAt);
+  const datesChanged = d.startDate !== undefined || d.endDate !== undefined || clear.has('startDate') || clear.has('endDate');
+  const win = datesChanged ? bannerWindow(startDate, endDate) : { startAt: existing.startAt, endAt: existing.endAt };
+  if ('error' in win) { res.status(400).json({ success: false, error: win.error }); return; }
+  let imageUrl = existing.imageUrl;
+  if (req.file) {
+    if (!/^image\//.test(req.file.mimetype)) { res.status(400).json({ success: false, error: 'The banner must be an image.' }); return; }
+    imageUrl = (await new Promise<{ secure_url: string }>((resolve, reject) => {
+      cloudinary.uploader.upload_stream({ folder: 'luckystop/banners', resource_type: 'image' }, (err, r) => (err ? reject(err) : resolve(r as { secure_url: string }))).end(req.file!.buffer);
+    })).secure_url;
+  }
+  const banner = await prisma.banner.update({ where: { id: existing.id }, data: {
+    ...(d.title !== undefined ? { title: d.title } : {}),
+    ...(d.linkUrl !== undefined || clear.has('linkUrl') ? { linkUrl: clear.has('linkUrl') ? null : d.linkUrl ?? null } : {}),
+    ...(d.sortOrder !== undefined ? { sortOrder: d.sortOrder } : {}),
+    storeId, imageUrl, startAt: win.startAt, endAt: win.endAt,
+  } });
+  const what = [d.title !== undefined && d.title !== existing.title ? 'renamed' : null, req.file ? 'new image' : null, datesChanged ? 'dates' : null,
+    storeId !== existing.storeId ? 'stores' : null, d.linkUrl !== undefined || clear.has('linkUrl') ? 'link' : null].filter(Boolean).join(', ') || 'saved';
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'UPDATE_BANNER', entity: 'banner', entityId: banner.id,
+    details: { title: banner.title, summary: `Banner "${banner.title}" changed: ${what}` }, storeId: banner.storeId });
+  res.json({ success: true, data: banner });
 }
 
 export async function deleteBanner(req: AuthRequest, res: Response) {

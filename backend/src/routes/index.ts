@@ -34,7 +34,7 @@ import {
 import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem, customerInitiateRedemption, getMyRedemptions, cancelRedemption, getPendingRedemptionsForCustomer, confirmRedemption } from '../controllers/catalog.controller';
 import {
   createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults, setOfferImage, removeOfferImage, translateOffer,
-  createBanner, getActiveBanners, deleteBanner,
+  createBanner, getActiveBanners, deleteBanner, updateBanner,
   estimateOfferCost, getPromotionIdeas, getComboIdeas, dismissComboIdea, restoreComboIdeas,
   listShelfDeals,
   setShelfDealHidden,
@@ -379,6 +379,7 @@ router.delete('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER),
 // ─── Banners ──────────────────────────────────────────────────────────────────
 router.get('/banners', authenticate, getActiveBanners); // All authenticated users
 router.post('/banners', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), createBanner);
+router.patch('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), updateBanner);   // edit and schedule (2026-10-16)
 router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER), deleteBanner);
 
 // ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────

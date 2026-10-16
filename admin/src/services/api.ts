@@ -156,6 +156,9 @@ export const bannersApi = {
   create: (formData: FormData) => api.post('/banners', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   delete: (bannerId: string) => api.delete(`/banners/${bannerId}`),
   getActive: () => api.get('/banners'),
+  // The Banners page (2026-10-16): every banner HQ can change, scheduled and ended ones too; and editing one (a new image optional)
+  getAll: () => api.get('/banners', { params: { all: 1 } }),
+  update: (bannerId: string, formData: FormData) => api.patch(`/banners/${bannerId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
 export const labelsApi = {
