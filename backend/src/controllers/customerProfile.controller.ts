@@ -13,6 +13,7 @@ import { getNextTierProgress, getStoredThresholds } from '../utils/tier';
 import { shortName } from '../utils/referrals';
 import { isTestPhone } from '../utils/testAccounts';
 import { customerReceiptCards } from '../utils/receiptCards';
+import { sendTestPush, explainPushCode } from '../utils/pushSend';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const DAY = 86_400_000;
@@ -184,4 +185,33 @@ export async function getCustomerHistory(req: AuthRequest, res: Response) {
     try { summary = r.details ? JSON.parse(r.details).summary ?? null : null; } catch { /* keep null */ }
     return { id: r.id, at: r.createdAt, who: r.actorName, role: r.actorRole, action: r.action, summary, store: r.storeName };
   }) });
+}
+
+/**
+ * POST /users/:userId/test-push (HQ, 2026-10-16): a test notification to this person's phones now, with what the push service and Google
+ * or Apple said about each one, in words. For "customers get no notifications": it tells a missing push key apart from a phone setting.
+ */
+export async function testUserPush(req: AuthRequest, res: Response) {
+  const user = await prisma.user.findUnique({ where: { id: req.params.userId }, select: { id: true, name: true, role: true, language: true } });
+  if (!user) { res.status(404).json({ success: false, error: 'That account does not exist.' }); return; }
+  const phones = await prisma.pushToken.findMany({ where: { userId: user.id }, select: { token: true, platform: true, appVersion: true, lastSeenAt: true }, orderBy: { lastSeenAt: 'desc' }, take: 10 });
+  if (phones.length === 0) {
+    res.json({ success: true, data: { phones: [], summary: 'No phone is registered for notifications on this account. On the phone: allow notifications for Lucky Stop in the phone\'s settings, then open the app signed in to this account.' } });
+    return;
+  }
+  const es = user.language === 'es';
+  const results = await sendTestPush(phones.map((p) => p.token), {
+    title: es ? '🔔 Prueba de Lucky Stop' : '🔔 Test from Lucky Stop',
+    body: es ? 'Si ves esto, las notificaciones funcionan en este teléfono.' : 'If you can see this, notifications work on this phone.',
+  });
+  const byToken = new Map(results.map((r) => [r.token, r]));
+  const out = phones.map((p) => {
+    const r = byToken.get(p.token);
+    const code = !r ? 'WAITING' : r.delivery === 'delivered' ? null : r.delivery === 'waiting' ? 'WAITING' : r.code;
+    return { platform: p.platform, appVersion: p.appVersion, lastSeenAt: p.lastSeenAt, ok: r?.delivery === 'delivered', code, explain: explainPushCode(code, p.platform), detail: r?.message ?? null };
+  });
+  const good = out.filter((o) => o.ok).length;
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'TEST_PUSH', entity: 'user', entityId: user.id,
+    details: { summary: `Test notification to ${user.name ?? 'an account'}: ${good} of ${out.length} phone(s) delivered${out.some((o) => o.code && o.code !== 'WAITING') ? `; ${[...new Set(out.filter((o) => o.code && o.code !== 'WAITING').map((o) => o.code))].join(', ')}` : ''}` } });
+  res.json({ success: true, data: { phones: out, summary: good === out.length ? 'Delivered to every phone.' : good ? `Delivered to ${good} of ${out.length} phones.` : 'Not delivered. See why for each phone.' } });
 }

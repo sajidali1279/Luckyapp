@@ -83,7 +83,7 @@ import { getAppVersion, updateAppVersions } from '../controllers/appVersion.cont
 import { hqReadReceipt, hqLinkReceipt } from '../controllers/hqReceipt.controller';
 import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
-import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards } from '../controllers/customerProfile.controller';
+import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards, testUserPush } from '../controllers/customerProfile.controller';
 import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
@@ -283,6 +283,7 @@ router.delete('/users/customers/:userId/notes/:noteId', authenticate, requireRol
 router.post('/users/customers/:userId/unlock', authenticate, requireRole(Role.SUPER_ADMIN), unlockCustomer);        // Clear a wrong-PIN lockout
 router.get('/users/customers/:userId/history', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerHistory);    // What staff did on the account
 router.get('/users/customers/:userId/receipt-cards', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerReceiptCards); // Cards on their scanned receipts (HQ only)
+router.post('/users/:userId/test-push', authenticate, requireRole(Role.SUPER_ADMIN), testUserPush);   // a test notification with Google's or Apple's answer (2026-10-16)
 router.post('/users/customers/:userId/goodwill-credit', authenticate, requireRole(Role.SUPER_ADMIN), grantGoodwillCredit); // A small credit outside the dispute flow
 router.patch('/users/:userId/edit', authenticate, requireRole(Role.SUPER_ADMIN), editStaffAccount);         // Fix a name/phone typo, promote/demote Employee<->Store Manager, set allStoresAccess
 router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPER_ADMIN), toggleUserActive); // Deactivate/reactivate

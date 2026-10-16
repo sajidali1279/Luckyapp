@@ -262,6 +262,8 @@ export const customersApi = {
   unlock: (userId: string) => api.post(`/users/customers/${userId}/unlock`),
   history: (userId: string) => api.get(`/users/customers/${userId}/history`),
   receiptCards: (userId: string) => api.get(`/users/customers/${userId}/receipt-cards`),
+  // A test notification to their phones with Google's or Apple's answer (2026-10-16); it waits up to about 20 seconds for it
+  testPush: (userId: string) => api.post(`/users/${userId}/test-push`, {}, { timeout: 60_000 }),
   goodwillCredit: (userId: string, amount: number, reason: string) =>
     api.post(`/users/customers/${userId}/goodwill-credit`, { amount, reason }),
   // Say which state you want: restricting twice, or a double click, cannot switch the account back on

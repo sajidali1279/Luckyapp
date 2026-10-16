@@ -88,7 +88,7 @@ export default function CustomerProfile() {
       {tab === 'activity' && <Activity id={id} />}
       {tab === 'referrals' && <Referrals d={d} />}
       {tab === 'notes' && <Notes id={id} meId={me?.id} isDev={me?.role === 'DEV_ADMIN'} onChanged={refresh} />}
-      {tab === 'devices' && <Devices devices={d.devices} />}
+      {tab === 'devices' && <Devices devices={d.devices} userId={id} />}
       {tab === 'cards' && <ReceiptCards id={id} />}
       {tab === 'history' && <History id={id} />}
     </Page>
@@ -299,10 +299,33 @@ function Notes({ id, meId, isDev, onChanged }: { id: string; meId?: string; isDe
   );
 }
 
-function Devices({ devices }: { devices: any[] }) {
+type TestPhone = { platform: string; appVersion: string | null; ok: boolean; code: string | null; explain: string; detail: string | null };
+
+function Devices({ devices, userId }: { devices: any[]; userId: string }) {
+  // A test notification with what the push service and Google or Apple said (2026-10-16: "customers get no notifications")
+  const [test, setTest] = useState<{ summary: string; phones: TestPhone[] } | null>(null);
+  const send = useMutation({
+    mutationFn: () => customersApi.testPush(userId).then((r) => r.data.data as { summary: string; phones: TestPhone[] }),
+    onSuccess: (data) => setTest(data),
+    onError: (e) => toast.error(serverMessage(e, 'The test could not be sent.')),
+  });
   return (
     <Card>
-      <SectionTitle>Phones</SectionTitle>
+      <SectionTitle action={<Button size="sm" onClick={() => send.mutate()} disabled={send.isPending}>{send.isPending ? 'Sending, waiting for the answer…' : 'Send a test notification'}</Button>}>Phones</SectionTitle>
+      {send.isPending && <div className="ui-working" style={{ marginBottom: 12 }} aria-label="Waiting for Google or Apple to answer" />}
+      {test && !send.isPending && (
+        <div className="ui-soft-in" style={{ marginBottom: 14 }}>
+          <Notice tone={test.phones.length && test.phones.every((p) => p.ok) ? 'success' : 'warning'}>
+            <strong>{test.summary}</strong>
+            {test.phones.map((p, i) => (
+              <div key={i} style={{ marginTop: 6 }}>
+                {p.platform === 'ios' ? 'iPhone' : p.platform === 'android' ? 'Android' : p.platform}{p.appVersion ? ` (app ${p.appVersion})` : ''}: {p.explain}
+                {p.detail && <div style={{ fontSize: FONT.caption, color: C.muted }}>{p.detail}</div>}
+              </div>
+            ))}
+          </Notice>
+        </div>
+      )}
       <p style={{ margin: '-4px 0 12px', color: C.muted, fontSize: FONT.small }}>Each phone that has notifications on. None listed means they will not get pushes: they need to allow notifications for Lucky Stop in the phone's settings, then open the app.</p>
       {devices.length === 0 ? <Notice tone="warning">No phone with notifications on.</Notice> : (
         <Table>
