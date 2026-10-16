@@ -80,6 +80,7 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { getRestockInsights, getDemandInsights, getRewardsHotFoodInsights } from '../controllers/inventoryInsights.controller';
 import { getAppVersion, updateAppVersions } from '../controllers/appVersion.controller';
+import { hqReadReceipt, hqLinkReceipt } from '../controllers/hqReceipt.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
 import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards } from '../controllers/customerProfile.controller';
 import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
@@ -305,6 +306,9 @@ router.get('/points/customer-info/:qrCode', authenticate, requireRole(Role.EMPLO
 // HQ's Grant & Redeem page (2026-10-15): find a customer when the QR photo will not read, and the store's staff for "Served by"
 router.get('/points/hq/customers', authenticate, requireRole(Role.SUPER_ADMIN), hqFindCustomers);
 router.get('/points/hq/staff/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), hqStoreStaff);
+// Receipt auto-fill on that page (2026-10-16): the AI reads the receipt photo and checks it was not used before; link = HQ granted from it
+router.post('/points/hq/receipt-read', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), hqReadReceipt);
+router.post('/points/hq/receipt-read/:id/link', authenticate, requireRole(Role.SUPER_ADMIN), hqLinkReceipt);
 router.get('/points/my-benefit-status', authenticate, requireRole(Role.CUSTOMER), getMyBenefitStatus);
 
 // Tier benefit claiming (Employee)

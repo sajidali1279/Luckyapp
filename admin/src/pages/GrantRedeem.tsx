@@ -16,6 +16,7 @@ import { failureMessage } from '../lib/apiError';
 import { showPhone } from '../lib/phoneText';
 import { pickStore, rememberStore } from '../lib/lastStore';
 import { readQrPhoto, isCustomerQr } from '../lib/qrPhoto';
+import { fingerprint, shrinkPhoto } from '../lib/photoPrep';
 
 const PAGE_KEY = 'grant-redeem';
 const MAX_PHOTO = 10 * 1024 * 1024;   // the server's upload limit
@@ -43,6 +44,14 @@ type Reward = { id: string; title: string; emoji?: string | null; pointsCost: nu
 type Line = { key: string; category: string; amount: string; ppg: string };
 type Created = { id: string; flagged: boolean; flags: string[]; points: number; promotion: string | null };
 type Tab = 'grant' | 'redeem' | 'catalog' | 'held' | 'benefit' | 'welcome';
+// What the receipt reader found (POST /points/hq/receipt-read, 2026-10-16)
+type ReadWarning = { code: string; text: string; serious: boolean };
+type ReceiptReadResult = {
+  readId: string | null; store: { id: string; name: string } | null; date: string | null; time: string | null; receiptNumber: string | null;
+  total: number | null; payment: { method: string; brand: string | null; last4: string | null } | null;
+  lines: { category: string; amount: number; gallons: number | null }[]; readable: string; warnings: ReadWarning[];
+};
+type ReadState = { file: File; status: 'reading' | 'done' | 'failed' | 'off'; result?: ReceiptReadResult; error?: string };
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const pts = (n: number) => `${Math.round(n).toLocaleString('en-US')} pts`;
@@ -87,6 +96,63 @@ function PhotoSlot({ label, hint, file, onFile, busy }: { label: string; hint: R
   );
 }
 
+const hour12 = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+
+/** What the reader found on the receipt, and every reason to look twice before granting (Grant points tab) */
+function ReceiptPanel({ state, warnings, serious, warningsOk, onWarningsOk, storeId, locked, onRetry, onFill, onSwitchStore }: {
+  state: ReadState | null; warnings: ReadWarning[]; serious: boolean; warningsOk: boolean; onWarningsOk: (v: boolean) => void;
+  storeId: string; locked: boolean; onRetry: () => void; onFill: () => void; onSwitchStore: (id: string) => void;
+}) {
+  if (!state) return null;
+  if (state.status === 'reading') {
+    return (
+      <div className="ui-soft-in" role="status" style={{ padding: '12px 14px', borderRadius: RADIUS.md, border: `1px solid ${C.border}`, background: C.subtle }}>
+        <div style={{ fontSize: FONT.small, color: C.text2, marginBottom: 8 }}>Reading the receipt and checking it was not used before...</div>
+        <div className="ui-working" aria-hidden="true" />
+      </div>
+    );
+  }
+  if (state.status === 'off') return <Notice tone="neutral" style={{ marginTop: 0 }}>{state.error}</Notice>;
+  if (state.status === 'failed') {
+    return (
+      <div className="ui-soft-in"><Notice tone="warning">
+        {state.error} <button type="button" onClick={onRetry} style={{ background: 'none', border: 'none', padding: 0, color: C.primary, textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>Try again</button>
+      </Notice></div>
+    );
+  }
+  const r = state.result!;
+  const facts = [
+    r.store?.name ?? 'Store not read',
+    r.date ? `${r.date}${r.time ? ` at ${hour12(r.time)}` : ''}` : 'no date',
+    r.total != null ? `total ${money(r.total)}` : 'no total',
+    r.payment?.method === 'CASH' ? 'cash' : r.payment?.last4 ? `${r.payment.brand ?? 'card'} ending ${r.payment.last4}` : null,
+    r.receiptNumber ? `receipt #${r.receiptNumber}` : null,
+  ].filter(Boolean).join(' · ');
+  const otherStore = warnings.find((w) => w.code === 'STORE_DIFFERENT') && r.store && r.store.id !== storeId ? r.store : null;
+  return (
+    <div className="ui-soft-in" style={{ padding: '12px 14px', borderRadius: RADIUS.md, border: `1px solid ${serious ? '#f3cdd1' : C.border}`, background: serious ? C.dangerTint : C.subtle, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ fontSize: FONT.small, color: C.text }}><strong>Read from the receipt:</strong> {facts}</div>
+        {!locked && r.lines.length > 0 && <Button size="sm" variant="ghost" onClick={onFill}>Fill the lines from it again</Button>}
+      </div>
+      {warnings.length === 0 ? (
+        <div style={{ fontSize: FONT.small, color: C.success }}>No sign it was used before. Check the amounts against the photo.</div>
+      ) : (
+        <ul style={{ margin: 0, paddingLeft: 18, fontSize: FONT.small, lineHeight: 1.6, color: C.text2 }}>
+          {warnings.map((w, i) => <li key={i} style={{ color: w.serious ? C.danger : C.text2, fontWeight: w.serious ? 600 : 400 }}>{w.text}</li>)}
+        </ul>
+      )}
+      {otherStore && !locked && <div><Button size="sm" onClick={() => onSwitchStore(otherStore.id)}>Switch to {otherStore.name}</Button></div>}
+      {serious && (
+        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: FONT.small, color: C.text, cursor: 'pointer' }}>
+          <input type="checkbox" checked={warningsOk} onChange={(e) => onWarningsOk(e.target.checked)} style={{ marginTop: 3 }} />
+          I checked the warnings above with the employee and still want to enter this receipt.
+        </label>
+      )}
+    </div>
+  );
+}
+
 // HQ only: the server refuses everyone else too, this just says so instead of showing a page of errors
 export default function GrantRedeem() {
   const role = useAuthStore((s) => s.user?.role);
@@ -121,6 +187,14 @@ function Counter() {
   const servedBy = staff.find((s) => s.id === servedById) ?? null;
   const ready = !!store && !!servedBy;
 
+  // The receipt says another store: switch to it and keep the customer, the receipt and what was read (nothing entered yet)
+  function switchToReceiptStore(id: string) {
+    if (Object.keys(createdRef.current).length) return;
+    setStoreId(id);
+    rememberStore(PAGE_KEY, id);
+    if (readState?.result) setLines(linesFromRead(readState.result, stores.find((s) => s.id === id) ?? null));
+    toast(`Store switched. Pick who served at ${stores.find((s) => s.id === id)?.name ?? 'that store'}.`);
+  }
   function chooseStore(id: string) {
     if (customer && id !== storeId && hasWork()) {
       if (!window.confirm('Change the store? The sale you started here is dropped.')) return;
@@ -244,13 +318,63 @@ function Counter() {
   const busyRef = useRef(false);
   const [granted, setGranted] = useState<{ points: number; flagged: boolean; flags: string[]; promotion: string | null; customer: string; servedBy: string } | null>(null);
   const [confirmGrant, setConfirmGrant] = useState(false);
+  const [readState, setReadState] = useState<ReadState | null>(null);
+  const [warningsOk, setWarningsOk] = useState(false);
+  const readSeq = useRef(0);
 
   function hasWork() {
     return lines.some((l) => l.amount.trim() !== '') || !!receipt || Object.keys(createdRef.current).length > 0;
   }
   function resetSale() {
     setLines([newLine()]); setReceipt(null); setCreated({}); createdRef.current = {}; uploadedRef.current = new Set(); setGranted(null);
+    readSeq.current++; setReadState(null); setWarningsOk(false);
   }
+
+  // The sale's lines from what the reader found; a gas line gets its price per gallon from the gallons read, else the store's price
+  function linesFromRead(r: ReceiptReadResult, at: StoreRow | null): Line[] {
+    const allowed = at?.enabledCategories ?? [];
+    const out = r.lines.map((l) => {
+      const category = allowed.length === 0 || allowed.includes(l.category) ? l.category : 'OTHER';
+      let ppg = '';
+      if (isGasCategory(category)) {
+        const fromRead = l.gallons ? l.amount / l.gallons : NaN;
+        const price = (category === 'DIESEL' ? at?.dieselPricePerGallon : at?.gasPricePerGallon) ?? null;
+        ppg = fromRead >= 1.5 && fromRead <= 20 ? fromRead.toFixed(3) : price != null ? String(price) : '';
+      }
+      return { ...newLine(), category, amount: l.amount.toFixed(2), ppg };
+    });
+    return out.length ? out : [newLine()];
+  }
+
+  // A receipt photo added: the reader fills the lines (when none are typed yet) and checks the receipt was not used before
+  async function readTheReceipt(file: File) {
+    if (!qr || !storeId) return;
+    const seq = ++readSeq.current;
+    setReadState({ file, status: 'reading' });
+    setWarningsOk(false);
+    try {
+      const [small, hash] = await Promise.all([shrinkPhoto(file), fingerprint(file)]);
+      const { data } = await counterApi.readReceipt(small, qr, storeId, hash);
+      if (seq !== readSeq.current) return;   // another photo since
+      const result = data.data as ReceiptReadResult;
+      setReadState({ file, status: 'done', result });
+      // Only when nothing is typed yet (looked at now, not when the photo was added: typing may have started while it was read)
+      if (result.lines.length) setLines((prev) => (prev.some((l) => l.amount.trim() !== '') ? prev : linesFromRead(result, store)));
+    } catch (e: any) {
+      if (seq !== readSeq.current) return;
+      const off = e?.response?.data?.code === 'READER_OFF';
+      setReadState({ file, status: off ? 'off' : 'failed', error: failureMessage(e, 'The receipt could not be read. Type the amounts in.') });
+    }
+  }
+  function onReceipt(file: File | null) {
+    if (Object.keys(createdRef.current).length) return;   // lines entered with this photo: it cannot change now
+    setReceipt(file);
+    if (file) readTheReceipt(file); else { readSeq.current++; setReadState(null); setWarningsOk(false); }
+  }
+  const readResult = readState?.status === 'done' && readState.file === receipt ? readState.result ?? null : null;
+  // The store warning is gone once the store was switched to the receipt's
+  const readWarnings = (readResult?.warnings ?? []).filter((w) => !(w.code === 'STORE_DIFFERENT' && readResult?.store?.id === storeId));
+  const seriousWarnings = readWarnings.filter((w) => w.serious);
 
   const enabled = store?.enabledCategories ?? [];
   const categories = CATEGORIES.filter((c) => enabled.length === 0 || enabled.includes(c.value));
@@ -314,6 +438,8 @@ function Counter() {
     if (checked.lines.length === 0) { toast.error('Enter the amount of at least one item from the receipt.'); return; }
     if (!receipt) { toast.error('Add the photo of the receipt. Points are only credited with a receipt.'); return; }
     if (receipt.size > MAX_PHOTO) { toast.error('That receipt photo is over 10 MB. Send a smaller copy (a screenshot of it works).'); return; }
+    if (readState?.status === 'reading') { toast('The receipt is still being read. One moment.'); return; }
+    if (seriousWarnings.length && !warningsOk) { toast.error('Check the warnings about the receipt first, and tick the box if you still want to enter it.'); return; }
     setConfirmGrant(true);
   }
 
@@ -352,6 +478,10 @@ function Counter() {
         }
       }
       const all = Object.values(createdRef.current);
+      // The receipt now counts as used: a customer who scans it in the app later is refused (not fatal if this fails)
+      if (readResult?.readId) {
+        counterApi.linkReceipt(readResult.readId, all.map((c) => c.id)).catch(() => toast('Points granted. The receipt could not be marked as used, so check it is not scanned again.', { duration: 7000 }));
+      }
       setGranted({
         points: all.reduce((n, c) => n + c.points, 0), flagged: all.some((c) => c.flagged), flags: [...new Set(all.flatMap((c) => c.flags))],
         promotion: all.find((c) => c.promotion)?.promotion ?? null, customer: customer?.name || showPhone(customer?.phone), servedBy: servedBy.name || showPhone(servedBy.phone),
@@ -418,7 +548,7 @@ function Counter() {
       if (!file || !ready) return;
       e.preventDefault();
       if (!customer) onQrPhoto(file);
-      else if (tab === 'grant' && !granted) { setReceipt(file); toast.success('Receipt photo added.'); }
+      else if (tab === 'grant' && !granted && !Object.keys(createdRef.current).length) { onReceipt(file); toast.success('Receipt photo added.'); }
     }
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
@@ -583,7 +713,16 @@ function Counter() {
                 </div>
               </div>
 
-              <PhotoSlot label="Photo of the receipt" hint="Required. The same photo goes on every line of this sale. You can paste it (Ctrl+V)." file={receipt} onFile={setReceipt} busy={granting} />
+              <PhotoSlot label="Photo of the receipt" hint="Required. The amounts are read from it for you to check, and the same photo goes on every line of this sale. You can paste it (Ctrl+V)."
+                file={receipt} onFile={onReceipt} busy={granting || createdCount > 0} />
+              <ReceiptPanel
+                state={readState && readState.file === receipt ? readState : null}
+                warnings={readWarnings} serious={seriousWarnings.length > 0} warningsOk={warningsOk} onWarningsOk={setWarningsOk}
+                storeId={storeId} locked={createdCount > 0 || granting}
+                onRetry={() => receipt && readTheReceipt(receipt)}
+                onFill={() => readResult && setLines(linesFromRead(readResult, store))}
+                onSwitchStore={switchToReceiptStore}
+              />
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '12px 14px', borderRadius: RADIUS.md, background: C.subtle, border: `1px solid ${C.border}` }}>
                 <div>

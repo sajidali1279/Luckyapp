@@ -24,6 +24,7 @@ import { pushReferralAwards } from '../utils/referrals';
 import { updateCustomerTierIfNeeded } from '../utils/tier';
 import {
   RECEIPT_SCAN_KEY, READ_PROMPT, canScan, loadScanSettings, matchStore, parseRead, phoneKey, saleLines, type ReceiptRead,
+  HQ_ENTERED, HQ_SCAN_STATUSES,
 } from '../utils/receiptScan';
 
 export const MAX_SCANS_PER_DAY = 3;          // per customer, per store day (held or refused)
@@ -40,7 +41,8 @@ export async function getScanAccess(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { enabled: !!user && canScan(settings, user), testing: settings.mode !== 'ALL', perDay: rule('receiptScansPerDay'), maxDays: rule('receiptMaxDays') } });
 }
 
-async function readReceipt(buffer: Buffer, mediaType: string): Promise<ReceiptRead | null> {
+/** What the AI reads on a receipt photo (also HQ's Grant & Redeem page, controllers/hqReceipt.controller.ts). */
+export async function readReceipt(buffer: Buffer, mediaType: string): Promise<ReceiptRead | null> {
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const msg = await client.messages.create({
@@ -74,7 +76,8 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   if (req.file.size > MAX_PHOTO_BYTES) { res.status(413).json({ success: false, error: 'The photo is too large. Take it again.' }); return; }
   if (!process.env.ANTHROPIC_API_KEY) { res.status(503).json({ success: false, error: 'Receipt reading is not set up on the server.' }); return; }
 
-  const todays = await prisma.receiptScan.findMany({ where: { customerId: customer.id, createdAt: { gte: storeDayStart() } }, select: { status: true } });
+  // HQ's rows for this customer (receipts an employee sent HQ) are not the customer's own scans: not counted
+  const todays = await prisma.receiptScan.findMany({ where: { customerId: customer.id, createdAt: { gte: storeDayStart() }, status: { notIn: HQ_SCAN_STATUSES } }, select: { status: true } });
   const perDay = rule('receiptScansPerDay');
   if (todays.filter((t) => t.status !== 'ERROR').length >= perDay || todays.length >= Math.max(MAX_TRIES_PER_DAY, perDay + 5)) { res.status(429).json({ success: false, code: 'TOO_MANY_SCANS', error: `You can scan ${perDay} receipts a day. Try again tomorrow.` }); return; }
 
@@ -128,9 +131,10 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
     return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
   }
   const dayStart = startOfStoreDate(read.date);
-  // Every held or approved scan of that store's day, whatever total was read (a misread total skipped this check before 2026-10-13)
+  // Every held or approved scan of that store's day, whatever total was read (a misread total skipped this check before 2026-10-13),
+  // and the receipts HQ entered points from (2026-10-16)
   const sameDay = await prisma.receiptScan.findMany({
-    where: { storeId: store.id, status: { in: ['HELD', 'AUTO'] }, receiptAt: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 3600_000) } },
+    where: { storeId: store.id, status: { in: ['HELD', 'AUTO', HQ_ENTERED] }, receiptAt: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 3600_000) } },
     select: { customerId: true, read: true, total: true },
   });
   const here = factsOf(customer.id, read, total);
@@ -264,7 +268,7 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
 /** GET /receipt-scan/mine: the customer's latest scans and what became of them. */
 export async function getMyScans(req: AuthRequest, res: Response) {
   const scans = await prisma.receiptScan.findMany({
-    where: { customerId: req.user!.id }, orderBy: { createdAt: 'desc' }, take: 20,
+    where: { customerId: req.user!.id, status: { notIn: HQ_SCAN_STATUSES } }, orderBy: { createdAt: 'desc' }, take: 20,
     select: { id: true, status: true, reason: true, total: true, receiptAt: true, createdAt: true, transactionIds: true, store: { select: { name: true } } },
   });
   const ids = scans.flatMap((s) => s.transactionIds);
@@ -307,6 +311,7 @@ export async function putScanSettings(req: AuthRequest, res: Response) {
 export async function getRecentScans(req: AuthRequest, res: Response) {
   const take = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
   const scans = await prisma.receiptScan.findMany({
+    where: { status: { notIn: HQ_SCAN_STATUSES } },   // the customers' own scans; HQ's are on its sales
     orderBy: { createdAt: 'desc' }, take,
     select: { id: true, status: true, reason: true, flags: true, total: true, receiptAt: true, createdAt: true, imageUrl: true, read: true, transactionIds: true,
       customer: { select: { id: true, name: true, phone: true } }, store: { select: { name: true } } },

@@ -33,6 +33,13 @@ export function canScan(settings: ScanSettings, user: { phone?: string | null; r
   return false;
 }
 
+// HQ's Grant & Redeem page reads receipts too (2026-10-16, controllers/hqReceipt.controller.ts). Its rows are kept with the customer's
+// scans so the same receipt is caught both ways, but they are not the customer's scans: never counted against the customer's daily limit
+// and never shown in their app. HQ_READ = read, not used yet; HQ_ENTERED = HQ granted points from it.
+export const HQ_READ = 'HQ_READ';
+export const HQ_ENTERED = 'HQ';
+export const HQ_SCAN_STATUSES = [HQ_READ, HQ_ENTERED];
+
 // ── What the AI reads ────────────────────────────────────────────────────────
 
 /** The categories the reader may give a line. Lottery, money orders, gift cards and the like earn nothing. */

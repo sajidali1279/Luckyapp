@@ -628,6 +628,16 @@ export const counterApi = {
     fd.append('receipt', file);
     return api.post(`/points/grant/${transactionId}/receipt`, fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60_000 });
   },
+  // Receipt auto-fill (2026-10-16): a smaller copy for the reader, the original photo's fingerprint for the "already used" checks
+  readReceipt: (image: Blob, customerQrCode: string, storeId: string, originalHash: string) => {
+    const fd = new FormData();
+    fd.append('image', image, 'receipt.jpg');
+    fd.append('customerQrCode', customerQrCode);
+    fd.append('storeId', storeId);
+    fd.append('originalHash', originalHash);
+    return api.post('/points/hq/receipt-read', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 75_000 });
+  },
+  linkReceipt: (readId: string, transactionIds: string[]) => api.post(`/points/hq/receipt-read/${readId}/link`, { transactionIds }),
   redeem: (customerQrCode: string, storeId: string, servedById: string, amount: number) =>
     api.post('/points/redeem', { customerQrCode, storeId, servedById, amount }),
   tierBenefit: (customerQrCode: string, storeId: string, servedById: string) =>
