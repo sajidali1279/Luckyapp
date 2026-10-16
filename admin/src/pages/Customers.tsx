@@ -17,6 +17,7 @@ import { PageHeader, HeaderStat, Button, Tabs } from '../components/kit';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
 import ReferralsPanel from '../components/ReferralsPanel';
+import WinBackPanel from '../components/WinBackPanel';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { readSetting, writeSetting } from './dashboard/shared';
 
@@ -63,8 +64,8 @@ export default function Customers() {
   const [deleteTyped, setDeleteTyped] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [fraudNote, setFraudNote] = useState('');
-  const [activeTab, setActiveTab] = useState<'customers' | 'disputes' | 'referrals'>(
-    searchParams.get('tab') === 'disputes' ? 'disputes' : searchParams.get('tab') === 'referrals' ? 'referrals' : 'customers'
+  const [activeTab, setActiveTab] = useState<'customers' | 'disputes' | 'referrals' | 'winback'>(
+    searchParams.get('tab') === 'disputes' ? 'disputes' : searchParams.get('tab') === 'referrals' ? 'referrals' : searchParams.get('tab') === 'winback' ? 'winback' : 'customers'
   );
   const highlightId = searchParams.get('highlightId');
   const [disputeStore, setDisputeStore] = useState('');
@@ -247,8 +248,10 @@ export default function Customers() {
           { value: 'customers', label: 'Customers' },
           { value: 'disputes', label: 'Disputes', count: pendingCount > 0 ? pendingCount : undefined },
           { value: 'referrals', label: 'Referrals' },
+          ...(isSuperAdmin ? [{ value: 'winback' as const, label: 'Win back' }] : []),
         ]}
       />
+      {activeTab === 'winback' && isSuperAdmin && <div role="tabpanel" aria-label="Win back" className="ui-soft-in"><WinBackPanel /></div>}
       {activeTab === 'referrals' && <div role="tabpanel" aria-label="Referrals"><ReferralsPanel /></div>}
       {/* ── Disputes tab ── */}
       {activeTab === 'disputes' && (

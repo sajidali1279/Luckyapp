@@ -555,7 +555,7 @@ model PointsTransaction {
 // at the moment they are approved, so a sale later rejected never counts. The reward is credited as an approved PointsTransaction.
 model Challenge {
   id            String           @id @default(uuid())
-  kind          String           // SPEND | VISITS
+  kind          String           // SPEND | VISITS | WINBACK (2026-10-16: a one-off gift to quiet customers, utils/winBack.ts; never runs as a challenge)
   title         String
   titleEs       String?
   description   String           @default("")
@@ -569,6 +569,7 @@ model Challenge {
   audience      String           @default("EVERYONE")   // as Offer (utils/offerAudience.ts)
   audienceTier  Tier?
   audienceDays  Int?
+  quietDays     Int?             // WINBACK: sent to customers with no purchase for this many days
   startDate     DateTime
   endDate       DateTime
   isActive      Boolean          @default(true)

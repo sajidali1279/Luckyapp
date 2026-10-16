@@ -371,6 +371,8 @@
     "emptySubtitle": "Visit a Lucky Stop and show your QR code to earn your first credits!",
     "pointsValue": "+{{points}} pts",
     "challengeReward": "Challenge reward",
+    "giftReward": "A gift for you",
+    "detailGift": "Gift",
     "detailChallenge": "Challenge"
   },
   "customerHotFood": {

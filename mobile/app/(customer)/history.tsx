@@ -124,8 +124,9 @@ export default function HistoryScreen() {
           }
           renderItem={({ item }) => {
             // A challenge's reward is its own line: no purchase, so it says what it is (and is not a purchase to report)
-            const icon = item.challengeId ? '🏆' : CATEGORY_ICONS[item.category] || '🏪';
-            const catLabel = item.challengeId ? t('customerHistory.challengeReward') : item.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory');
+            const isGift = item.challenge?.kind === 'WINBACK';   // a win-back gift from HQ (2026-10-16), kept as a reward line too
+            const icon = isGift ? '🎁' : item.challengeId ? '🏆' : CATEGORY_ICONS[item.category] || '🏪';
+            const catLabel = isGift ? t('customerHistory.giftReward') : item.challengeId ? t('customerHistory.challengeReward') : item.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory');
             const storeName = item.store?.name || t('customerHistory.defaultStoreName');
             return (
               <PulseHighlight active={item.id === pulseId}>
@@ -170,7 +171,7 @@ export default function HistoryScreen() {
           <View style={d.overlay}>
             <View style={d.sheet}>
               <View style={d.iconBg}>
-                <Text style={d.icon}>{selected.challengeId ? '🏆' : CATEGORY_ICONS[selected.category] || '🏪'}</Text>
+                <Text style={d.icon}>{selected.challenge?.kind === 'WINBACK' ? '🎁' : selected.challengeId ? '🏆' : CATEGORY_ICONS[selected.category] || '🏪'}</Text>
               </View>
               <Text style={d.storeName}>{selected.store?.name || t('customerHistory.defaultStoreName')}</Text>
               <Text style={d.date}>{format(new Date(selected.createdAt), 'EEEE, MMM d yyyy · h:mm a')}</Text>
@@ -179,7 +180,7 @@ export default function HistoryScreen() {
 
               {selected.challengeId ? (
                 <View style={d.row}>
-                  <Text style={d.rowLabel}>{t('customerHistory.detailChallenge')}</Text>
+                  <Text style={d.rowLabel}>{selected.challenge?.kind === 'WINBACK' ? t('customerHistory.detailGift') : t('customerHistory.detailChallenge')}</Text>
                   <Text style={d.rowValue}>{(i18n.language === 'es' && selected.challenge?.titleEs) || selected.challenge?.title || t('customerHistory.challengeReward')}</Text>
                 </View>
               ) : (

@@ -111,7 +111,8 @@ export async function createChallenge(req: AuthRequest, res: Response) {
 
 // GET /challenges (HQ): every challenge, newest first, with who took part, how often it was earned and what it paid
 export async function listChallenges(_req: AuthRequest, res: Response) {
-  const rows = await prisma.challenge.findMany({ orderBy: { startDate: 'desc' }, take: 100, include: { store: { select: { name: true } } } });
+  // Win-back gifts are kept as challenges too (utils/winBack.ts) but are not challenges: they have their own list
+  const rows = await prisma.challenge.findMany({ where: { kind: { not: 'WINBACK' } }, orderBy: { startDate: 'desc' }, take: 100, include: { store: { select: { name: true } } } });
   const stats = await challengeStats(rows.map((r) => r.id));
   const now = Date.now();
   res.json({
@@ -138,6 +139,8 @@ export async function updateChallenge(req: AuthRequest, res: Response) {
   if (!parsed.success) { refuse(res, parsed.error); return; }
   const before = await prisma.challenge.findUnique({ where: { id: req.params.id } });
   if (!before) { res.status(404).json({ success: false, error: 'That challenge does not exist.' }); return; }
+  // A win-back gift must never run: switched on, its target of 0 would pay every purchase
+  if (before.kind === 'WINBACK') { res.status(400).json({ success: false, error: 'That is a win-back gift, not a challenge. It cannot be changed here.' }); return; }
   const d = parsed.data;
   if (d.endDate && new Date(d.endDate).getTime() < before.startDate.getTime()) { res.status(400).json({ success: false, error: 'The last day is before the first day.' }); return; }
   const c = await prisma.challenge.update({ where: { id: before.id }, data: { ...d, ...(d.endDate ? { endDate: new Date(d.endDate) } : {}) } });

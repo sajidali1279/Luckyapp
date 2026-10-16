@@ -603,7 +603,15 @@ export const welcomeBonusApi = {
   confirm:         (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
 };
 
-export type GrantLine = { category: string; amount: number; gasGallons?: number; gasPricePerGallon?: number };
+// Win-back gifts (2026-10-16, Customers > Win back): a few points with a push for customers who have not been back
+export type WinBackSend = { quietDays: number; storeId: string | null; title: string; titleEs?: string | null; message: string; messageEs?: string | null; amount: number; expectedCount: number };
+export const winBackApi = {
+  preview: (quietDays: number, storeId: string | null) => api.get('/winback/preview', { params: { quietDays, ...(storeId ? { storeId } : {}) } }),
+  list: () => api.get('/winback'),
+  send: (data: WinBackSend) => api.post('/winback', data, { timeout: 120_000 }),
+};
+
+export type GrantLine ={ category: string; amount: number; gasGallons?: number; gasPricePerGallon?: number };
 
 // HQ's Grant & Redeem page (2026-10-15): the cashier's scan screen on the admin site, for an employee with no phone who sends HQ photos of
 // the customer's QR and the receipt. The same server calls as the app; each one names the employee who served (servedById).

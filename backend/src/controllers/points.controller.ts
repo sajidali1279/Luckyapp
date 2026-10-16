@@ -495,7 +495,7 @@ export async function getMyTransactions(req: AuthRequest, res: Response) {
       orderBy: { createdAt: 'desc' },
       skip,
       take: parseInt(limit),
-      include: { store: { select: { name: true } }, challenge: { select: { title: true, titleEs: true } } },   // a reward line names its challenge
+      include: { store: { select: { name: true } }, challenge: { select: { title: true, titleEs: true, kind: true } } },   // a reward line names its challenge (kind WINBACK: a gift)
     }),
     prisma.pointsTransaction.count({
       where: { customerId: req.user!.id },

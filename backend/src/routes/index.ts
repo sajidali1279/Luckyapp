@@ -81,6 +81,7 @@ import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.control
 import { getRestockInsights, getDemandInsights, getRewardsHotFoodInsights } from '../controllers/inventoryInsights.controller';
 import { getAppVersion, updateAppVersions } from '../controllers/appVersion.controller';
 import { hqReadReceipt, hqLinkReceipt } from '../controllers/hqReceipt.controller';
+import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
 import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards } from '../controllers/customerProfile.controller';
 import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
@@ -309,6 +310,10 @@ router.get('/points/hq/staff/:storeId', authenticate, requireRole(Role.SUPER_ADM
 // Receipt auto-fill on that page (2026-10-16): the AI reads the receipt photo and checks it was not used before; link = HQ granted from it
 router.post('/points/hq/receipt-read', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), hqReadReceipt);
 router.post('/points/hq/receipt-read/:id/link', authenticate, requireRole(Role.SUPER_ADMIN), hqLinkReceipt);
+// Win-back gifts (2026-10-16): a few points with a push for customers who have not been back, and how many came back
+router.get('/winback/preview', authenticate, requireRole(Role.SUPER_ADMIN), previewWinBack);
+router.get('/winback', authenticate, requireRole(Role.SUPER_ADMIN), listWinBacks);
+router.post('/winback', authenticate, requireRole(Role.SUPER_ADMIN), sendWinBack);
 router.get('/points/my-benefit-status', authenticate, requireRole(Role.CUSTOMER), getMyBenefitStatus);
 
 // Tier benefit claiming (Employee)
