@@ -20,7 +20,7 @@ const hoursText = (h: number | null) => (h == null ? '-' : h < 48 ? `${h} h` : `
 const hourText = (h: number) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const REASONS: Record<string, string> = { NO_SUPPLIER: 'No supplier', OUT_OF_BUDGET: 'Over budget', IN_STOCK: 'Already in stock', DUPLICATE: 'Already on the list', OTHER: 'Other' };
-const CANCELLED_BY: Record<string, string> = { STORE: 'The store declined', CUSTOMER: 'The customer cancelled', AUTO: 'Nobody accepted it in time' };
+const CANCELLED_BY: Record<string, string> = { STORE: 'The store declined', CUSTOMER: 'The customer cancelled', AUTO: 'Nobody accepted it in time', NO_SHOW: 'Ready, not picked up' };
 
 const tiles: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 20 };
 const two: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: 16, marginBottom: 16 };

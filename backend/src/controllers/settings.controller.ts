@@ -49,6 +49,9 @@ export async function putRules(req: AuthRequest, res: Response) {
   if (next.hotFoodEscalateMinutes >= next.hotFoodAutoCancelMinutes) {
     res.status(400).json({ success: false, error: 'Managers must be told before the order cancels: make the manager time less than the cancel time.' }); return;
   }
+  if (next.hotFoodReadyCloseMinutes <= next.hotFoodReadyRemindMinutes) {
+    res.status(400).json({ success: false, error: 'The customer must be reminded before a ready order is closed: make the close time more than the reminder time.' }); return;
+  }
   if (next.reviewLargePurchase < next.reviewHighAmount) {
     res.status(400).json({ success: false, error: 'The HQ-only amount cannot be below the hold amount.' }); return;
   }

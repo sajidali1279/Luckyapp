@@ -276,6 +276,7 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
         <Text style={oc.cancelReason}>
           {order.cancelledBy === 'AUTO'
             ? t('customerHotFood.cancelledAuto')
+            : order.cancelledBy === 'NO_SHOW' ? t('customerHotFood.cancelledNoShow')
             : order.cancelReason ? t('customerHotFood.declinedReason', { reason: order.cancelReason }) : t('customerHotFood.declinedNoReason')}
         </Text>
       )}

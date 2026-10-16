@@ -475,6 +475,7 @@
     "declinedReason": "The store could not make it: {{reason}}. You were not charged.",
     "declinedNoReason": "The store could not make it. You were not charged.",
     "cancelledAuto": "Nobody at the store accepted it in time, so it was cancelled. You were not charged.",
+    "cancelledNoShow": "It was ready and not picked up, so it was closed.",
     "aboutFeet": "about {{n}} ft",
     "aboutMiles": "about {{n}} mi",
     "closedOpensShort": "Closed · opens {{when}} at {{time}}",

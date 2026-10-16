@@ -475,6 +475,7 @@
     "declinedReason": "La tienda no pudo prepararlo: {{reason}}. No se le cobró.",
     "declinedNoReason": "La tienda no pudo prepararlo. No se le cobró.",
     "cancelledAuto": "Nadie en la tienda lo aceptó a tiempo, así que se canceló. No se le cobró.",
+    "cancelledNoShow": "Estaba listo y nadie lo recogió, así que se cerró.",
     "aboutFeet": "unos {{n}} pies",
     "aboutMiles": "unas {{n}} mi",
     "closedOpensShort": "Cerrado · abre {{when}} a las {{time}}",

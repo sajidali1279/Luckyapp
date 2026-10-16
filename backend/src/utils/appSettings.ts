@@ -13,6 +13,8 @@ export const RULES = {
   hotFoodAutoCancelMinutes: { group: 'hotFood', label: 'Cancel an order nobody accepts after', unit: 'minutes', def: 20, min: 5, max: 120, int: true, help: 'The customer is told it was cancelled; points paid for it go back.' },
   hotFoodEscalateMinutes: { group: 'hotFood', label: 'Tell the managers when an order has waited', unit: 'minutes', def: 5, min: 1, max: 60, int: true, help: 'The store\'s managers and everyone there hear once. Must be less than the cancel time.' },
   hotFoodReadyRemindMinutes: { group: 'hotFood', label: 'Remind the customer to pick up a ready order after', unit: 'minutes', def: 15, min: 5, max: 240, int: true, help: 'Once per order.' },
+  // 2026-10-16: a ready order nobody picks up was open until staff cancelled it by hand
+  hotFoodReadyCloseMinutes: { group: 'hotFood', label: 'Close a ready order nobody picks up after', unit: 'minutes', def: 120, min: 30, max: 720, int: true, help: 'From when it was marked ready. The customer and the store are told. Must be more than the reminder.' },
   hotFoodMaxOpenOrders: { group: 'hotFood', label: 'Open orders one customer can have', unit: 'orders', def: 3, min: 1, max: 20, int: true, help: 'Waiting, being made or ready, at any store.' },
   hotFoodMaxPerItem: { group: 'hotFood', label: 'Most of one item in an order', unit: 'items', def: 20, min: 1, max: 99, int: true, help: 'The app stops at this number too.' },
   reviewHighAmount: { group: 'review', label: 'Hold a sale (not gas) over', unit: '$', def: 500, min: 50, max: 5000, int: false, help: 'A manager or HQ approves it before the points are added.' },
@@ -44,8 +46,11 @@ export const FEATURES = {
   hotFoodPayWithPoints: { label: 'Pay for hot food with points', help: 'Off: orders are paid at the counter only.' },
   hotFoodCombos: { label: 'Hot food combos', help: 'Off: no combo deals in the app; the combos are kept.' },
   challenges: { label: 'Challenges', help: 'Off: customers do not see challenges and no challenge rewards are paid.' },
+  hotFoodNoShowPointsBack: { label: 'Points back for a hot food order not picked up', help: 'An order paid with points that nobody picks up is closed; on: its points go back to the customer; off: the store keeps them (the food was made).' },
 } as const;
 export type FeatureKey = keyof typeof FEATURES;
+/** Every feature is on until HQ switches it off (one list, so a new one cannot be missed in one place) */
+const featureDefaults = () => Object.fromEntries(Object.keys(FEATURES).map((k) => [k, true])) as Record<FeatureKey, boolean>;
 
 export interface BusinessInfo { supportPhone: string; supportEmail: string; supportHours: string }
 
@@ -55,7 +60,7 @@ export const BUSINESS_KEY = 'BUSINESS_INFO';
 
 const defaults = () => Object.fromEntries(Object.entries(RULES).map(([k, m]) => [k, m.def])) as Record<RuleKey, number>;
 let rules: Record<RuleKey, number> = defaults();
-let features: Record<FeatureKey, boolean> = { hotFoodOrdering: true, hotFoodPayWithPoints: true, hotFoodCombos: true, challenges: true };
+let features: Record<FeatureKey, boolean> = featureDefaults();
 let businessInfo: BusinessInfo = { supportPhone: '', supportEmail: '', supportHours: '' };
 
 /** A rule's value now (its default until HQ changes it). */
@@ -78,7 +83,7 @@ export function cleanRules(stored: unknown): Record<RuleKey, number> {
   return out;
 }
 export function cleanFeatures(stored: unknown): Record<FeatureKey, boolean> {
-  const out = { hotFoodOrdering: true, hotFoodPayWithPoints: true, hotFoodCombos: true, challenges: true };
+  const out = featureDefaults();
   if (stored && typeof stored === 'object') for (const k of Object.keys(out) as FeatureKey[]) if (typeof (stored as any)[k] === 'boolean') out[k] = (stored as any)[k];
   return out;
 }
