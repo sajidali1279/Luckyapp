@@ -16,6 +16,11 @@ export function errorResponse(err: unknown): { status: number; error: string } {
   const e = err as { code?: string; type?: string; status?: number } | null;
   if (e?.code === 'LIMIT_FILE_SIZE') return { status: 413, error: 'That file is too big (10 MB at most).' };
   if (e?.code === 'LIMIT_UNEXPECTED_FILE') return { status: 400, error: 'Only one file can be sent here.' };
+  // Any other upload limit (multer 2: too many parts, a field too long) and an upload cut off on the way (a phone that lost signal):
+  // the request's fault, not the server's (2026-10-16; these were 500s)
+  if ((err as { name?: string } | null)?.name === 'MulterError') return { status: 400, error: 'The upload could not be read. Try again with one photo.' };
+  const msg = String((err as { message?: unknown } | null)?.message ?? '');
+  if (/Unexpected end of form|Malformed part header|Boundary not found|Unexpected end of multipart/i.test(msg)) return { status: 400, error: 'The upload was cut off. Check the connection and try again.' };
   if (e?.type === 'entity.parse.failed') return { status: 400, error: 'The request could not be read.' };
   if (e?.type === 'entity.too.large') return { status: 413, error: 'That is too much to send at once.' };
   return { status: 500, error: 'Internal server error' };
