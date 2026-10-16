@@ -86,7 +86,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
             <Text style={s.label}>{t('promoModal.yourName')}</Text>
             <TextInput style={s.input} value={promoName} onChangeText={setPromoName} placeholder={t('promoModal.fullNamePlaceholder')} placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
             <Text style={s.label}>{t('promoModal.contactPhone')}</Text>
-            <TextInput style={s.input} value={promoPhone} onChangeText={setPromoPhone} placeholder={t('promoModal.phonePlaceholder')} placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" />
+            <TextInput style={s.input} value={promoPhone} onChangeText={setPromoPhone} placeholder={t('promoModal.phonePlaceholder')} placeholderTextColor={COLORS.textMuted} keyboardType="phone-pad" returnKeyType="done" />
             <Text style={s.label}>{t('promoModal.businessName')}</Text>
             <TextInput style={s.input} value={promoBusinessName} onChangeText={setPromoBusinessName} placeholder={t('promoModal.businessNamePlaceholder')} placeholderTextColor={COLORS.textMuted} autoCapitalize="words" />
             <Text style={s.label}>{t('promoModal.businessDesc')}</Text>

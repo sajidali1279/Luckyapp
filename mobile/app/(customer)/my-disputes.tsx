@@ -137,6 +137,7 @@ function ReportModal({ visible, onClose }: { visible: boolean; onClose: () => vo
               placeholder={t('disputeModal.amountPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
+              returnKeyType="done"
             />
             {estAmt.length > 0 && !amtValid && (
               <Text style={[m.hint, m.hintError]}>{t('disputeModal.amountInvalidHint')}</Text>

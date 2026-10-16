@@ -329,6 +329,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               placeholder={t('employeeHotFood.pricePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
+              returnKeyType="done"
               maxLength={8}
             />
 
@@ -341,6 +342,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               placeholder={t('employeeHotFood.estimatedTimePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="number-pad"
+              returnKeyType="done"
               maxLength={3}
             />
 

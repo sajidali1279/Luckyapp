@@ -337,6 +337,7 @@ export default function ManagerDisputesScreen() {
                   value={creditAmt}
                   onChangeText={setCreditAmt}
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   placeholder={t('managerDisputes.creditPlaceholder')}
                   placeholderTextColor="#9ca3af"
                 />

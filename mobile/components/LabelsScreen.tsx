@@ -128,6 +128,7 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (n: number) 
         }}
         onBlur={() => setDraft(null)}
         keyboardType="number-pad"
+        returnKeyType="done"
         selectTextOnFocus
         maxLength={3}
         accessibilityLabel={t('sharedLabels.copiesA11y')}
@@ -1028,6 +1029,7 @@ export default function LabelsScreen() {
                   placeholder="3.99"
                   placeholderTextColor="#B0B8C4"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={7}
                 />
               </View>
@@ -1176,6 +1178,7 @@ export default function LabelsScreen() {
                   placeholder={sheetCurrentPrice ?? '0.00'}
                   placeholderTextColor="#B0B8C4"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={7}
                   autoFocus
                 />

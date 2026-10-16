@@ -292,7 +292,7 @@ export default function CareersScreen() {
               <TextInput style={st.input} value={form.name} onChangeText={v => setForm(f => ({ ...f, name: v }))} placeholder={t('customerCareers.fullNamePlaceholder')} placeholderTextColor="#aaa" />
 
               <Text style={st.fieldLabel}>{t('customerCareers.phoneLabel')}</Text>
-              <TextInput style={st.input} value={form.phone} onChangeText={v => setForm(f => ({ ...f, phone: v }))} placeholder={t('customerCareers.phonePlaceholder')} placeholderTextColor="#aaa" keyboardType="phone-pad" />
+              <TextInput style={st.input} value={form.phone} onChangeText={v => setForm(f => ({ ...f, phone: v }))} placeholder={t('customerCareers.phonePlaceholder')} placeholderTextColor="#aaa" keyboardType="phone-pad" returnKeyType="done" />
 
               <Text style={st.fieldLabel}>{t('customerCareers.emailLabel')}</Text>
               <TextInput style={st.input} value={form.email} onChangeText={v => setForm(f => ({ ...f, email: v }))} placeholder={t('customerCareers.emailPlaceholder')} placeholderTextColor="#aaa" keyboardType="email-address" autoCapitalize="none" />

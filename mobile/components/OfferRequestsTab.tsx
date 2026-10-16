@@ -241,7 +241,7 @@ function RequestFormModal({ visible, storeId, storeName, onClose }: { visible: b
               </View>
             ) : null}
             <View style={s.inline}>
-              <TextInput style={[s.input, { width: 110 }]} value={f.bonus} onChangeText={(v) => set('bonus', v)} keyboardType="decimal-pad"
+              <TextInput style={[s.input, { width: 110 }]} value={f.bonus} onChangeText={(v) => set('bonus', v)} keyboardType="decimal-pad" returnKeyType="done"
                 placeholder={cpgMode ? '5' : '3'} placeholderTextColor={COLORS.textMuted} accessibilityLabel={t('offerRequests.bonusLabel')} />
               <Text style={s.unit}>{cpgMode ? t('offerRequests.unitCpg') : t('offerRequests.unitPct')}</Text>
             </View>

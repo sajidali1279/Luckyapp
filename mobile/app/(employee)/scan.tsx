@@ -1163,6 +1163,7 @@ export default function EmployeeScanScreen() {
               placeholder={t('employeeScan.amountPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
+              returnKeyType="done"
               value={purchaseAmount}
               onChangeText={setPurchaseAmount}
               autoFocus
@@ -1181,6 +1182,7 @@ export default function EmployeeScanScreen() {
                     placeholder={t('employeeScan.amountPerGalPlaceholder')}
                     placeholderTextColor={COLORS.textMuted}
                     keyboardType="decimal-pad"
+                    returnKeyType="done"
                     value={gasPricePerGallon}
                     onChangeText={setGasPricePerGallon}
                   />
@@ -1433,6 +1435,7 @@ export default function EmployeeScanScreen() {
               placeholder={t('employeeScan.amountPlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
+              returnKeyType="done"
               value={redeemAmount}
               onChangeText={setRedeemAmount}
               autoFocus

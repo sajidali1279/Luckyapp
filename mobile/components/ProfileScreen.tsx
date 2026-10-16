@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode, useCallback } from 'react';
+import { useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { router } from 'expo-router';
 import {
   View,
@@ -107,6 +107,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  // Change PIN: 4 digits moves on to the next box (on iPhone the confirm box sat under the keypad, 2026-10-16)
+  const newPinRef = useRef<TextInput>(null);
+  const confirmPinRef = useRef<TextInput>(null);
   const [email, setEmail] = useState((user as any)?.email || '');
   const [loading, setLoading] = useState(false);
 
@@ -416,19 +419,23 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <View style={s.panelCard}>
             <Text style={s.panelLabel}>{t('profile.currentPin')}</Text>
             <TextInput
-              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
-              value={currentPin} onChangeText={setCurrentPin}
+              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" returnKeyType="next" maxLength={4}
+              value={currentPin} onChangeText={(v) => { setCurrentPin(v); if (v.length === 4) newPinRef.current?.focus(); }}
+              onSubmitEditing={() => newPinRef.current?.focus()} submitBehavior="submit"
               placeholder="••••" placeholderTextColor={COLORS.textMuted} autoFocus
             />
             <Text style={s.panelLabel}>{t('profile.newPin')}</Text>
             <TextInput
-              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
-              value={newPin} onChangeText={setNewPin}
+              ref={newPinRef}
+              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" returnKeyType="next" maxLength={4}
+              value={newPin} onChangeText={(v) => { setNewPin(v); if (v.length === 4) confirmPinRef.current?.focus(); }}
+              onSubmitEditing={() => confirmPinRef.current?.focus()} submitBehavior="submit"
               placeholder="••••" placeholderTextColor={COLORS.textMuted}
             />
             <Text style={s.panelLabel}>{t('profile.confirmNewPin')}</Text>
             <TextInput
-              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
+              ref={confirmPinRef}
+              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" returnKeyType="done" maxLength={4}
               value={confirmPin} onChangeText={setConfirmPin}
               placeholder="••••" placeholderTextColor={COLORS.textMuted}
             />
@@ -844,7 +851,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 style={[s.panelInput, s.pinInput, s.deletePinInput, !!deleteError && { borderColor: '#dc2626' }]}
                 value={deletePin}
                 onChangeText={(v) => { setDeletePin(v.replace(/\D/g, '').slice(0, 4)); if (deleteError) setDeleteError(''); }}
-                secureTextEntry keyboardType="number-pad" maxLength={4}
+                secureTextEntry keyboardType="number-pad" returnKeyType="done" maxLength={4}
                 placeholder="••••" placeholderTextColor={COLORS.textMuted}
                 accessibilityLabel={t('deleteModal.pinLabel')}
                 editable={!deletingAccount}
