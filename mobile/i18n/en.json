@@ -3097,6 +3097,7 @@
     "added": "{{name}} with {{drink}} added",
     "addedDeal": "{{name}} added",
     "dealOf": "{{count}} × {{item}}",
+    "todayOnly": "Today only",
     "closeA11y": "Close the drink choice",
     "drink_FOUNTAIN": "Fountain drink",
     "drink_BOTTLE_20": "20oz bottle",

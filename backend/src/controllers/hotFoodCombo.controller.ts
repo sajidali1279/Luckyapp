@@ -7,7 +7,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { refuse } from '../utils/refusal';
 import { audit } from '../utils/audit';
-import { DRINK_CODES, comboSavingLimit } from '../utils/hotFoodCombos';
+import { DRINK_CODES, comboSavingLimit, daysText } from '../utils/hotFoodCombos';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -27,6 +27,8 @@ const comboSchema = z.object({
   storeIds: z.array(z.string().min(1).max(64)).max(100).default([]),
   fromTime: z.string().regex(HHMM, 'Give the start time as HH:MM.').nullish(),
   toTime: z.string().regex(HHMM, 'Give the end time as HH:MM.').nullish(),
+  // Days of the week (2026-10-16): 0 = Sunday .. 6 = Saturday; none (or all seven) = every day. An older admin page sends none.
+  days: z.array(z.number().int().min(0, 'Pick days from the list.').max(6, 'Pick days from the list.')).max(14, 'Pick days from the list.').default([]),   // repeats are dropped below
   isFeatured: z.boolean().default(true),
   isActive: z.boolean().default(true),
 });
@@ -57,6 +59,7 @@ const clean = (d: z.infer<typeof comboSchema>) => ({
   name: d.name, nameEs: d.nameEs || null, description: d.description || null, catalogItemId: d.catalogItemId, itemQuantity: d.itemQuantity,
   drinks: [...new Set(d.drinks)], price: cents(d.price), regularPrice: d.regularPrice != null ? cents(d.regularPrice) : null,
   storeIds: [...new Set(d.storeIds)], fromTime: d.fromTime || null, toTime: d.toTime || null, isFeatured: d.isFeatured, isActive: d.isActive,
+  days: (() => { const s = [...new Set(d.days)].sort((a, b) => a - b); return s.length === 7 ? [] : s; })(),
 });
 
 /** GET /hot-food/combos: every combo, with its item and how many were ordered in the last 30 days. */
@@ -78,7 +81,7 @@ export async function createCombo(req: AuthRequest, res: Response) {
   if (why) { res.status(400).json({ success: false, error: why }); return; }
   const combo = await prisma.hotFoodCombo.create({ data: clean(parsed.data) });
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_COMBO_CREATE', entity: 'hot_food_combo', entityId: combo.id,
-    details: { summary: `Hot food combo "${combo.name}" ${money(combo.price)}${combo.isFeatured ? ', featured' : ''}` }, storeId: null });
+    details: { summary: `Hot food combo "${combo.name}" ${money(combo.price)}${daysText(combo.days) ? `, ${daysText(combo.days)} only` : ''}${combo.isFeatured ? ', featured' : ''}` }, storeId: null });
   res.status(201).json({ success: true, data: combo });
 }
 

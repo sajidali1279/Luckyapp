@@ -5,7 +5,7 @@
 // Multi-buy deals (2026-10-16): a combo can hold more than one of the item (itemQuantity, "2 corn dogs for $3.50") and can come with no
 // drink. A combo with no drink is only shown to apps that ask for it (?deals=1): an older app would open a drink choice with nothing in it.
 import prisma from '../config/prisma';
-import { storeMinutes } from './storeTime';
+import { storeMinutes, storeWeekday } from './storeTime';
 import { loadDealLimits } from './dealLimits';
 import { limitFor } from './dealSuggest';
 import { feature } from './appSettings';
@@ -22,11 +22,28 @@ export const DRINK_CODES = Object.keys(DRINKS);
 
 const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 
-/** Whether the combo's hours include this moment (no hours: always). Hours can run past midnight (22:00 to 02:00). */
-export function comboOpenAt(c: { fromTime: string | null; toTime: string | null }, at: Date): boolean {
-  if (!c.fromTime || !c.toTime) return true;
+/**
+ * Whether the combo is on at this moment: its days (none: every day) and its hours (none: all day). Hours can run past midnight
+ * (22:00 to 02:00): the part after midnight belongs to the day it started on, as a promotion's happy hours do (utils/offerHours.ts).
+ */
+export function comboOpenAt(c: { fromTime: string | null; toTime: string | null; days?: number[] | null }, at: Date): boolean {
+  const days = c.days && c.days.length > 0 && c.days.length < 7 ? c.days : null;
+  const dayOk = (d: number) => !days || days.includes(d);
+  const today = storeWeekday(at);
+  if (!c.fromTime || !c.toTime) return dayOk(today);
   const m = storeMinutes(at), from = minutesOf(c.fromTime), to = minutesOf(c.toTime);
-  return from <= to ? m >= from && m < to : m >= from || m < to;
+  if (from <= to) return m >= from && m < to && dayOk(today);
+  if (m >= from) return dayOk(today);
+  if (m < to) return dayOk((today + 6) % 7);
+  return false;
+}
+
+export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+/** "Tuesdays" / "Fri, Sat" / null for every day (HQ's Activity Log) */
+export function daysText(days: number[] | null | undefined): string | null {
+  if (!days || days.length === 0 || days.length === 7) return null;
+  const sorted = [...days].sort((a, b) => a - b);
+  return sorted.length === 1 ? `${DAY_NAMES[sorted[0]]}s` : sorted.map((d) => DAY_NAMES[d].slice(0, 3)).join(', ');
 }
 
 /** The order line's name: what the store makes and which drink to hand over ("Corn dogs 2 for $3.50 (2x Corn Dog)"). */
@@ -37,7 +54,7 @@ export function comboLineName(comboName: string, drink: string | null, itemQuant
 
 type ComboRow = {
   id: string; name: string; nameEs: string | null; description: string | null; itemQuantity: number; drinks: string[]; price: number; regularPrice: number | null;
-  storeIds: string[]; fromTime: string | null; toTime: string | null; isFeatured: boolean; isActive: boolean;
+  storeIds: string[]; fromTime: string | null; toTime: string | null; days: number[]; isFeatured: boolean; isActive: boolean;
   catalogItem: { id: string; name: string; imageUrl: string | null; estimatedMinutes: number | null };
 };
 

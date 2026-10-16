@@ -20,9 +20,14 @@ type CatalogItem = { id: string; name: string; price: number; imageUrl?: string 
 type Store = { id: string; name: string; hotFoodEnabled?: boolean };
 type Combo = HotFoodComboInput & { id: string; ordered30d: number; catalogItem: CatalogItem };
 type Form = { name: string; nameEs: string; description: string; catalogItemId: string; itemQuantity: string; drinks: string[]; price: string; regularPrice: string;
-  allStores: boolean; storeIds: string[]; hours: boolean; fromTime: string; toTime: string; isFeatured: boolean; isActive: boolean };
+  allStores: boolean; storeIds: string[]; hours: boolean; fromTime: string; toTime: string; days: number[]; isFeatured: boolean; isActive: boolean };
 const EMPTY: Form = { name: '', nameEs: '', description: '', catalogItemId: '', itemQuantity: '1', drinks: ['FOUNTAIN', 'BOTTLE_20'], price: '', regularPrice: '',
-  allStores: true, storeIds: [], hours: false, fromTime: '05:00', toTime: '11:00', isFeatured: true, isActive: true };
+  allStores: true, storeIds: [], hours: false, fromTime: '05:00', toTime: '11:00', days: [], isFeatured: true, isActive: true };
+// Days of the week (2026-10-16): 0 = Sunday, store time; none = every day
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_WORDS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
+const daysWords = (days?: number[] | null) => (!days || days.length === 0 || days.length === 7 ? null
+  : days.length === 1 ? `${DAY_WORDS[days[0]]} only` : [...days].sort((a, b) => a - b).map((d) => DAYS[d]).join(', '));
 // A multi-buy deal (2026-10-16): "2 corn dogs for $3.50", no drink
 const MULTI_BUY: Form = { ...EMPTY, itemQuantity: '2', drinks: [] };
 
@@ -36,12 +41,12 @@ function contents(c: { itemQuantity?: number; drinks: string[]; catalogItem?: { 
 function toForm(c: Combo): Form {
   return { name: c.name, nameEs: c.nameEs ?? '', description: c.description ?? '', catalogItemId: c.catalogItemId, itemQuantity: String(c.itemQuantity ?? 1), drinks: c.drinks, price: String(c.price),
     regularPrice: c.regularPrice != null ? String(c.regularPrice) : '', allStores: c.storeIds.length === 0, storeIds: c.storeIds,
-    hours: !!c.fromTime, fromTime: c.fromTime ?? '05:00', toTime: c.toTime ?? '11:00', isFeatured: c.isFeatured, isActive: c.isActive };
+    hours: !!c.fromTime, fromTime: c.fromTime ?? '05:00', toTime: c.toTime ?? '11:00', days: c.days ?? [], isFeatured: c.isFeatured, isActive: c.isActive };
 }
 function toInput(f: Form): HotFoodComboInput {
   return { name: f.name.trim(), nameEs: f.nameEs.trim() || null, description: f.description.trim() || null, catalogItemId: f.catalogItemId, itemQuantity: Number(f.itemQuantity), drinks: f.drinks,
     price: Number(f.price), regularPrice: f.regularPrice.trim() ? Number(f.regularPrice) : null, storeIds: f.allStores ? [] : f.storeIds,
-    fromTime: f.hours ? f.fromTime : null, toTime: f.hours ? f.toTime : null, isFeatured: f.isFeatured, isActive: f.isActive };
+    fromTime: f.hours ? f.fromTime : null, toTime: f.hours ? f.toTime : null, days: f.days, isFeatured: f.isFeatured, isActive: f.isActive };
 }
 
 export default function HotFoodCombosPanel({ catalog, stores }: { catalog: CatalogItem[]; stores: Store[] }) {
@@ -131,6 +136,7 @@ export default function HotFoodCombosPanel({ catalog, stores }: { catalog: Catal
                     </div>
                     <div style={{ fontSize: FONT.caption, color: TEXT_MUTED, marginTop: 4 }}>
                       {c.storeIds.length === 0 ? 'Every store with the item on' : `${c.storeIds.length} store${c.storeIds.length === 1 ? '' : 's'}`}
+                      {daysWords(c.days) ? ` · ${daysWords(c.days)}` : ''}
                       {c.fromTime && c.toTime ? ` · ${hour(c.fromTime)} to ${hour(c.toTime)}` : ' · all day'}
                       {` · ${c.ordered30d} ordered in 30 days`}
                     </div>
@@ -261,6 +267,20 @@ function ComboForm({ initial, id, catalog, stores, limit, onClose }: { initial: 
               <input aria-label="From" type="time" style={{ ...INPUT, width: 140 }} value={f.fromTime} onChange={(e) => set('fromTime', e.target.value)} />
               <span style={{ color: TEXT_MUTED }}>to</span>
               <input aria-label="To" type="time" style={{ ...INPUT, width: 140 }} value={f.toTime} onChange={(e) => set('toTime', e.target.value)} />
+            </div>
+          )}
+        </div>
+        <div>
+          <div style={{ fontSize: FONT.small, fontWeight: 700, color: C.text, marginBottom: 6 }} id="cb-days">Days</div>
+          <div role="group" aria-labelledby="cb-days" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <Chip selected={f.days.length === 0} onClick={() => set('days', [])}>Every day</Chip>
+            {DAYS.map((d, i) => (
+              <Chip key={d} selected={f.days.includes(i)} onClick={() => set('days', f.days.includes(i) ? f.days.filter((x) => x !== i) : [...f.days, i].sort((a, b) => a - b))}>{d}</Chip>
+            ))}
+          </div>
+          {f.days.length > 0 && f.days.length < 7 && (
+            <div style={{ fontSize: FONT.caption, color: TEXT_MUTED, marginTop: 6 }}>
+              Shown in the app on {daysWords(f.days)?.replace(' only', '')} only (store time){f.hours ? '; hours past midnight count for the day they start' : ''}.
             </div>
           )}
         </div>

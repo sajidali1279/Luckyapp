@@ -434,7 +434,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   // Combos on at this store now, featured first (utils/hotFoodCombos.ts). Deals with no drink only for an app that knows them (?deals=1).
   const combos = (await combosAt(storeId, new Date(), req.query?.deals === '1')).map((c) => ({
     id: c.id, name: c.name, nameEs: c.nameEs, description: c.description, price: c.price, regularPrice: c.regularPrice,
-    itemQuantity: c.itemQuantity, drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime,
+    itemQuantity: c.itemQuantity, drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime, days: c.days,
     item: { id: c.catalogItem.id, name: c.catalogItem.name, imageUrl: c.catalogItem.imageUrl }, estimatedMinutes: c.catalogItem.estimatedMinutes,
   }));
   // The menu's sections, in order (utils/hotFoodCategories.ts); an item with none is under "More" in the app

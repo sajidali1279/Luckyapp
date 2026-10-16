@@ -3097,6 +3097,7 @@
     "added": "{{name}} con {{drink}} agregado",
     "addedDeal": "{{name}} agregado",
     "dealOf": "{{count}} × {{item}}",
+    "todayOnly": "Solo hoy",
     "closeA11y": "Cerrar la elección de bebida",
     "drink_FOUNTAIN": "Refresco de máquina",
     "drink_BOTTLE_20": "Botella de 20oz",

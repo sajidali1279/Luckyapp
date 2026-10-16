@@ -1685,6 +1685,8 @@ model HotFoodCombo {
   storeIds      String[] @default([])       // empty: every store that has the item on
   fromTime      String?                     // "HH:MM" store time; with toTime, only then (e.g. coffee combos 05:00 to 11:00)
   toTime        String?
+  // Days of the week it is on (2026-10-16): 0 = Sunday .. 6 = Saturday, store time; empty = every day ("Corn Dog Tuesday" = [2])
+  days          Int[]    @default([])
   isFeatured    Boolean  @default(true)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())

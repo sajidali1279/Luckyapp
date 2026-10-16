@@ -563,7 +563,7 @@ export const hotFoodApi = {
 // Hot food combos (HQ, 2026-10-12): an item with a drink the customer chooses, one price; featured ones lead the app's menu
 export type HotFoodComboInput = {
   name: string; nameEs?: string | null; description?: string | null; catalogItemId: string; itemQuantity: number; drinks: string[]; price: number;
-  regularPrice?: number | null; storeIds: string[]; fromTime?: string | null; toTime?: string | null; isFeatured: boolean; isActive: boolean;
+  regularPrice?: number | null; storeIds: string[]; fromTime?: string | null; toTime?: string | null; days?: number[]; isFeatured: boolean; isActive: boolean;
 };
 export const hotFoodCombosApi = {
   list: () => api.get('/hot-food/combos'),

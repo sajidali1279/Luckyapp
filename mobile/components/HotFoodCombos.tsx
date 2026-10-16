@@ -24,6 +24,7 @@ export interface Combo {
   isFeatured: boolean;
   fromTime?: string | null;
   toTime?: string | null;
+  days?: number[];          // on only these days (the server sends it only on one of them): "Today only"
   item: { id: string; name: string; imageUrl?: string | null };
   estimatedMinutes?: number | null;
 }
@@ -43,7 +44,11 @@ export function useComboWords() {
   return {
     name: (c: Combo) => (es && c.nameEs ? c.nameEs : c.name),
     drink: (code: string) => t(`hotFoodCombos.drink_${code}`, { defaultValue: code }),
-    hours: (c: Combo) => (c.fromTime && c.toTime ? t('hotFoodCombos.hours', { from: hourText(c.fromTime, es ? 'es' : 'en'), to: hourText(c.toTime, es ? 'es' : 'en') }) : null),
+    hours: (c: Combo) => {
+      const time = c.fromTime && c.toTime ? t('hotFoodCombos.hours', { from: hourText(c.fromTime, es ? 'es' : 'en'), to: hourText(c.toTime, es ? 'es' : 'en') }) : null;
+      const today = c.days && c.days.length > 0 && c.days.length < 7 ? t('hotFoodCombos.todayOnly') : null;
+      return [today, time].filter(Boolean).join(' · ') || null;
+    },
     /** What is in it: "2 × Corn Dog", "2 × Corn Dog · With a drink: …", or "With a drink: …" */
     contents: (c: Combo) => {
       const qty = c.itemQuantity ?? 1;
