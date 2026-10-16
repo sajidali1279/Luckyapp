@@ -506,9 +506,10 @@ const bannerSchema = z.object({
 });
 
 /** The banner's dates as instants (the start of the first store day, the end of the last), or the sentence that refuses them. */
-function bannerWindow(startDate?: string, endDate?: string): { startAt: Date | null; endAt: Date | null } | { error: string } {
+function bannerWindow(startDate?: string, endDate?: string, endIsNew = true): { startAt: Date | null; endAt: Date | null } | { error: string } {
   if (startDate && endDate && endDate < startDate) return { error: 'The last day is before the first day.' };
-  if (endDate && endDate < storeDateKey()) return { error: 'The last day has already passed.' };
+  // Only a last day being set now (an ended banner keeps its own when only its words change)
+  if (endIsNew && endDate && endDate < storeDateKey()) return { error: 'The last day has already passed.' };
   return { startAt: startDate ? startOfStoreDate(startDate) : null, endAt: endDate ? endOfStoreDate(endDate) : null };
 }
 
@@ -630,8 +631,11 @@ export async function updateBanner(req: AuthRequest, res: Response) {
   const dayOf = (at: Date | null) => (at ? storeDateKey(at) : undefined);
   const startDate = clear.has('startDate') ? undefined : d.startDate ?? dayOf(existing.startAt);
   const endDate = clear.has('endDate') ? undefined : d.endDate ?? dayOf(existing.endAt);
-  const datesChanged = d.startDate !== undefined || d.endDate !== undefined || clear.has('startDate') || clear.has('endDate');
-  const win = datesChanged ? bannerWindow(startDate, endDate) : { startAt: existing.startAt, endAt: existing.endAt };
+  // The form sends the dates it shows: only a different day (or a cleared one) is a change
+  const startChanged = clear.has('startDate') || (d.startDate !== undefined && d.startDate !== dayOf(existing.startAt));
+  const endChanged = clear.has('endDate') || (d.endDate !== undefined && d.endDate !== dayOf(existing.endAt));
+  const datesChanged = startChanged || endChanged;
+  const win = datesChanged ? bannerWindow(startDate, endDate, endChanged) : { startAt: existing.startAt, endAt: existing.endAt };
   if ('error' in win) { res.status(400).json({ success: false, error: win.error }); return; }
   let imageUrl = existing.imageUrl;
   if (req.file) {

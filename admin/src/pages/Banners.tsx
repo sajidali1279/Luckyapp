@@ -132,7 +132,7 @@ function BannerForm({ initial, stores, isStoreManager, onClose, onSaved }: { ini
   const problem = !f.title.trim() ? 'Give the banner a title.' : !f.id && !f.image ? 'Choose the banner image.'
     : f.linkUrl.trim() && !/^https?:\/\//i.test(f.linkUrl.trim()) ? 'The link must start with http:// or https://.'
     : f.endDate && f.startDate && f.endDate < f.startDate ? 'The last day is before the first day.'
-    : f.endDate && f.endDate < today ? 'The last day has already passed.' : null;
+    : f.endDate && f.endDate !== initial.endDate && f.endDate < today ? 'The last day has already passed.' : null;   // an ended banner keeps its own
 
   const save = useMutation({
     mutationFn: async () => {
