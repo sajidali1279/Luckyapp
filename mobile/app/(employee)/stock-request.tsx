@@ -4,7 +4,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   ActivityIndicator,
   Platform,
 } from 'react-native';
@@ -28,6 +27,7 @@ import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { useHighlightParam } from '../../hooks/useHighlightParam';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ErrorState from '../../components/ErrorState';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -569,7 +569,7 @@ export default function StockRequestScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* Header */}
       <View style={s.header}>

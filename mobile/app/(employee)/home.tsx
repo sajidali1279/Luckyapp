@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  StatusBar,
   Animated,
 } from 'react-native';
 import { Text } from '../../components/ScaledText';
@@ -30,6 +29,7 @@ import GasPriceCard from '../../components/GasPriceCard';
 import { useCurrentStoreId } from '../../utils/geo';
 import { pctLabel } from '../../utils/offerRate';
 import { roleName } from '../../utils/roleName';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 function getGreeting(t: (key: string) => string) {
   const h = new Date().getHours();
@@ -179,7 +179,7 @@ export default function EmployeeHomeScreen() {
   return (
     <View style={s.root}>
       <DashboardWatermark color={COLORS.primary} />
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
       <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>

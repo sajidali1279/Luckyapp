@@ -36,6 +36,7 @@ import ModalToastHost from './ModalToastHost';
 import KeyboardSafe from './KeyboardSafe';
 import LabelPaperModal, { paperSummary, StorePrinter } from './LabelPaperModal';
 import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue, perSheet, LetterLayout, LETTER_DEFAULTS } from '../utils/labelSheet';
+import FocusStatusBar from './FocusStatusBar';
 
 interface Label {
   id: string;
@@ -957,6 +958,7 @@ export default function LabelsScreen() {
 
   return (
     <SafeAreaView style={s.fill} edges={['top']}>
+      <FocusStatusBar barStyle="dark-content" />
       <BarcodeScannerModal
         visible={showScanner}
         hideQuantity

@@ -1,4 +1,4 @@
-import { View, StyleSheet, TouchableOpacity, StatusBar } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from './ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScrollView } from 'react-native';
@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { COLORS } from '../constants';
 import { ChevronLeftIcon } from './Icons';
 import FadeSlideIn from './FadeSlideIn';
+import FocusStatusBar from './FocusStatusBar';
 
 interface Props {
   title: string;
@@ -21,7 +22,7 @@ export default function GuideScreen({ title, content, headerColor = COLORS.secon
   const { t } = useTranslation();
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       <SafeAreaView style={[s.header, { backgroundColor: headerColor }]}>
         <TouchableOpacity

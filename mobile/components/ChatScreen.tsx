@@ -25,6 +25,7 @@ import { NoticeStack, usePinnedNotices } from './NoticeBanner';
 import KeyboardSafe from './KeyboardSafe';
 import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
+import FocusStatusBar from './FocusStatusBar';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -303,6 +304,7 @@ export default function ChatScreen() {
       style={{ flex: 1 }}
     >
       <View style={s.root}>
+        <FocusStatusBar barStyle="light-content" />
         {/* ── Header ── */}
         <View style={[s.headerGradient, { backgroundColor: gradientPair[0] }]}>
           <SafeAreaView edges={['top']}>

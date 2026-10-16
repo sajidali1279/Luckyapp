@@ -1,8 +1,9 @@
 import { useRef, type ReactNode } from 'react';
-import { Animated, StatusBar, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants';
 import { MAX_FONT_SCALE } from './ScaledText';
+import FocusStatusBar from './FocusStatusBar';
 
 // The iPhone "large title": a big bold title under a slim bar, which shrinks into a small centered title in that bar as the list
 // scrolls (Settings, Mail, App Store). A brand-colored band by default, or a plain light one. A screen passes the scroll position
@@ -42,7 +43,7 @@ export default function LargeTitleHeader({
   const hairline = scrollY.interpolate({ inputRange: [large * 0.8, large], outputRange: [0, 1], extrapolate: clamp });
   return (
     <SafeAreaView style={{ backgroundColor: plain ? COLORS.background : color }} edges={['top']}>
-      <StatusBar barStyle={plain ? 'dark-content' : 'light-content'} />
+      <FocusStatusBar barStyle={plain ? 'dark-content' : 'light-content'} />
       <View style={s.bar}>
         <View style={s.side}>{left}</View>
         <Animated.Text style={[s.smallTitle, { color: ink, opacity: smallOpacity }]} numberOfLines={1} maxFontSizeMultiplier={1.2} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">

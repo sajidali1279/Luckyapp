@@ -5,8 +5,7 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
-  StatusBar,
-} from 'react-native';
+  } from 'react-native';
 import { Text } from '../components/ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +13,7 @@ import { router } from 'expo-router';
 import { useAuthStore, UserRole } from '../store/authStore';
 import { COLORS } from '../constants';
 import { useTranslation } from 'react-i18next';
+import FocusStatusBar from '../components/FocusStatusBar';
 
 const { width } = Dimensions.get('window');
 
@@ -158,7 +158,7 @@ export default function RoleTourScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: tour.color }]}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* Role badge */}
       <SafeAreaView edges={['top']} style={s.topSafe}>

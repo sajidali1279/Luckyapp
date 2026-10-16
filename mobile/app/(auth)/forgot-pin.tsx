@@ -6,7 +6,6 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
-  StatusBar,
   Keyboard,
 } from 'react-native';
 import { Text, TextInput } from '../../components/ScaledText';
@@ -20,6 +19,7 @@ import { ChevronLeftIcon, CheckCircleIcon } from '../../components/Icons';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import { useTranslation } from 'react-i18next';
 import { phoneAuthErrorText } from '../../utils/phoneAuthError';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 type Step = 'phone' | 'verify' | 'reset' | 'done';
 
@@ -170,7 +170,7 @@ export default function ForgotPinScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
       <SafeAreaView style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <ChevronLeftIcon size={22} color="rgba(255,255,255,0.85)" strokeWidth={2.5} />

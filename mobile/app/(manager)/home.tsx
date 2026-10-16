@@ -3,7 +3,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   ActivityIndicator,
   Animated,
 } from 'react-native';
@@ -26,6 +25,7 @@ import {
 import ErrorState from '../../components/ErrorState';
 import DashboardWatermark from '../../components/DashboardWatermark';
 import { NoticeStack, usePinnedNotices } from '../../components/NoticeBanner';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 const BAR_COLORS = [
   '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
@@ -174,7 +174,7 @@ export default function ManagerHome() {
     <View style={{ flex: 1 }}>
       <DashboardWatermark color={COLORS.managerPrimary} />
       <SafeAreaView style={s.headerSafe} edges={['top']}>
-        <StatusBar barStyle="light-content" />
+        <FocusStatusBar barStyle="light-content" />
 
         {/* ── Header with SVG gradient ── */}
         <View

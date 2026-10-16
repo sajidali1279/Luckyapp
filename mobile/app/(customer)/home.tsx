@@ -3,7 +3,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   FlatList,
   Dimensions,
   Modal,
@@ -49,6 +48,7 @@ import ModalToastHost from '../../components/ModalToastHost';
 import { haptic } from '../../utils/haptics';
 import { useFullBrightness } from '../../hooks/useFullBrightness';
 import { sized } from '../../utils/imageUrl';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -940,7 +940,7 @@ export default function CustomerHome() {
   return (
     <View style={styles.container}>
       <DashboardWatermark color={COLORS.primary} />
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* ── Fixed header ── */}
       <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>

@@ -1,4 +1,4 @@
-import { View, TouchableOpacity, StyleSheet, StatusBar, type Animated } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, type Animated } from 'react-native';
 import { Text } from './ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { COLORS } from '../constants';
 import { ChevronLeftIcon } from './Icons';
 import LargeTitleHeader from './LargeTitleHeader';
+import FocusStatusBar from './FocusStatusBar';
 
 type Size = 'lg' | 'md' | 'sm';
 
@@ -53,7 +54,7 @@ export default function ManagerHeader({
   }
   return (
     <SafeAreaView style={s.headerBg} edges={['top']}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
       <View style={[s.row, { paddingHorizontal }, size === 'sm' && s.rowCompact]}>
         {showBack && (
           <TouchableOpacity

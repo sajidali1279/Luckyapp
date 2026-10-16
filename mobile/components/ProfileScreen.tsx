@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  StatusBar,
   ActivityIndicator,
   Switch,
   Modal,
@@ -40,6 +39,7 @@ import ModalToastHost from './ModalToastHost';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { haptic } from '../utils/haptics';
 import { roleName } from '../utils/roleName';
+import FocusStatusBar from './FocusStatusBar';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -297,7 +297,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
       <SafeAreaView style={[s.headerBg, { backgroundColor: headerBg }]}>

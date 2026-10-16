@@ -36,6 +36,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { showActionSheet } from '../../utils/actionSheet';
 import { sized } from '../../utils/imageUrl';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -789,6 +790,7 @@ export default function HotFoodOrders() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      <FocusStatusBar barStyle="dark-content" />
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerLeft}>

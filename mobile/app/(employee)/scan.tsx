@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   FlatList,
   Animated,
   Easing,
@@ -29,6 +28,7 @@ import {
 } from '../../components/Icons';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import { roleName } from '../../utils/roleName';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 type Step =
   | 'scan' | 'mode'
@@ -773,7 +773,7 @@ export default function EmployeeScanScreen() {
   if (!permission.granted) {
     return (
       <SafeAreaView style={[s.fill, s.center]}>
-        <StatusBar barStyle="dark-content" />
+        <FocusStatusBar barStyle="dark-content" />
         <View style={s.permIconWrap}>
           <CameraIcon size={52} color={COLORS.primary} strokeWidth={1.5} />
         </View>
@@ -801,7 +801,7 @@ export default function EmployeeScanScreen() {
   // ── Main render ────────────────────────────────────────────────────────────
   return (
     <View style={s.fill}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
       <SafeAreaView style={s.headerBg}>
