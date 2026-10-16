@@ -2397,6 +2397,7 @@
     "offerGasBadge": "+{{cents}}¢ por galón, se aplica solo",
     "offerCashbackBadge": "+{{pct}}% de reembolso, se aplica solo",
     "validRange": "Válido {{start}} – {{end}}",
+    "offerUntil": "Hasta el {{date}}",
     "howItWorks": "Cómo funciona",
     "howGas": "Ganas {{cents}}¢ extra por galón en tus compras de gasolina. Se aplica automáticamente cuando el cajero escanea tu código QR.",
     "howCashback": "El reembolso se aplica automáticamente cuando el cajero escanea tu código QR. ¡No tienes que hacer nada!",

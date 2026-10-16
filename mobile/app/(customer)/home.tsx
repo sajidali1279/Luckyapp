@@ -647,6 +647,12 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
 });
 
 /* ─── Main screen ─────────────────────────────────────────── */
+/** A promotion's words for a small card: without the "Valid Oct 16 to Nov 15, 2026." (or "Valid this week.") sentence the admin adds at the end,
+ *  since the card shows the last day on its own line (the same pattern as the admin's stripValidity). */
+function cardDescription(desc?: string | null): string {
+  return (desc ?? '').replace(/\s*Valid (?:[A-Z][a-z]{2} \d{1,2}(?:, \d{4})? (?:to|–|-) [A-Z][a-z]{2} \d{1,2}, \d{4}|today|3 days|this week|2 weeks|this month)\.$/, '').trim();
+}
+
 export default function CustomerHome() {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'es' ? 'es-US' : 'en-US';
@@ -1299,7 +1305,10 @@ export default function CustomerHome() {
                               </Text>
                             </View>
                           )}
-                          <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
+                          {/* The words without the generated "Valid ... to ..." sentence (cut at two lines it read "Nov 1..." for Nov 15), and the
+                              last day on its own line from the offer's real end date (2026-10-16, seen on an iPhone 11) */}
+                          {cardDescription(offer.description) ? <Text style={styles.offerDesc} numberOfLines={2}>{cardDescription(offer.description)}</Text> : null}
+                          <Text style={styles.offerUntil} numberOfLines={1}>{t('customerHome.offerUntil', { date: new Date(offer.endDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' }) })}</Text>
                           <View style={[styles.offerBonusPill, { alignSelf: 'flex-start' }]}>
                             {offer.gasBonusCentsPerGallon != null
                               ? <GasPumpIcon size={10} color="#fff" strokeWidth={2.5} />
@@ -2242,6 +2251,7 @@ const styles = StyleSheet.create({
   offerContent: { flex: 1, padding: 12, gap: 2 },
   offerTitle: { fontWeight: '700', fontSize: 14, color: COLORS.text },
   offerDesc: { color: COLORS.textMuted, fontSize: 12, marginTop: 3, lineHeight: 17 },
+  offerUntil: { color: COLORS.textMuted, fontSize: 11.5, fontWeight: '700', marginTop: 1 },
   offerBonusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: COLORS.primary, borderRadius: 8,

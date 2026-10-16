@@ -2397,6 +2397,7 @@
     "offerGasBadge": "+{{cents}}¢ per gallon - auto-applied",
     "offerCashbackBadge": "+{{pct}}% cashback - auto-applied",
     "validRange": "Valid {{start}} – {{end}}",
+    "offerUntil": "Until {{date}}",
     "howItWorks": "How it works",
     "howGas": "You earn an extra {{cents}}¢ per gallon on gas purchases. Automatically applied when the cashier scans your QR code.",
     "howCashback": "Cashback is automatically applied when the cashier scans your QR code. No action needed!",
