@@ -48,7 +48,7 @@ interface MenuItem {
   imageUrl?: string;
 }
 
-interface CartItem extends MenuItem { qty: number; comboId?: string; drink?: string }   // a combo line: its drink too
+interface CartItem extends MenuItem { qty: number; comboId?: string; drink?: string }   // a combo line: its drink too ('' for a deal with no drink)
 
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -372,7 +372,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
   const placeMutation = useMutation({
     mutationFn: () => hotFoodApi.placeOrder({
       storeId: store.id,
-      items: cart.map(i => (i.comboId && i.drink ? { comboId: i.comboId, drink: i.drink, quantity: i.qty } : { menuItemId: i.id, quantity: i.qty })),
+      items: cart.map(i => (i.comboId ? { comboId: i.comboId, ...(i.drink ? { drink: i.drink } : {}), quantity: i.qty } : { menuItemId: i.id, quantity: i.qty })),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(payWithPoints ? { payWithPoints: true } : {}),
       expectedTotal: Math.round(total * 100) / 100,
@@ -669,7 +669,10 @@ export default function CustomerHotFoodScreen() {
     setCart((prev) => {
       if (prev.length === 0) return prev;
       const byId = new Map<string, { price: number; name: string }>(menuItems.map((m) => [m.id, m]));
-      for (const c of combos) for (const d of c.drinks) byId.set(comboCartId(c.id, d), { price: c.price, name: `${comboWords.name(c)} + ${comboWords.drink(d)}` });
+      for (const c of combos) {
+        for (const d of c.drinks) byId.set(comboCartId(c.id, d), { price: c.price, name: `${comboWords.name(c)} + ${comboWords.drink(d)}` });
+        if (c.drinks.length === 0) byId.set(comboCartId(c.id, ''), { price: c.price, name: comboWords.name(c) });   // a deal with no drink
+      }
       const gone = prev.filter((c) => !byId.has(c.id));
       const next = prev.filter((c) => byId.has(c.id)).map((c) => ({ ...c, price: byId.get(c.id)!.price, name: byId.get(c.id)!.name }));
       const repriced = prev.some((c) => byId.has(c.id) && byId.get(c.id)!.price !== c.price);
@@ -735,9 +738,9 @@ export default function CustomerHotFoodScreen() {
     setCart(prev => {
       const existing = prev.find(c => c.id === id);
       if (existing) return prev.map(c => c.id === id ? { ...c, qty: Math.min(MAX_PER_ITEM, c.qty + 1) } : c);
-      return [...prev, { id, name: `${comboWords.name(combo)} + ${comboWords.drink(drink)}`, price: combo.price, imageUrl: combo.item.imageUrl ?? undefined, qty: 1, comboId: combo.id, drink }];
+      return [...prev, { id, name: drink ? `${comboWords.name(combo)} + ${comboWords.drink(drink)}` : comboWords.name(combo), price: combo.price, imageUrl: combo.item.imageUrl ?? undefined, qty: 1, comboId: combo.id, drink }];
     });
-    Toast.show({ type: 'success', text1: t('hotFoodCombos.added', { name: comboWords.name(combo), drink: comboWords.drink(drink) }) });
+    Toast.show({ type: 'success', text1: drink ? t('hotFoodCombos.added', { name: comboWords.name(combo), drink: comboWords.drink(drink) }) : t('hotFoodCombos.addedDeal', { name: comboWords.name(combo) }) });
   }
   const comboCount = useCallback((comboId: string) => cart.filter(c => c.comboId === comboId).reduce((n, c) => n + c.qty, 0), [cart]);
 

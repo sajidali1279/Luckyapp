@@ -431,10 +431,10 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
 
   const all = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name));
-  // Combos on at this store now, featured first (utils/hotFoodCombos.ts)
-  const combos = (await combosAt(storeId)).map((c) => ({
+  // Combos on at this store now, featured first (utils/hotFoodCombos.ts). Deals with no drink only for an app that knows them (?deals=1).
+  const combos = (await combosAt(storeId, new Date(), req.query?.deals === '1')).map((c) => ({
     id: c.id, name: c.name, nameEs: c.nameEs, description: c.description, price: c.price, regularPrice: c.regularPrice,
-    drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime,
+    itemQuantity: c.itemQuantity, drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime,
     item: { id: c.catalogItem.id, name: c.catalogItem.name, imageUrl: c.catalogItem.imageUrl }, estimatedMinutes: c.catalogItem.estimatedMinutes,
   }));
   // The menu's sections, in order (utils/hotFoodCategories.ts); an item with none is under "More" in the app
@@ -533,13 +533,14 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   // Each line: an item id and a whole number from 1 to MAX_QTY_PER_ITEM (the same item on two lines counts together)
   const qtyById = new Map<string, number>();
   for (const line of items) {
-    // A combo line is "combo:<id>:<drink>" (the same combo with two drinks is two lines)
+    // A combo line is "combo:<id>:<drink>" (the same combo with two drinks is two lines); a deal with no drink is "combo:<id>:"
     const isCombo = typeof line?.comboId === 'string' && !!line.comboId;
-    if (isCombo && (typeof line.drink !== 'string' || !DRINKS[line.drink])) {
+    const drink = isCombo && line.drink != null && line.drink !== '' ? line.drink : '';
+    if (isCombo && drink && (typeof drink !== 'string' || !DRINKS[drink])) {
       res.status(400).json({ success: false, error: 'Choose the drink for the combo.' });
       return;
     }
-    const itemId = isCombo ? `combo:${line.comboId}:${line.drink}` : line?.menuItemId;
+    const itemId = isCombo ? `combo:${line.comboId}:${drink}` : line?.menuItemId;
     const qty = Number(line?.quantity ?? 1);
     if (typeof itemId !== 'string' || !itemId) {
       res.status(400).json({ success: false, error: 'Each item needs its menu id.' });
@@ -596,17 +597,21 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   }
 
   const orderLines: { menuItemId?: string; catalogItemId?: string; comboId?: string; drink?: string; name: string; price: number; quantity: number }[] = [];
-  // Combos: on at this store now (the item on, the store chosen, within hours), with a drink the combo allows
+  // Combos: on at this store now (the item on, the store chosen, within hours), with a drink the combo allows (none for a deal with no drink)
   if (comboKeys.length > 0) {
-    const here = new Map((await combosAt(storeId)).map((c) => [c.id, c]));
+    const here = new Map((await combosAt(storeId, new Date(), true)).map((c) => [c.id, c]));
     for (const key of comboKeys) {
       const [, comboId, drink] = key.split(':');
       const combo = here.get(comboId);
-      if (!combo || !combo.drinks.includes(drink)) {
+      if (combo && combo.drinks.length > 0 && drink === '') {
+        res.status(400).json({ success: false, error: 'Choose the drink for the combo.' });
+        return;
+      }
+      if (!combo || (combo.drinks.length > 0 ? !combo.drinks.includes(drink) : drink !== '')) {
         res.status(400).json({ success: false, code: 'COMBO_UNAVAILABLE', error: 'A combo in your order is not available right now. Refresh the menu and try again.' });
         return;
       }
-      orderLines.push({ comboId, drink, name: comboLineName(combo.name, drink), price: combo.price, quantity: qtyById.get(key)! });
+      orderLines.push({ comboId, drink: drink || undefined, name: comboLineName(combo.name, drink || null, combo.itemQuantity, combo.catalogItem.name), price: combo.price, quantity: qtyById.get(key)! });
     }
   }
   for (const [itemId, qty] of qtyById) {
@@ -631,7 +636,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   const expected = Number(req.body?.expectedTotal);
   if (req.body?.expectedTotal != null && Number.isFinite(expected) && Math.abs(expected - totalAmount) > 0.005) {
     res.status(409).json({ success: false, code: 'PRICES_CHANGED', total: totalAmount,
-      prices: orderLines.map((l) => ({ id: l.comboId ? `combo:${l.comboId}:${l.drink}` : l.menuItemId ?? l.catalogItemId, price: l.price })),
+      prices: orderLines.map((l) => ({ id: l.comboId ? `combo:${l.comboId}:${l.drink ?? ''}` : l.menuItemId ?? l.catalogItemId, price: l.price })),
       error: `A price changed since you opened the menu. The order is now $${totalAmount.toFixed(2)}. Check it and order again.` });
     return;
   }

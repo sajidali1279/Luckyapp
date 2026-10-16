@@ -1677,7 +1677,9 @@ model HotFoodCombo {
   nameEs        String?
   description   String?
   catalogItemId String
-  drinks        String[]                    // the drinks the customer may choose (utils/hotFoodCombos.ts DRINKS)
+  // How many of the item come in it (2026-10-16): 2 for a "2 corn dogs for $3.50" deal. 1 = the item once, as before.
+  itemQuantity  Int      @default(1)
+  drinks        String[]                    // the drinks the customer may choose (utils/hotFoodCombos.ts DRINKS); none = no drink (a multi-buy deal)
   price         Float
   regularPrice  Float?                      // the item and the drink bought apart, for "Save $X" (kept within the deal limit)
   storeIds      String[] @default([])       // empty: every store that has the item on

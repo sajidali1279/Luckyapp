@@ -2,6 +2,8 @@
 // coffee, water) for one price. Featured combos lead the app's hot food menu. A combo is on at a store when the store has its item on
 // (and, when HQ chose stores, it is one of them), inside its hours (store time) when it has hours. "Save $X" comes from the regular
 // price HQ gives, and the saving stays within the deal limit for hot food (Labels > Deals > Deal limits).
+// Multi-buy deals (2026-10-16): a combo can hold more than one of the item (itemQuantity, "2 corn dogs for $3.50") and can come with no
+// drink. A combo with no drink is only shown to apps that ask for it (?deals=1): an older app would open a drink choice with nothing in it.
 import prisma from '../config/prisma';
 import { storeMinutes } from './storeTime';
 import { loadDealLimits } from './dealLimits';
@@ -27,17 +29,21 @@ export function comboOpenAt(c: { fromTime: string | null; toTime: string | null 
   return from <= to ? m >= from && m < to : m >= from || m < to;
 }
 
-/** The order line's name: what the store makes and which drink to hand over. */
-export const comboLineName = (comboName: string, drink: string) => `${comboName} (combo, ${DRINKS[drink] ?? drink})`;
+/** The order line's name: what the store makes and which drink to hand over ("Corn dogs 2 for $3.50 (2x Corn Dog)"). */
+export function comboLineName(comboName: string, drink: string | null, itemQuantity = 1, itemName = ''): string {
+  const what = itemQuantity > 1 ? `${itemQuantity}x ${itemName}`.trim() : 'combo';
+  return drink ? `${comboName} (${what}, ${DRINKS[drink] ?? drink})` : `${comboName} (${what})`;
+}
 
 type ComboRow = {
-  id: string; name: string; nameEs: string | null; description: string | null; drinks: string[]; price: number; regularPrice: number | null;
+  id: string; name: string; nameEs: string | null; description: string | null; itemQuantity: number; drinks: string[]; price: number; regularPrice: number | null;
   storeIds: string[]; fromTime: string | null; toTime: string | null; isFeatured: boolean; isActive: boolean;
   catalogItem: { id: string; name: string; imageUrl: string | null; estimatedMinutes: number | null };
 };
 
-/** The combos a customer can order at this store right now: active, the store's item on, the store chosen (or all), within hours. */
-export async function combosAt(storeId: string, now: Date = new Date()): Promise<ComboRow[]> {
+/** The combos a customer can order at this store right now: active, the store's item on, the store chosen (or all), within hours.
+ * withoutDrink: also the ones with no drink (an app that knows them asked, or the order check, which takes whatever the app sent). */
+export async function combosAt(storeId: string, now: Date = new Date(), withoutDrink = false): Promise<ComboRow[]> {
   if (!feature('hotFoodCombos')) return [];   // switched off in Settings
   const [combos, onHere] = await Promise.all([
     prisma.hotFoodCombo.findMany({
@@ -48,7 +54,7 @@ export async function combosAt(storeId: string, now: Date = new Date()): Promise
     prisma.hotFoodCatalogStore.findMany({ where: { storeId, isAvailable: true }, select: { catalogItemId: true } }),
   ]);
   const items = new Set(onHere.map((r) => r.catalogItemId));
-  return (combos as ComboRow[]).filter((c) => items.has(c.catalogItem.id) && (c.storeIds.length === 0 || c.storeIds.includes(storeId)) && comboOpenAt(c, now) && c.drinks.length > 0);
+  return (combos as ComboRow[]).filter((c) => items.has(c.catalogItem.id) && (c.storeIds.length === 0 || c.storeIds.includes(storeId)) && comboOpenAt(c, now) && (withoutDrink || c.drinks.length > 0));
 }
 
 /** The largest saving a combo may give, as a share of its regular price: the deal limit for hot food (the default limit). */

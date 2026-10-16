@@ -19,18 +19,27 @@ const hour = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); ret
 type CatalogItem = { id: string; name: string; price: number; imageUrl?: string | null };
 type Store = { id: string; name: string; hotFoodEnabled?: boolean };
 type Combo = HotFoodComboInput & { id: string; ordered30d: number; catalogItem: CatalogItem };
-type Form = { name: string; nameEs: string; description: string; catalogItemId: string; drinks: string[]; price: string; regularPrice: string;
+type Form = { name: string; nameEs: string; description: string; catalogItemId: string; itemQuantity: string; drinks: string[]; price: string; regularPrice: string;
   allStores: boolean; storeIds: string[]; hours: boolean; fromTime: string; toTime: string; isFeatured: boolean; isActive: boolean };
-const EMPTY: Form = { name: '', nameEs: '', description: '', catalogItemId: '', drinks: ['FOUNTAIN', 'BOTTLE_20'], price: '', regularPrice: '',
+const EMPTY: Form = { name: '', nameEs: '', description: '', catalogItemId: '', itemQuantity: '1', drinks: ['FOUNTAIN', 'BOTTLE_20'], price: '', regularPrice: '',
   allStores: true, storeIds: [], hours: false, fromTime: '05:00', toTime: '11:00', isFeatured: true, isActive: true };
+// A multi-buy deal (2026-10-16): "2 corn dogs for $3.50", no drink
+const MULTI_BUY: Form = { ...EMPTY, itemQuantity: '2', drinks: [] };
+
+/** What is in the combo, in words: "2x Corn Dog + Fountain drink / 20oz bottle", "2x Corn Dog" */
+function contents(c: { itemQuantity?: number; drinks: string[]; catalogItem?: { name: string } | null }) {
+  const qty = c.itemQuantity ?? 1;
+  const item = `${qty > 1 ? `${qty}x ` : ''}${c.catalogItem?.name ?? ''}`;
+  return c.drinks.length ? `${item} + ${c.drinks.map(drinkWord).join(' / ')}` : `${item}, no drink`;
+}
 
 function toForm(c: Combo): Form {
-  return { name: c.name, nameEs: c.nameEs ?? '', description: c.description ?? '', catalogItemId: c.catalogItemId, drinks: c.drinks, price: String(c.price),
+  return { name: c.name, nameEs: c.nameEs ?? '', description: c.description ?? '', catalogItemId: c.catalogItemId, itemQuantity: String(c.itemQuantity ?? 1), drinks: c.drinks, price: String(c.price),
     regularPrice: c.regularPrice != null ? String(c.regularPrice) : '', allStores: c.storeIds.length === 0, storeIds: c.storeIds,
     hours: !!c.fromTime, fromTime: c.fromTime ?? '05:00', toTime: c.toTime ?? '11:00', isFeatured: c.isFeatured, isActive: c.isActive };
 }
 function toInput(f: Form): HotFoodComboInput {
-  return { name: f.name.trim(), nameEs: f.nameEs.trim() || null, description: f.description.trim() || null, catalogItemId: f.catalogItemId, drinks: f.drinks,
+  return { name: f.name.trim(), nameEs: f.nameEs.trim() || null, description: f.description.trim() || null, catalogItemId: f.catalogItemId, itemQuantity: Number(f.itemQuantity), drinks: f.drinks,
     price: Number(f.price), regularPrice: f.regularPrice.trim() ? Number(f.regularPrice) : null, storeIds: f.allStores ? [] : f.storeIds,
     fromTime: f.hours ? f.fromTime : null, toTime: f.hours ? f.toTime : null, isFeatured: f.isFeatured, isActive: f.isActive };
 }
@@ -70,12 +79,16 @@ export default function HotFoodCombosPanel({ catalog, stores }: { catalog: Catal
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
         <HowItWorks style={{ flex: '1 1 320px' }}>
-          A combo is one hot food item with a drink the customer chooses in the app, for one price. Featured combos are shown first on the app's
+          A combo is a hot food item with a drink the customer chooses in the app, for one price, or a multi-buy deal: 2 or more of one item,
+          with or without a drink (2 corn dogs for $3.50). Featured combos are shown first on the app's
           hot food menu. A combo is on at every store that has its item on, or only at the stores you pick, and only in its hours if you give
           some (store time). The store sees the combo and the drink on the order. With a regular price, the app shows "Save $X"; the saving
           stays within your hot food deal limit ({Math.round(limit * 1000) / 10}% now, in Labels &gt; Deals &gt; Deal limits).
         </HowItWorks>
-        <Button variant="primary" onClick={() => setEditing({ id: null, form: EMPTY })} disabled={catalog.length === 0}>New combo</Button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button onClick={() => setEditing({ id: null, form: MULTI_BUY })} disabled={catalog.length === 0}>New multi-buy deal</Button>
+          <Button variant="primary" onClick={() => setEditing({ id: null, form: EMPTY })} disabled={catalog.length === 0}>New combo</Button>
+        </div>
       </div>
 
       {ideas.length > 0 && (
@@ -111,7 +124,7 @@ export default function HotFoodCombosPanel({ catalog, stores }: { catalog: Catal
                       {!c.isActive && <Badge>Off</Badge>}
                     </div>
                     <div style={{ fontSize: FONT.small, color: C.text2, marginTop: 2 }}>
-                      {c.catalogItem?.name} + {c.drinks.map(drinkWord).join(' / ')}
+                      {contents(c)}
                     </div>
                     <div style={{ fontSize: FONT.small, color: C.text, marginTop: 4 }}>
                       <strong>{money(c.price)}</strong>{c.regularPrice != null && <span style={{ color: TEXT_MUTED }}> · saves {money(c.regularPrice - c.price)}</span>}
@@ -154,10 +167,15 @@ function ComboForm({ initial, id, catalog, stores, limit, onClose }: { initial: 
   const [f, setF] = useState<Form>(initial);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
   const item = catalog.find((c) => c.id === f.catalogItemId);
+  const qty = Number(f.itemQuantity);
+  const validQty = Number.isInteger(qty) && qty >= 1 && qty <= 10;
+  const itemsApart = item && validQty ? Math.round(item.price * qty * 100) / 100 : null;   // the items bought one by one
   const price = Number(f.price), regular = Number(f.regularPrice);
   const saving = f.regularPrice.trim() && Number.isFinite(regular) && Number.isFinite(price) && regular > 0 ? regular - price : null;
   const lowest = f.regularPrice.trim() && regular > 0 ? Math.ceil(regular * (1 - limit) * 100) / 100 : null;
-  const problem = !f.name.trim() ? 'Give the combo a name.' : !f.catalogItemId ? 'Choose the hot food item.' : f.drinks.length === 0 ? 'Choose at least one drink.'
+  const problem = !f.name.trim() ? 'Give the combo a name.' : !f.catalogItemId ? 'Choose the hot food item.'
+    : !validQty ? 'Give how many of the item, 1 to 10.'
+    : f.drinks.length === 0 && qty < 2 ? 'Choose at least one drink, or make it 2 or more of the item (like 2 for $3.50).'
     : !(price > 0) ? 'Give the combo price.' : item && price < item.price ? `The combo costs less than ${item.name} alone (${money(item.price)}).`
     : lowest != null && price < lowest ? `Within your ${Math.round(limit * 1000) / 10}% hot food deal limit, the lowest is ${money(lowest)}.`
     : lowest != null && price >= regular ? 'The combo price must be below the regular price.'
@@ -172,16 +190,22 @@ function ComboForm({ initial, id, catalog, stores, limit, onClose }: { initial: 
   const hotStores = stores.filter((st) => st.hotFoodEnabled !== false);
 
   return (
-    <Modal title={id ? 'Edit combo' : 'New combo'} subtitle="A hot food item with a drink, for one price" onClose={onClose} busy={save.isPending} maxWidth={560}>
+    <Modal title={id ? 'Edit combo' : qty > 1 && f.drinks.length === 0 ? 'New multi-buy deal' : 'New combo'}
+      subtitle={qty > 1 ? 'More than one of an item, for one price' : 'A hot food item with a drink, for one price'} onClose={onClose} busy={save.isPending} maxWidth={560}>
       <div style={{ display: 'grid', gap: 12 }}>
-        <Field label="Hot food item" htmlFor="cb-item" required>
-          <select id="cb-item" style={INPUT} value={f.catalogItemId} onChange={(e) => set('catalogItemId', e.target.value)}>
-            <option value="">Choose…</option>
-            {catalog.map((c) => <option key={c.id} value={c.id}>{c.name} ({money(c.price)})</option>)}
-          </select>
-        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 120px', gap: 12 }}>
+          <Field label="Hot food item" htmlFor="cb-item" required>
+            <select id="cb-item" style={INPUT} value={f.catalogItemId} onChange={(e) => set('catalogItemId', e.target.value)}>
+              <option value="">Choose…</option>
+              {catalog.map((c) => <option key={c.id} value={c.id}>{c.name} ({money(c.price)})</option>)}
+            </select>
+          </Field>
+          <Field label="How many" htmlFor="cb-qty" required>
+            <input id="cb-qty" style={INPUT} type="number" min={1} max={10} step={1} value={f.itemQuantity} onChange={(e) => set('itemQuantity', e.target.value)} />
+          </Field>
+        </div>
         <Field label="Name customers see" htmlFor="cb-name" required>
-          <input id="cb-name" style={INPUT} value={f.name} maxLength={80} placeholder="e.g. Wings + a drink" onChange={(e) => set('name', e.target.value)} />
+          <input id="cb-name" style={INPUT} value={f.name} maxLength={80} placeholder={qty > 1 ? `e.g. ${qty} ${item ? item.name : 'Corn Dogs'} for $3.50` : 'e.g. Wings + a drink'} onChange={(e) => set('name', e.target.value)} />
         </Field>
         <Field label="Name in Spanish" htmlFor="cb-name-es" hint="Optional. Spanish phones show the English name when this is empty.">
           <input id="cb-name-es" style={INPUT} value={f.nameEs} maxLength={80} placeholder="e.g. Alitas + una bebida" onChange={(e) => set('nameEs', e.target.value)} />
@@ -192,19 +216,31 @@ function ComboForm({ initial, id, catalog, stores, limit, onClose }: { initial: 
         <div>
           <div style={{ fontSize: FONT.small, fontWeight: 700, color: C.text, marginBottom: 6 }} id="cb-drinks">Drinks the customer can choose</div>
           <div role="group" aria-labelledby="cb-drinks" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {qty > 1 && <Chip selected={f.drinks.length === 0} onClick={() => set('drinks', [])}>No drink</Chip>}
             {DRINKS.map(([code, word]) => (
               <Chip key={code} selected={f.drinks.includes(code)} onClick={() => set('drinks', f.drinks.includes(code) ? f.drinks.filter((d) => d !== code) : [...f.drinks, code])}>{word}</Chip>
             ))}
           </div>
+          {f.drinks.length === 0 && qty > 1 && (
+            <div style={{ fontSize: FONT.caption, color: TEXT_MUTED, marginTop: 6 }}>
+              A deal with no drink shows in the app from the next app update after 1.3.4. Older apps do not show it, so nobody sees a drink choice with nothing in it.
+            </div>
+          )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           <Field label="Combo price" htmlFor="cb-price" required>
             <input id="cb-price" style={INPUT} inputMode="decimal" value={f.price} placeholder="9.99" onChange={(e) => set('price', e.target.value)} />
           </Field>
-          <Field label="Regular price" htmlFor="cb-regular" hint={item ? `${item.name} ${money(item.price)} + the drink. For "Save $X".` : 'The item and the drink bought apart.'}>
+          <Field label="Regular price" htmlFor="cb-regular"
+            hint={item && itemsApart != null
+              ? `${qty > 1 ? `${qty} x ${item.name} = ${money(itemsApart)}` : `${item.name} ${money(item.price)}`}${f.drinks.length ? ' + the drink' : ''}. For "Save $X".`
+              : 'The items (and the drink) bought apart.'}>
             <input id="cb-regular" style={INPUT} inputMode="decimal" value={f.regularPrice} placeholder="optional" onChange={(e) => set('regularPrice', e.target.value)} />
           </Field>
         </div>
+        {item && itemsApart != null && qty > 1 && f.drinks.length === 0 && !f.regularPrice.trim() && (
+          <div><Button size="sm" onClick={() => set('regularPrice', itemsApart.toFixed(2))}>Use {money(itemsApart)} as the regular price</Button></div>
+        )}
         {saving != null && saving > 0 && <div style={{ fontSize: FONT.small, color: C.success }}>Customers see "Save {money(saving)}".</div>}
         <div>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: FONT.body }}>

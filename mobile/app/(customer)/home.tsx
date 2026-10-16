@@ -1166,7 +1166,9 @@ export default function CustomerHome() {
                       <View style={styles.hotFoodCardBody}>
                         <Text style={styles.hotFoodItemName} numberOfLines={2}>{name}</Text>
                         {isCombo
-                          ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{t('customerHome.comboWithDrink')}</Text>
+                          ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{(item.itemQuantity ?? 1) > 1
+                              ? t('hotFoodCombos.dealOf', { count: item.itemQuantity, item: item.item?.name ?? '' }) + (item.drinks?.length ? `, ${t('customerHome.comboWithDrink').toLowerCase()}` : '')
+                              : t('customerHome.comboWithDrink')}</Text>
                           : item.description ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text> : null}
                         <View style={styles.hotFoodPriceRow}>
                           <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
