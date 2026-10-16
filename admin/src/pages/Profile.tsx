@@ -20,7 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 // The HQ emails, in the order they arrive in a week, with what each one is about
 const EMAIL_KINDS: Record<string, { title: string; text: string }> = {
-  MORNING_SUMMARY: { title: 'Morning summary', text: 'Each morning: sales held for review, missing-points reports, store alerts, requests and unpaid bills.' },
+  MORNING_SUMMARY: { title: 'Morning summary', text: 'Each morning: yesterday by store (sales, points given, hot food) with anything that looks off, then what is waiting: held sales, missing-points reports, store alerts, requests and unpaid bills.' },
   WEEKLY_SUMMARY: { title: 'Weekly numbers', text: 'Once a week: the last 7 days of sales, cashback and sign-ups.' },
   LARGE_SALE: { title: 'Large sale held for review', text: 'Right away, when a sale of $500 or more is held for a decision.' },
   MISSING_POINTS: { title: 'Missing-points report', text: 'Right away, when a customer reports points that did not arrive.' },

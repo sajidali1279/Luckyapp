@@ -31,6 +31,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   CATALOG_REDEMPTION:        { label: 'Reward Redeemed',        color: '#3c6e8f', bg: '#457b9d18', icon: '🎁' },
   CATALOG_CONFIRM:           { label: 'Reward Handed Out',      color: '#3c6e8f', bg: '#457b9d18', icon: '✅' },
   WELCOME_GIFT:              { label: 'Welcome Gift Given',     color: '#3c6e8f', bg: '#457b9d18', icon: '🎉' },
+  WINBACK_SEND:              { label: 'Win-back Gifts Sent',    color: '#1a7f45', bg: '#2DC65318', icon: '🎁' },
   // Rewards and notices
   CATALOG_ITEM_CREATE:       { label: 'Reward Added',           color: PRIMARY, bg: '#1D355718', icon: '🎁' },
   CATALOG_ITEM_UPDATE:       { label: 'Reward Changed',         color: PRIMARY, bg: '#1D355718', icon: '✏️' },
@@ -287,7 +288,7 @@ export default function ActivityLog() {
         <select style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
           <option value="">All Actions</option>
           <optgroup label="── Points ──">
-            {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','WELCOME_GIFT','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
+            {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','WELCOME_GIFT','WINBACK_SEND','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
