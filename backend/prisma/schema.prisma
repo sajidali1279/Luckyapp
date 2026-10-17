@@ -500,7 +500,10 @@ model PointsTransaction {
   category        ProductCategory   @default(OTHER)
   status          TransactionStatus @default(PENDING)
   receiptImageUrl  String?
-  receiptImageHash String? @unique   // SHA-256 of receipt file — reuse of same photo across any transaction is blocked
+  // SHA-256 of the receipt file. Not unique: the lines of one multi-item sale (gas + groceries) share their receipt photo, and a
+  // unique index refused the second line ("That already exists", the cashier could never finish the sale, 2026-10-17). Reuse of a
+  // photo on any OTHER sale is refused by uploadReceipt (points.controller.ts) and the receipt scans.
+  receiptImageHash String?
   notes            String?
   isGas             Boolean @default(false)
   gasGallons        Float?
@@ -547,6 +550,7 @@ model PointsTransaction {
   @@index([rewardForSaleId])
   @@index([referralId])
   @@index([servedById])
+  @@index([receiptImageHash])
   @@map("points_transactions")
 }
 
