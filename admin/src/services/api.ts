@@ -583,6 +583,8 @@ export const settingsApi = {
   saveRules: (values: Record<string, number>) => api.put('/settings/rules', { values }),
   saveFeatures: (features: Record<string, boolean>) => api.put('/settings/features', { features }),
   saveBusiness: (data: { supportPhone: string; supportEmail: string; supportHours: string }) => api.put('/settings/business', data),
+  // The joining bonus (2026-10-17): on/off, days, items (an item without a key is new)
+  saveWelcome: (data: { enabled?: boolean; days?: number; items?: { key?: string; name: string; nameEs: string; emoji: string; active: boolean }[] }) => api.put('/settings/welcome', data),
   history: (limit = 100) => api.get('/settings/history', { params: { limit } }),
 };
 

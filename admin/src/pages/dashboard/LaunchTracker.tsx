@@ -18,7 +18,7 @@ type LaunchData =
   | {
       started: true; launchDate: string; dayNumber: number; totals: Totals;
       today: { signups: number; firstPurchases: number }; daily: DailyRow[];
-      rewards: { rewardType: string; count: number }[]; stores: StoreRow[]; testAccountsLeftOut: number;
+      rewards: { rewardType: string; count: number; label?: string; emoji?: string }[]; stores: StoreRow[]; testAccountsLeftOut: number;
     };
 
 const REWARD_LABEL: Record<string, { icon: string; label: string }> = {
@@ -287,7 +287,7 @@ export default function LaunchTracker() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center', marginBottom: 28, fontSize: 13.5, color: TEXT_MUTED }}>
             <span style={{ fontWeight: 700 }}>Welcome rewards picked:</span>
             {d.rewards.map((r) => {
-              const info = REWARD_LABEL[r.rewardType] ?? { icon: '🎁', label: r.rewardType };
+              const info = r.label ? { icon: r.emoji ?? '🎁', label: r.label } : REWARD_LABEL[r.rewardType] ?? { icon: '🎁', label: r.rewardType };   // HQ's names first
               return (
                 <span key={r.rewardType} style={{ background: '#fff', border: '1px solid #e4e7ec', borderRadius: 20, padding: '3px 11px', fontWeight: 600, color: '#374151' }}>
                   <Glyph e={info.icon} size={13} style={{ verticalAlign: -2, marginRight: 5 }} />{info.label} · {formatInteger(r.count)}

@@ -10,6 +10,7 @@ import ReceiptScanPanel from '../components/ReceiptScanPanel';
 import ReferralsPanel from '../components/ReferralsPanel';
 import { DealLimitsCard } from '../components/DealsPanel';
 import { RulesCard, FeaturesCard, BusinessCard, HistoryCard, LastChanged } from '../components/SettingsCards';
+import WelcomeBonusSettings from '../components/WelcomeBonusSettings';
 
 type Tab = 'features' | 'hotfood' | 'review' | 'receipts' | 'rewards' | 'deals' | 'staff' | 'app' | 'history';
 const TABS: { value: Tab; label: string }[] = [
@@ -67,6 +68,7 @@ export default function Settings() {
             Tier cashback, gas cents per gallon, points to reach a tier and category bonuses are on the{' '}
             <Link to="/rates" style={{ color: PRIMARY, fontWeight: 700 }}>Cashback Rates page</Link>.
           </Notice>
+          <WelcomeBonusSettings />
           <div>
             <ReferralsPanel part="deal" />
             <LastChanged actions={['REFERRAL_SETTINGS_UPDATE']} />

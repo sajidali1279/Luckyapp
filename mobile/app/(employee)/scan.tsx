@@ -236,7 +236,7 @@ function CelebrationDone({
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function EmployeeScanScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuthStore();
   const { permission, ask: requestPermission } = useCameraAccess();   // asks, or opens settings after "Don't allow"
   const [step, setStep] = useState<Step>('scan');
@@ -748,7 +748,14 @@ export default function EmployeeScanScreen() {
 
   // The welcome gift straight from the scan (2026-10-10): for a new customer who did not choose today's item in their app
   const WELCOME_OPTION_KEYS: Record<string, string> = { FOUNTAIN_DRINK: 'customerWelcomeBonus.optionFountain', COFFEE: 'customerWelcomeBonus.optionCoffee', SODA_12OZ: 'customerWelcomeBonus.optionSoda', HOT_SNACK: 'customerWelcomeBonus.optionHotSnack' };
-  const welcomeLabel = (r: { rewardType: string; rewardLabel?: string; label?: string }) => (WELCOME_OPTION_KEYS[r.rewardType] ? t(WELCOME_OPTION_KEYS[r.rewardType]) : r.rewardLabel ?? r.label ?? '');
+  // HQ's name for the item in the app's language (Settings > Joining bonus, 2026-10-17); the app's own words for the four first items
+  // only when the server sends no name (an older server)
+  const welcomeLabel = (r: { rewardType: string; rewardLabel?: string; rewardLabelEs?: string; label?: string; labelEs?: string }) => {
+    const own = WELCOME_OPTION_KEYS[r.rewardType] ? t(WELCOME_OPTION_KEYS[r.rewardType]) : '';
+    const en = r.rewardLabel ?? r.label;
+    const es = r.rewardLabelEs ?? r.labelEs;
+    return ((i18n.language ?? '').startsWith('es') ? es || own || en : en || own) || '';
+  };
   function handleGiveWelcomeGift(r: { rewardType: string; label: string; emoji: string }) {
     const label = welcomeLabel(r);
     Alert.alert(t('employeeScan.welcomeGiftConfirmTitle', { label }), t('employeeScan.welcomeGiftConfirmBody'), [
@@ -906,7 +913,7 @@ export default function EmployeeScanScreen() {
           {/* Welcome gift first (2026-10-10): it was the last card, under Grant Points, and easy to miss */}
           {welcomeBonus && (
             <View style={s.welcomeCard}>
-              <Text style={s.welcomeTitle}>🎁 {t('employeeScan.welcomeGiftTitle', { day: welcomeBonus.day })}</Text>
+              <Text style={s.welcomeTitle}>🎁 {t('employeeScan.welcomeGiftTitle', { day: welcomeBonus.day, total: welcomeBonus.totalDays ?? 7 })}</Text>
               {welcomeBonus.claimed !== false ? (
                 <>
                   <Text style={s.welcomeSub}>{t('employeeScan.welcomeGiftChoseSub', { label: welcomeLabel(welcomeBonus), code: welcomeBonus.claimCode })}</Text>
@@ -1618,12 +1625,12 @@ export default function EmployeeScanScreen() {
       {step === 'welcome-bonus-done' && (
         <CelebrationDone
           heading={t('employeeScan.welcomeBonusHeading')}
-          amount={`${confirmedWelcomeBonus?.rewardEmoji || '🎁'} ${confirmedWelcomeBonus?.rewardLabel}`}
+          amount={`${confirmedWelcomeBonus?.rewardEmoji || '🎁'} ${confirmedWelcomeBonus ? welcomeLabel({ rewardType: confirmedWelcomeBonus.rewardType ?? '', ...confirmedWelcomeBonus }) : ''}`}
           amountColor="#D97706"
           sub={cdata?.name || cdata?.phone}
           extraNode={
             <View style={s.newBalanceCard}>
-              <Text style={s.newBalanceLabel}>{t('employeeScan.dayOfSevenRedeemed', { day: confirmedWelcomeBonus?.day })}</Text>
+              <Text style={s.newBalanceLabel}>{t('employeeScan.dayOfSevenRedeemed', { day: confirmedWelcomeBonus?.day, total: confirmedWelcomeBonus?.totalDays ?? 7 })}</Text>
             </View>
           }
           onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}

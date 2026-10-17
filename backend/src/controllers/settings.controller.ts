@@ -6,6 +6,7 @@ import { AuthRequest } from '../types';
 import { audit } from '../utils/audit';
 import {
   RULES, FEATURES, RULES_KEY, FEATURES_KEY, BUSINESS_KEY, allRules, allFeatures, business, cleanRules, cleanFeatures, cleanBusiness, applySettings,
+  WELCOME_KEY, WELCOME_EMOJIS, WELCOME_DAYS, WELCOME_MAX_ITEMS, welcome, cleanWelcome, type WelcomeItem,
   rule, feature, type RuleKey, type RuleMeta, type FeatureKey,
 } from '../utils/appSettings';
 
@@ -23,6 +24,7 @@ export async function getSettings(_req: AuthRequest, res: Response) {
     rules: (Object.entries(RULES) as [RuleKey, RuleMeta][]).map(([key, m]) => ({ key, ...m, value: values[key] })),
     features: (Object.entries(FEATURES) as [FeatureKey, { label: string; help: string }][]).map(([key, m]) => ({ key, ...m, on: allFeatures()[key] })),
     business: business(),
+    welcome: { ...welcome(), emojis: WELCOME_EMOJIS, minDays: WELCOME_DAYS.min, maxDays: WELCOME_DAYS.max, maxItems: WELCOME_MAX_ITEMS },
   } });
 }
 
@@ -110,9 +112,71 @@ export async function putBusiness(req: AuthRequest, res: Response) {
   res.json({ success: true, data: next, changed: true });
 }
 
+/** PUT /settings/welcome (HQ) { enabled, days, items: [{ key?, name, nameEs, emoji, active }] }: the joining bonus. An item sent without
+ *  a key is new. Items are never deleted (switch them off), so the four first items and any added before are always kept. */
+export async function putWelcome(req: AuthRequest, res: Response) {
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  const before = welcome();
+  if (b.enabled !== undefined && typeof b.enabled !== 'boolean') { res.status(400).json({ success: false, error: 'On or off must be true or false.' }); return; }
+  const enabled = b.enabled === undefined ? before.enabled : b.enabled;
+  const days = b.days === undefined ? before.days : Number(b.days);
+  if (!Number.isInteger(days) || days < WELCOME_DAYS.min || days > WELCOME_DAYS.max) {
+    res.status(400).json({ success: false, error: `The number of days must be a whole number from ${WELCOME_DAYS.min} to ${WELCOME_DAYS.max}.` }); return;
+  }
+  let items: WelcomeItem[] = before.items;
+  if (b.items !== undefined) {
+    if (!Array.isArray(b.items)) { res.status(400).json({ success: false, error: 'Send the items as a list.' }); return; }
+    const sent = b.items as Record<string, unknown>[];
+    const next = before.items.map((i) => ({ ...i }));
+    for (const r of sent) {
+      const name = typeof r?.name === 'string' ? r.name.replace(/\s+/g, ' ').trim() : '';
+      const nameEs = typeof r?.nameEs === 'string' ? r.nameEs.replace(/\s+/g, ' ').trim() : '';
+      if (!name) { res.status(400).json({ success: false, error: 'Every item needs a name.' }); return; }
+      if (name.length > 40 || nameEs.length > 40) { res.status(400).json({ success: false, error: `"${name.slice(0, 40)}": names can be up to 40 characters.` }); return; }
+      if (r.emoji !== undefined && !WELCOME_EMOJIS.includes(r.emoji as string)) { res.status(400).json({ success: false, error: `"${name}": choose one of the pictures shown.` }); return; }
+      const active = r.active === undefined ? true : r.active === true;
+      const at = typeof r.key === 'string' ? next.findIndex((i) => i.key === r.key) : -1;
+      if (typeof r.key === 'string' && at < 0) { res.status(400).json({ success: false, error: `There is no item "${r.key}".` }); return; }
+      if (at >= 0) { next[at] = { ...next[at], name, nameEs: nameEs || name, emoji: (r.emoji as string) ?? next[at].emoji, active }; continue; }
+      if (next.length >= WELCOME_MAX_ITEMS) { res.status(400).json({ success: false, error: `There can be up to ${WELCOME_MAX_ITEMS} items. Switch an old one off and rename it instead.` }); return; }
+      let key = '';
+      do key = `ITEM_${Math.random().toString(36).slice(2, 8).toUpperCase()}`; while (next.some((i) => i.key === key));
+      next.push({ key, name, nameEs: nameEs || name, emoji: (r.emoji as string) ?? '🎁', active });
+    }
+    const seen = new Set<string>();
+    for (const i of next) {
+      const n = i.name.toLowerCase();
+      if (seen.has(n)) { res.status(400).json({ success: false, error: `Two items are called "${i.name}". Give each a different name.` }); return; }
+      seen.add(n);
+    }
+    items = next;
+  }
+  if (enabled && !items.some((i) => i.active)) { res.status(400).json({ success: false, error: 'Switch on at least one item, or switch the joining bonus off.' }); return; }
+  // Switched off now: customers who already joined keep their days; switched on: everyone from now on gets it
+  const offSince = enabled ? null : before.enabled ? new Date().toISOString() : before.offSince;
+  const clean = cleanWelcome({ enabled, offSince, days, items });
+  const changes: string[] = [];
+  if (clean.enabled !== before.enabled) changes.push(clean.enabled ? 'Switched on' : 'Switched off for new sign-ups');
+  if (clean.days !== before.days) changes.push(`Days: ${before.days} to ${clean.days}`);
+  for (const i of clean.items) {
+    const was = before.items.find((x) => x.key === i.key);
+    if (!was) { changes.push(`Added ${i.emoji} ${i.name}${i.active ? '' : ' (off)'}`); continue; }
+    if (was.name !== i.name) changes.push(`Renamed ${was.name} to ${i.name}`);
+    else if (was.nameEs !== i.nameEs) changes.push(`${i.name}: Spanish name ${i.nameEs}`);
+    if (was.emoji !== i.emoji) changes.push(`${i.name}: picture ${i.emoji}`);
+    if (was.active !== i.active) changes.push(`${i.name}: ${i.active ? 'on' : 'off'}`);
+  }
+  if (changes.length === 0) { res.json({ success: true, data: clean, changed: false }); return; }
+  await save(WELCOME_KEY, clean);
+  applySettings({ welcome: clean });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'SETTINGS_WELCOME_UPDATE', entity: 'app_config', entityId: WELCOME_KEY,
+    details: { summary: changes.join('; '), keys: ['welcome'] }, storeId: null });
+  res.json({ success: true, data: clean, changed: true });
+}
+
 /** Every settings change HQ or the Dev Admin made, wherever it was made, and which Settings tab it belongs to. */
 export const SETTINGS_ACTIONS: Record<string, string> = {
-  SETTINGS_RULES_UPDATE: 'Rules', SETTINGS_FEATURES_UPDATE: 'Features', SETTINGS_BUSINESS_UPDATE: 'Business details',
+  SETTINGS_RULES_UPDATE: 'Rules', SETTINGS_FEATURES_UPDATE: 'Features', SETTINGS_BUSINESS_UPDATE: 'Business details', SETTINGS_WELCOME_UPDATE: 'Joining bonus',
   RECEIPT_SCAN_SETTINGS: 'Receipt scanning', REFERRAL_SETTINGS_UPDATE: 'Refer a friend', DEAL_LIMITS: 'Deal limits',
   APP_VERSIONS_UPDATE: 'App updates', PROMOTION_SETTINGS: 'Featured ads', DEV_CUT_RATE_UPDATE: 'Default fee',
   RATE_TIER_UPDATE: 'Cashback rates', RATE_CATEGORY_UPDATE: 'Cashback rates',

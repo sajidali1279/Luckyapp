@@ -58,17 +58,36 @@ export interface BusinessInfo { supportPhone: string; supportEmail: string; supp
 export const RULES_KEY = 'APP_RULES';
 export const FEATURES_KEY = 'APP_FEATURES';
 export const BUSINESS_KEY = 'BUSINESS_INFO';
+export const WELCOME_KEY = 'WELCOME_BONUS';
+
+// The joining bonus (2026-10-17, admin Settings > Joining bonus): on or off, how many days, and the free items to choose from. It was
+// fixed in the code (7 days, 4 items). Items are never deleted, only switched off, so a gift already given still shows its name.
+export const WELCOME_EMOJIS = ['🥤', '☕', '🥫', '🧃', '🌮', '🍕', '🌭', '🍔', '🍗', '🍩', '🍪', '🍫', '🍦', '🍿', '🎁'];
+export const WELCOME_DAYS = { min: 1, max: 14, def: 7 };
+export const WELCOME_MAX_ITEMS = 12;
+export interface WelcomeItem { key: string; name: string; nameEs: string; emoji: string; active: boolean }
+/** offSince: when HQ switched it off. Customers who joined before then keep their days; nobody who joins while it is off gets it. */
+export interface WelcomeConfig { enabled: boolean; offSince: string | null; days: number; items: WelcomeItem[] }
+const BUILT_IN_ITEMS: WelcomeItem[] = [
+  { key: 'FOUNTAIN_DRINK', name: 'Free Fountain Drink', nameEs: 'Refresco de Fuente Gratis', emoji: '🥤', active: true },
+  { key: 'COFFEE', name: 'Free Coffee', nameEs: 'Café Gratis', emoji: '☕', active: true },
+  { key: 'SODA_12OZ', name: 'Free 12oz Soda', nameEs: 'Refresco de 12 oz Gratis', emoji: '🥤', active: true },
+  { key: 'HOT_SNACK', name: 'Free Hot Food Snack', nameEs: 'Snack de Comida Caliente Gratis', emoji: '🌮', active: true },
+];
 
 const defaults = () => Object.fromEntries(Object.entries(RULES).map(([k, m]) => [k, m.def])) as Record<RuleKey, number>;
 let rules: Record<RuleKey, number> = defaults();
 let features: Record<FeatureKey, boolean> = featureDefaults();
 let businessInfo: BusinessInfo = { supportPhone: '', supportEmail: '', supportHours: '' };
+let welcomeConfig: WelcomeConfig = cleanWelcome(null);
 
 /** A rule's value now (its default until HQ changes it). */
 export const rule = (k: RuleKey): number => rules[k];
 /** Whether a feature is on now (on until HQ switches it off). */
 export const feature = (k: FeatureKey): boolean => features[k];
 export const business = (): BusinessInfo => businessInfo;
+/** The joining bonus settings now. */
+export const welcome = (): WelcomeConfig => welcomeConfig;
 export const allRules = () => ({ ...rules });
 export const allFeatures = () => ({ ...features });
 
@@ -94,26 +113,59 @@ export function cleanBusiness(stored: unknown): BusinessInfo {
   return { supportPhone: str(s.supportPhone, 30), supportEmail: str(s.supportEmail, 120), supportHours: str(s.supportHours, 120) };
 }
 
+/** Only sensible values are kept: the four first items are always there (HQ can switch them off and rename them), extra items need a
+ *  key, a name and an emoji from the list; anything else falls back to the default. */
+export function cleanWelcome(stored: unknown): WelcomeConfig {
+  const s = (stored && typeof stored === 'object' ? stored : {}) as Record<string, unknown>;
+  const enabled = typeof s.enabled === 'boolean' ? s.enabled : true;
+  const offSince = !enabled && typeof s.offSince === 'string' && !Number.isNaN(Date.parse(s.offSince)) ? s.offSince : null;
+  const d = typeof s.days === 'number' ? Math.round(s.days) : NaN;
+  const days = d >= WELCOME_DAYS.min && d <= WELCOME_DAYS.max ? d : WELCOME_DAYS.def;
+  const text = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 40) : '');
+  const items: WelcomeItem[] = BUILT_IN_ITEMS.map((i) => ({ ...i }));
+  for (const raw of Array.isArray(s.items) ? s.items : []) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    const key = typeof r.key === 'string' && /^[A-Z0-9_]{2,24}$/.test(r.key) ? r.key : null;
+    if (!key) continue;
+    const name = text(r.name);
+    const at = items.findIndex((i) => i.key === key);
+    const base = at >= 0 ? items[at] : null;
+    if (!base && (!name || items.length >= WELCOME_MAX_ITEMS)) continue;
+    const item: WelcomeItem = {
+      key,
+      name: name || base!.name,
+      nameEs: text(r.nameEs) || base?.nameEs || name,   // no Spanish name given: the English one
+      emoji: typeof r.emoji === 'string' && WELCOME_EMOJIS.includes(r.emoji) ? r.emoji : base?.emoji ?? '🎁',
+      active: typeof r.active === 'boolean' ? r.active : true,
+    };
+    if (at >= 0) items[at] = item; else items.push(item);
+  }
+  return { enabled, offSince, days, items };
+}
+
 const parse = (v: string | undefined) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
 
 /** Reads all three from the database. A failure keeps what was there (the server runs on the last known values). */
 export async function refreshSettings(): Promise<void> {
   try {
-    const rows = await prisma.appConfig.findMany({ where: { key: { in: [RULES_KEY, FEATURES_KEY, BUSINESS_KEY] } } });
+    const rows = await prisma.appConfig.findMany({ where: { key: { in: [RULES_KEY, FEATURES_KEY, BUSINESS_KEY, WELCOME_KEY] } } });
     const by = new Map(rows.map((r: { key: string; value: string }) => [r.key, r.value]));
     rules = cleanRules(parse(by.get(RULES_KEY)));
     features = cleanFeatures(parse(by.get(FEATURES_KEY)));
     businessInfo = cleanBusiness(parse(by.get(BUSINESS_KEY)));
+    welcomeConfig = cleanWelcome(parse(by.get(WELCOME_KEY)));
   } catch (e: any) {
     console.error('[settings] could not load, keeping the last values:', e?.message ?? e);
   }
 }
 
 /** Saved by the settings controller: this instance uses the new values at once. */
-export function applySettings(next: { rules?: Record<RuleKey, number>; features?: Record<FeatureKey, boolean>; business?: BusinessInfo }) {
+export function applySettings(next: { rules?: Record<RuleKey, number>; features?: Record<FeatureKey, boolean>; business?: BusinessInfo; welcome?: WelcomeConfig }) {
   if (next.rules) rules = next.rules;
   if (next.features) features = next.features;
   if (next.business) businessInfo = next.business;
+  if (next.welcome) welcomeConfig = next.welcome;
 }
 
 export function startSettingsRefresh() {
@@ -124,8 +176,9 @@ export function startSettingsRefresh() {
 }
 
 /** For tests: set values directly, or put the defaults back. */
-export function setSettingsForTest(next: { rules?: Partial<Record<RuleKey, number>>; features?: Partial<Record<FeatureKey, boolean>>; business?: Partial<BusinessInfo> } | null) {
-  if (next === null) { rules = defaults(); features = cleanFeatures(null); businessInfo = cleanBusiness(null); return; }
+export function setSettingsForTest(next: { rules?: Partial<Record<RuleKey, number>>; features?: Partial<Record<FeatureKey, boolean>>; business?: Partial<BusinessInfo>; welcome?: unknown } | null) {
+  if (next === null) { rules = defaults(); features = cleanFeatures(null); businessInfo = cleanBusiness(null); welcomeConfig = cleanWelcome(null); return; }
+  if (next.welcome !== undefined) welcomeConfig = cleanWelcome(next.welcome);
   if (next.rules) rules = { ...rules, ...next.rules };
   if (next.features) features = { ...features, ...next.features };
   if (next.business) businessInfo = { ...businessInfo, ...next.business };

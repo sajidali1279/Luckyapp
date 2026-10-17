@@ -7,6 +7,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { welcomeBonusApi } from '../services/api';
 import { COLORS } from '../constants';
 
+// The four first items, for a server from before HQ could set the items (2026-10-17): the server now sends the choices with their
+// names in English and Spanish (rewards[].label / labelEs), and HQ can rename, switch off and add items.
 const REWARD_OPTIONS = [
   { rewardType: 'FOUNTAIN_DRINK', labelKey: 'customerWelcomeBonus.optionFountain', emoji: '🥤' },
   { rewardType: 'COFFEE',         labelKey: 'customerWelcomeBonus.optionCoffee',   emoji: '☕' },
@@ -18,7 +20,7 @@ const GOLD = '#F59E0B';
 const GREEN = '#22C55E';
 
 export default function WelcomeBonusCard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -54,18 +56,30 @@ export default function WelcomeBonusCard() {
     claimMut.mutate(selected);
   }
 
-  const optionLabel = (o: { labelKey: string } | null | undefined) => (o ? t(o.labelKey) : undefined);
-  const claimedOption = bonus.claimed
-    ? REWARD_OPTIONS.find(r => r.rewardType === bonus.rewardType) ?? null
+  // An item's name in the app's language: HQ's name from the server, else (an older server) the app's own words for the four first items
+  const es = (i18n.language ?? '').startsWith('es');
+  const wordsFor = (rewardType: string, label?: string | null, labelEs?: string | null) => {
+    const own = REWARD_OPTIONS.find(r => r.rewardType === rewardType);
+    if (es) return labelEs || (own ? t(own.labelKey) : label) || '';
+    return label || (own ? t(own.labelKey) : '') || '';
+  };
+  type Option = { rewardType: string; text: string; emoji: string };
+  const options: Option[] = Array.isArray(bonus.rewards) && bonus.rewards.length
+    ? bonus.rewards.map((r: any) => ({ rewardType: r.rewardType, text: wordsFor(r.rewardType, r.label, r.labelEs), emoji: r.emoji || '🎁' }))
+    : REWARD_OPTIONS.map(o => ({ rewardType: o.rewardType, text: t(o.labelKey), emoji: o.emoji }));
+  const optionLabel = (o: Option | null | undefined) => o?.text;
+  const claimedOption: Option | null = bonus.claimed
+    ? { rewardType: bonus.rewardType, text: wordsFor(bonus.rewardType, bonus.rewardLabel, bonus.rewardLabelEs), emoji: bonus.rewardEmoji || REWARD_OPTIONS.find(r => r.rewardType === bonus.rewardType)?.emoji || '🎁' }
     : null;
-  const selectedLabel = optionLabel(REWARD_OPTIONS.find(r => r.rewardType === selected));
+  const selectedLabel = optionLabel(options.find(r => r.rewardType === selected));
+  const totalDays: number = bonus.totalDays ?? 7;
 
   return (
     <>
       <View style={st.card}>
         {/* Day progress */}
         <View style={st.progressRow}>
-          {Array.from({ length: 7 }, (_, i) => i + 1).map(d => (
+          {Array.from({ length: totalDays }, (_, i) => i + 1).map(d => (
             <View
               key={d}
               style={[
@@ -82,7 +96,7 @@ export default function WelcomeBonusCard() {
         </View>
 
         <View style={st.body}>
-          <Text style={st.tag}>{t('customerWelcomeBonus.tag', { day: bonus.dayNumber })}</Text>
+          <Text style={st.tag}>{t('customerWelcomeBonus.tag', { day: bonus.dayNumber, total: totalDays })}</Text>
 
           {/* Already confirmed */}
           {bonus.confirmed && (
@@ -122,7 +136,7 @@ export default function WelcomeBonusCard() {
             <>
               <Text style={st.pickTitle}>{t('customerWelcomeBonus.pickTitle')}</Text>
               <View style={st.grid}>
-                {REWARD_OPTIONS.map(opt => {
+                {options.map(opt => {
                   const active = selected === opt.rewardType;
                   return (
                     <TouchableOpacity
@@ -131,12 +145,12 @@ export default function WelcomeBonusCard() {
                       onPress={() => setSelected(opt.rewardType)}
                       activeOpacity={0.8}
                       accessibilityRole="radio"
-                      accessibilityLabel={t(opt.labelKey)}
+                      accessibilityLabel={opt.text}
                       accessibilityState={{ selected: active }}
                     >
                       <Text style={st.optionEmoji}>{opt.emoji}</Text>
                       <Text style={[st.optionLabel, active && st.optionLabelActive]} numberOfLines={2}>
-                        {t(opt.labelKey)}
+                        {opt.text}
                       </Text>
                       {active && <View style={st.checkDot}><Text style={st.checkMark}>✓</Text></View>}
                     </TouchableOpacity>
@@ -192,7 +206,7 @@ export default function WelcomeBonusCard() {
             </TouchableOpacity>
 
             <Text style={md.note}>
-              {t('customerWelcomeBonus.note')}
+              {t('customerWelcomeBonus.note', { total: totalDays })}
             </Text>
 
             <TouchableOpacity
@@ -219,7 +233,7 @@ const st = StyleSheet.create({
     borderWidth: 1.5, borderColor: GOLD + '44',
   },
   progressRow: {
-    flexDirection: 'row', backgroundColor: '#FEF3C7',
+    flexDirection: 'row', flexWrap: 'wrap', backgroundColor: '#FEF3C7',   // up to 14 days (HQ's setting) take two rows
     paddingVertical: 10, paddingHorizontal: 16, gap: 6, justifyContent: 'center',
   },
   dayPill: {

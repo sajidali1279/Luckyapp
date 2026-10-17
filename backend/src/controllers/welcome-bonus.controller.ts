@@ -6,6 +6,7 @@ import { canUseStore } from '../utils/storeAccess';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { resolveServedBy, servedByDetails, ServedBy } from '../utils/servedBy';
 import { audit } from '../utils/audit';
+import { welcome } from '../utils/appSettings';
 
 // HQ's Grant & Redeem page (2026-10-15) hands the gift out for an employee with no phone: the Activity Log keeps who served
 function auditHQGift(req: Request, servedBy: ServedBy | null, customerId: string, rewardType: string, day: number, storeId?: string) {
@@ -18,14 +19,29 @@ function auditHQGift(req: Request, servedBy: ServedBy | null, customerId: string
   });
 }
 
-const VALID_REWARD_TYPES = ['FOUNTAIN_DRINK', 'COFFEE', 'SODA_12OZ', 'HOT_SNACK'];
+// The items, the number of days and on/off are HQ's (2026-10-17, admin Settings > Joining bonus, utils/appSettings.ts welcome()).
+// They were fixed here: 7 days, fountain drink, coffee, 12oz soda, hot snack.
 
-const REWARD_LABELS: Record<string, { label: string; emoji: string }> = {
-  FOUNTAIN_DRINK: { label: 'Free Fountain Drink', emoji: '🥤' },
-  COFFEE:         { label: 'Free Coffee',          emoji: '☕' },
-  SODA_12OZ:      { label: 'Free 12oz Soda',       emoji: '🥤' },
-  HOT_SNACK:      { label: 'Free Hot Food Snack',  emoji: '🌮' },
-};
+/** An item's words and picture, switched off or not (a gift given before it was switched off still shows its name). */
+function itemOf(rewardType: string): { label: string; labelEs: string; emoji: string } {
+  const i = welcome().items.find((x) => x.key === rewardType);
+  return i ? { label: i.name, labelEs: i.nameEs, emoji: i.emoji } : { label: 'Free item', labelEs: 'Artículo gratis', emoji: '🎁' };
+}
+/** The items a customer can choose today, for the app (both languages: the app shows the one it is set to). */
+const choices = () => welcome().items.filter((i) => i.active).map((i) => ({ rewardType: i.key, label: i.name, labelEs: i.nameEs, emoji: i.emoji }));
+const canChoose = (rewardType: unknown): rewardType is string => typeof rewardType === 'string' && welcome().items.some((i) => i.key === rewardType && i.active);
+/** The claimed item's words, as the app has always read them (rewardLabel / rewardEmoji), plus the Spanish name. */
+const claimedWords = (rewardType: string) => { const i = itemOf(rewardType); return { rewardLabel: i.label, rewardLabelEs: i.labelEs, rewardEmoji: i.emoji }; };
+
+/** Which day of the bonus it is for this customer, or null when they do not get it (past their days, or they joined while HQ had it
+ *  switched off). Customers who joined before it was switched off keep their days. */
+export function welcomeDay(createdAt: Date, now: Date = new Date()): number | null {
+  const w = welcome();
+  const day = getDayNumber(createdAt, now);
+  if (day < 1 || day > w.days) return null;
+  if (!w.enabled && !(w.offSince && createdAt.getTime() < Date.parse(w.offSince))) return null;
+  return day;
+}
 
 function generateCode(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -45,33 +61,32 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
     const user = await prisma.user.findUnique({ where: { id: customerId }, select: { createdAt: true } });
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
-    const dayNumber = getDayNumber(user.createdAt);
+    const dayNumber = welcomeDay(user.createdAt);
 
-    if (dayNumber < 1 || dayNumber > 7) {
+    if (dayNumber == null) {
       return res.json({ success: true, data: { active: false } });
     }
 
     const todayClaim = await prisma.welcomeBonusClaim.findUnique({
       where: { customerId_day: { customerId, day: dayNumber } },
     });
-
-    const claimedReward = todayClaim ? REWARD_LABELS[todayClaim.rewardType] : null;
+    // Nothing to choose (HQ switched every item off) and nothing chosen: no card today
+    if (!todayClaim && choices().length === 0) return res.json({ success: true, data: { active: false } });
 
     return res.json({
       success: true,
       data: {
         active: true,
         dayNumber,
-        totalDays: 7,
+        totalDays: welcome().days,
         // Available choices (only sent when not yet claimed today)
-        rewards: !todayClaim ? VALID_REWARD_TYPES.map(rt => ({ rewardType: rt, ...REWARD_LABELS[rt] })) : undefined,
+        rewards: !todayClaim ? choices() : undefined,
         // Claimed info
         claimed: !!todayClaim,
         confirmed: todayClaim?.confirmedAt != null,
         claimCode: todayClaim?.claimCode ?? null,
         rewardType: todayClaim?.rewardType ?? null,
-        rewardLabel: claimedReward?.label ?? null,
-        rewardEmoji: claimedReward?.emoji ?? null,
+        ...(todayClaim ? claimedWords(todayClaim.rewardType) : { rewardLabel: null, rewardLabelEs: null, rewardEmoji: null }),
       },
     });
   } catch (err) {
@@ -85,16 +100,16 @@ export async function claimWelcomeBonus(req: Request, res: Response) {
     const customerId = req.user!.id;
     const { rewardType } = req.body as { rewardType?: string };
 
-    if (!rewardType || !VALID_REWARD_TYPES.includes(rewardType)) {
-      return res.status(400).json({ success: false, error: 'Invalid rewardType. Choose FOUNTAIN_DRINK, COFFEE, SODA_12OZ, or HOT_SNACK.' });
+    if (!canChoose(rewardType)) {
+      return res.status(400).json({ success: false, error: "That item is not offered any more. Pull down to see today's choices." });
     }
 
     const user = await prisma.user.findUnique({ where: { id: customerId }, select: { createdAt: true } });
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
-    const dayNumber = getDayNumber(user.createdAt);
+    const dayNumber = welcomeDay(user.createdAt);
 
-    if (dayNumber < 1 || dayNumber > 7) {
+    if (dayNumber == null) {
       return res.status(400).json({ success: false, error: 'Welcome bonus has expired' });
     }
 
@@ -103,14 +118,12 @@ export async function claimWelcomeBonus(req: Request, res: Response) {
       where: { customerId_day: { customerId, day: dayNumber } },
     });
     if (existing) {
-      const reward = REWARD_LABELS[existing.rewardType];
       return res.json({
         success: true,
         data: {
           claimCode: existing.claimCode,
           rewardType: existing.rewardType,
-          rewardLabel: reward?.label,
-          rewardEmoji: reward?.emoji,
+          ...claimedWords(existing.rewardType),
           confirmed: existing.confirmedAt != null,
         },
       });
@@ -128,14 +141,12 @@ export async function claimWelcomeBonus(req: Request, res: Response) {
       data: { customerId, day: dayNumber, rewardType, claimCode },
     });
 
-    const reward = REWARD_LABELS[claim.rewardType];
     return res.json({
       success: true,
       data: {
         claimCode: claim.claimCode,
         rewardType: claim.rewardType,
-        rewardLabel: reward?.label,
-        rewardEmoji: reward?.emoji,
+        ...claimedWords(claim.rewardType),
         confirmed: false,
       },
     });
@@ -155,8 +166,8 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
     if (!customer) return res.status(404).json({ success: false, error: 'Customer not found' });
     if (!isCustomerAccount(customer)) return res.status(403).json({ success: false, error: NOT_A_CUSTOMER });
 
-    const dayNumber = getDayNumber(customer.createdAt);
-    if (dayNumber < 1 || dayNumber > 7) {
+    const dayNumber = welcomeDay(customer.createdAt);
+    if (dayNumber == null) {
       return res.json({ success: true, data: null });
     }
 
@@ -170,14 +181,13 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
     // Not chosen in the customer's app yet (2026-10-10): an app that asks with ?offer=1 lets the cashier give it straight from the scan
     // (POST /welcome-bonus/give). Older cashier apps do not ask, and get nothing here, as before.
     if (!claim) {
-      if (req.query.offer !== '1') return res.json({ success: true, data: null });
+      if (req.query.offer !== '1' || choices().length === 0) return res.json({ success: true, data: null });
       return res.json({
         success: true,
-        data: { claimed: false, day: dayNumber, customerName: customer.name, rewards: VALID_REWARD_TYPES.map((rt) => ({ rewardType: rt, ...REWARD_LABELS[rt] })) },
+        data: { claimed: false, day: dayNumber, totalDays: welcome().days, customerName: customer.name, rewards: choices() },
       });
     }
 
-    const reward = REWARD_LABELS[claim.rewardType];
     return res.json({
       success: true,
       data: {
@@ -185,9 +195,9 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
         claimId: claim.id,
         claimCode: claim.claimCode,
         day: claim.day,
+        totalDays: welcome().days,
         rewardType: claim.rewardType,
-        rewardLabel: reward?.label,
-        rewardEmoji: reward?.emoji,
+        ...claimedWords(claim.rewardType),
         customerName: customer.name,
       },
     });
@@ -207,7 +217,7 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
     if (claim.confirmedAt) return res.status(400).json({ success: false, error: 'Already confirmed' });
     // One free item a day: a code is good on its own day only, so unused days cannot be saved up and taken in one visit
     const owner = await prisma.user.findUnique({ where: { id: claim.customerId }, select: { createdAt: true } });
-    if (!owner || claim.day !== getDayNumber(owner.createdAt)) {
+    if (!owner || claim.day !== welcomeDay(owner.createdAt)) {
       return res.status(400).json({ success: false, error: `That code was for day ${claim.day} of the welcome bonus and has expired. Today's reward needs today's code.` });
     }
     // Counted at a store the cashier works at
@@ -226,10 +236,9 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
     const confirmed = await prisma.welcomeBonusClaim.findUniqueOrThrow({ where: { claimCode } });
     auditHQGift(req, served.servedBy, confirmed.customerId, confirmed.rewardType, confirmed.day, storeId);
 
-    const reward = REWARD_LABELS[confirmed.rewardType];
     return res.json({
       success: true,
-      data: { rewardLabel: reward?.label, rewardEmoji: reward?.emoji, day: confirmed.day },
+      data: { ...claimedWords(confirmed.rewardType), rewardType: confirmed.rewardType, day: confirmed.day, totalDays: welcome().days },
     });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
@@ -244,13 +253,16 @@ export async function giveWelcomeBonus(req: Request, res: Response) {
   try {
     const { qrCode, rewardType, storeId } = req.body as { qrCode?: string; rewardType?: string; storeId?: string };
     if (!qrCode) return res.status(400).json({ success: false, error: 'Scan the customer first.' });
-    if (!rewardType || !VALID_REWARD_TYPES.includes(rewardType)) return res.status(400).json({ success: false, error: 'Choose the item you are handing over.' });
+    if (!canChoose(rewardType)) return res.status(400).json({ success: false, error: 'Choose the item you are handing over.' });
     const customer = await prisma.user.findUnique({ where: { qrCode }, select: { id: true, createdAt: true, role: true, isActive: true } });
     if (!customer) return res.status(404).json({ success: false, error: 'Customer not found' });
     if (!isCustomerAccount(customer)) return res.status(403).json({ success: false, error: NOT_A_CUSTOMER });
     if (!customer.isActive) return res.status(403).json({ success: false, error: 'This account is restricted. It cannot get rewards right now.' });
-    const day = getDayNumber(customer.createdAt);
-    if (day < 1 || day > 7) return res.status(400).json({ success: false, error: 'The welcome gift is only for the first 7 days after signing up.' });
+    const day = welcomeDay(customer.createdAt);
+    if (day == null) {
+      const w = welcome();
+      return res.status(400).json({ success: false, error: w.enabled ? `The welcome gift is only for the first ${w.days} day${w.days === 1 ? '' : 's'} after signing up.` : 'The welcome gift is switched off for new sign-ups.' });
+    }
     if (storeId && !(req.user!.storeIds ?? []).includes(storeId) && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
       return res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' });
     }
@@ -273,8 +285,7 @@ export async function giveWelcomeBonus(req: Request, res: Response) {
       }
     }
     auditHQGift(req, served.servedBy, customer.id, rewardType, day, storeId);
-    const reward = REWARD_LABELS[rewardType];
-    return res.json({ success: true, data: { rewardLabel: reward?.label, rewardEmoji: reward?.emoji, day } });
+    return res.json({ success: true, data: { ...claimedWords(rewardType), rewardType, day, totalDays: welcome().days } });
   } catch (err) {
     res.status(500).json({ success: false, error: 'Server error' });
   }
