@@ -16,6 +16,9 @@ import PulseHighlight from '../../components/PulseHighlight';
 import DisputeTransactionModal from '../../components/DisputeTransactionModal';
 import { format } from 'date-fns';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import RefreshControl from '../../components/AppRefreshControl';
+import { useAuthStore } from '../../store/authStore';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 const CATEGORY_ICONS: Record<string, string> = {
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', GROCERIES: '🛒',
@@ -28,7 +31,7 @@ export default function HistoryScreen() {
   const [selected, setSelected] = useState<any>(null);
   const [disputeTarget, setDisputeTarget] = useState<any>(null);
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch } = useInfiniteQuery({
     queryKey: ['my-history'],
     queryFn: ({ pageParam = 1 }) => pointsApi.getMyHistory(pageParam),
     getNextPageParam: (lastPage, allPages) => {
@@ -39,6 +42,16 @@ export default function HistoryScreen() {
   });
 
   const transactions = data?.pages.flatMap((p) => p.data.data.transactions) || [];
+
+  // Up to date (2026-10-17): the list only loaded once, so a sale an employee just granted, or a pending sale turning approved, did
+  // not show until the app was restarted. Re-read when the tab is opened and on pull down (the balance too); app/_layout.tsx also
+  // refreshes it when the app comes back to the front and when a notification arrives.
+  const firstFocus = useRef(true);
+  useFocusEffect(useCallback(() => {
+    if (firstFocus.current) { firstFocus.current = false; return; }   // the first visit has just loaded it
+    refetch();
+  }, [refetch]));
+  const { refreshing, onRefresh } = usePullRefresh([() => refetch(), () => useAuthStore.getState().refreshAccount()]);
 
   // A dispute/points push can target a transaction older than whatever page(s)
   // of this paginated history are already loaded. `searchId` stays set for as
@@ -109,6 +122,7 @@ export default function HistoryScreen() {
           onScroll={largeTitle.onScroll}
           scrollEventThrottle={largeTitle.scrollEventThrottle}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           onScrollToIndexFailed={(info) => {
             setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);
           }}

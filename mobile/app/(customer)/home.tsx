@@ -928,6 +928,11 @@ export default function CustomerHome() {
     refetchCatalog();
     qc.invalidateQueries({ queryKey: ['welcome-bonus'] });
     qc.invalidateQueries({ queryKey: ['my-challenges'] });
+    // and the rest of Home (2026-10-17): the featured local ad, the receipt scan button, the invite card and the bell's count
+    qc.invalidateQueries({ queryKey: ['published-promotions'] });
+    qc.invalidateQueries({ queryKey: ['receipt-scan-access'] });
+    qc.invalidateQueries({ queryKey: ['my-referrals'] });
+    qc.invalidateQueries({ queryKey: ['unread-count'] });
   }
 
   const tier = TIER_CONFIG[user?.tier || 'BRONZE'];

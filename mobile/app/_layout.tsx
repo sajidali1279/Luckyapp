@@ -122,6 +122,11 @@ export default function RootLayout() {
       if (!force && Date.now() - lastAccountRead.current < 15_000) return;
       lastAccountRead.current = Date.now();
       useAuthStore.getState().refreshAccount();
+      // and the lists that change with it (2026-10-17): History, redemptions, the tier benefit, the bell, welcome week, challenges,
+      // receipt scans. Only these: reloading every screen's data could wipe a half-filled form.
+      for (const key of ['my-history', 'my-redemptions', 'my-benefit-status', 'unread-count', 'welcome-bonus', 'my-challenges', 'receipt-scan-mine']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
     };
     const app = AppState.addEventListener('change', (s) => { if (s === 'active') read(); });
     const push = Notifications.addNotificationReceivedListener(() => read(true));

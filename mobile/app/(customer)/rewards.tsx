@@ -482,7 +482,10 @@ export default function RewardsScreen() {
         numColumns={2}
         columnWrapperStyle={r.row}
         contentContainerStyle={r.body}
-        onRefresh={() => { refetch(); useAuthStore.getState().refreshAccount(); }}   // the balance too (2026-10-16)
+        onRefresh={() => {   // the balance too (2026-10-16), and the tier benefit and redemptions (2026-10-17)
+          refetch(); useAuthStore.getState().refreshAccount();
+          qc.invalidateQueries({ queryKey: ['my-benefit-status'] }); qc.invalidateQueries({ queryKey: ['my-redemptions'] });
+        }}
         refreshing={isRefetching}
         showsVerticalScrollIndicator={false}
         onScroll={largeTitle.onScroll}
