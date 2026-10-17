@@ -252,6 +252,8 @@ export default function EmployeeScanScreen() {
   const busyRef = useRef(false);
   // Items of a multi-item sale whose receipt is already uploaded, so a retry only sends the ones that failed
   const uploadedIdsRef = useRef<Set<string>>(new Set());
+  // The lines of this sale already created on the server, so a retry after a line failed carries on instead of entering them again
+  const createdLinesRef = useRef<Map<string, any>>(new Map());
   const [pointsAwarded, setPointsAwarded] = useState(0);
   const [gasBonusAwarded, setGasBonusAwarded] = useState(0);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
@@ -449,6 +451,7 @@ export default function EmployeeScanScreen() {
     setRedeemAmount('');
     setLineItems([]);
     setTransactionIds([]);
+    createdLinesRef.current = new Map();
     setPointsAwarded(0);
     setGasBonusAwarded(0);
     setReceiptImage(null);
@@ -554,25 +557,34 @@ export default function EmployeeScanScreen() {
     busyRef.current = true;
     setLoading(true);
     try {
-      const results = await Promise.all(
-        allItems.map(item => {
-          const isGas = item.category === 'GAS' || item.category === 'DIESEL';
-          const payload: any = {
-            customerQrCode: customerQr,
-            storeId,
-            purchaseAmount: parseFloat(item.amount),
-            category: item.category,
-          };
-          if (isGas && item.gasGallons) {
-            const gal = parseFloat(item.gasGallons);
-            const ppg = parseFloat(item.gasPricePerGallon || '0');
-            payload.isGas = true;
-            payload.gasGallons = gal;
-            if (!isNaN(ppg) && ppg > 0) payload.gasPricePerGallon = ppg;
-          }
-          return pointsApi.initiateGrant(payload);
-        })
-      );
+      // One line at a time, each naming the lines of this sale already created (siblingIds), like HQ's Grant page (2026-10-17). Sent all
+      // at once with nothing tying them together, each line counted the others as more sales (held as "same cashier and customer again
+      // today" / "customer's sales today"), and a line checked just after another was saved was refused as a duplicate, stopping the
+      // sale halfway. A retry reuses the lines already created.
+      const results: any[] = [];
+      for (const item of allItems) {
+        const key = `${item.id}|${item.category}|${item.amount}|${item.gasGallons ?? ''}|${item.gasPricePerGallon ?? ''}`;
+        const done = createdLinesRef.current.get(key);
+        if (done) { results.push(done); continue; }
+        const isGas = item.category === 'GAS' || item.category === 'DIESEL';
+        const payload: any = {
+          customerQrCode: customerQr,
+          storeId,
+          purchaseAmount: parseFloat(item.amount),
+          category: item.category,
+        };
+        if (isGas && item.gasGallons) {
+          const gal = parseFloat(item.gasGallons);
+          const ppg = parseFloat(item.gasPricePerGallon || '0');
+          payload.isGas = true;
+          payload.gasGallons = gal;
+          if (!isNaN(ppg) && ppg > 0) payload.gasPricePerGallon = ppg;
+        }
+        if (results.length) payload.siblingIds = results.map(r => r.data.data.transactionId);
+        const r = await pointsApi.initiateGrant(payload);
+        createdLinesRef.current.set(key, r);
+        results.push(r);
+      }
 
       uploadedIdsRef.current = new Set();
       setTransactionIds(results.map(r => r.data.data.transactionId));
