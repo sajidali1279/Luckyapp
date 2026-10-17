@@ -19,6 +19,7 @@ import { rule } from '../utils/appSettings';
 import { sameReceipt, cleanRead, factsOf, receiptIdentity, receiptMoment, sequenceProblems, type SequencePoint } from '../utils/receiptScan';
 import { checkScanCard, cardBrandOf } from '../utils/receiptCards';
 import { approveAndCredit } from '../utils/saleDecision';
+import { cropForReading, imageTokens } from '../utils/receiptCrop';
 import { pushChallengeAwards } from '../utils/challenges';
 import { pushReferralAwards } from '../utils/referrals';
 import { updateCustomerTierIfNeeded } from '../utils/tier';
@@ -45,11 +46,14 @@ export async function getScanAccess(req: AuthRequest, res: Response) {
 export async function readReceipt(buffer: Buffer, mediaType: string): Promise<ReceiptRead | null> {
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  // Only the receipt goes to the reader, not the counter around it (utils/receiptCrop.ts): about 40% fewer image tokens (2026-10-16)
+  const cut = await cropForReading(buffer, mediaType);
+  if (cut.cropped) console.log(`[receipt-read] cut ${cut.from.w}x${cut.from.h} to ${cut.to.w}x${cut.to.h} (about ${imageTokens(cut.from.w, cut.from.h)} to ${imageTokens(cut.to.w, cut.to.h)} image tokens)`);
   const msg = await client.messages.create({
     model: READ_MODEL,
     max_tokens: 2500,
     messages: [{ role: 'user', content: [
-      { type: 'image', source: { type: 'base64', media_type: mediaType as 'image/jpeg', data: buffer.toString('base64') } },
+      { type: 'image', source: { type: 'base64', media_type: cut.mediaType as 'image/jpeg', data: cut.buffer.toString('base64') } },
       { type: 'text', text: READ_PROMPT },
     ] }],
   }, { timeout: 45_000 });
