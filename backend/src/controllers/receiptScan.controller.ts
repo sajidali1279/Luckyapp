@@ -248,6 +248,8 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
     if (priced.promotionApplied && priced.activeOffer?.budgetCap != null) noteBudgetUse(priced.activeOffer, now).catch(() => {});
     created.push({ id: sale.id, category: line.category, amount: line.amount, points: Math.round((priced.pointsAwarded + priced.gasBonusPoints) * 100) });
   }
+  // One receipt with several categories is one sale: its lines share the first line's id (HQ's Transactions page shows them together)
+  if (created.length > 1) await prisma.pointsTransaction.updateMany({ where: { id: { in: created.map((c) => c.id) } }, data: { saleId: created[0].id } });
   await prisma.receiptScan.update({ where: { id: scanId }, data: { imageUrl, transactionIds: created.map((c) => c.id) } });
 
   // A clean scan is credited at once (Settings > Receipt scanning): clearly read, nothing odd, under the amount, an account that is not

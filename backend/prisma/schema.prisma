@@ -528,6 +528,9 @@ model PointsTransaction {
   // The employee who actually served the customer, when HQ entered the sale for them from photos (2026-10-15, admin Grant & Redeem
   // page, for an employee with no phone). grantedById is then HQ. Cashier stats and ratings go to servedById when it is set.
   servedById        String?
+  // The lines of one sale (groceries + hot food + gas, 2026-10-17): every line of a sale with more than one line carries the id of its
+  // first line, so HQ's Transactions page shows them as one sale. Null for a one-line sale and for sales made before.
+  saleId            String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -551,6 +554,7 @@ model PointsTransaction {
   @@index([referralId])
   @@index([servedById])
   @@index([receiptImageHash])
+  @@index([saleId])
   @@map("points_transactions")
 }
 

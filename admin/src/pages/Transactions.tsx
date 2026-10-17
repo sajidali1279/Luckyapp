@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -85,8 +85,12 @@ function parseFlags(raw: unknown): string[] {
   }
 }
 
-type DecisionKind = 'REJECT_PENDING' | 'APPROVE_FLAGGED' | 'REJECT_FLAGGED' | 'VOID';
-interface Decision { kind: DecisionKind; tx: any }
+type DecisionKind = 'REJECT_PENDING' | 'APPROVE_FLAGGED' | 'REJECT_FLAGGED' | 'VOID' | 'APPROVE_SALE' | 'REJECT_SALE' | 'REJECT_SALE_PENDING';
+// A whole sale (its lines in `lines`, 2026-10-17): approved or rejected line by line, in one go
+interface Decision { kind: DecisionKind; tx: any; lines?: any[] }
+
+// The page as it is shown: a line on its own, or the lines of one sale (same saleId) as one entry
+type Entry = { kind: 'line'; tx: any; i: number } | { kind: 'sale'; saleId: string; lines: { tx: any; i: number }[] };
 
 export default function Transactions() {
   const { user } = useAuthStore();
@@ -95,6 +99,7 @@ export default function Transactions() {
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
 
   const [decision, setDecision] = useState<Decision | null>(null);
+  const [saleBusy, setSaleBusy] = useState(false);   // a whole sale being decided, line by line
 
   // Filters live in the URL (so a view — a store's flagged sales, a customer's last month — can be bookmarked
   // or shared) and are only READ from it once, on the first render; after that, this state is the source of
@@ -247,7 +252,7 @@ export default function Transactions() {
   });
 
   // While a decision is being sent, the dialog stays open with its buttons disabled, so it cannot be sent twice.
-  const busy = rejectMutation.isPending || reviewMutation.isPending || voidMutation.isPending;
+  const busy = rejectMutation.isPending || reviewMutation.isPending || voidMutation.isPending || saleBusy;
 
   // The button only disables after React re-renders, and a fast double click can land before that: this lock is immediate.
   const sending = useRef(false);
@@ -258,6 +263,10 @@ export default function Transactions() {
     if (decision.kind === 'VOID' && !reason) return; // ConfirmModal already requires it; this is a last-resort guard
     sending.current = true;
     const closeWhenDone = { onSettled: () => { sending.current = false; setDecision(null); setPanelId(null); } };
+    if (decision.lines) {
+      decideSale(decision.kind, decision.lines, reason).finally(() => { sending.current = false; setDecision(null); setPanelId(null); });
+      return;
+    }
     if (decision.kind === 'REJECT_PENDING') {
       rejectMutation.mutate({ id: decision.tx.id, reason }, closeWhenDone);
     } else if (decision.kind === 'VOID') {
@@ -265,6 +274,27 @@ export default function Transactions() {
     } else {
       reviewMutation.mutate({ id: decision.tx.id, action: decision.kind === 'APPROVE_FLAGGED' ? 'APPROVE' : 'REJECT', reason }, closeWhenDone);
     }
+  }
+
+  // A whole sale, one line after another (each line is still its own decision on the server, with its own checks and log line)
+  async function decideSale(kind: DecisionKind, lines: any[], reason?: string) {
+    setSaleBusy(true);
+    let done = 0;
+    const problems: string[] = [];
+    for (const tx of lines) {
+      try {
+        if (kind === 'REJECT_SALE_PENDING') await pointsApi.reject(tx.id, reason);
+        else await pointsApi.reviewFlagged(tx.id, kind === 'APPROVE_SALE' ? 'APPROVE' : 'REJECT', reason);
+        done++;
+      } catch (e: any) {
+        problems.push(`${fmt$(tx.purchaseAmount)} ${String(tx.category || '').replace(/_/g, ' ').toLowerCase()}: ${serverMessage(e, 'failed')}`);
+      }
+    }
+    setSaleBusy(false);
+    refreshLists();
+    const what = kind === 'APPROVE_SALE' ? 'approved, points credited' : 'rejected';
+    if (!problems.length) toast.success(`Sale ${what} (${done} line${done === 1 ? '' : 's'})`);
+    else toast.error(`${done} of ${lines.length} lines ${what}. Not done: ${problems.join('; ')}`, { duration: 9000 });
   }
 
   const stores = storesData?.data?.data || [];
@@ -282,6 +312,27 @@ export default function Transactions() {
   const isError = isSuperAdmin ? allTxError : storeTxError;
   const refetch = isSuperAdmin ? refetchAll : refetchStore;
   const summary = allTxData?.data?.data?.summary;
+
+  // The lines of one sale (groceries + hot food + gas, saleId, 2026-10-17) as one entry, where its first line is. Only lines on this page:
+  // a sale split across two pages shows its part on each.
+  const entries: Entry[] = useMemo(() => {
+    const out: Entry[] = [];
+    const bySale = new Map<string, Extract<Entry, { kind: 'sale' }>>();
+    transactions.forEach((tx: any, i: number) => {
+      if (tx.saleId) {
+        const e = bySale.get(tx.saleId);
+        if (e) { e.lines.push({ tx, i }); return; }
+        const sale: Extract<Entry, { kind: 'sale' }> = { kind: 'sale', saleId: tx.saleId, lines: [{ tx, i }] };
+        bySale.set(tx.saleId, sale);
+        out.push(sale);
+        return;
+      }
+      out.push({ kind: 'line', tx, i });
+    });
+    return out.map((e) => (e.kind === 'sale' && e.lines.length === 1 ? { kind: 'line', tx: e.lines[0].tx, i: e.lines[0].i } : e));
+  }, [transactions]);
+  const [openSales, setOpenSales] = useState<Set<string>>(new Set());
+  const toggleSale = (id: string) => setOpenSales((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   // Deciding the last row on the last page leaves that page empty: step back instead of showing "nothing found".
   useEffect(() => {
@@ -376,8 +427,9 @@ export default function Transactions() {
 
   // What the confirmation dialog says: who, how much, why it was flagged, and exactly what will happen.
   const dTx = decision?.tx;
-  const dFlags = dTx ? parseFlags(dTx.fraudFlags) : [];
-  const dCredit = dTx ? Number(dTx.pointsAwarded || 0) + Number(dTx.gasBonusPoints || 0) : 0;
+  const dFlags = [...new Set((decision?.lines ?? (dTx ? [dTx] : [])).flatMap((t: any) => parseFlags(t.fraudFlags)))];
+  const dLines: any[] = decision?.lines ?? (dTx ? [dTx] : []);
+  const dCredit = dLines.reduce((n, t) => n + Number(t.pointsAwarded || 0) + Number(t.gasBonusPoints || 0), 0);
   const dCopy = decision ? {
     APPROVE_FLAGGED: {
       title: 'Approve and credit points?', confirmLabel: 'Approve and credit', danger: false,
@@ -391,11 +443,227 @@ export default function Transactions() {
       title: 'Reject this transaction?', confirmLabel: 'Reject', danger: true,
       effect: 'It will be marked as rejected, the customer will not receive points for it, and they will be told it could not be verified.',
     },
+    APPROVE_SALE: {
+      title: `Approve the whole sale (${dLines.length} lines) and credit points?`, confirmLabel: 'Approve sale and credit', danger: false,
+      effect: `${fmt$(dCredit)} (${Math.round(dCredit * 100).toLocaleString()} pts) will be added to the customer's balance now and they will be notified. Each line is approved in turn. This cannot be undone.`,
+    },
+    REJECT_SALE: {
+      title: `Reject the whole sale (${dLines.length} lines)?`, confirmLabel: 'Reject sale', danger: true,
+      effect: 'The customer will not receive points for any line and will be told the sale was reviewed and rejected. This cannot be undone.',
+    },
+    REJECT_SALE_PENDING: {
+      title: `Reject the whole sale (${dLines.length} lines)?`, confirmLabel: 'Reject sale', danger: true,
+      effect: 'Every line will be marked as rejected, the customer will not receive points for it, and they will be told it could not be verified.',
+    },
     VOID: {
       title: 'Void this approved sale?', confirmLabel: 'Void and claw back', danger: true,
       effect: `${fmt$(dCredit)} (${Math.round(dCredit * 100).toLocaleString()} pts) will be taken back from the customer's balance right now, even if they already spent some of it (their balance can go negative). They will be notified. This cannot be undone.`,
     },
   }[decision.kind] : null;
+
+  const lineRow = (tx: any, i: number, inSale = false) => {
+                const flags = parseFlags(tx.fraudFlags);
+    const hasReceipt = !!tx.receiptImageUrl;
+    const who = tx.customer?.name || tx.customer?.phone || 'customer';
+    const badgeBg = STATUS_COLORS[tx.status] || '#e4e7ec';
+    return (
+    <TableRow
+      key={tx.id}
+      style={{
+        background: i === focusedIndex ? '#eef2f7' : tx.status === 'FLAGGED' ? '#fdf2f2' : tx.status === 'REJECTED' ? '#f7f8fa' : inSale ? '#fbfcfd' : undefined,
+        boxShadow: i === focusedIndex ? 'inset 3px 0 0 ' + PRIMARY : inSale ? 'inset 3px 0 0 #c9d2de' : undefined,
+      }}
+    >
+      <TableCell style={inSale ? { ...s.td, paddingLeft: 28 } : s.td}>
+        {inSale && <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 700, letterSpacing: '.04em' }}>LINE OF THIS SALE</div>}
+        <div>{storeDay(tx.createdAt)}{tx.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
+        <div style={{ fontSize: 13, color: TEXT_MUTED }}>{storeTime(tx.createdAt)}</div>
+        <button
+          type="button"
+          style={s.copyId}
+          title="Click to copy full transaction ID"
+          aria-label={`Copy transaction ID ${tx.id}`}
+          onClick={() => copyId(tx.id)}
+        >
+          #{tx.id.slice(0, 8)}
+        </button>
+        <button
+          type="button"
+          style={s.detailsBtn}
+          aria-label={`Details for ${fmt$(tx.purchaseAmount)} sale for ${who}`}
+          onClick={() => { setFocusedIndex(i); setPanelId(tx.id); }}
+        >
+          Details
+        </button>
+      </TableCell>
+      <TableCell style={s.td}>
+        <div style={{ fontWeight: 600 }}>{tx.customer?.name || ' - '}</div>
+        <div style={{ fontSize: 13, color: TEXT_MUTED }}>{tx.customer?.phone}</div>
+      </TableCell>
+      <TableCell style={s.td}>{tx.challengeId
+        ? <span title={tx.notes || undefined} style={{ fontWeight: 600 }}>Challenge reward</span>   /* no purchase: the cashback a challenge paid */
+        : <strong>{fmt$(tx.purchaseAmount)}</strong>}</TableCell>
+      <TableCell style={s.td}>
+        <span
+          style={{
+            color: tx.status === 'APPROVED' ? APPROVED_TEXT : TEXT_MUTED,
+            fontWeight: 700,
+            textDecoration: tx.status === 'REJECTED' || tx.status === 'VOIDED' ? 'line-through' : undefined,
+          }}
+          title={tx.status === 'APPROVED' ? 'Credited to the customer' : tx.status === 'REJECTED' ? 'Not credited: rejected' : tx.status === 'VOIDED' ? 'Was credited; voided and clawed back' : 'Not credited yet'}
+        >
+          {fmt$(Number(tx.pointsAwarded || 0) + Number(tx.gasBonusPoints || 0))}
+        </span>
+      </TableCell>
+      {isSuperAdmin && (
+        <TableCell style={s.td}><span style={{ fontSize: 15, color: PRIMARY, fontWeight: 600 }}>{tx.store?.name || ' - '}</span></TableCell>
+      )}
+      <TableCell style={s.td}>
+        <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || ' - '}</span>
+      </TableCell>
+      <TableCell style={s.td}>{flags.includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : tx.servedBy ? <span title={`Entered by HQ (${tx.grantedBy?.name || 'HQ'})`}>{tx.servedBy.name || tx.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
+      <TableCell style={s.td}>
+        <div>
+          <span style={{ ...s.badge, background: badgeBg, color: badgeInk(badgeBg) }}>
+            {statusLabel(tx.status)}
+          </span>
+        </div>
+        {flags.length > 0 && (
+          <div style={{ marginTop: 4 }}>
+            {flags.map((f: string) => (
+              <div key={f} style={{ fontSize: 12, color: '#a51b28', fontWeight: 600 }}>• {FRAUD_FLAG_LABELS[f] || f}</div>
+            ))}
+          </div>
+        )}
+      </TableCell>
+      <TableCell style={s.td}>
+        {hasReceipt ? (
+          <a href={tx.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={s.link}>View</a>
+        ) : tx.status === 'FLAGGED' ? (
+          <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span>
+        ) : ' - '}
+      </TableCell>
+      <TableCell style={s.td}>
+        {tx.status === 'PENDING' && (
+          <button
+            style={s.rejectBtn}
+            aria-label={`Reject ${fmt$(tx.purchaseAmount)} transaction for ${who}`}
+            onClick={() => setDecision({ kind: 'REJECT_PENDING', tx })}
+          >
+            Reject
+          </button>
+        )}
+        {tx.status === 'FLAGGED' && (
+          <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
+            <button
+              style={{ ...s.rejectBtn, ...s.approveBtn, ...(hasReceipt ? {} : s.approveOff) }}
+              disabled={!hasReceipt}
+              title={hasReceipt ? undefined : 'A receipt must be uploaded before this sale can be approved'}
+              aria-label={`Approve ${fmt$(tx.purchaseAmount)} sale for ${who}`}
+              onClick={() => setDecision({ kind: 'APPROVE_FLAGGED', tx })}
+            >
+              ✓ Approve
+            </button>
+            <button
+              style={s.rejectBtn}
+              aria-label={`Reject ${fmt$(tx.purchaseAmount)} sale for ${who}`}
+              onClick={() => setDecision({ kind: 'REJECT_FLAGGED', tx })}
+            >
+              ✕ Reject
+            </button>
+            {!hasReceipt && <div style={s.actionNote}>Waiting for the cashier's receipt</div>}
+          </div>
+        )}
+      </TableCell>
+    </TableRow>
+    );
+  };
+
+  // One sale with several lines: the totals, the categories, and the decision for the whole sale. Its lines show under it when opened
+  // (or when the keyboard or the details panel is on one of them).
+  const saleRows = (e: Extract<Entry, { kind: 'sale' }>) => {
+    const lines = e.lines.map((l) => l.tx);
+    const first = lines[0];
+    const open = openSales.has(e.saleId) || e.lines.some((l) => l.i === focusedIndex) || lines.some((t) => t.id === panelId);
+    const amount = lines.reduce((n, t) => n + Number(t.purchaseAmount || 0), 0);
+    const credit = lines.reduce((n, t) => n + Number(t.pointsAwarded || 0) + Number(t.gasBonusPoints || 0), 0);
+    const statuses = [...new Set(lines.map((t) => t.status))];
+    const one = statuses.length === 1 ? statuses[0] : null;
+    const flags = [...new Set(lines.flatMap((t) => parseFlags(t.fraudFlags)))];
+    const receipt = lines.find((t) => t.receiptImageUrl)?.receiptImageUrl;
+    const allReceipts = lines.every((t) => t.receiptImageUrl);
+    const who = first.customer?.name || first.customer?.phone || 'customer';
+    const badgeBg = one ? STATUS_COLORS[one] || '#e4e7ec' : '#e4e7ec';
+    return (
+      <Fragment key={`sale-${e.saleId}`}>
+        <TableRow style={{ background: one === 'FLAGGED' ? '#fdf2f2' : one === 'REJECTED' ? '#f7f8fa' : undefined, borderTop: '2px solid #d7dde6' }}>
+          <TableCell style={s.td}>
+            <div>{storeDay(first.createdAt)}{first.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
+            <div style={{ fontSize: 13, color: TEXT_MUTED }}>{storeTime(first.createdAt)}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: PRIMARY, marginTop: 2 }}>One sale · {lines.length} lines</div>
+            <button type="button" style={s.detailsBtn} aria-expanded={open} onClick={() => toggleSale(e.saleId)}>{open ? 'Hide lines ▴' : 'Show lines ▾'}</button>
+          </TableCell>
+          <TableCell style={s.td}>
+            <div style={{ fontWeight: 600 }}>{first.customer?.name || ' - '}</div>
+            <div style={{ fontSize: 13, color: TEXT_MUTED }}>{first.customer?.phone}</div>
+          </TableCell>
+          <TableCell style={s.td}><strong>{fmt$(amount)}</strong></TableCell>
+          <TableCell style={s.td}>
+            {one ? (
+              <span style={{ color: one === 'APPROVED' ? APPROVED_TEXT : TEXT_MUTED, fontWeight: 700, textDecoration: one === 'REJECTED' || one === 'VOIDED' ? 'line-through' : undefined }}>{fmt$(credit)}</span>
+            ) : (
+              // lines decided differently: what was actually credited (the approved lines)
+              <span title="Credited: the approved lines only" style={{ color: APPROVED_TEXT, fontWeight: 700 }}>
+                {fmt$(lines.filter((t) => t.status === 'APPROVED').reduce((n, t) => n + Number(t.pointsAwarded || 0) + Number(t.gasBonusPoints || 0), 0))}
+                <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 600 }}>credited</div>
+              </span>
+            )}
+          </TableCell>
+          {isSuperAdmin && <TableCell style={s.td}><span style={{ fontSize: 15, color: PRIMARY, fontWeight: 600 }}>{first.store?.name || ' - '}</span></TableCell>}
+          <TableCell style={s.td}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {lines.map((t) => <span key={t.id} style={s.catBadge}>{t.category?.replace(/_/g, ' ') || ' - '} {fmt$(t.purchaseAmount)}</span>)}
+            </div>
+          </TableCell>
+          <TableCell style={s.td}>{parseFlags(first.fraudFlags).includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : first.servedBy ? <span title={`Entered by HQ (${first.grantedBy?.name || 'HQ'})`}>{first.servedBy.name || first.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : first.grantedBy?.name || first.grantedBy?.phone || ' - '}</TableCell>
+          <TableCell style={s.td}>
+            <span style={{ ...s.badge, background: badgeBg, color: badgeInk(badgeBg) }}>{one ? statusLabel(one) : 'Mixed'}</span>
+            {!one && <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>{statuses.map((st) => `${lines.filter((t) => t.status === st).length} ${statusLabel(st).toLowerCase()}`).join(', ')}</div>}
+            {flags.length > 0 && (
+              <div style={{ marginTop: 4 }}>
+                {flags.map((f: string) => <div key={f} style={{ fontSize: 12, color: '#a51b28', fontWeight: 600 }}>• {FRAUD_FLAG_LABELS[f] || f}</div>)}
+              </div>
+            )}
+          </TableCell>
+          <TableCell style={s.td}>
+            {receipt ? <a href={receipt} target="_blank" rel="noopener noreferrer" style={s.link}>View</a> : one === 'FLAGGED' ? <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span> : ' - '}
+          </TableCell>
+          <TableCell style={s.td}>
+            {one === 'PENDING' && (
+              <button style={s.rejectBtn} aria-label={`Reject the whole ${fmt$(amount)} sale for ${who}`} onClick={() => setDecision({ kind: 'REJECT_SALE_PENDING', tx: first, lines })}>Reject sale</button>
+            )}
+            {one === 'FLAGGED' && (
+              <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
+                <button
+                  style={{ ...s.rejectBtn, ...s.approveBtn, ...(allReceipts ? {} : s.approveOff) }}
+                  disabled={!allReceipts}
+                  title={allReceipts ? undefined : 'A receipt must be uploaded before this sale can be approved'}
+                  aria-label={`Approve the whole ${fmt$(amount)} sale for ${who}`}
+                  onClick={() => setDecision({ kind: 'APPROVE_SALE', tx: first, lines })}
+                >
+                  ✓ Approve sale
+                </button>
+                <button style={s.rejectBtn} aria-label={`Reject the whole ${fmt$(amount)} sale for ${who}`} onClick={() => setDecision({ kind: 'REJECT_SALE', tx: first, lines })}>✕ Reject sale</button>
+                {!allReceipts && <div style={s.actionNote}>Waiting for the cashier's receipt</div>}
+              </div>
+            )}
+            {!one && <div style={s.actionNote}>Lines differ: open the lines to decide each one</div>}
+          </TableCell>
+        </TableRow>
+        {open && e.lines.map((l) => lineRow(l.tx, l.i, true))}
+      </Fragment>
+    );
+  };
 
   return (
     <div style={s.container}>
@@ -405,7 +673,11 @@ export default function Transactions() {
         message={dTx && dCopy ? (
           <>
             <div style={{ fontWeight: 700, color: '#111827' }}>{dTx.customer?.name || 'Customer'}{dTx.customer?.phone ? ` (${dTx.customer.phone})` : ''}</div>
-            <div>{fmt$(dTx.purchaseAmount)} {String(dTx.category || '').replace(/_/g, ' ').toLowerCase()} at {dTx.store?.name || 'the store'}</div>
+            {dLines.length > 1 ? (
+              <div>{fmt$(dLines.reduce((n, t) => n + Number(t.purchaseAmount || 0), 0))} at {dTx.store?.name || 'the store'}: {dLines.map((t) => `${fmt$(t.purchaseAmount)} ${String(t.category || '').replace(/_/g, ' ').toLowerCase()}`).join(', ')}</div>
+            ) : (
+              <div>{fmt$(dTx.purchaseAmount)} {String(dTx.category || '').replace(/_/g, ' ').toLowerCase()} at {dTx.store?.name || 'the store'}</div>
+            )}
             <div style={{ fontSize: 13 }}>{storeDay(dTx.createdAt)}, {storeTime(dTx.createdAt)} (Central)</div>
             {dFlags.length > 0 && (
               <ul style={s.dialogFlags}>
@@ -423,7 +695,7 @@ export default function Transactions() {
         // (confirmed via git stash — not something T2 introduced) and now fixed while this dialog is already
         // being extended for Void, the same headingLevel prop LB3 used to fix the identical pattern elsewhere.
         headingLevel="h2"
-        withInput={decision?.kind === 'REJECT_PENDING' || decision?.kind === 'REJECT_FLAGGED' || decision?.kind === 'VOID'}
+        withInput={decision?.kind === 'REJECT_PENDING' || decision?.kind === 'REJECT_FLAGGED' || decision?.kind === 'VOID' || decision?.kind === 'REJECT_SALE' || decision?.kind === 'REJECT_SALE_PENDING'}
         inputRequired={decision?.kind === 'VOID'}
         inputLabel={decision?.kind === 'VOID' ? 'Reason (required)' : 'Reason (optional)'}
         inputPlaceholder={decision?.kind === 'VOID' ? 'Why this sale is being undone' : 'Kept in the activity log; the customer is told it too'}
@@ -589,122 +861,7 @@ export default function Transactions() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((tx: any, i: number) => {
-                const flags = parseFlags(tx.fraudFlags);
-                const hasReceipt = !!tx.receiptImageUrl;
-                const who = tx.customer?.name || tx.customer?.phone || 'customer';
-                const badgeBg = STATUS_COLORS[tx.status] || '#e4e7ec';
-                return (
-                <TableRow
-                  key={tx.id}
-                  style={{
-                    background: i === focusedIndex ? '#eef2f7' : tx.status === 'FLAGGED' ? '#fdf2f2' : tx.status === 'REJECTED' ? '#f7f8fa' : undefined,
-                    boxShadow: i === focusedIndex ? 'inset 3px 0 0 ' + PRIMARY : undefined,
-                  }}
-                >
-                  <TableCell style={s.td}>
-                    <div>{storeDay(tx.createdAt)}{tx.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
-                    <div style={{ fontSize: 13, color: TEXT_MUTED }}>{storeTime(tx.createdAt)}</div>
-                    <button
-                      type="button"
-                      style={s.copyId}
-                      title="Click to copy full transaction ID"
-                      aria-label={`Copy transaction ID ${tx.id}`}
-                      onClick={() => copyId(tx.id)}
-                    >
-                      #{tx.id.slice(0, 8)}
-                    </button>
-                    <button
-                      type="button"
-                      style={s.detailsBtn}
-                      aria-label={`Details for ${fmt$(tx.purchaseAmount)} sale for ${who}`}
-                      onClick={() => { setFocusedIndex(i); setPanelId(tx.id); }}
-                    >
-                      Details
-                    </button>
-                  </TableCell>
-                  <TableCell style={s.td}>
-                    <div style={{ fontWeight: 600 }}>{tx.customer?.name || ' - '}</div>
-                    <div style={{ fontSize: 13, color: TEXT_MUTED }}>{tx.customer?.phone}</div>
-                  </TableCell>
-                  <TableCell style={s.td}>{tx.challengeId
-                    ? <span title={tx.notes || undefined} style={{ fontWeight: 600 }}>Challenge reward</span>   /* no purchase: the cashback a challenge paid */
-                    : <strong>{fmt$(tx.purchaseAmount)}</strong>}</TableCell>
-                  <TableCell style={s.td}>
-                    <span
-                      style={{
-                        color: tx.status === 'APPROVED' ? APPROVED_TEXT : TEXT_MUTED,
-                        fontWeight: 700,
-                        textDecoration: tx.status === 'REJECTED' || tx.status === 'VOIDED' ? 'line-through' : undefined,
-                      }}
-                      title={tx.status === 'APPROVED' ? 'Credited to the customer' : tx.status === 'REJECTED' ? 'Not credited: rejected' : tx.status === 'VOIDED' ? 'Was credited; voided and clawed back' : 'Not credited yet'}
-                    >
-                      {fmt$(Number(tx.pointsAwarded || 0) + Number(tx.gasBonusPoints || 0))}
-                    </span>
-                  </TableCell>
-                  {isSuperAdmin && (
-                    <TableCell style={s.td}><span style={{ fontSize: 15, color: PRIMARY, fontWeight: 600 }}>{tx.store?.name || ' - '}</span></TableCell>
-                  )}
-                  <TableCell style={s.td}>
-                    <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || ' - '}</span>
-                  </TableCell>
-                  <TableCell style={s.td}>{flags.includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : tx.servedBy ? <span title={`Entered by HQ (${tx.grantedBy?.name || 'HQ'})`}>{tx.servedBy.name || tx.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
-                  <TableCell style={s.td}>
-                    <div>
-                      <span style={{ ...s.badge, background: badgeBg, color: badgeInk(badgeBg) }}>
-                        {statusLabel(tx.status)}
-                      </span>
-                    </div>
-                    {flags.length > 0 && (
-                      <div style={{ marginTop: 4 }}>
-                        {flags.map((f: string) => (
-                          <div key={f} style={{ fontSize: 12, color: '#a51b28', fontWeight: 600 }}>• {FRAUD_FLAG_LABELS[f] || f}</div>
-                        ))}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell style={s.td}>
-                    {hasReceipt ? (
-                      <a href={tx.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={s.link}>View</a>
-                    ) : tx.status === 'FLAGGED' ? (
-                      <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span>
-                    ) : ' - '}
-                  </TableCell>
-                  <TableCell style={s.td}>
-                    {tx.status === 'PENDING' && (
-                      <button
-                        style={s.rejectBtn}
-                        aria-label={`Reject ${fmt$(tx.purchaseAmount)} transaction for ${who}`}
-                        onClick={() => setDecision({ kind: 'REJECT_PENDING', tx })}
-                      >
-                        Reject
-                      </button>
-                    )}
-                    {tx.status === 'FLAGGED' && (
-                      <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
-                        <button
-                          style={{ ...s.rejectBtn, ...s.approveBtn, ...(hasReceipt ? {} : s.approveOff) }}
-                          disabled={!hasReceipt}
-                          title={hasReceipt ? undefined : 'A receipt must be uploaded before this sale can be approved'}
-                          aria-label={`Approve ${fmt$(tx.purchaseAmount)} sale for ${who}`}
-                          onClick={() => setDecision({ kind: 'APPROVE_FLAGGED', tx })}
-                        >
-                          ✓ Approve
-                        </button>
-                        <button
-                          style={s.rejectBtn}
-                          aria-label={`Reject ${fmt$(tx.purchaseAmount)} sale for ${who}`}
-                          onClick={() => setDecision({ kind: 'REJECT_FLAGGED', tx })}
-                        >
-                          ✕ Reject
-                        </button>
-                        {!hasReceipt && <div style={s.actionNote}>Waiting for the cashier's receipt</div>}
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-                );
-              })}
+              {entries.map((en) => (en.kind === 'line' ? lineRow(en.tx, en.i) : saleRows(en)))}
             </TableBody>
           </Table>
 

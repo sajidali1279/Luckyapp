@@ -142,11 +142,15 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const startOfToday  = storeDayStart();
 
   // The earlier lines of this same sale (siblingIds above), checked: this granter's own unfinished lines for this customer, made just now
-  const siblings = siblingIds?.length ? (await prisma.pointsTransaction.findMany({
+  const siblingRows = siblingIds?.length ? await prisma.pointsTransaction.findMany({
     where: { id: { in: siblingIds }, customerId: customer.id, grantedById: employee.id, storeId, receiptImageUrl: null,
       status: { in: [TransactionStatus.PENDING, TransactionStatus.FLAGGED] }, createdAt: { gte: twoMinutesAgo } },
-    select: { id: true },
-  })).map((t) => t.id) : [];
+    select: { id: true, saleId: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+  }) : [];
+  const siblings = siblingRows.map((t) => t.id);
+  // One sale id for all its lines: the first line's id (HQ's Transactions page shows them as one sale)
+  const saleId = siblingRows.length ? siblingRows.find((t) => t.saleId)?.saleId ?? siblingRows[0].id : null;
   const notSibling: Prisma.PointsTransactionWhereInput = siblings.length ? { id: { notIn: siblings } } : {};
 
   const [recentDuplicate, customerTodayCount, employeeHourCount, pairTodayCount] = await Promise.all([
@@ -214,8 +218,11 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       gasBonusPoints,
       offerId: promotionApplied ? activeOffer!.id : null,
       offerCashback,
+      saleId,
     },
   });
+  // The first line did not know it would have company: it gets the sale id now
+  if (saleId) await prisma.pointsTransaction.updateMany({ where: { id: { in: siblings }, saleId: null }, data: { saleId } });
 
   // This sale may have used up the promotion's budget: then it stops, and HQ is told
   if (promotionApplied && activeOffer?.budgetCap != null) noteBudgetUse(activeOffer, now).catch((e) => console.error('[offers] budget check failed:', e?.message ?? e));
