@@ -1,7 +1,7 @@
 export const PRIVACY_POLICY = `# Privacy Policy
 
 **Lucky Stop Inc. / Cliff Industries**
-Last updated: October 8, 2026
+Last updated: October 16, 2026
 
 ---
 
@@ -35,7 +35,8 @@ For privacy inquiries: **support@luckystop.cliffindus.com**
 - **Transaction history** - store, purchase amount, product category, cashback earned, and timestamp for each rewarded purchase.
 - **Rewards balance** - your running total of cashback credits earned and redeemed.
 - **Redemption history** - records of credits redeemed for in-store products.
-- **Receipt photos** - uploaded by store employees to verify your transactions. You do not upload these.
+- **Receipt photos** - taken by store staff to verify a purchase, or by you when you scan your own receipt in the app (where offered).
+- **Details read from a receipt** - the store, date and time, items and amounts, the register's transaction numbers, and how it was paid, including the card brand and the last 4 digits of the card. We never see or keep the full card number.
 - **Missing-points dispute reports** - your description and approximate details when you report a missing cashback.
 - **Product requests** - items you ask a store to stock.
 - **Promotions and challenges** - which promotion applied to a purchase, the extra cashback it paid you (for promotions with a daily limit), and your progress on challenges.
@@ -47,7 +48,7 @@ For privacy inquiries: **support@luckystop.cliffindus.com**
 **What we do NOT collect:**
 
 - Precise GPS location or background location tracking
-- Payment card numbers or financial account information
+- Full payment card numbers or financial account information (from a receipt we keep only the card brand and last 4 digits it shows)
 - Biometric data (fingerprints or face geometry) - biometric login is handled entirely by your device and the result is never sent to our servers
 - Contacts, calendar, or other device app data
 - Data from children under 13
@@ -56,7 +57,7 @@ For privacy inquiries: **support@luckystop.cliffindus.com**
 
 ## 3. How We Collect Your Data
 
-- **Directly from you** - when you create an account, update your profile, submit a dispute, or request a product.
+- **Directly from you** - when you create an account, update your profile, submit a dispute, request a product, or scan a receipt.
 - **From store staff** - when a cashier scans your QR code, enters a purchase amount, or uploads a receipt photo.
 - **Automatically** - a push notification token is issued by your phone's notification service (through Expo) when you log in. Crash data is collected automatically when the app encounters an error.
 
@@ -65,7 +66,7 @@ For privacy inquiries: **support@luckystop.cliffindus.com**
 ## 4. How We Use Your Data
 
 - Operate your rewards account and calculate cashback credits
-- Verify purchases and prevent fraudulent point claims
+- Verify purchases and prevent fraudulent point claims, including checking that a receipt is used only once and is yours: we compare receipt transaction numbers, and the card brand and last 4 digits, across accounts
 - Send push notifications (account updates, promotions) - you may opt out at any time in device settings
 - Display store-specific offers and promotions
 - Decide which promotions you can use: some are only for a tier and up, new customers, customers who have not visited in a while, or your birthday month, and some limit the extra cashback you can receive in a day. This is worked out inside Lucky Stop from your tier, purchase dates and birthday month, and is never shared with advertisers
@@ -104,7 +105,9 @@ We use the following providers who process your data only on our behalf:
 - **Vercel** - hosting for the admin dashboard
 - **Resend** - email delivery (recovery emails)
 
-Anthropic's Claude service suggests Spanish translations of promotion text for our staff; it never receives customer information. We do not use advertising networks or data brokers.
+- **Anthropic** - its Claude AI reads receipt photos (when you scan a receipt, or when store staff send one to our head office) to fill in the store, date, items, totals and payment details, and suggests Spanish translations of promotion text for our staff. It receives the receipt photo only, never your name or phone number.
+
+We do not use advertising networks or data brokers.
 
 ---
 
@@ -113,6 +116,7 @@ Anthropic's Claude service suggests Spanish translations of promotion text for o
 - **Account profile** - until you delete your account
 - **Transaction history** - 7 years from the purchase, for financial record-keeping; after you delete your account it is kept without your name or phone number
 - **Receipt photos** - automatically deleted 2 years after the transaction date (kept longer only while a missing-points report about it is open)
+- **Details read from a receipt** - kept with the transaction record, including the card brand and last 4 digits
 - **Dispute reports** - 24 months from submission
 - **Push notification tokens** - deleted when Apple or Google reports them no longer valid, and when you delete your account
 - **In-app notifications** - deleted automatically after 30 days
@@ -185,7 +189,7 @@ We protect your data with:
 - **Token-based authentication** - short-lived access tokens; no passwords stored
 - **Role-based access control** - each role can only access the minimum data required
 - **Audit logging** - sensitive actions (point grants, account changes, deletions) are logged immutably
-- **Private image storage** - receipt photos are stored in private buckets with no public URL
+- **Unlisted image storage** - receipt photos are stored with Cloudinary at long, random web addresses that are not listed or searchable; only staff and admin screens link to them
 
 If you believe your account has been compromised, contact us immediately.
 

@@ -41,7 +41,7 @@ export default function Privacy() {
       </div>
 
       <h1 style={s.h1}>Privacy Policy</h1>
-      <p style={s.updated}>Last updated: June 7, 2026</p>
+      <p style={s.updated}>Last updated: October 16, 2026</p>
       <p style={s.updated}>Effective date: June 7, 2026</p>
 
       <p style={s.intro}>
@@ -120,7 +120,8 @@ export default function Privacy() {
             ['Transaction history', 'A record of each purchase for which you earned cashback: the store location, purchase amount, product category (e.g. groceries, gas, hot food), cashback amount awarded, and timestamp.'],
             ['Rewards balance', 'Your running total of cashback credits earned and redeemed.'],
             ['Redemption history', 'Records of credits you have redeemed for in-store products, including the item, store, and date.'],
-            ['Receipt photos', 'Photos of purchase receipts uploaded by store employees to verify your transaction. Required for fraud prevention. You do not upload these - store staff do.'],
+            ['Receipt photos', 'Photos of purchase receipts taken by store staff to verify a purchase, or by you when you scan your own receipt in the app (where offered). Required for fraud prevention.'],
+            ['Details read from a receipt', 'The store, date and time, items and amounts, the register\'s transaction numbers, and how it was paid, including the card brand and the last 4 digits of the card. We never see or keep the full card number. Used to check that a receipt is used only once and is yours, by comparing transaction numbers, card brand and last 4 digits across accounts.'],
             ['Missing-points reports', 'If you submit a dispute for missing cashback, we collect your description of the transaction, the store involved, and any approximate purchase amount you provide.'],
             ['Product requests', 'Items you request that a store should stock. Includes the product name and your account.'],
             ['Store chat messages', 'If you are a store employee, messages you send in the internal staff chat for your store.'],
@@ -235,7 +236,8 @@ export default function Privacy() {
           {[
             ['Firebase Authentication (Google)', 'Phone number OTP verification - confirms your identity when you log in', 'Phone number'],
             ['Firebase Cloud Messaging (Google)', 'Delivery of push notifications to your device', 'Push device token'],
-            ['Firebase Storage / AWS S3', 'Secure cloud storage for receipt photos, profile avatars, and promotional images', 'Uploaded images'],
+            ['Cloudinary', 'Storage for receipt photos, profile avatars, and promotional images', 'Uploaded images'],
+            ['Anthropic (Claude)', 'Reads receipt photos (when you scan a receipt, or staff send one to head office) to fill in the store, date, items, totals and payment details; suggests Spanish translations of promotion text', 'Receipt photos only, never your name or phone number'],
             ['Neon / PostgreSQL', 'Encrypted database hosting for account, transaction, and rewards data', 'All account data'],
             ['Render', 'Cloud hosting for the App\'s backend API server', 'Request data (processed in transit)'],
             ['Vercel', 'Hosting for the staff administration dashboard', 'Admin session data'],
@@ -269,8 +271,9 @@ export default function Privacy() {
         <tbody>
           {[
             ['Account profile (phone number, name, email)', 'Until you delete your account'],
-            ['Transaction history and rewards balance', 'Until you delete your account, or 5 years for legal/tax compliance - whichever is longer'],
-            ['Receipt photos', '12 months from the date of the transaction, then automatically deleted'],
+            ['Transaction history and rewards balance', '7 years from the purchase for financial record-keeping; after you delete your account it is kept without your name or phone number'],
+            ['Receipt photos', '2 years from the date of the transaction, then automatically deleted (longer only while a missing-points report about it is open)'],
+            ['Details read from a receipt', 'Kept with the transaction record, including the card brand and last 4 digits'],
             ['Missing-points dispute reports', '24 months from the date of submission'],
             ['Push notification tokens', 'Refreshed automatically; stale tokens deleted after 90 days of inactivity'],
             ['Employee chat messages', '6 months from the date sent'],
@@ -424,7 +427,7 @@ export default function Privacy() {
         <li style={s.li}><strong>Token-based authentication</strong> - access tokens are short-lived and rotate automatically. No passwords are stored.</li>
         <li style={s.li}><strong>Role-based access control (RBAC)</strong> - every API endpoint enforces the minimum access level required for each role. Staff cannot access data outside their assigned store.</li>
         <li style={s.li}><strong>Audit logging</strong> - sensitive administrative actions (account changes, point grants, account deletions) are recorded in an immutable audit log.</li>
-        <li style={s.li}><strong>Receipt photo protection</strong> - receipt images are stored in private cloud buckets not accessible via public URL.</li>
+        <li style={s.li}><strong>Receipt photo storage</strong> - receipt images are stored with Cloudinary at long, random web addresses that are not listed or searchable; only staff and admin screens link to them.</li>
       </ul>
       <p style={s.p}>
         No system is completely secure. If you believe your account has been compromised, contact us
