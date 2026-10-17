@@ -399,7 +399,7 @@ export default function Staff() {
                               ...(isDevAdmin && !isMe ? [{ label: 'Delete', danger: true, onClick: () => { setDeleteError(''); setDeleteTarget({ id: member.id, name: displayName, role: member.role, isActive: member.isActive }); } }] : []),
                             ];
                             return (
-                              <TableRow key={member.id} style={member.isActive ? undefined : { background: '#f7f8fa', opacity: 0.8 }}>
+                              <TableRow key={member.id} style={member.isActive ? undefined : { background: '#f7f8fa' }}>
                                 <TableCell>
                                   <div style={{ fontWeight: 600, color: '#111827' }}>{member.name || ' - '}{isMe && <span style={{ ...s.youBadge, marginLeft: 6 }}>You</span>}{!member.isActive && <span style={{ ...s.offBadge, marginLeft: 6 }}>Deactivated</span>}</div>
                                   <div style={{ fontSize: 13, color: '#5a6472' }}>{showPhone(member.phone)}</div>
