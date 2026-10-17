@@ -1,33 +1,54 @@
-// Receipt cards (2026-10-13): what the server remembers about the cards on a customer's scanned receipts, so receipts picked up off the
-// floor stand out. Only the card brand and its last 4 digits are kept (allowed by the card rules), on the scan itself; customers never
-// see this, HQ does on the customer's profile. A scan is HELD for a manager when:
-//   NEW_CARD            the card is not on one of this customer's approved scans yet (once a manager approves it, it is known)
-//   CARD_OTHER_ACCOUNT  the card is on another customer's approved scan (could be family: a person decides)
+// Receipt cards (2026-10-13, reworked 2026-10-16): what the server remembers about the cards on a customer's scanned receipts, so receipts
+// picked up off the floor stand out. Only the card brand and its last 4 digits are kept (allowed by the card rules), on the scan itself,
+// refused scans included; customers never see this, HQ does on the customer's profile. A real customer pays with the same card or two
+// again and again; someone scanning receipts off the floor shows a new card nearly every time. So a new card is approved (no work for the
+// staff) and every card is counted, and a scan is HELD for a manager when the pattern says so:
+//   NEW_CARD            the card's first scan on this account (only noted, not held)
+//   ONE_TIME_CARDS      a new card, and the account already has receiptOneTimeCards cards seen only once in 90 days
+//   CARD_OTHER_ACCOUNT  the card is on another customer's scan or HQ entry (could be family: a person decides)
 //   MANY_CARDS          more cards than receiptMaxCards30d on this customer's receipts in 30 days
-//   NO_CARD             paid in cash, or no card on the receipt (and over receiptCashPerWeek such receipts a week is refused)
+//   NO_CARD             paid in cash, or no card on the receipt (always held; over receiptCashPerWeek such receipts a week is refused)
 //   PAST_REJECTED       one of this customer's scans was rejected in the last receiptRejectHoldDays days
+// A card proven in person never counts against the customer: on a receipt HQ entered for them, or on a receipt that had already earned
+// points at the register (the cashier scanned their QR for that very sale).
 import { TransactionStatus } from '@prisma/client';
 import prisma from '../config/prisma';
 import { rule } from './appSettings';
 
 const DAY = 86_400_000;
 
-/** "Master Card", "MC" and "MASTERCARD" are one brand; unknown brands are kept as printed. */
+// Debit networks that run a card of any brand (one Visa debit card was PULSE on one receipt and INTERLNK on another, 2026-10-16)
+const ROUTING_NETWORKS = ['DEBIT', 'USDEBIT', 'PULSE', 'INTERLNK', 'INTERLINK', 'STAR', 'NYCE', 'ACCEL', 'SHAZAM', 'JEANIE', 'AFFN', 'CU24'];
+
+/** "Master Card", "MC" and "MASTERCARD" are one brand; a debit network (PULSE, STAR...) is no brand; unknown brands are kept as printed. */
 export function brandKey(b: string | null | undefined): string | null {
-  const s = (b ?? '').toUpperCase().replace(/[^A-Z]/g, '');
+  const s = (b ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (!s) return null;
   if (s.startsWith('VISA')) return 'VISA';
-  if (s === 'MC' || s.startsWith('MASTER')) return 'MASTERCARD';
+  if (s === 'MC' || s.startsWith('MASTER') || s.startsWith('MAESTRO')) return 'MASTERCARD';
   if (s.startsWith('AMEX') || s.startsWith('AMERICANEXPRESS')) return 'AMEX';
   if (s.startsWith('DISC')) return 'DISCOVER';
-  if (s.includes('DEBIT')) return 'DEBIT';
   if (s.includes('EBT')) return 'EBT';
+  if (ROUTING_NETWORKS.some((n) => s === n || s.startsWith(n))) return null;
   return s.slice(0, 20);
 }
 
-/** The same card: the same last 4, and the same brand when both were read. */
+// The chip's application id names the card's own brand, whatever network ran the sale
+const AID_BRANDS: [string, string][] = [
+  ['A000000003', 'VISA'], ['A000000098', 'VISA'], ['A000000004', 'MASTERCARD'], ['A000000042', 'MASTERCARD'],
+  ['A000000025', 'AMEX'], ['A000000152', 'DISCOVER'], ['A000000324', 'DISCOVER'], ['A000000065', 'JCB'], ['A000000333', 'UNIONPAY'],
+];
+export function brandOfAid(aid: string | null | undefined): string | null {
+  const a = (aid ?? '').toUpperCase();
+  return AID_BRANDS.find(([p]) => a.startsWith(p))?.[1] ?? null;
+}
+
+/** The brand to keep for a read receipt's card: from the chip id when printed, else from the printed brand. */
+export const cardBrandOf = (read: { cardAid?: string | null; cardBrand?: string | null }) => brandOfAid(read.cardAid) ?? brandKey(read.cardBrand);
+
+/** The same card: the same last 4, and the same brand when both are known. */
 export const sameCard = (a: { last4: string; brand: string | null }, b: { last4: string; brand: string | null }) =>
-  a.last4 === b.last4 && (!a.brand || !b.brand || a.brand === b.brand);
+  a.last4 === b.last4 && (!a.brand || !b.brand || brandKey(a.brand) === brandKey(b.brand) || !brandKey(a.brand) || !brandKey(b.brand));
 
 export type ScanOutcome = 'APPROVED' | 'REJECTED' | 'HELD';
 
@@ -61,6 +82,19 @@ export async function scansWithOutcome(where: Record<string, unknown>): Promise<
 
 export interface CardCheck { flags: string[]; refuse: string | null }
 
+/** A card on any of the customer's receipts: scans (refused ones too) and HQ entries, with whether it was proven in person. */
+interface CardSighting { last4: string; brand: string | null; createdAt: Date; proven: boolean }
+async function cardSightings(where: Record<string, unknown>): Promise<(CardSighting & { customerId: string; status: string })[]> {
+  const rows = await prisma.receiptScan.findMany({
+    where: { ...where, cardLast4: { not: null }, status: { in: ['HELD', 'AUTO', 'REFUSED', 'HQ'] } },
+    select: { customerId: true, cardLast4: true, cardBrand: true, createdAt: true, status: true, flags: true },
+  });
+  return rows.map((r) => ({
+    customerId: r.customerId, status: r.status, last4: r.cardLast4!, brand: r.cardBrand, createdAt: r.createdAt,
+    proven: r.status === 'HQ' || (r.flags ?? '').includes('AT_REGISTER_CARD'),
+  }));
+}
+
 /** The card checks for a new scan, before it is saved. */
 export async function checkScanCard(customerId: string, card: { last4: string | null; brand: string | null; method: string | null }, now = new Date()): Promise<CardCheck> {
   const flags: string[] = [];
@@ -81,16 +115,29 @@ export async function checkScanCard(customerId: string, card: { last4: string | 
     return { flags, refuse: null };
   }
 
-  const here = { last4: card.last4, brand: brandKey(card.brand) };
-  const asCard = (s: ScanWithOutcome) => ({ last4: s.cardLast4!, brand: brandKey(s.cardBrand) });
-  if (!mine.some((s) => s.cardLast4 && s.outcome === 'APPROVED' && sameCard(asCard(s), here))) flags.push('NEW_CARD');
+  const here = { last4: card.last4, brand: card.brand };
+  const seen = await cardSightings({ customerId, createdAt: { gte: new Date(now.getTime() - 90 * DAY) } });
+  const proven = seen.filter((s) => s.proven);
+  const isProven = (c: { last4: string; brand: string | null }) => proven.some((p) => sameCard(p, c));
+  const before = seen.filter((s) => sameCard(s, here));
+  if (before.length === 0) flags.push('NEW_CARD');
 
-  const others = await scansWithOutcome({ cardLast4: card.last4, customerId: { not: customerId } });
-  if (others.some((s) => s.outcome === 'APPROVED' && sameCard(asCard(s), here))) flags.push('CARD_OTHER_ACCOUNT');
+  // The floor pattern: cards seen once and never again, not counting cards proven in person
+  const groups: { last4: string; brand: string | null; count: number }[] = [];
+  for (const s of seen) {
+    const g = groups.find((x) => sameCard(x, s));
+    if (g) { g.count++; if (!g.brand && s.brand) g.brand = s.brand; } else groups.push({ last4: s.last4, brand: s.brand, count: 1 });
+  }
+  const oneTime = groups.filter((g) => g.count === 1 && !isProven(g) && !sameCard(g, here)).length;
+  if (before.length === 0 && !isProven(here) && oneTime >= rule('receiptOneTimeCards')) flags.push('ONE_TIME_CARDS');
 
-  const recent = mine.filter((s) => s.cardLast4 && s.createdAt.getTime() >= now.getTime() - 30 * DAY).map(asCard);
+  // On another account (held, approved, refused or entered by HQ: the card being tried elsewhere is enough to look)
+  const others = await cardSightings({ cardLast4: card.last4, customerId: { not: customerId } });
+  if (others.some((s) => sameCard(s, here))) flags.push('CARD_OTHER_ACCOUNT');
+
+  const recent = seen.filter((s) => s.createdAt.getTime() >= now.getTime() - 30 * DAY && !s.proven);
   const distinct: { last4: string; brand: string | null }[] = [];
-  for (const c of [...recent, here]) if (!distinct.some((d) => sameCard(d, c))) distinct.push(c);
+  for (const c of [...recent, ...(isProven(here) ? [] : [here])]) if (!distinct.some((d) => sameCard(d, c))) distinct.push(c);
   if (distinct.length > rule('receiptMaxCards30d')) flags.push('MANY_CARDS');
 
   return { flags, refuse: null };

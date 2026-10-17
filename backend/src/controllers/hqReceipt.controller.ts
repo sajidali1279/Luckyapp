@@ -8,9 +8,9 @@ import { Response } from 'express';
 import { ProductCategory, TransactionStatus } from '@prisma/client';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
-import { readReceipt } from './receiptScan.controller';
-import { HQ_READ, HQ_ENTERED, factsOf, matchStore, sameReceipt, saleLines, type ReceiptRead } from '../utils/receiptScan';
-import { brandKey } from '../utils/receiptCards';
+import { readReceipt, storeSequenceProblems } from './receiptScan.controller';
+import { HQ_READ, HQ_ENTERED, factsOf, matchStore, sameReceipt, saleLines, receiptIdentity, receiptMoment, type ReceiptRead } from '../utils/receiptScan';
+import { brandKey, cardBrandOf } from '../utils/receiptCards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { storeDateKey, storeDaysBetween, startOfStoreDate, storeTimeText } from '../utils/storeTime';
 
@@ -20,17 +20,6 @@ const money = (n: number) => `$${n.toFixed(2)}`;
 
 export type ReadWarning = { code: string; text: string; serious: boolean };
 
-/** The sale time printed on the receipt (store time), or the start of its day. */
-function receiptMoment(read: ReceiptRead): Date | null {
-  if (!read.date) return null;
-  const day = startOfStoreDate(read.date);
-  return read.time ? new Date(day.getTime() + (Number(read.time.slice(0, 2)) * 60 + Number(read.time.slice(3))) * 60_000) : day;
-}
-
-/** The receipt's exact key, the same as the customer's scan uses (store, date, number or time, total). */
-function receiptKeyOf(storeId: string, read: ReceiptRead, total: number): string {
-  return `${storeId}|${read.date}|${(read.receiptNumber ?? '').replace(/\s/g, '')}|${total.toFixed(2)}${read.receiptNumber ? '' : `|${read.time ?? ''}`}`;
-}
 
 /** POST /points/hq/receipt-read (HQ, multipart "image" + customerQrCode, storeId, originalHash): read a receipt for the page. */
 export async function hqReadReceipt(req: AuthRequest, res: Response) {
@@ -82,8 +71,14 @@ export async function hqReadReceipt(req: AuthRequest, res: Response) {
   else if (match.id !== picked.id) warn('STORE_DIFFERENT', `This receipt is from ${match.name}, not ${picked.name}. Switch the store if the employee works there.`, true);
   const storeForLines = stores.find((s) => s.id === (match?.id ?? picked.id))!;
 
+  // What kind of receipt (2026-10-16): a void or refund earns nothing; fuel prepaid before pumping is not counted
+  if (read.kind === 'VOID') warn('VOID', 'This is a VOID TICKET: the sale was cancelled. It should not earn points.', true);
+  if (read.kind === 'REFUND') warn('REFUND', 'This is a refund or return receipt. It should not earn points.', true);
+  if (read.items.some((it) => it.prepay)) warn('PREPAY', 'Prepaid gas is not counted: what was pumped is not on this receipt. Ask for the receipt printed after pumping.');
+  if (!read.receiptNumber) warn('NO_TRAN', 'The transaction number (TRAN#) could not be read, so this receipt cannot be marked as used. Check it was not entered before.');
+
   // When
-  const at = receiptMoment(read);
+  const at = receiptMoment(read, startOfStoreDate);
   if (!read.date) warn('NO_DATE', 'The date could not be read.');
   else {
     const age = storeDaysBetween(read.date, storeDateKey());
@@ -97,8 +92,8 @@ export async function hqReadReceipt(req: AuthRequest, res: Response) {
   // The same receipt already scanned in the app or entered by HQ (another photo of it), by anyone
   const checkStore = match?.id ?? picked.id;
   if (read.date && total != null) {
-    const key = receiptKeyOf(checkStore, read, total);
-    const exact = await prisma.receiptScan.findUnique({ where: { receiptKey: key }, select: { status: true, customer: { select: { name: true } } } });
+    const key = receiptIdentity(checkStore, read);
+    const exact = key ? await prisma.receiptScan.findUnique({ where: { receiptKey: key }, select: { status: true, customer: { select: { name: true } } } }) : null;
     const dayStart = startOfStoreDate(read.date);
     const sameDay = exact ? [] : await prisma.receiptScan.findMany({
       where: { storeId: checkStore, status: { in: ['HELD', 'AUTO', HQ_ENTERED] }, receiptAt: { gte: dayStart, lt: new Date(dayStart.getTime() + 30 * 3600_000) } },
@@ -110,6 +105,12 @@ export async function hqReadReceipt(req: AuthRequest, res: Response) {
       const who = twin.customer?.name ?? 'a customer';
       warn('ALREADY_USED', twin.status === HQ_ENTERED ? `HQ already entered this receipt, for ${who}.` : `${who} already scanned this receipt in the app.`, true);
     }
+  }
+  // The always-rising numbers against the store's other real receipts (a made-up or edited receipt rarely fits)
+  if (at && read.time) {
+    const off = await storeSequenceProblems(checkStore, read, at);
+    const names: Record<string, string> = { receiptNumber: 'transaction number', stan: 'Stan', invoice: 'Invoice #' };
+    if (off.length) warn('SEQUENCE', `The ${off.map((f) => names[f] ?? f).join(' and ')} do${off.length === 1 ? 'es' : ''} not fit the store's other receipts of that time. The receipt may be edited or misread: check the photo.`, off.length >= 2);
   }
 
   // Points already given for this purchase (at the register, or by HQ)
@@ -143,7 +144,7 @@ export async function hqReadReceipt(req: AuthRequest, res: Response) {
   const data = {
     customerId: customer.id, storeId: checkStore, receiptAt: at, total, read: read as any, status: HQ_READ,
     flags: JSON.stringify(warnings.map((w) => w.code)), reason: `HQ:${req.user!.id}`,
-    paymentMethod: read.paymentMethod, cardLast4: read.cardLast4, cardBrand: brandKey(read.cardBrand),
+    paymentMethod: read.paymentMethod, cardLast4: read.cardLast4, cardBrand: cardBrandOf(read),
   };
   if (scanned?.status === HQ_READ) readId = (await prisma.receiptScan.update({ where: { id: scanned.id }, data, select: { id: true } })).id;
   else if (!scanned) {
@@ -154,7 +155,7 @@ export async function hqReadReceipt(req: AuthRequest, res: Response) {
     readId,
     store: match ? { id: match.id, name: match.name } : null,
     date: read.date, time: read.time, receiptNumber: read.receiptNumber, total, subtotal: read.subtotal, tax: read.tax,
-    payment: read.paymentMethod ? { method: read.paymentMethod, brand: brandKey(read.cardBrand), last4: read.cardLast4 } : null,
+    payment: read.paymentMethod ? { method: read.paymentMethod, brand: cardBrandOf(read) ?? brandKey(read.cardBrand), last4: read.cardLast4 } : null,
     lines: suggested.map((l) => ({ category: l.category, amount: l.amount, gallons: l.gallons })),
     readable: read.readable,
     warnings,
@@ -171,7 +172,7 @@ export async function hqLinkReceipt(req: AuthRequest, res: Response) {
   const ok = sales.length === new Set(ids).size && sales.every((s) => s.customerId === scan.customerId && s.grantedById === req.user!.id && s.storeId === sales[0].storeId && !!s.receiptImageUrl);
   if (!ok) { res.status(400).json({ success: false, error: 'Those sales do not belong to this receipt read.' }); return; }
   const read = scan.read as unknown as ReceiptRead | null;
-  const key = read?.date && scan.total != null ? receiptKeyOf(sales[0].storeId, read, scan.total) : null;
+  const key = read ? receiptIdentity(sales[0].storeId, read) : null;
   const linked = { status: HQ_ENTERED, storeId: sales[0].storeId, transactionIds: sales.map((s) => s.id) };
   try {
     await prisma.receiptScan.update({ where: { id: scan.id }, data: { ...linked, receiptKey: key } });

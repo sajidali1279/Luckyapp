@@ -16,8 +16,8 @@ import { gallonsFit } from '../utils/storeRules';
 import { noteBudgetUse } from '../utils/offerBudget';
 import { storeDateKey, storeDayStart, storeDaysBetween, startOfStoreDate } from '../utils/storeTime';
 import { rule } from '../utils/appSettings';
-import { sameReceipt, cleanRead, factsOf } from '../utils/receiptScan';
-import { checkScanCard, brandKey } from '../utils/receiptCards';
+import { sameReceipt, cleanRead, factsOf, receiptIdentity, receiptMoment, sequenceProblems, type SequencePoint } from '../utils/receiptScan';
+import { checkScanCard, cardBrandOf } from '../utils/receiptCards';
 import { approveAndCredit } from '../utils/saleDecision';
 import { pushChallengeAwards } from '../utils/challenges';
 import { pushReferralAwards } from '../utils/referrals';
@@ -96,9 +96,14 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   }
 
   // A refusal is kept (with the photo's fingerprint) so the testing shows what was read and why it was refused
-  const refuseScan = async (reason: string, extra: { storeId?: string | null; receiptAt?: Date | null; total?: number | null } = {}) => {
+  // The card on it is kept too (utils/receiptCards.ts counts every card tried, refused ones included)
+  const refuseScan = async (reason: string, extra: { storeId?: string | null; receiptAt?: Date | null; total?: number | null; flags?: string[] } = {}) => {
     try {
-      await prisma.receiptScan.create({ data: { customerId: customer.id, imageHash, status: 'REFUSED', reason, read: (read ?? undefined) as any, storeId: extra.storeId ?? null, receiptAt: extra.receiptAt ?? null, total: extra.total ?? null } });
+      await prisma.receiptScan.create({ data: {
+        customerId: customer.id, imageHash, status: 'REFUSED', reason, read: (read ?? undefined) as any, storeId: extra.storeId ?? null, receiptAt: extra.receiptAt ?? null, total: extra.total ?? null,
+        ...(extra.flags?.length ? { flags: JSON.stringify(extra.flags) } : {}),
+        ...(read?.cardLast4 ? { paymentMethod: read.paymentMethod, cardLast4: read.cardLast4, cardBrand: cardBrandOf(read) } : {}),
+      } });
     } catch (e: any) {
       if (e?.code === 'P2002') { res.status(409).json({ success: false, code: 'ALREADY_USED', error: 'This photo has already been used.' }); return; }
       throw e;
@@ -112,11 +117,17 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   const store = matchStore(read, stores);
   if (!store) return refuseScan("We couldn't tell which Lucky Stop this receipt is from. Make sure the top of the receipt, with the store's address, is in the photo.");
   const full = stores.find((s) => s.id === store.id)!;
+  // A cancelled or refunded sale earns nothing (a VOID TICKET is printed like any receipt, 2026-10-16)
+  if (read.kind === 'VOID') return refuseScan('This is a void ticket: the sale was cancelled, so it does not earn points.', { storeId: store.id });
+  if (read.kind === 'REFUND') return refuseScan('This is a refund or return receipt, so it does not earn points.', { storeId: store.id });
   if (!read.date) return refuseScan("We couldn't read the date on the receipt. Take the photo again with the date in it.", { storeId: store.id });
+  // The transaction number is the receipt's identity: without it the same receipt could be scanned again by someone else
+  const receiptKey = receiptIdentity(store.id, read);
+  if (!receiptKey) return refuseScan("We couldn't read the transaction number (TRAN#) at the bottom of the receipt. Take the photo again with the whole bottom of the receipt in it.", { storeId: store.id });
 
   const todayKey = storeDateKey();
   const age = storeDaysBetween(read.date, todayKey);
-  const receiptAt = read.time ? new Date(startOfStoreDate(read.date).getTime() + (Number(read.time.slice(0, 2)) * 60 + Number(read.time.slice(3))) * 60_000) : startOfStoreDate(read.date);
+  const receiptAt = receiptMoment(read, startOfStoreDate)!;
   if (age < 0) return refuseScan('The date on the receipt is in the future.', { storeId: store.id, receiptAt });
   const maxDays = rule('receiptMaxDays');
   if (age > maxDays) return refuseScan(maxDays === 0 ? `Only today's receipts can be scanned. This one is from ${read.date}.` : `Receipts can be scanned for ${maxDays} days. This one is from ${read.date}.`, { storeId: store.id, receiptAt });
@@ -124,9 +135,8 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   if (total == null || total <= 0) return refuseScan("We couldn't read the total on the receipt.", { storeId: store.id, receiptAt });
   if (total > rule('receiptMaxTotal')) return refuseScan(`Receipts over $${rule('receiptMaxTotal')} can't be scanned. Ask the cashier.`, { storeId: store.id, receiptAt, total });
 
-  // The same receipt photographed again (a different photo of it). It is never read exactly the same way twice, so the exact key below
-  // is backed by a near match (utils/receiptScan.ts sameReceipt): same store, date and total, then the same receipt digits or time
-  const receiptKey = `${store.id}|${read.date}|${(read.receiptNumber ?? '').replace(/\s/g, '')}|${total.toFixed(2)}${read.receiptNumber ? '' : `|${read.time ?? ''}`}`;
+  // The same receipt photographed again (a different photo of it), by anyone. Its identity is the store and transaction number; a misread
+  // number is caught by the near match (utils/receiptScan.ts sameReceipt): Stan, Invoice #, approval code, the time to the second, the money
   if (await prisma.receiptScan.findUnique({ where: { receiptKey }, select: { id: true } })) {
     return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
   }
@@ -141,6 +151,12 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   if (sameDay.some((s) => sameReceipt(here, factsOf(s.customerId, s.read, s.total)))) {
     return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
   }
+  // The numbers that only go up (TRAN#, Stan, Invoice #) against the store's other real receipts of that week: a made-up or edited
+  // receipt rarely fits. One number out of place may be a misread (held for a manager); two or more is refused.
+  const seqProblems = await storeSequenceProblems(store.id, read, receiptAt);
+  if (seqProblems.length >= 2) {
+    return refuseScan("The numbers on this receipt don't match the store's register. If it is your receipt, show it to the cashier.", { storeId: store.id, receiptAt, total, flags: ['SEQUENCE_MISMATCH', ...seqProblems] });
+  }
   // Points already given at the register for this purchase
   const from = read.time ? new Date(receiptAt.getTime() - 45 * 60_000) : startOfStoreDate(read.date);
   const to = read.time ? new Date(receiptAt.getTime() + 120 * 60_000) : new Date(startOfStoreDate(read.date).getTime() + 30 * 3600_000);
@@ -148,22 +164,40 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
     where: { customerId: customer.id, storeId: store.id, createdAt: { gte: from, lte: to }, status: { not: TransactionStatus.REJECTED }, grantedById: { not: customer.id }, challengeId: null, referralId: null },
     select: { id: true },
   });
-  if (atRegister) return refuseScan('This purchase already earned points at the register.', { storeId: store.id, receiptAt, total });
+  if (atRegister) {
+    // The cashier scanned this customer's QR for this very sale: the card on the receipt is theirs, proven in person (utils/receiptCards.ts)
+    const sameSale = read.time && read.cardLast4 && await prisma.pointsTransaction.findFirst({
+      where: { customerId: customer.id, storeId: store.id, createdAt: { gte: new Date(receiptAt.getTime() - 10 * 60_000), lte: new Date(receiptAt.getTime() + 10 * 60_000) }, status: { not: TransactionStatus.REJECTED }, grantedById: { not: customer.id }, challengeId: null, referralId: null },
+      select: { id: true },
+    });
+    return refuseScan('This purchase already earned points at the register.', { storeId: store.id, receiptAt, total, flags: sameSale ? ['AT_REGISTER', 'AT_REGISTER_CARD'] : ['AT_REGISTER'] });
+  }
 
-  // The cards this customer's receipts were paid with (utils/receiptCards.ts): a new card, another account's card, many cards, cash
-  const card = { last4: read.cardLast4, brand: read.cardBrand, method: read.paymentMethod };
+  // The cards this customer's receipts were paid with (utils/receiptCards.ts): how often each is seen, on which accounts, cash
+  const card = { last4: read.cardLast4, brand: cardBrandOf(read), method: read.paymentMethod };
   const cardCheck = await checkScanCard(customer.id, card);
   if (cardCheck.refuse) return refuseScan(cardCheck.refuse, { storeId: store.id, receiptAt, total });
 
   const { lines, leftOut } = saleLines(read, full.enabledCategories);
+  const prepayOnly = read.items.length > 0 && read.items.every((it) => it.prepay || it.category === 'NOT_ELIGIBLE');
   const flags: string[] = ['RECEIPT_SCAN'];
   let saleRows = lines;
-  if (read.items.length === 0) { saleRows = [{ category: ProductCategory.OTHER, amount: read.subtotal ?? total, gallons: null }]; flags.push('ITEMS_UNREAD'); }
-  if (saleRows.length === 0) return refuseScan('Nothing on this receipt earns points (for example lottery or gift cards).', { storeId: store.id, receiptAt, total });
+  if (read.items.length === 0) {
+    // A prepay receipt whose lines were not read is still fuel not pumped yet
+    if (read.kind === 'PREPAY') return refuseScan('Prepaid gas earns points at the register: show your QR code when you pay, or scan the receipt printed after pumping.', { storeId: store.id, receiptAt, total });
+    saleRows = [{ category: ProductCategory.OTHER, amount: read.subtotal ?? total, gallons: null }]; flags.push('ITEMS_UNREAD');
+  }
+  if (saleRows.length === 0) {
+    return refuseScan(prepayOnly && read.items.some((it) => it.prepay)
+      ? 'Prepaid gas earns points at the register: show your QR code when you pay, or scan the receipt printed after pumping.'
+      : 'Nothing on this receipt earns points (for example lottery or gift cards).', { storeId: store.id, receiptAt, total });
+  }
+  if (read.items.some((it) => it.prepay)) flags.push('PREPAY_LEFT_OUT');
+  if (read.copy === 'MERCHANT') flags.push('MERCHANT_COPY');
   if (read.readable === 'partial') flags.push('READ_PARTIAL');
   if (read.concerns.length) flags.push('READER_CONCERNS');
-  if (!read.receiptNumber) flags.push('NO_RECEIPT_NUMBER');
   if (!read.time) flags.push('NO_TIME');
+  if (seqProblems.length) flags.push('SEQUENCE_ODD');
   flags.push(...cardCheck.flags);
   const itemsSum = read.items.reduce((n, it) => n + it.amount, 0);
   const expected = read.subtotal ?? (read.total != null && read.tax != null ? read.total - read.tax : null);
@@ -174,7 +208,7 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   try {
     scanId = (await prisma.receiptScan.create({ data: {
       customerId: customer.id, storeId: store.id, imageHash, receiptKey, receiptAt, total, status: 'HELD', flags: JSON.stringify(flags), read: read as any,
-      paymentMethod: read.paymentMethod, cardLast4: read.cardLast4, cardBrand: brandKey(read.cardBrand),
+      paymentMethod: read.paymentMethod, cardLast4: read.cardLast4, cardBrand: cardBrandOf(read),
     }, select: { id: true } })).id;
   } catch (e: any) {
     if (e?.code === 'P2002') { res.status(409).json({ success: false, code: 'ALREADY_USED', error: 'This receipt has already been scanned.' }); return; }
@@ -263,6 +297,25 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
     lines: created.map(({ category, amount, points }) => ({ category, amount, points })),
     points: created.reduce((n, c) => n + c.points, 0),
   } });
+}
+
+/**
+ * The store's real receipts around this one (a week each way: scans held or approved, and receipts HQ entered; never rejected ones, so a
+ * fake cannot set the pattern), and which of this receipt's always-rising numbers do not fit them (utils/receiptScan.ts sequenceProblems).
+ */
+export async function storeSequenceProblems(storeId: string, read: ReceiptRead, at: Date): Promise<string[]> {
+  if (!read.receiptNumber && !read.stan && !read.invoice) return [];
+  const rows = await prisma.receiptScan.findMany({
+    where: { storeId, status: { in: ['HELD', 'AUTO', HQ_ENTERED] }, receiptAt: { gte: new Date(at.getTime() - 7 * 86_400_000), lte: new Date(at.getTime() + 7 * 86_400_000) } },
+    select: { receiptAt: true, read: true, transactionIds: true },
+    take: 500,
+  });
+  const ids = rows.flatMap((r) => r.transactionIds ?? []);
+  const rejected = new Set(ids.length ? (await prisma.pointsTransaction.findMany({ where: { id: { in: ids }, status: TransactionStatus.REJECTED }, select: { id: true } })).map((x) => x.id) : []);
+  const known: SequencePoint[] = rows
+    .filter((r) => r.receiptAt && !(r.transactionIds?.length && r.transactionIds.every((t) => rejected.has(t))))
+    .map((r) => { const k = r.read as any; return { at: r.receiptAt!, receiptNumber: k?.receiptNumber ?? null, stan: k?.stan ?? null, invoice: k?.invoice ?? null, register: k?.register ?? null }; });
+  return sequenceProblems({ at, receiptNumber: read.receiptNumber, stan: read.stan, invoice: read.invoice, register: read.register }, known);
 }
 
 /** GET /receipt-scan/mine: the customer's latest scans and what became of them. */
