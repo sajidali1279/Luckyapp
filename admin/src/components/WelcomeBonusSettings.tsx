@@ -82,7 +82,10 @@ export default function WelcomeBonusSettings() {
                 </select>
                 <input aria-label="Name in English" placeholder="Name (English)" maxLength={40} value={it.name} onChange={(e) => set(at, { name: e.target.value })} style={{ ...INPUT, flex: '1 1 170px', minWidth: 0 }} />
                 <input aria-label="Name in Spanish" placeholder="Nombre (español)" maxLength={40} value={it.nameEs} onChange={(e) => set(at, { nameEs: e.target.value })} style={{ ...INPUT, flex: '1 1 170px', minWidth: 0 }} />
-                <Button size="sm" variant={it.active ? 'secondary' : 'primary'} onClick={() => set(at, { active: !it.active })}>{it.active ? 'On' : 'Off'}</Button>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: FONT.small, fontWeight: 600, color: it.active ? C.text : TEXT_MUTED, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <input type="checkbox" checked={it.active} onChange={(e) => set(at, { active: e.target.checked })} />
+                  Offered
+                </label>
                 {!it.key && <Button size="sm" variant="secondary" onClick={() => setItems((p) => p.filter((_, i) => i !== at))}>Remove</Button>}
               </div>
             ))}
