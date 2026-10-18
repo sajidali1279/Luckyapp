@@ -165,13 +165,13 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   const from = read.time ? new Date(receiptAt.getTime() - 45 * 60_000) : startOfStoreDate(read.date);
   const to = read.time ? new Date(receiptAt.getTime() + 120 * 60_000) : new Date(startOfStoreDate(read.date).getTime() + 30 * 3600_000);
   const atRegister = await prisma.pointsTransaction.findFirst({
-    where: { customerId: customer.id, storeId: store.id, createdAt: { gte: from, lte: to }, status: { not: TransactionStatus.REJECTED }, grantedById: { not: customer.id }, challengeId: null, referralId: null },
+    where: { customerId: customer.id, storeId: store.id, createdAt: { gte: from, lte: to }, status: { notIn: [TransactionStatus.REJECTED, TransactionStatus.CANCELLED] }, grantedById: { not: customer.id }, challengeId: null, referralId: null },
     select: { id: true },
   });
   if (atRegister) {
     // The cashier scanned this customer's QR for this very sale: the card on the receipt is theirs, proven in person (utils/receiptCards.ts)
     const sameSale = read.time && read.cardLast4 && await prisma.pointsTransaction.findFirst({
-      where: { customerId: customer.id, storeId: store.id, createdAt: { gte: new Date(receiptAt.getTime() - 10 * 60_000), lte: new Date(receiptAt.getTime() + 10 * 60_000) }, status: { not: TransactionStatus.REJECTED }, grantedById: { not: customer.id }, challengeId: null, referralId: null },
+      where: { customerId: customer.id, storeId: store.id, createdAt: { gte: new Date(receiptAt.getTime() - 10 * 60_000), lte: new Date(receiptAt.getTime() + 10 * 60_000) }, status: { notIn: [TransactionStatus.REJECTED, TransactionStatus.CANCELLED] }, grantedById: { not: customer.id }, challengeId: null, referralId: null },
       select: { id: true },
     });
     return refuseScan('This purchase already earned points at the register.', { storeId: store.id, receiptAt, total, flags: sameSale ? ['AT_REGISTER', 'AT_REGISTER_CARD'] : ['AT_REGISTER'] });

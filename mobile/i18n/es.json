@@ -439,6 +439,12 @@
     "positionStoreManager": "Gerente de Tienda"
   },
   "customerHistory": {
+    "rejectedNote": "No se pudo verificar esta compra, así que no se agregaron puntos.",
+    "voidedNote": "Esta compra se anuló y sus puntos se retiraron.",
+    "underReviewNote": "Un gerente está revisando esta compra. Los puntos se agregan cuando se aprueba.",
+    "detailStatus": "Estado",
+    "statusVoided": "Anulada",
+    "statusUnderReview": "En revisión",
     "expiringTitle": "Puntos por vencer",
     "expiringLine": "{{points}} pts el {{date}}",
     "expiredLine": "{{points}} pts vencieron el {{date}}",
@@ -1726,6 +1732,9 @@
     "genericErrorMsg": "Algo salió mal."
   },
   "employeeScan": {
+    "heldSub_other": "{{count}} líneas están en revisión: un gerente las revisa antes de agregar los puntos. Dile al cliente que los puntos aparecen cuando se aprueben.",
+    "heldSub_one": "Un gerente revisa esta venta antes de agregar los puntos. Dile al cliente que los puntos aparecen cuando se apruebe.",
+    "heldHeading": "En revisión",
     "catGas": "Gasolina",
     "catDiesel": "Diésel",
     "catHotFoods": "Comida Caliente",

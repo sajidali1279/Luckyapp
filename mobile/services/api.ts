@@ -111,6 +111,8 @@ export const pointsApi = {
   /** What a grant of these lines would pay (the server's own math, promotions included); nothing is saved */
   previewGrant: (data: { customerQrCode: string; storeId: string; lines: { category: string; amount: number; gasGallons?: number }[] }) =>
     api.post('/points/preview', data),
+  /** Cancel after Grant, before the receipt photo (2026-10-18): the server cancels these lines if they are still waiting for a photo */
+  cancelGrant: (ids: string[]) => api.post('/points/grant/cancel', { ids }),
   uploadReceipt: async (transactionId: string, receiptFile: FormData) => {
     const res = await fetchWithAuth(`/points/grant/${transactionId}/receipt`, { method: 'POST', body: receiptFile as any });
     const json = await res.json();

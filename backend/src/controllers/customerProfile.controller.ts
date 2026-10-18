@@ -5,6 +5,7 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import { Role, TransactionStatus } from '@prisma/client';
+import { AWAITING_DECISION } from '../utils/unfinishedSales';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { audit } from '../utils/audit';
@@ -39,8 +40,8 @@ export async function getCustomerProfile(req: AuthRequest, res: Response) {
   const [sales, last30, pending, flagged, firstLast, earned, credits, catalog, byStore, disputes, hotFood, tokens, thresholds, invitedBy, invited, notes] = await Promise.all([
     prisma.pointsTransaction.aggregate({ where: { customerId: id, status: TransactionStatus.APPROVED, ...SALE_ONLY }, _count: { _all: true }, _sum: { purchaseAmount: true } }),
     prisma.pointsTransaction.count({ where: { customerId: id, status: TransactionStatus.APPROVED, ...SALE_ONLY, createdAt: { gte: since30 } } }),
-    prisma.pointsTransaction.count({ where: { customerId: id, status: TransactionStatus.PENDING, ...SALE_ONLY } }),
-    prisma.pointsTransaction.count({ where: { customerId: id, status: TransactionStatus.FLAGGED, ...SALE_ONLY } }),
+    prisma.pointsTransaction.count({ where: { customerId: id, ...AWAITING_DECISION, status: TransactionStatus.PENDING, ...SALE_ONLY } }),
+    prisma.pointsTransaction.count({ where: { customerId: id, ...AWAITING_DECISION, status: TransactionStatus.FLAGGED, ...SALE_ONLY } }),
     prisma.pointsTransaction.aggregate({ where: { customerId: id, status: TransactionStatus.APPROVED, ...SALE_ONLY }, _min: { createdAt: true }, _max: { createdAt: true } }),
     prisma.pointsTransaction.aggregate({ where: { customerId: id, status: TransactionStatus.APPROVED }, _sum: { pointsAwarded: true, gasBonusPoints: true } }),
     prisma.creditRedemption.aggregate({ where: { customerId: id }, _sum: { amount: true }, _count: { _all: true } }),

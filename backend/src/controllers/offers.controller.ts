@@ -722,10 +722,10 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
 
   const sales = await prisma.pointsTransaction.findMany({
     where: { offerId },
-    select: { status: true, purchaseAmount: true, pointsAwarded: true, offerCashback: true, customerId: true, storeId: true, store: { select: { name: true } } },
+    select: { status: true, receiptImageUrl: true, purchaseAmount: true, pointsAwarded: true, offerCashback: true, customerId: true, storeId: true, store: { select: { name: true } } },
   });
   const approved = sales.filter((s) => s.status === 'APPROVED');
-  const waiting = sales.filter((s) => s.status === 'PENDING' || s.status === 'FLAGGED').length;
+  const waiting = sales.filter((s) => s.status === 'FLAGGED' || (s.status === 'PENDING' && s.receiptImageUrl)).length;   // not a sale still waiting for its photo
   const byStore = new Map<string, { name: string; sales: number; extraCashback: number }>();
   for (const s of approved) {
     const row = byStore.get(s.storeId) ?? { name: s.store.name, sales: 0, extraCashback: 0 };
@@ -741,7 +741,7 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
   // Customers whose first purchase ever was while it ran, with it
   const users = [...new Set(approved.map((s) => s.customerId))];
   const firsts = users.length ? await prisma.pointsTransaction.groupBy({
-    by: ['customerId'], where: { customerId: { in: users }, status: { not: 'REJECTED' }, challengeId: null, referralId: null }, _min: { createdAt: true },
+    by: ['customerId'], where: { customerId: { in: users }, status: { notIn: ['REJECTED', 'CANCELLED'] }, challengeId: null, referralId: null }, _min: { createdAt: true },
   }) : [];
   const firstTimers = firsts.filter((f) => f._min.createdAt && f._min.createdAt >= start).length;
 

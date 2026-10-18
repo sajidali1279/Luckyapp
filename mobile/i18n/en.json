@@ -439,6 +439,12 @@
     "positionStoreManager": "Store Manager"
   },
   "customerHistory": {
+    "rejectedNote": "This sale could not be verified, so no points were added.",
+    "voidedNote": "This sale was undone and its points were taken back.",
+    "underReviewNote": "A manager is checking this sale. The points are added once it is approved.",
+    "detailStatus": "Status",
+    "statusVoided": "Voided",
+    "statusUnderReview": "Under review",
     "expiringTitle": "Points expiring",
     "expiringLine": "{{points}} pts on {{date}}",
     "expiredLine": "{{points}} pts expired on {{date}}",
@@ -1726,6 +1732,9 @@
     "genericErrorMsg": "Something went wrong."
   },
   "employeeScan": {
+    "heldSub_other": "{{count}} lines are held: a manager checks them before the points are added. Tell the customer the points show once approved.",
+    "heldSub_one": "A manager checks this sale before the points are added. Tell the customer the points show once it is approved.",
+    "heldHeading": "Held for review",
     "catGas": "Gas",
     "catDiesel": "Diesel",
     "catHotFoods": "Hot Foods",

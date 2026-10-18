@@ -16,7 +16,7 @@ import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { getCurrentPeriod, gasBonusPerGallon, getNextTierProgress, getStoredThresholds, updateCustomerTierIfNeeded, effectiveTier } from '../utils/tier';
+import { getCurrentPeriod, gasBonusPerGallon, getNextTierProgress, getStoredThresholds, updateCustomerTierIfNeeded, effectiveTier, rollCustomerPeriod } from '../utils/tier';
 import { pickOffer, percentBonus, isCentsPerGallon } from '../utils/offerPick';
 import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeTimeText } from '../utils/storeTime';
 import { approveAndCredit, rejectIfStill, ALREADY_DECIDED_MESSAGE } from '../utils/saleDecision';
@@ -34,7 +34,8 @@ import { rule } from '../utils/appSettings';
 import { resolveServedBy, servedByDetails, storeStaff } from '../utils/servedBy';
 import { customerSearchWhere } from '../utils/customerSearch';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
-import { useLots, voidSaleLots, expirySummary, lotsMatch, undoExpiry } from '../utils/pointLots';
+import { useLots, voidSaleLots, expiredPartOfSale, expirySummary, lotsMatch, undoExpiry } from '../utils/pointLots';
+import { UNFINISHED, SHOWN, AWAITING_DECISION, NOT_A_SALE, cancelUnfinished } from '../utils/unfinishedSales';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
 const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
@@ -145,7 +146,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   // The earlier lines of this same sale (siblingIds above), checked: this granter's own unfinished lines for this customer, made just now
   const siblingRows = siblingIds?.length ? await prisma.pointsTransaction.findMany({
     where: { id: { in: siblingIds }, customerId: customer.id, grantedById: employee.id, storeId, receiptImageUrl: null,
-      status: { in: [TransactionStatus.PENDING, TransactionStatus.FLAGGED] }, createdAt: { gte: twoMinutesAgo } },
+      status: { in: [TransactionStatus.PENDING, TransactionStatus.FLAGGED] }, createdAt: { gte: new Date(Date.now() - rule('reviewUnfinishedMinutes') * 60_000) } },   // any time until it would be cancelled (HQ fixes a refused line minutes later)
     select: { id: true, saleId: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   }) : [];
@@ -154,18 +155,30 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const saleId = siblingRows.length ? siblingRows.find((t) => t.saleId)?.saleId ?? siblingRows[0].id : null;
   const notSibling: Prisma.PointsTransactionWhereInput = siblings.length ? { id: { notIn: siblings } } : {};
 
+  // Starting this customer's sale again (a wrong category, Cancel and scan again) leaves the earlier attempt waiting for a photo that
+  // will never come. This granter's own unfinished lines for this customer at this store, not part of this sale, are cancelled first:
+  // nothing was credited, and they would otherwise refuse this sale as a duplicate and count as more sales today. Lines made in the last
+  // 5 seconds are left alone (an older app sends a sale's lines at the same moment, without siblingIds).
+  const abandoned = await prisma.pointsTransaction.findMany({
+    where: { AND: [{ customerId: customer.id, grantedById: employee.id, storeId, id: { notIn: siblingIds ?? [] }, createdAt: { lt: new Date(Date.now() - 5000) } }, UNFINISHED] },
+    select: { id: true },
+  });
+  if (abandoned.length) await cancelUnfinished({ id: { in: abandoned.map((t) => t.id) } }, 'NEW_SCAN');
+  // The counts below are of sales: not rejected or cancelled ones, and not a line still waiting for its photo
+  const counted: Prisma.PointsTransactionWhereInput = { status: { notIn: NOT_A_SALE }, NOT: UNFINISHED };
+
   const [recentDuplicate, customerTodayCount, employeeHourCount, pairTodayCount] = await Promise.all([
     prisma.pointsTransaction.findFirst({
-      where: { customerId: customer.id, ...byCashier, ...notSibling, createdAt: { gte: twoMinutesAgo }, status: { not: TransactionStatus.REJECTED } },
+      where: { customerId: customer.id, ...byCashier, ...notSibling, createdAt: { gte: twoMinutesAgo }, status: { notIn: NOT_A_SALE } },
     }),
     prisma.pointsTransaction.count({
-      where: { customerId: customer.id, storeId, ...notSibling, createdAt: { gte: startOfToday }, status: { not: TransactionStatus.REJECTED } },
+      where: { customerId: customer.id, storeId, ...notSibling, createdAt: { gte: startOfToday }, ...counted },
     }),
     prisma.pointsTransaction.count({
-      where: { ...byCashier, ...notSibling, createdAt: { gte: oneHourAgo }, status: { not: TransactionStatus.REJECTED } },
+      where: { ...byCashier, ...notSibling, createdAt: { gte: oneHourAgo }, ...counted },
     }),
     prisma.pointsTransaction.count({
-      where: { customerId: customer.id, ...byCashier, ...notSibling, createdAt: { gte: startOfToday }, status: { not: TransactionStatus.REJECTED } },
+      where: { customerId: customer.id, ...byCashier, ...notSibling, createdAt: { gte: startOfToday }, ...counted },
     }),
   ]);
 
@@ -190,9 +203,12 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   if (employeeHourCount >= rule('reviewCashierGrantsPerHour'))     fraudFlags.push('EMPLOYEE_VELOCITY');
   if (pairTodayCount >= 2)                    fraudFlags.push('REPEAT_PAIR');
   // The customer already scanned a receipt at this store in the last 3 hours: this may be the same purchase twice (2026-10-12)
-  const scannedHere = await prisma.receiptScan.findFirst({
-    where: { customerId: customer.id, storeId, status: { in: ['HELD', 'AUTO'] }, createdAt: { gte: new Date(Date.now() - 3 * 3600_000) } }, select: { id: true },
+  // (a scan whose sale was rejected does not count: HELD stays on the scan after its lines are decided)
+  const scansHere = await prisma.receiptScan.findMany({
+    where: { customerId: customer.id, storeId, status: { in: ['HELD', 'AUTO'] }, createdAt: { gte: new Date(Date.now() - 3 * 3600_000) } }, select: { transactionIds: true },
   });
+  const scanIds = scansHere.flatMap((s) => s.transactionIds);
+  const scannedHere = scanIds.length > 0 && (await prisma.pointsTransaction.count({ where: { id: { in: scanIds }, status: { notIn: [...NOT_A_SALE, TransactionStatus.VOIDED] } } })) > 0;
   if (scannedHere)                            fraudFlags.push('RECEIPT_SCANNED');
 
   const isFlagged = fraudFlags.length > 0;
@@ -228,23 +244,8 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   // This sale may have used up the promotion's budget: then it stops, and HQ is told
   if (promotionApplied && activeOffer?.budgetCap != null) noteBudgetUse(activeOffer, now).catch((e) => console.error('[offers] budget check failed:', e?.message ?? e));
 
-  // Tell the people who can decide: this store's active managers and every active Super Admin (not every store's managers, and not anyone who has left)
-  if (isFlagged) {
-    const recipients = await flaggedSaleRecipientIds(storeId);
-    for (const id of recipients) {
-      sendPushToUser(id, '🚨 Sale held for review', `$${purchaseAmount.toFixed(2)} sale held for review at ${store?.name ?? 'your store'}.`, 'ALERT');
-    }
-    // A large one also goes to HQ's email: an admin who is not looking at the page or the phone would not hear about it until much later
-    if (purchaseAmount >= rule('reviewEmailHQAmount')) {   // HQ's amount (Settings > Sales review); it was a fixed $500
-      emailHQ(
-        `Sale held for review: $${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}`,
-        'A large sale is held for review',
-        [`$${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}, granted by ${servedBy ? `${servedBy.name || 'an employee'} (entered by HQ, ${employee.name || 'HQ'})` : employee.name || 'a cashier'} for ${customer.name || customer.phone}.`, `Held because: ${fraudFlags.join(', ')}.`, 'It is not credited until a manager or HQ approves it.'],
-        { path: '/transactions', label: 'Review the sale' },
-        'LARGE_SALE',
-      );
-    }
-  }
+  // The managers and HQ are told about a held sale when its receipt photo arrives (uploadReceiptAndApprove), not now: a sale the cashier
+  // never finishes is cancelled and nobody needs to look at it (2026-10-18).
 
   res.status(201).json({
     success: true,
@@ -304,6 +305,10 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
       return;
     }
   }
+  if (transaction.status === TransactionStatus.CANCELLED) {
+    res.status(409).json({ success: false, code: 'SALE_CANCELLED', error: 'This sale was cancelled because its receipt photo did not arrive in time. Nothing was credited: start the sale again.' });
+    return;
+  }
   if (transaction.status !== TransactionStatus.PENDING && transaction.status !== TransactionStatus.FLAGGED) {
     res.status(400).json({ success: false, error: 'Transaction already processed' });
     return;
@@ -320,13 +325,19 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   // the siblings only got through when their uploads happened to overlap: if one finished first, the next was refused as a reused
   // receipt and the cashier could not complete the sale.
   const SALE_WINDOW_MS = 2 * 60 * 1000;
+  // Lines of the same sale (same saleId) may share it at any time apart: HQ's Grant & Redeem page can fix a refused line and finish the
+  // sale minutes later (2026-10-18). A cancelled or rejected sale's photo does not block anything.
   const sameHash = await prisma.pointsTransaction.findMany({
-    where: { receiptImageHash: receiptHash, id: { not: transactionId } },
-    select: { id: true, customerId: true, grantedById: true, storeId: true, createdAt: true },
+    where: { receiptImageHash: receiptHash, id: { not: transactionId }, status: { notIn: NOT_A_SALE } },
+    select: { id: true, customerId: true, grantedById: true, storeId: true, createdAt: true, saleId: true },
   });
+  const sameSale = (t: { id: string; saleId: string | null }) => {
+    const mine = transaction.saleId ?? transaction.id;
+    return (t.saleId ?? t.id) === mine || t.id === transaction.saleId || t.saleId === transaction.id;
+  };
   const duplicateReceipt = sameHash.find((t) => !(
     t.customerId === transaction.customerId && t.grantedById === transaction.grantedById && t.storeId === transaction.storeId
-    && Math.abs(t.createdAt.getTime() - transaction.createdAt.getTime()) <= SALE_WINDOW_MS
+    && (sameSale(t) || Math.abs(t.createdAt.getTime() - transaction.createdAt.getTime()) <= SALE_WINDOW_MS)
   ));
   if (duplicateReceipt) {
     res.status(409).json({ success: false, error: 'This receipt image has already been used for another transaction. Upload the original receipt photo.' });
@@ -349,10 +360,14 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
 
   if (wasFlagged) {
     // Flagged: save receipt but hold points — manager must review
-    const updatedTransaction = await prisma.pointsTransaction.update({
-      where: { id: transactionId },
+    // Only while it is still waiting (it may have been cancelled or decided while the photo uploaded)
+    const saved = await prisma.pointsTransaction.updateMany({
+      where: { id: transactionId, status: TransactionStatus.FLAGGED },
       data: { receiptImageUrl: uploadResult.secure_url, receiptImageHash: receiptHash },
     });
+    if (saved.count === 0) { res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE }); return; }
+    const updatedTransaction = await prisma.pointsTransaction.findUniqueOrThrow({ where: { id: transactionId } });
+    await alertHeldSale(updatedTransaction, employee).catch((e) => console.error('[points] held-sale alert failed:', e?.message ?? e));
     res.json({
       success: true,
       message: 'Receipt uploaded. This transaction is flagged - a manager must approve it before points are credited.',
@@ -498,17 +513,23 @@ export async function getMyTransactions(req: AuthRequest, res: Response) {
   const { page = '1', limit = '20' } = req.query as { page?: string; limit?: string };
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
+  // Not a sale still waiting for its photo, nor a cancelled one (2026-10-18); and only the fields the customer's history uses: never
+  // the review flags, the platform fee, the receipt fingerprint, a void reason or the staff's notes.
+  const mine: Prisma.PointsTransactionWhereInput = { customerId: req.user!.id, ...SHOWN };
   const [transactions, total] = await prisma.$transaction([
     prisma.pointsTransaction.findMany({
-      where: { customerId: req.user!.id },
+      where: mine,
       orderBy: { createdAt: 'desc' },
       skip,
       take: parseInt(limit),
-      include: { store: { select: { name: true } }, challenge: { select: { title: true, titleEs: true, kind: true } } },   // a reward line names its challenge (kind WINBACK: a gift)
+      select: {
+        id: true, storeId: true, purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true, cashbackRate: true, category: true, status: true,
+        isGas: true, gasGallons: true, gasPricePerGallon: true, receiptImageUrl: true, offerId: true, offerCashback: true, challengeId: true,
+        referralId: true, rewardForSaleId: true, saleId: true, createdAt: true, updatedAt: true, voidedAt: true,
+        store: { select: { name: true } }, challenge: { select: { title: true, titleEs: true, kind: true } },   // a reward line names its challenge (kind WINBACK: a gift)
+      },
     }),
-    prisma.pointsTransaction.count({
-      where: { customerId: req.user!.id },
-    }),
+    prisma.pointsTransaction.count({ where: mine }),
   ]);
 
   res.json({ success: true, data: { transactions, total, page: parseInt(page), limit: parseInt(limit) } });
@@ -681,11 +702,16 @@ export async function voidTransaction(req: AuthRequest, res: Response) {
       data: { status: TransactionStatus.VOIDED, voidedAt: new Date(), voidedById: actor.id, voidReason: cleanReason },
     });
     if (moved.count === 0) return null;
+    // The half-year count only loses the points when the sale is in the current half-year (the reset already took it out otherwise)
+    await rollCustomerPeriod(db, transaction.customerId);
+    const inPeriod = getCurrentPeriod(transaction.createdAt) === getCurrentPeriod();
+    // Points of this sale that already expired left the balance then: only the rest is taken back now
+    const takeBack = Math.max(0, Math.round((totalPoints - await expiredPartOfSale(db, transaction.customerId, transactionId)) * 10000) / 10000);
     const after = await db.user.update({
       where: { id: transaction.customerId },
-      data: { pointsBalance: { decrement: totalPoints }, periodPoints: { decrement: totalPoints } },
+      data: { pointsBalance: { decrement: takeBack }, ...(inPeriod ? { periodPoints: { decrement: totalPoints } } : {}) },
     });
-    await voidSaleLots(db, transaction.customerId, transactionId, totalPoints);   // its batch back out (utils/pointLots.ts)
+    await voidSaleLots(db, transaction.customerId, transactionId, takeBack);   // its batch back out (utils/pointLots.ts)
     return after;
   });
 
@@ -733,18 +759,18 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
     prisma.pointsTransaction.aggregate({
       where: { storeId, status: TransactionStatus.APPROVED, createdAt: { gte: todayStart } },
       _count: { _all: true, challengeId: true, referralId: true },
-      _sum: { pointsAwarded: true, purchaseAmount: true },
+      _sum: { pointsAwarded: true, gasBonusPoints: true, purchaseAmount: true },
     }),
-    prisma.pointsTransaction.count({ where: { storeId, status: TransactionStatus.PENDING } }),
+    prisma.pointsTransaction.count({ where: { storeId, ...AWAITING_DECISION } }),
     prisma.pointsTransaction.aggregate({
       where: { storeId, status: TransactionStatus.APPROVED },
       _count: { _all: true, challengeId: true, referralId: true },
-      _sum: { pointsAwarded: true, purchaseAmount: true },
+      _sum: { pointsAwarded: true, gasBonusPoints: true, purchaseAmount: true },
     }),
   ]);
 
   const recent = await prisma.pointsTransaction.findMany({
-    where: { storeId },
+    where: { storeId, ...SHOWN },
     orderBy: { createdAt: 'desc' },
     take: 5,
     include: { customer: { select: { name: true, phone: true } }, grantedBy: { select: { name: true } }, servedBy: { select: { name: true } } },
@@ -756,13 +782,13 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
       store,
       today: {
         transactions: saleCount(todayStats._count),
-        pointsAwarded: todayStats._sum.pointsAwarded || 0,
+        pointsAwarded: (todayStats._sum.pointsAwarded || 0) + (todayStats._sum.gasBonusPoints || 0),
         purchaseVolume: todayStats._sum.purchaseAmount || 0,
       },
       pending: pendingCount,
       allTime: {
         transactions: saleCount(allTimeStats._count),
-        pointsAwarded: allTimeStats._sum.pointsAwarded || 0,
+        pointsAwarded: (allTimeStats._sum.pointsAwarded || 0) + (allTimeStats._sum.gasBonusPoints || 0),
         purchaseVolume: allTimeStats._sum.purchaseAmount || 0,
       },
       recent,
@@ -774,16 +800,25 @@ export async function getStoreSummary(req: AuthRequest, res: Response) {
 export async function getStoreTransactions(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const { status, page = '1', limit = '20' } = req.query as {
-    status?: TransactionStatus;
+    status?: string;
     page?: string;
     limit?: string;
   };
+  // NEEDS_REVIEW = held or waiting sales that have their photo (what the managers are pushed about); an unknown status is a 400, not a
+  // database error. Sales still waiting for their photo, and cancelled ones, show only under their own CANCELLED filter.
+  if (status && status !== NEEDS_REVIEW && !(Object.values(TransactionStatus) as string[]).includes(status)) {
+    res.status(400).json({ success: false, error: `"status" must be ${[NEEDS_REVIEW, ...Object.values(TransactionStatus)].join(', ')}` });
+    return;
+  }
+  const storeWhere: Prisma.PointsTransactionWhereInput = status === NEEDS_REVIEW ? { storeId, ...AWAITING_DECISION }
+    : status === TransactionStatus.CANCELLED ? { storeId, status: TransactionStatus.CANCELLED }
+    : { storeId, ...SHOWN, ...(status ? { status: status as TransactionStatus } : {}) };
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const [transactions, total] = await prisma.$transaction([
     prisma.pointsTransaction.findMany({
-      where: { storeId, ...(status && { status }) },
+      where: storeWhere,
       orderBy: { createdAt: 'desc' },
       skip,
       take: parseInt(limit),
@@ -793,7 +828,7 @@ export async function getStoreTransactions(req: AuthRequest, res: Response) {
         servedBy: { select: { id: true, name: true, phone: true } },
       },
     }),
-    prisma.pointsTransaction.count({ where: { storeId, ...(status && { status }) } }),
+    prisma.pointsTransaction.count({ where: storeWhere }),
   ]);
 
   res.json({ success: true, data: { transactions, total, page: parseInt(page), limit: parseInt(limit) } });
@@ -810,24 +845,24 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
   const [todayStats, monthStats, pendingCount, flaggedCount, oldestReview, allTimeStats, perStore, lastSales, creditsOut, allStores] = await prisma.$transaction([
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED', createdAt: { gte: todayStart } },
-      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true },
     }),
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED', createdAt: { gte: monthStart } },
-      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true },
     }),
-    prisma.pointsTransaction.count({ where: { status: 'PENDING' } }),
-    prisma.pointsTransaction.count({ where: { status: 'FLAGGED' } }),
-    prisma.pointsTransaction.aggregate({ where: { status: { in: ['PENDING', 'FLAGGED'] } }, _min: { createdAt: true } }),
+    prisma.pointsTransaction.count({ where: { ...AWAITING_DECISION, status: 'PENDING' } }),
+    prisma.pointsTransaction.count({ where: { ...AWAITING_DECISION, status: 'FLAGGED' } }),
+    prisma.pointsTransaction.aggregate({ where: AWAITING_DECISION, _min: { createdAt: true } }),
     prisma.pointsTransaction.aggregate({
       where: { status: 'APPROVED' },
-      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true },
+      _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true },
     }),
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
       where: { status: 'APPROVED', createdAt: { gte: monthStart } },
       _count: { _all: true, challengeId: true, referralId: true },
-      _sum: { purchaseAmount: true, pointsAwarded: true },
+      _sum: { purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true },
       orderBy: { _sum: { purchaseAmount: 'desc' } },
     }),
     prisma.pointsTransaction.groupBy({
@@ -855,7 +890,7 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
         city: s.city,
         transactions: m ? saleCount(m._count) : 0,
         purchaseVolume: parseFloat(((m?._sum?.purchaseAmount) ?? 0).toFixed(2)),
-        cashbackIssued: parseFloat(((m?._sum?.pointsAwarded) ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat((((m?._sum?.pointsAwarded) ?? 0) + ((m?._sum?.gasBonusPoints) ?? 0)).toFixed(2)),
         lastSaleAt: lastSaleByStore.get(s.id)?.toISOString() ?? null,
       };
     })
@@ -867,12 +902,12 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
       today: {
         transactions: saleCount(todayStats._count),
         purchaseVolume: parseFloat((todayStats._sum.purchaseAmount ?? 0).toFixed(2)),
-        cashbackIssued: parseFloat((todayStats._sum.pointsAwarded ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat(((todayStats._sum.pointsAwarded ?? 0) + (todayStats._sum.gasBonusPoints ?? 0)).toFixed(2)),
       },
       thisMonth: {
         transactions: saleCount(monthStats._count),
         purchaseVolume: parseFloat((monthStats._sum.purchaseAmount ?? 0).toFixed(2)),
-        cashbackIssued: parseFloat((monthStats._sum.pointsAwarded ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat(((monthStats._sum.pointsAwarded ?? 0) + (monthStats._sum.gasBonusPoints ?? 0)).toFixed(2)),
       },
       pending: pendingCount,   // PENDING only (kept for older admin builds)
       flagged: flaggedCount,   // fraud-flagged, also waiting on a reviewer (the sidebar badge counts both)
@@ -880,7 +915,7 @@ export async function getPlatformSummary(_req: AuthRequest, res: Response) {
       allTime: {
         transactions: saleCount(allTimeStats._count),
         purchaseVolume: parseFloat((allTimeStats._sum.purchaseAmount ?? 0).toFixed(2)),
-        cashbackIssued: parseFloat((allTimeStats._sum.pointsAwarded ?? 0).toFixed(2)),
+        cashbackIssued: parseFloat(((allTimeStats._sum.pointsAwarded ?? 0) + (allTimeStats._sum.gasBonusPoints ?? 0)).toFixed(2)),
       },
       totalCreditsOutstanding: parseFloat((creditsOut._sum.pointsBalance ?? 0).toFixed(2)),
       storeRanking,
@@ -897,7 +932,7 @@ export async function getPlatformTrend(req: AuthRequest, res: Response) {
 
   const rows = await prisma.pointsTransaction.findMany({
     where: { status: 'APPROVED', createdAt: { gte: startOfStoreDate(firstKey) } },
-    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, challengeId: true, referralId: true },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true, challengeId: true, referralId: true },
   });
 
   const byDate: Record<string, { date: string; transactions: number; purchaseVolume: number; cashbackIssued: number }> = {};
@@ -910,7 +945,7 @@ export async function getPlatformTrend(req: AuthRequest, res: Response) {
     if (!b) continue;
     if (!r.challengeId && !r.referralId) b.transactions++;
     b.purchaseVolume += r.purchaseAmount;
-    b.cashbackIssued += r.pointsAwarded;
+    b.cashbackIssued += r.pointsAwarded + (r.gasBonusPoints ?? 0);
   }
   const daily = Object.values(byDate).map((d) => ({
     ...d,
@@ -932,7 +967,7 @@ export async function getPlatformCompare(req: AuthRequest, res: Response) {
 
   const rows = await prisma.pointsTransaction.findMany({
     where: { status: 'APPROVED', createdAt: { gte: w.previous.start, lte: now } },
-    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, challengeId: true, referralId: true },
+    select: { createdAt: true, purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true, challengeId: true, referralId: true },
   });
 
   res.json({
@@ -959,8 +994,8 @@ export async function getStoreHealth(_req: AuthRequest, res: Response) {
     prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: todayStart } }, _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
     prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: lastWeekStart, lte: lastWeekEnd } }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
     prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: monthStart } }, _count: { _all: true, challengeId: true, referralId: true }, _sum: { purchaseAmount: true }, orderBy: { storeId: 'asc' } }),
-    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: thirtyDaysAgo } }, _sum: { purchaseAmount: true, pointsAwarded: true }, orderBy: { storeId: 'asc' } }),
-    prisma.pointsTransaction.groupBy({ by: ['storeId', 'status'], where: { status: { in: [TransactionStatus.PENDING, TransactionStatus.FLAGGED] } }, _count: true, orderBy: [{ storeId: 'asc' }, { status: 'asc' }] }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, createdAt: { gte: thirtyDaysAgo } }, _sum: { purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true }, orderBy: { storeId: 'asc' } }),
+    prisma.pointsTransaction.groupBy({ by: ['storeId', 'status'], where: AWAITING_DECISION, _count: true, orderBy: [{ storeId: 'asc' }, { status: 'asc' }] }),
     prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...approved, challengeId: null, referralId: null }, _max: { createdAt: true }, orderBy: { storeId: 'asc' } }),
   ]);
 
@@ -977,7 +1012,7 @@ export async function getStoreHealth(_req: AuthRequest, res: Response) {
     const todayVolume = r2(t?._sum?.purchaseAmount ?? 0);
     const lastWeekVolume = r2(lastWeekBy.get(s.id)?._sum?.purchaseAmount ?? 0);
     const sales30 = ratioBy.get(s.id)?._sum?.purchaseAmount ?? 0;
-    const cash30 = ratioBy.get(s.id)?._sum?.pointsAwarded ?? 0;
+    const cash30 = (ratioBy.get(s.id)?._sum?.pointsAwarded ?? 0) + (ratioBy.get(s.id)?._sum?.gasBonusPoints ?? 0);
     const cashbackRatio30d = sales30 > 0 ? parseFloat((cash30 / sales30).toFixed(4)) : 0;
     const lastSaleAt = lastBy.get(s.id)?._max?.createdAt ?? null;
     const pending = pendingBy.get(s.id) ?? 0;
@@ -1029,7 +1064,7 @@ export async function getTransactionsPendingCount(req: AuthRequest, res: Respons
   }
 
   const count = await prisma.pointsTransaction.count({
-    where: { storeId: { in: storeIds }, status: { in: ['PENDING', 'FLAGGED'] } },
+    where: { storeId: { in: storeIds }, ...AWAITING_DECISION, isTestData: false },
   });
   res.json({ success: true, data: { count } });
 }
@@ -1263,8 +1298,8 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
   res.json({ success: true, message: `${item.title} redeemed`, data: { remainingPts: Math.round(outcome.balance * 100) } });
 }
 
-// status=NEEDS_REVIEW is the admin's default view: flagged sales first, then sales still waiting for a receipt.
-// It is the same set the sidebar badge counts (PENDING + FLAGGED).
+// status=NEEDS_REVIEW is the admin's default view: held sales that have their receipt photo, what the sidebar badge counts. A sale still
+// waiting for its photo is shown nowhere (the cashier may still be taking it); a cancelled one only under status=CANCELLED (2026-10-18).
 const NEEDS_REVIEW = 'NEEDS_REVIEW';
 
 // Turns the list / CSV query string into a database filter. The admin page only sends valid values; anything else
@@ -1283,7 +1318,7 @@ function parseTransactionFilters(q: Record<string, unknown>):
   if (status) {
     if (status === NEEDS_REVIEW) {
       needsReview = true;
-      where.status = { in: [TransactionStatus.FLAGGED, TransactionStatus.PENDING] };
+      Object.assign(where, AWAITING_DECISION);
     } else if ((Object.values(TransactionStatus) as string[]).includes(status)) {
       where.status = status as TransactionStatus;
     } else {
@@ -1331,6 +1366,9 @@ function parseTransactionFilters(q: Record<string, unknown>):
   // Analytics, billing and the store health figures — this page's own numbers should match those without
   // asking. "includeTestData=true" shows both; there is no "test data only" mode, since nothing needs it yet.
   if (includeTestData !== 'true') where.isTestData = false;
+
+  // Unfinished and cancelled sales stay out unless asked for by name
+  if (status !== TransactionStatus.CANCELLED) where.AND = [...((where.AND as Prisma.PointsTransactionWhereInput[] | undefined) ?? []), ...(SHOWN.AND as Prisma.PointsTransactionWhereInput[])];
 
   return { where, needsReview };
 }
@@ -1483,3 +1521,55 @@ export async function undoCustomerExpiry(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { points: Math.round(given * 100), dollars: given } });
 }
 
+/**
+ * A held sale's alert (2026-10-18): sent when its receipt photo arrives, not when the cashier pressed Grant, so a sale that is never
+ * finished alerts nobody. Once per sale: the first held line of a multi-line sale sends it, for the whole sale.
+ */
+async function alertHeldSale(t: { id: string; saleId: string | null; storeId: string; customerId: string; grantedById: string; servedById: string | null; purchaseAmount: number; fraudFlags: string | null }, employee: { id: string; name?: string | null }) {
+  const lines = t.saleId
+    ? await prisma.pointsTransaction.findMany({ where: { OR: [{ id: t.saleId }, { saleId: t.saleId }], status: { notIn: NOT_A_SALE } }, select: { id: true, status: true, purchaseAmount: true, createdAt: true }, orderBy: { createdAt: 'asc' } })
+    : [{ id: t.id, status: TransactionStatus.FLAGGED, purchaseAmount: t.purchaseAmount, createdAt: new Date() }];
+  const firstHeld = lines.find((l) => l.status === TransactionStatus.FLAGGED);
+  if (firstHeld && firstHeld.id !== t.id) return;
+  const total = lines.reduce((n, l) => n + l.purchaseAmount, 0);
+  const [store, customer, served] = await Promise.all([
+    prisma.store.findUnique({ where: { id: t.storeId }, select: { name: true } }),
+    prisma.user.findUnique({ where: { id: t.customerId }, select: { name: true, phone: true } }),
+    t.servedById ? prisma.user.findUnique({ where: { id: t.servedById }, select: { name: true } }) : Promise.resolve(null),
+  ]);
+  let flags: string[] = [];
+  try { flags = t.fraudFlags ? JSON.parse(t.fraudFlags) : []; } catch { /* unreadable flag text */ }
+  // Tell the people who can decide: this store's active managers and every active Super Admin (not every store's managers, and not anyone who has left)
+  for (const id of await flaggedSaleRecipientIds(t.storeId)) {
+    sendPushToUser(id, '🚨 Sale held for review', `$${total.toFixed(2)} sale held for review at ${store?.name ?? 'your store'}.`, 'ALERT');
+  }
+  // A large one also goes to HQ's email: an admin who is not looking at the page or the phone would not hear about it until much later
+  if (total >= rule('reviewEmailHQAmount')) {   // HQ's amount (Settings > Sales review)
+    const by = served ? `${served.name || 'an employee'} (entered by HQ, ${employee.name || 'HQ'})` : employee.name || 'a cashier';
+    emailHQ(
+      `Sale held for review: $${total.toFixed(2)} at ${store?.name ?? 'a store'}`,
+      'A large sale is held for review',
+      [`$${total.toFixed(2)} at ${store?.name ?? 'a store'}, granted by ${by} for ${customer?.name || customer?.phone || 'a customer'}.`, `Held because: ${flags.join(', ') || 'review'}.`, 'It is not credited until a manager or HQ approves it.'],
+      { path: '/transactions', label: 'Review the sale' },
+      'LARGE_SALE',
+    );
+  }
+}
+
+/**
+ * POST /points/grant/cancel { ids } (cashier, 2026-10-18): the cashier pressed Cancel after Grant and before the receipt photo. Their own
+ * lines still waiting for a photo are cancelled; nothing was credited and nobody is told. A manager or HQ may cancel any unfinished line
+ * at their stores. Lines that already have their photo, or were decided, are left as they are.
+ */
+export async function cancelGrant(req: AuthRequest, res: Response) {
+  const ids = Array.isArray(req.body?.ids) ? (req.body.ids as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 20) : [];
+  if (!ids.length) { res.status(400).json({ success: false, error: 'Say which sale to cancel.' }); return; }
+  const user = req.user!;
+  const who: Prisma.PointsTransactionWhereInput = hasMinRole(user.role, Role.SUPER_ADMIN) ? {}
+    : hasMinRole(user.role, Role.STORE_MANAGER) ? { OR: [{ grantedById: user.id }, { storeId: { in: user.storeIds ?? [] } }] }
+    : { grantedById: user.id };
+  const reason = hasMinRole(user.role, Role.STORE_MANAGER) ? 'MANAGER' : 'CASHIER';
+  const cancelled = await cancelUnfinished({ id: { in: ids }, ...who }, reason);
+  if (cancelled) audit({ actorId: user.id, actorName: user.name, actorRole: user.role, action: 'CANCEL_UNFINISHED_SALES', entity: 'transaction', details: { count: cancelled, ids, reason }, storeId: null });
+  res.json({ success: true, data: { cancelled } });
+}

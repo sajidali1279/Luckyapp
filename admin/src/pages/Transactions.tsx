@@ -35,6 +35,7 @@ const STATUS_COLORS: Record<string, string> = {
   APPROVED: '#1a7f45',
   REJECTED: '#c42130',
   VOIDED:   '#4f6d8f',
+  CANCELLED: '#5a6472',   // never finished: the cashier stopped before the receipt photo (2026-10-18)
 };
 
 // Text-safe greens and reds: #1a7f45 and #c42130 are fine as badge backgrounds but not as small text on white.
@@ -63,9 +64,18 @@ function fmt$(n: number) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+// Why a sale was never finished (cancelReason, 2026-10-18)
+const CANCEL_REASONS: Record<string, string> = {
+  CASHIER: 'the cashier pressed Cancel before the receipt photo',
+  NEW_SCAN: 'the cashier started this customer\'s sale again',
+  TIMEOUT: 'no receipt photo arrived in time',
+  MANAGER: 'a manager or HQ cleared it',
+};
+
 function statusLabel(status: string) {
   if (status === 'FLAGGED') return 'FLAGGED';
   if (status === 'VOIDED') return '↩️ VOIDED';
+  if (status === 'CANCELLED') return 'NOT FINISHED';
   return status;
 }
 
@@ -111,7 +121,8 @@ export default function Transactions() {
   const paramOr = (key: string, fallback: string) => { const v = initial.current.get(key); return v !== null ? v : fallback; };
 
   const [selectedStore, setSelectedStore] = useState<string>(() => paramOr('store', ''));
-  const [statusFilter, setStatusFilter] = useState<string>(() => paramOr('status', isSuperAdmin ? 'NEEDS_REVIEW' : 'PENDING'));
+  // Managers too open on Needs review: the held sales they are pushed about (2026-10-18; they opened on Pending, which hid them)
+  const [statusFilter, setStatusFilter] = useState<string>(() => paramOr('status', 'NEEDS_REVIEW'));
   const [categoryFilter, setCategoryFilter] = useState<string>(() => paramOr('category', ''));
   const [from, setFrom] = useState<string>(() => paramOr('from', monthAgoStr()));
   const [to, setTo] = useState<string>(() => paramOr('to', todayStr()));
@@ -508,9 +519,9 @@ export default function Transactions() {
           style={{
             color: tx.status === 'APPROVED' ? APPROVED_TEXT : TEXT_MUTED,
             fontWeight: 700,
-            textDecoration: tx.status === 'REJECTED' || tx.status === 'VOIDED' ? 'line-through' : undefined,
+            textDecoration: tx.status === 'REJECTED' || tx.status === 'VOIDED' || tx.status === 'CANCELLED' ? 'line-through' : undefined,
           }}
-          title={tx.status === 'APPROVED' ? 'Credited to the customer' : tx.status === 'REJECTED' ? 'Not credited: rejected' : tx.status === 'VOIDED' ? 'Was credited; voided and clawed back' : 'Not credited yet'}
+          title={tx.status === 'APPROVED' ? 'Credited to the customer' : tx.status === 'REJECTED' ? 'Not credited: rejected' : tx.status === 'VOIDED' ? 'Was credited; voided and clawed back' : tx.status === 'CANCELLED' ? 'Not credited: never finished' : 'Not credited yet'}
         >
           {fmt$(Number(tx.pointsAwarded || 0) + Number(tx.gasBonusPoints || 0))}
         </span>
@@ -729,13 +740,14 @@ export default function Transactions() {
         )}
 
         <select aria-label="Status" style={s.select} value={statusFilter} onChange={(e) => changeStatus(e.target.value)}>
-          {isSuperAdmin && <option value="NEEDS_REVIEW">Needs review</option>}
+          <option value="NEEDS_REVIEW">Needs review</option>
           <option value="">All Statuses</option>
           <option value="PENDING">Pending</option>
           <option value="FLAGGED">Flagged</option>
           <option value="APPROVED">✓ Approved</option>
           <option value="REJECTED">✕ Rejected</option>
           <option value="VOIDED">↩️ Voided</option>
+          <option value="CANCELLED">Not finished (no receipt photo)</option>
         </select>
 
         {isSuperAdmin && (
@@ -837,7 +849,7 @@ export default function Transactions() {
           <div style={s.empty}>
             <div style={{ fontSize: 34 }} aria-hidden="true"><Glyph e="✅" size={28} color="#5a6472" /></div>
             <div style={{ fontWeight: 700, color: PRIMARY, margin: '8px 0 4px' }}>Nothing needs review right now</div>
-            <div style={{ marginBottom: 16 }}>Flagged sales, and sales still waiting for a receipt, will appear here.</div>
+            <div style={{ marginBottom: 16 }}>Held sales appear here once the cashier has added the receipt photo.</div>
             <button style={s.clearBtn} onClick={() => changeStatus('')}>Show all transactions</button>
           </div>
         ) : (
@@ -924,7 +936,9 @@ export default function Transactions() {
                   <img src={panelTx.receiptImageUrl} alt="Receipt" style={s.panelReceiptImg} />
                 </a>
               ) : (
-                <div style={s.panelEmptyNote}>{panelTx.status === 'FLAGGED' ? 'Waiting for the cashier to upload a receipt.' : 'No receipt on file.'}</div>
+                <div style={s.panelEmptyNote}>{panelTx.status === 'CANCELLED'
+                  ? `Never finished: ${CANCEL_REASONS[panelTx.cancelReason] ?? 'no receipt photo'}. Nothing was credited and the customer was not told.`
+                  : panelTx.status === 'FLAGGED' ? 'Waiting for the cashier to upload a receipt.' : 'No receipt on file.'}</div>
               )}
 
               <div style={s.panelSectionTitle}>This customer's last sales</div>

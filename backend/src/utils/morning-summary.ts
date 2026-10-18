@@ -30,6 +30,15 @@ export async function yesterdayReport(now: Date = new Date()): Promise<Yesterday
   const end = storeDayStart(now);
   const start = new Date(end.getTime() - 24 * 3600_000);
   const lastWeekStart = new Date(start.getTime() - 7 * 24 * 3600_000), lastWeekEnd = new Date(end.getTime() - 7 * 24 * 3600_000);
+  // Customer receipt scans still waiting for a manager: a scan stays HELD after its sale is decided, so it is waiting only while one of its
+  // lines is still held (2026-10-18; it used to count every HELD scan ever, a number that only grew)
+  const scansWaiting = async () => {
+    const held = await prisma.receiptScan.findMany({ where: { status: 'HELD', createdAt: { gte: new Date(end.getTime() - 90 * 24 * 3600_000) } }, select: { transactionIds: true } });
+    const ids = held.flatMap((h) => h.transactionIds);
+    if (!ids.length) return 0;
+    const open = new Set((await prisma.pointsTransaction.findMany({ where: { id: { in: ids }, status: 'FLAGGED' }, select: { id: true } })).map((t) => t.id));
+    return held.filter((h) => h.transactionIds.some((id) => open.has(id))).length;
+  };
   const real = { status: 'APPROVED' as const, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gt: 0 } };
   const safe = <T,>(p: Promise<T>, fallback: T) => p.catch(() => fallback);
   const [stores, sales, lastWeek, hot, heldScans] = await Promise.all([
@@ -37,7 +46,7 @@ export async function yesterdayReport(now: Date = new Date()): Promise<Yesterday
     safe(prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...real, createdAt: { gte: start, lt: end } }, _count: { _all: true }, _sum: { purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true } }), [] as any[]),
     safe(prisma.pointsTransaction.groupBy({ by: ['storeId'], where: { ...real, createdAt: { gte: lastWeekStart, lt: lastWeekEnd } }, _count: { _all: true } }), [] as any[]),
     safe(prisma.hotFoodOrder.groupBy({ by: ['storeId', 'status'], where: { createdAt: { gte: start, lt: end } }, _count: { _all: true } }), [] as any[]),
-    safe(prisma.receiptScan.count({ where: { status: 'HELD' } }), 0),
+    safe(scansWaiting(), 0),
   ]);
   const s = new Map(sales.map((r: any) => [r.storeId, r]));
   const lw = new Map(lastWeek.map((r: any) => [r.storeId, r._count._all as number]));
@@ -72,10 +81,10 @@ export async function runMorningSummary(now: Date = new Date()): Promise<Summary
   const count = (p: Promise<number>) => p.catch(() => 0);
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const [flagged, staleFlagged, disputes, alerts, urgentAlerts, stock, shifts, products, unpaid, offerRequests] = await Promise.all([
-    count(prisma.pointsTransaction.count({ where: { status: 'FLAGGED' } })),
+    count(prisma.pointsTransaction.count({ where: { status: 'FLAGGED', receiptImageUrl: { not: null } } })),   // not one still waiting for its photo
     // Waited over a day for a decision: worth a more pointed line than "some are flagged", the same idea as a
     // stale flagged sale getting its own nudge rather than blending into the daily count.
-    count(prisma.pointsTransaction.count({ where: { status: 'FLAGGED', createdAt: { lt: oneDayAgo } } })),
+    count(prisma.pointsTransaction.count({ where: { status: 'FLAGGED', receiptImageUrl: { not: null }, createdAt: { lt: oneDayAgo } } })),
     count(prisma.pointsDispute.count({ where: { status: 'PENDING' } })),
     count(prisma.storeRequest.count({ where: { status: 'PENDING' } })),
     count(prisma.storeRequest.count({ where: { status: 'PENDING', priority: 'HIGH' } })),

@@ -20,6 +20,7 @@ import { pointsExpiry, type ExpiryConfig } from './appSettings';
 import { lockCustomer } from './moneyGuards';
 import { audit } from './audit';
 import { sendPushToUser } from './push';
+import { storeDateKey } from './storeTime';
 
 type Db = Prisma.TransactionClient | typeof prisma;
 const DAY = 86_400_000;
@@ -89,8 +90,18 @@ export async function restoreLots(db: Db, userId: string, refType: UseRef, refId
 }
 
 /**
- * A sale voided after it was credited (the balance went down by `total`, same transaction): what is left of its batch is taken back, and
- * whatever of it the customer had already spent comes out of their other batches, oldest first (what is not there is the debt below zero).
+ * The part of a sale's points that already expired (and was not given back): it left the balance when it expired, so voiding the sale
+ * must not take it again (2026-10-18; a void after expiry took those points twice).
+ */
+export async function expiredPartOfSale(db: Db, userId: string, saleId: string): Promise<number> {
+  const lots = await db.pointLot.findMany({ where: { userId, sourceId: saleId, expiryUndoneAt: null, expiredAmount: { gt: 0 } }, select: { expiredAmount: true } });
+  return c2(lots.reduce((n, l) => n + l.expiredAmount, 0));
+}
+
+/**
+ * A sale voided after it was credited (the balance went down by `total`, same transaction; `total` leaves out any part that already
+ * expired, expiredPartOfSale): what is left of its batch is taken back, and whatever of it the customer had already spent comes out of
+ * their other batches, oldest first (what is not there is the debt below zero).
  */
 export async function voidSaleLots(db: Db, userId: string, saleId: string, total: number): Promise<void> {
   const lots = await db.pointLot.findMany({ where: { userId, sourceId: saleId, remaining: { gt: 0 } } });
@@ -234,12 +245,12 @@ export async function expirySummary(userId: string, now: Date = new Date()) {
   const upcoming = new Map<string, number>();
   if (cfg.enabled) {
     for (const l of open) {
-      const due = lotExpiresAt(l.earnedAt, cfg)!.toISOString().slice(0, 10);
+      const due = storeDateKey(lotExpiresAt(l.earnedAt, cfg)!);   // the store's (Central) date, like the reminder push
       upcoming.set(due, c2((upcoming.get(due) ?? 0) + l.remaining));
     }
   }
   const expired = new Map<string, number>();
-  for (const l of gone) { const d = l.expiredAt!.toISOString().slice(0, 10); expired.set(d, c2((expired.get(d) ?? 0) + l.expiredAmount)); }
+  for (const l of gone) { const d = storeDateKey(l.expiredAt!); expired.set(d, c2((expired.get(d) ?? 0) + l.expiredAmount)); }
   const list = [...upcoming.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, dollars]) => ({ date, points: pts(dollars) }));
   return {
     enabled: cfg.enabled, days: cfg.days,

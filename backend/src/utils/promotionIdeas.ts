@@ -283,7 +283,7 @@ export async function promotionIdeas(now: Date = new Date()): Promise<IdeasResul
   const lapsedSince = new Date(now.getTime() - DEFAULT_LAPSED_DAYS * 86_400_000);
   const visits = await prisma.pointsTransaction.groupBy({
     by: ['customerId'],
-    where: { status: { not: 'REJECTED' }, isTestData: false, challengeId: null, referralId: null, customer: excludeDeletedCustomers },
+    where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, isTestData: false, challengeId: null, referralId: null, customer: excludeDeletedCustomers },
     _count: { _all: true },
     _max: { createdAt: true },
   });

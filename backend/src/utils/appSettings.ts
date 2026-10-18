@@ -25,7 +25,8 @@ export const RULES = {
   reviewCashierGrantsPerHour: { group: 'review', section: 'How often', label: 'Hold a cashier\'s sale once they have granted this many in an hour', unit: 'sales', def: 15, min: 3, max: 200, int: true, help: 'Busy stores may need a higher number.' },
   // 2026-10-17: it was a fixed $500 in utils/adminEmail.ts, so lowering the hold amount still emailed only from $500
   reviewEmailHQAmount: { group: 'review', section: 'Amounts', label: 'Also email HQ about a held sale of at least', unit: '$', def: 500, min: 50, max: 20000, int: false, help: 'Held sales below this are only shown here and in the app.' },
-  reviewPendingExpiryHours: { group: 'review', section: 'Receipt photo', label: 'A sale with no receipt photo expires after', unit: 'hours', def: 24, min: 1, max: 168, int: true, help: 'It is rejected and nothing is credited.' },
+  // A sale the cashier never finished (Grant pressed, no receipt photo) is cancelled after this (2026-10-18; was 24 hours, rejected)
+  reviewUnfinishedMinutes: { group: 'review', section: 'Receipt photo', label: 'A sale with no receipt photo is cancelled after', unit: 'minutes', def: 30, min: 10, max: 1440, int: true, help: 'Nothing was credited, so nothing is taken back and nobody is told. Until the photo arrives, the sale is not shown to HQ, the managers or the customer.' },
   receiptScansPerDay: { group: 'receipts', section: 'Limits', label: 'Receipts one customer can scan a day', unit: 'receipts', def: 3, min: 1, max: 20, int: true, help: 'Failed reads count up to 8 tries a day.' },
   receiptMaxDays: { group: 'receipts', section: 'Limits', label: 'How old a scanned receipt can be', unit: 'days', def: 3, min: 0, max: 14, int: true, help: '0 means today only.' },
   receiptMaxTotal: { group: 'receipts', section: 'Limits', label: 'Largest receipt total that can be scanned', unit: '$', def: 2000, min: 50, max: 20000, int: false, help: 'Bigger receipts are refused; the cashier can grant them.' },

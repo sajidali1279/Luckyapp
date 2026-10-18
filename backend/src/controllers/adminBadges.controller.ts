@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { RequestStatus } from '@prisma/client';
+import { AWAITING_DECISION } from '../utils/unfinishedSales';
 
 // ─── GET /admin/badges ─────────────────────────────────────────────────────
 // One request for every "something is waiting for you" count the admin shell's sidebar badges and command
@@ -69,7 +70,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
     missingRequestsPendingCount,
   ] = await Promise.all([
     // points.controller.ts getTransactionsPendingCount
-    prisma.pointsTransaction.count({ where: { storeId: { in: storeIds }, status: { in: ['PENDING', 'FLAGGED'] } } }),
+    prisma.pointsTransaction.count({ where: { storeId: { in: storeIds }, ...AWAITING_DECISION, isTestData: false } }),   // not a sale still waiting for its photo
     // dispute.controller.ts getPendingDisputeCount
     prisma.pointsDispute.count({ where: { status: 'PENDING' } }),
     // storeRequest.controller.ts getPendingCount

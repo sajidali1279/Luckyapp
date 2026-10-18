@@ -118,7 +118,7 @@ export async function hqReadReceipt(req: AuthRequest, res: Response) {
     const from = read.time ? new Date(at.getTime() - 45 * 60_000) : at;
     const to = read.time ? new Date(at.getTime() + 120 * 60_000) : new Date(at.getTime() + 30 * 3600_000);
     const given = await prisma.pointsTransaction.findFirst({
-      where: { customerId: customer.id, storeId: checkStore, createdAt: { gte: from, lte: to }, status: { not: TransactionStatus.REJECTED }, challengeId: null, referralId: null },
+      where: { customerId: customer.id, storeId: checkStore, createdAt: { gte: from, lte: to }, status: { notIn: [TransactionStatus.REJECTED, TransactionStatus.CANCELLED] }, challengeId: null, referralId: null },
       select: { purchaseAmount: true, createdAt: true },
     });
     if (given) warn('ALREADY_GIVEN', `${customer.name ?? 'This customer'} already got points at that store around then (${money(given.purchaseAmount)} at ${storeTimeText(given.createdAt)}).`, true);

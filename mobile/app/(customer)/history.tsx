@@ -182,9 +182,11 @@ export default function HistoryScreen() {
                   </View>
                   <View style={s.cardRight}>
                     {item.status === 'APPROVED' ? (
-                      <Text style={s.points}>{t('customerHistory.pointsValue', { points: Math.round(Number(item.pointsAwarded) * 100).toLocaleString() })}</Text>
-                    ) : item.status === 'PENDING' ? (
-                      <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>{t('customerHistory.statusPending')}</Text>
+                      <Text style={s.points}>{t('customerHistory.pointsValue', { points: Math.round((Number(item.pointsAwarded) + Number(item.gasBonusPoints || 0)) * 100).toLocaleString() })}</Text>
+                    ) : item.status === 'PENDING' || item.status === 'FLAGGED' ? (
+                      <Text style={[s.points, { color: '#B45309', fontSize: 12 }]}>{t('customerHistory.statusUnderReview')}</Text>
+                    ) : item.status === 'VOIDED' ? (
+                      <Text style={[s.points, { color: '#6B7280', fontSize: 12 }]}>{t('customerHistory.statusVoided')}</Text>
                     ) : (
                       <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>{t('customerHistory.statusRejected')}</Text>
                     )}
@@ -228,17 +230,27 @@ export default function HistoryScreen() {
                   </View>
                 </>
               )}
-              <View style={d.row}>
-                <Text style={d.rowLabel}>{t('customerHistory.detailPointsEarned')}</Text>
-                <Text style={[d.rowValue, { color: COLORS.success, fontWeight: '900' }]}>
-                  {t('customerHistory.pointsValue', { points: Math.round(Number(selected.pointsAwarded) * 100).toLocaleString() })}
-                </Text>
-              </View>
-              {selected.gasBonusAwarded > 0 && (
+              {/* Points earned only for a sale that was credited; a held, voided or rejected one says what happened instead (2026-10-18) */}
+              {selected.status === 'APPROVED' ? (
+                <View style={d.row}>
+                  <Text style={d.rowLabel}>{t('customerHistory.detailPointsEarned')}</Text>
+                  <Text style={[d.rowValue, { color: COLORS.success, fontWeight: '900' }]}>
+                    {t('customerHistory.pointsValue', { points: Math.round(Number(selected.pointsAwarded) * 100).toLocaleString() })}
+                  </Text>
+                </View>
+              ) : (
+                <View style={d.row}>
+                  <Text style={d.rowLabel}>{t('customerHistory.detailStatus')}</Text>
+                  <Text style={[d.rowValue, { color: selected.status === 'REJECTED' ? '#E63946' : selected.status === 'VOIDED' ? '#6B7280' : '#B45309', fontWeight: '700', flexShrink: 1, textAlign: 'right' }]}>
+                    {selected.status === 'REJECTED' ? t('customerHistory.rejectedNote') : selected.status === 'VOIDED' ? t('customerHistory.voidedNote') : t('customerHistory.underReviewNote')}
+                  </Text>
+                </View>
+              )}
+              {selected.status === 'APPROVED' && Number(selected.gasBonusPoints) > 0 && (
                 <View style={d.row}>
                   <Text style={d.rowLabel}>{t('customerHistory.detailGasBonus')}</Text>
                   <Text style={[d.rowValue, { color: '#F4A226', fontWeight: '800' }]}>
-                    {t('customerHistory.pointsValue', { points: Math.round(Number(selected.gasBonusAwarded) * 100) })}
+                    {t('customerHistory.pointsValue', { points: Math.round(Number(selected.gasBonusPoints) * 100) })}
                   </Text>
                 </View>
               )}

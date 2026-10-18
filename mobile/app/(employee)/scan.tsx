@@ -248,6 +248,7 @@ export default function EmployeeScanScreen() {
   const [redeemAmount, setRedeemAmount] = useState('');
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [transactionIds, setTransactionIds] = useState<string[]>([]);
+  const [heldLines, setHeldLines] = useState(0);   // lines held for a manager's review: the done screen says so instead of "credited"
   // Set the moment an action starts: setLoading(true) only disables the buttons on the next render, so two quick taps both ran.
   const busyRef = useRef(false);
   // Items of a multi-item sale whose receipt is already uploaded, so a retry only sends the ones that failed
@@ -442,6 +443,11 @@ export default function EmployeeScanScreen() {
   }
 
   function reset() {
+    // Lines created by Grant that never got their receipt photo are cancelled on the server (2026-10-18): before, Cancel only cleared this
+    // screen, the sale waited forever in HQ's list, and starting the customer again was refused as a duplicate. Nothing was credited.
+    const unfinished = [...createdLinesRef.current.values()].map((r: any) => r?.data?.data?.transactionId).filter((id: string | undefined): id is string => !!id && !uploadedIdsRef.current.has(id));
+    if (unfinished.length) pointsApi.cancelGrant(unfinished).catch(() => { /* the server cancels it after 30 minutes anyway */ });
+    setHeldLines(0);
     setStep('scan');
     setScanned(false);
     setCustomerQr('');
@@ -592,6 +598,7 @@ export default function EmployeeScanScreen() {
       setPointsAwarded(results.reduce((sum, r) => sum + r.data.data.pointsAwarded, 0));
       setGasBonusAwarded(results.reduce((sum, r) => sum + (r.data.data.gasBonusPoints || 0), 0));
       setPromotionApplied(results.find(r => r.data.data.promotionApplied)?.data.data.promotionApplied || null);
+      setHeldLines(results.filter(r => r.data.flagged).length);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setStep('receipt');
     } catch (err: any) {
@@ -1402,11 +1409,12 @@ export default function EmployeeScanScreen() {
       {/* ──────────────────────── GRANT: DONE ────────────────────────── */}
       {step === 'grant-done' && (
         <CelebrationDone
-          heading={t('employeeScan.pointsGrantedHeading')}
+          heading={heldLines > 0 ? t('employeeScan.heldHeading') : t('employeeScan.pointsGrantedHeading')}
           amount={`+${Math.round(pointsAwarded * 100)} pts`}
-          amountColor={COLORS.success}
+          amountColor={heldLines > 0 ? COLORS.statusPendingText : COLORS.success}
           sub={customerInfo?.name || customerInfo?.phone}
-          sub2={transactionIds.length > 1 ? t('employeeScan.categoriesCashbackCredited', { count: transactionIds.length }) : t('employeeScan.cashbackCreditedToAccount')}
+          sub2={heldLines > 0 ? t('employeeScan.heldSub', { count: heldLines })
+            : transactionIds.length > 1 ? t('employeeScan.categoriesCashbackCredited', { count: transactionIds.length }) : t('employeeScan.cashbackCreditedToAccount')}
           extraNode={
             <>
               {gasBonusAwarded > 0 && (

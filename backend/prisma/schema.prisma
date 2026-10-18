@@ -76,6 +76,8 @@ enum TransactionStatus {
   APPROVED   // Points granted
   REJECTED   // Rejected by admin/auto
   VOIDED     // Was APPROVED; undone after the fact, the credited points clawed back
+  CANCELLED  // Never finished: the cashier stopped before the receipt photo, so nothing was credited (2026-10-18). Not a decision and
+             // never shown to the customer: no push, and HQ and the managers see it only in its own filter.
 }
 
 enum OfferType {
@@ -533,6 +535,10 @@ model PointsTransaction {
   // The lines of one sale (groceries + hot food + gas, 2026-10-17): every line of a sale with more than one line carries the id of its
   // first line, so HQ's Transactions page shows them as one sale. Null for a one-line sale and for sales made before.
   saleId            String?
+  // A sale that was never finished (status CANCELLED, 2026-10-18): when, and why. CASHIER = the cashier pressed Cancel, NEW_SCAN = the
+  // cashier started the same customer's sale again, TIMEOUT = no receipt photo within 30 minutes, MANAGER = cleared by a manager or HQ.
+  cancelledAt       DateTime?
+  cancelReason      String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
