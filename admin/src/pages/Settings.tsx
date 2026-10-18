@@ -15,6 +15,7 @@ import { DealLimitsCard } from '../components/DealsPanel';
 import ConfirmModal from '../components/ConfirmModal';
 import { RulesCard, FeaturesCard, BusinessCard, HistoryCard, LastChanged, useSettings } from '../components/SettingsCards';
 import { useAnyUnsaved } from '../lib/unsaved';
+import PointsExpirySettings from '../components/PointsExpirySettings';
 
 type Tab = 'features' | 'hotfood' | 'review' | 'receipts' | 'rewards' | 'care' | 'deals' | 'staff' | 'app' | 'history';
 const TABS: { value: Tab; label: string }[] = [
@@ -45,6 +46,7 @@ const FIXED: Hit[] = [
   { label: 'Receipt scanning: on or off, who can use it, latest scans', words: 'receipt scan photo test phones everyone', tab: 'receipts', where: 'Receipt scanning' },
   { label: 'Refer a friend: rewards, minimum purchase, limits', words: 'referral invite friend code reward', tab: 'rewards', where: 'Rewards & offers' },
   { label: 'Deal limits: largest discount per category', words: 'deal discount limit category', tab: 'deals', where: 'Deals' },
+  { label: 'Points expiry: on or off, days, warning push', words: 'expire expiry expiring points days old balance warning', tab: 'rewards', target: 'points-expiry', where: 'Rewards & offers' },
   { label: 'History of settings changes', words: 'history log who changed audit', tab: 'history', where: 'History' },
   { label: 'Joining bonus: free items for new customers', words: 'welcome joining bonus free item new customer days', href: '/offers?tab=welcome', where: 'Offers page' },
   { label: 'Cashback rates, tiers, gas cents per gallon, category bonuses', words: 'cashback rate tier bronze silver gold diamond platinum gas cents gallon bonus points', href: '/rates', where: 'Cashback Rates page' },
@@ -162,6 +164,7 @@ export default function Settings() {
               <li><Link to="/offers" style={{ color: PRIMARY, fontWeight: 700 }}>Offers</Link>: promotions, deals and challenges themselves</li>
             </ul>
           </Card>
+          <PointsExpirySettings />
           <RulesCard group="perks" title="Tier perks and rewards" intro="What each tier gets beyond cashback, how long a reward code from the app lasts, and the invite-code window. The app shows these numbers to customers." />
           <div>
             <ReferralsPanel part="deal" />

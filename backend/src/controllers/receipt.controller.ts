@@ -16,6 +16,7 @@ import { pointsUrl } from '../utils/notificationRoutes';
 import { getStoreByApiKey, generateStoreApiKey } from '../utils/storeApiKey';
 import { audit } from '../utils/audit';
 import { storeDayStart } from '../utils/storeTime';
+import { addLot } from '../utils/pointLots';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -357,13 +358,15 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         throw Object.assign(new Error('ALREADY_CLAIMED'), { code: 'ALREADY_CLAIMED' });
       }
       await rollCustomerPeriod(tx, customer.id);
-      return tx.user.update({
+      const after = await tx.user.update({
         where: { id: customer.id },
         data: {
           pointsBalance: { increment: totalPointsAwarded },
           periodPoints:  { increment: totalPointsAwarded },
         },
       });
+      await addLot(tx, customer.id, totalPointsAwarded, 'RECEIPT_QR', tokenId, after.pointsBalance);   // points expiry (utils/pointLots.ts)
+      return after;
     });
   } catch (err: any) {
     if (err.code === 'ALREADY_CLAIMED') {

@@ -4,6 +4,7 @@
 // moment (a double tap, a customer cancelling while the cashier confirms, the expiry job running meanwhile) both passed the check: a
 // redemption was deducted twice (even below zero), a refund was paid twice, a daily refill was given twice.
 import { Prisma } from '@prisma/client';
+import { restoreLots } from './pointLots';
 
 type Tx = Prisma.TransactionClient;
 
@@ -35,6 +36,7 @@ export async function settlePendingRedemption(
   if (count === 0) return false;
   if (options.refund) {
     await tx.user.update({ where: { id: redemption.customerId }, data: { pointsBalance: { increment: redemption.pointsSpent / 100 } } });
+    await restoreLots(tx, redemption.customerId, 'CATALOG', redemption.id, redemption.pointsSpent / 100);   // back into the batches they came from
   }
   return true;
 }

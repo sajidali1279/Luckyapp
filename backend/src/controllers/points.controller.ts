@@ -34,6 +34,7 @@ import { rule } from '../utils/appSettings';
 import { resolveServedBy, servedByDetails, storeStaff } from '../utils/servedBy';
 import { customerSearchWhere } from '../utils/customerSearch';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
+import { useLots, voidSaleLots, expirySummary, lotsMatch, undoExpiry } from '../utils/pointLots';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
 const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
@@ -454,9 +455,10 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
       data: { pointsBalance: { decrement: amount } },
       select: { id: true, name: true, phone: true, pointsBalance: true },
     });
-    await tx.creditRedemption.create({
+    const redemption = await tx.creditRedemption.create({
       data: { customerId: customer.id, storeId, amount, devCut: 0, processedBy: employee.id },
     });
+    await useLots(tx, customer.id, amount, 'CREDIT_REDEMPTION', redemption.id);   // oldest points first (utils/pointLots.ts)
     return { kind: 'done' as const, updated: updatedCustomer };
   });
   if (outcome.kind === 'short') {
@@ -679,10 +681,12 @@ export async function voidTransaction(req: AuthRequest, res: Response) {
       data: { status: TransactionStatus.VOIDED, voidedAt: new Date(), voidedById: actor.id, voidReason: cleanReason },
     });
     if (moved.count === 0) return null;
-    return db.user.update({
+    const after = await db.user.update({
       where: { id: transaction.customerId },
       data: { pointsBalance: { decrement: totalPoints }, periodPoints: { decrement: totalPoints } },
     });
+    await voidSaleLots(db, transaction.customerId, transactionId, totalPoints);   // its batch back out (utils/pointLots.ts)
+    return after;
   });
 
   if (!updatedCustomer) {
@@ -1232,9 +1236,10 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
     });
     if (repeat) return { kind: 'repeat' as const, balance: fresh.pointsBalance };
     await tx.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: costInDollars } } });
-    await tx.catalogRedemption.create({
+    const given = await tx.catalogRedemption.create({
       data: { customerId: customer.id, catalogItemId, pointsSpent: item.pointsCost, storeId, processedById: req.user!.id },
     });
+    await useLots(tx, customer.id, costInDollars, 'CATALOG', given.id);
     return { kind: 'done' as const, balance: fresh.pointsBalance - costInDollars };
   });
   if (outcome.kind === 'short') {
@@ -1454,3 +1459,27 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.send(header + lines + notice);
 }
+
+// ── Points expiry (2026-10-17, utils/pointLots.ts) ──
+
+/** GET /points/my-expiry (customer): the next points to expire, the next few dates, and what expired in the last year. */
+export async function getMyExpiry(req: AuthRequest, res: Response) {
+  res.json({ success: true, data: await expirySummary(req.user!.id) });
+}
+
+/** GET /points/expiry/customer/:userId (HQ): the same for one customer, and whether their batches add up to their balance. */
+export async function getCustomerExpiry(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const [summary, check] = await Promise.all([expirySummary(userId), lotsMatch(prisma, userId)]);
+  res.json({ success: true, data: { ...summary, batchesMatchBalance: check.ok, balance: check.balance, inBatches: check.inLots } });
+}
+
+/** POST /points/expiry/undo/:userId (HQ) { lotIds? }: gives a customer's expired points back as a fresh batch. */
+export async function undoCustomerExpiry(req: AuthRequest, res: Response) {
+  const { userId } = req.params;
+  const lotIds = Array.isArray(req.body?.lotIds) ? (req.body.lotIds as unknown[]).filter((x): x is string => typeof x === 'string').slice(0, 500) : undefined;
+  const given = await undoExpiry(userId, { id: req.user!.id, name: req.user!.name, role: req.user!.role }, lotIds);
+  if (given <= 0) { res.status(400).json({ success: false, error: 'This customer has no expired points to give back.' }); return; }
+  res.json({ success: true, data: { points: Math.round(given * 100), dollars: given } });
+}
+

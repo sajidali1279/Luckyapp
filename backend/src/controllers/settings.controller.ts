@@ -4,9 +4,11 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { audit } from '../utils/audit';
+import { previewExpiry } from '../utils/pointLots';
 import {
   RULES, FEATURES, RULES_KEY, FEATURES_KEY, BUSINESS_KEY, allRules, allFeatures, business, cleanRules, cleanFeatures, cleanBusiness, applySettings,
   WELCOME_KEY, WELCOME_EMOJIS, WELCOME_DAYS, WELCOME_MAX_ITEMS, welcome, cleanWelcome, type WelcomeItem,
+  EXPIRY_KEY, EXPIRY_LIMITS, pointsExpiry, cleanExpiry,
   rule, feature, type RuleKey, type RuleMeta, type FeatureKey,
 } from '../utils/appSettings';
 
@@ -25,6 +27,7 @@ export async function getSettings(_req: AuthRequest, res: Response) {
     features: (Object.entries(FEATURES) as [FeatureKey, { label: string; help: string }][]).map(([key, m]) => ({ key, ...m, on: allFeatures()[key] })),
     business: business(),
     welcome: { ...welcome(), emojis: WELCOME_EMOJIS, minDays: WELCOME_DAYS.min, maxDays: WELCOME_DAYS.max, maxItems: WELCOME_MAX_ITEMS },
+    expiry: { ...pointsExpiry(), limits: EXPIRY_LIMITS },
   } });
 }
 
@@ -174,9 +177,56 @@ export async function putWelcome(req: AuthRequest, res: Response) {
   res.json({ success: true, data: clean, changed: true });
 }
 
+/**
+ * PUT /settings/points-expiry (HQ) { enabled?, days?, warnDays? }: points expiry (utils/pointLots.ts). Switching it on starts every clock
+ * today (nobody loses points on the day it starts); switching it off stops it, and switching on again later starts the clocks again from
+ * that day. The admin page shows a preview and asks before switching it on.
+ */
+export async function putPointsExpiry(req: AuthRequest, res: Response) {
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  const before = pointsExpiry();
+  if (b.enabled !== undefined && typeof b.enabled !== 'boolean') { res.status(400).json({ success: false, error: 'On or off must be true or false.' }); return; }
+  const num = (v: unknown, m: { min: number; max: number }, label: string) => {
+    if (v === undefined) return undefined;
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < m.min || n > m.max) throw new Error(`${label} must be a whole number from ${m.min} to ${m.max}.`);
+    return n;
+  };
+  let days: number | undefined, warnDays: number | undefined;
+  try {
+    days = num(b.days, EXPIRY_LIMITS.days, 'The number of days');
+    warnDays = num(b.warnDays, EXPIRY_LIMITS.warnDays, 'The warning days');
+  } catch (e: any) { res.status(400).json({ success: false, error: e.message }); return; }
+  const enabled = b.enabled === undefined ? before.enabled : (b.enabled as boolean);
+  const startedAt = enabled ? (before.enabled && before.startedAt ? before.startedAt : new Date().toISOString()) : null;
+  const clean = cleanExpiry({ enabled, startedAt, days: days ?? before.days, warnDays: warnDays ?? before.warnDays });
+  const changes: string[] = [];
+  if (clean.enabled !== before.enabled) changes.push(clean.enabled ? `Switched on: points expire ${clean.days} days after they are earned, counting from today` : 'Switched off: no points expire');
+  if (clean.days !== before.days) changes.push(`Days: ${before.days} to ${clean.days}`);
+  if (clean.warnDays !== before.warnDays) changes.push(`Warning push: ${before.warnDays} to ${clean.warnDays} days before`);
+  if (changes.length === 0) { res.json({ success: true, data: clean, changed: false }); return; }
+  await save(EXPIRY_KEY, clean);
+  applySettings({ expiry: clean });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'SETTINGS_EXPIRY_UPDATE', entity: 'app_config', entityId: EXPIRY_KEY,
+    details: { summary: changes.join('; '), keys: ['pointsExpiry'] }, storeId: null });
+  res.json({ success: true, data: clean, changed: true });
+}
+
+/** GET /settings/points-expiry/preview?days=90 (HQ): what would expire, by date, with these days (from today, or from when it was switched on). */
+export async function getPointsExpiryPreview(req: AuthRequest, res: Response) {
+  const cfg = pointsExpiry();
+  const days = Number(req.query.days ?? cfg.days);
+  if (!Number.isInteger(days) || days < EXPIRY_LIMITS.days.min || days > EXPIRY_LIMITS.days.max) {
+    res.status(400).json({ success: false, error: `The number of days must be from ${EXPIRY_LIMITS.days.min} to ${EXPIRY_LIMITS.days.max}.` }); return;
+  }
+  const from = cfg.enabled && cfg.startedAt ? new Date(cfg.startedAt) : new Date();
+  res.json({ success: true, data: { ...(await previewExpiry(days, from)), days, from: from.toISOString() } });
+}
+
 /** Every settings change HQ or the Dev Admin made, wherever it was made, and which Settings tab it belongs to. */
 export const SETTINGS_ACTIONS: Record<string, string> = {
   SETTINGS_RULES_UPDATE: 'Rules', SETTINGS_FEATURES_UPDATE: 'Features', SETTINGS_BUSINESS_UPDATE: 'Business details', SETTINGS_WELCOME_UPDATE: 'Joining bonus',
+  SETTINGS_EXPIRY_UPDATE: 'Points expiry',
   RECEIPT_SCAN_SETTINGS: 'Receipt scanning', REFERRAL_SETTINGS_UPDATE: 'Refer a friend', DEAL_LIMITS: 'Deal limits',
   APP_VERSIONS_UPDATE: 'App updates', PROMOTION_SETTINGS: 'Featured ads', DEV_CUT_RATE_UPDATE: 'Default fee',
   RATE_TIER_UPDATE: 'Cashback rates', RATE_CATEGORY_UPDATE: 'Cashback rates',
@@ -216,5 +266,6 @@ export async function getAppSettings(_req: AuthRequest, res: Response) {
       audienceRecentMonths: rule('audienceRecentMonths'), goodwillCreditMax: rule('goodwillCreditMax'), disputeCreditMax: rule('disputeCreditMax'),
     },
     payWithPoints: feature('hotFoodPayWithPoints'),
+    pointsExpiry: { enabled: pointsExpiry().enabled, days: pointsExpiry().days },   // the app's words (2026-10-17)
   } });
 }

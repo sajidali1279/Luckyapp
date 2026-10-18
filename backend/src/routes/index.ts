@@ -30,6 +30,7 @@ import {
   processCatalogRedemption,
   hqFindCustomers,
   hqStoreStaff,
+  getMyExpiry, getCustomerExpiry, undoCustomerExpiry,
 } from '../controllers/points.controller';
 import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem, customerInitiateRedemption, getMyRedemptions, cancelRedemption, getPendingRedemptionsForCustomer, confirmRedemption } from '../controllers/catalog.controller';
 import {
@@ -108,7 +109,7 @@ import {
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
-import { getSettings, putRules, putFeatures, putBusiness, putWelcome, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
+import { getSettings, putRules, putFeatures, putBusiness, putWelcome, putPointsExpiry, getPointsExpiryPreview, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
   getUnreadCount as getSupportUnreadCount, updatePriority, getSupportStats,
@@ -724,6 +725,11 @@ router.put('/settings/rules',           authenticate, requireRole(Role.SUPER_ADM
 router.put('/settings/features',        authenticate, requireRole(Role.SUPER_ADMIN),   putFeatures);
 router.put('/settings/business',        authenticate, requireRole(Role.SUPER_ADMIN),   putBusiness);
 router.put('/settings/welcome',         authenticate, requireRole(Role.SUPER_ADMIN),   putWelcome);       // the joining bonus (2026-10-17)
+router.put('/settings/points-expiry',   authenticate, requireRole(Role.SUPER_ADMIN),   putPointsExpiry);  // points expiry (2026-10-17)
+router.get('/settings/points-expiry/preview', authenticate, requireRole(Role.SUPER_ADMIN), getPointsExpiryPreview);
+router.get('/points/my-expiry',          authenticate, requireRole(Role.CUSTOMER),      getMyExpiry);
+router.get('/points/expiry/customer/:userId', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerExpiry);
+router.post('/points/expiry/undo/:userId', authenticate, requireRole(Role.SUPER_ADMIN), undoCustomerExpiry);
 router.get('/settings/history',         authenticate, requireRole(Role.SUPER_ADMIN),   getSettingsHistory);
 router.get('/settings/app',             authenticate,                                   getAppSettings);
 router.get('/hot-food/combos',          authenticate, requireRole(Role.SUPER_ADMIN),   listCombos);

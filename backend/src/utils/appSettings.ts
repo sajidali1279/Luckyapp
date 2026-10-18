@@ -76,6 +76,13 @@ export const RULES_KEY = 'APP_RULES';
 export const FEATURES_KEY = 'APP_FEATURES';
 export const BUSINESS_KEY = 'BUSINESS_INFO';
 export const WELCOME_KEY = 'WELCOME_BONUS';
+export const EXPIRY_KEY = 'POINTS_EXPIRY';
+
+// Points expiry (2026-10-17, Settings > Rewards & offers > Points expiry): off until HQ switches it on. Then every batch of points
+// (utils/pointLots.ts) expires `days` after it was earned, or after `startedAt` (the day it was switched on) if that is later, so nobody
+// loses points the day it starts. A push goes out `warnDays` before (0: none).
+export const EXPIRY_LIMITS = { days: { min: 30, max: 730, def: 90 }, warnDays: { min: 0, max: 30, def: 7 } };
+export interface ExpiryConfig { enabled: boolean; startedAt: string | null; days: number; warnDays: number }
 
 // The joining bonus (2026-10-17, admin Settings > Joining bonus): on or off, how many days, and the free items to choose from. It was
 // fixed in the code (7 days, 4 items). Items are never deleted, only switched off, so a gift already given still shows its name.
@@ -97,6 +104,7 @@ let rules: Record<RuleKey, number> = defaults();
 let features: Record<FeatureKey, boolean> = featureDefaults();
 let businessInfo: BusinessInfo = { supportPhone: '', supportEmail: '', supportHours: '' };
 let welcomeConfig: WelcomeConfig = cleanWelcome(null);
+let expiryConfig: ExpiryConfig = cleanExpiry(null);
 
 /** A rule's value now (its default until HQ changes it). */
 export const rule = (k: RuleKey): number => rules[k];
@@ -105,6 +113,8 @@ export const feature = (k: FeatureKey): boolean => features[k];
 export const business = (): BusinessInfo => businessInfo;
 /** The joining bonus settings now. */
 export const welcome = (): WelcomeConfig => welcomeConfig;
+/** Points expiry now (off until HQ switches it on). */
+export const pointsExpiry = (): ExpiryConfig => expiryConfig;
 export const allRules = () => ({ ...rules });
 export const allFeatures = () => ({ ...features });
 
@@ -161,28 +171,39 @@ export function cleanWelcome(stored: unknown): WelcomeConfig {
   return { enabled, offSince, days, items };
 }
 
+/** Off unless clearly switched on with a start date; days and warning days in range, else the defaults. */
+export function cleanExpiry(stored: unknown): ExpiryConfig {
+  const s = (stored && typeof stored === 'object' ? stored : {}) as Record<string, unknown>;
+  const startedAt = typeof s.startedAt === 'string' && !Number.isNaN(Date.parse(s.startedAt)) ? s.startedAt : null;
+  const enabled = s.enabled === true && !!startedAt;
+  const num = (v: unknown, m: { min: number; max: number; def: number }) => { const n = typeof v === 'number' ? Math.round(v) : NaN; return n >= m.min && n <= m.max ? n : m.def; };
+  return { enabled, startedAt: enabled ? startedAt : null, days: num(s.days, EXPIRY_LIMITS.days), warnDays: num(s.warnDays, EXPIRY_LIMITS.warnDays) };
+}
+
 const parse = (v: string | undefined) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
 
 /** Reads all three from the database. A failure keeps what was there (the server runs on the last known values). */
 export async function refreshSettings(): Promise<void> {
   try {
-    const rows = await prisma.appConfig.findMany({ where: { key: { in: [RULES_KEY, FEATURES_KEY, BUSINESS_KEY, WELCOME_KEY] } } });
+    const rows = await prisma.appConfig.findMany({ where: { key: { in: [RULES_KEY, FEATURES_KEY, BUSINESS_KEY, WELCOME_KEY, EXPIRY_KEY] } } });
     const by = new Map(rows.map((r: { key: string; value: string }) => [r.key, r.value]));
     rules = cleanRules(parse(by.get(RULES_KEY)));
     features = cleanFeatures(parse(by.get(FEATURES_KEY)));
     businessInfo = cleanBusiness(parse(by.get(BUSINESS_KEY)));
     welcomeConfig = cleanWelcome(parse(by.get(WELCOME_KEY)));
+    expiryConfig = cleanExpiry(parse(by.get(EXPIRY_KEY)));
   } catch (e: any) {
     console.error('[settings] could not load, keeping the last values:', e?.message ?? e);
   }
 }
 
 /** Saved by the settings controller: this instance uses the new values at once. */
-export function applySettings(next: { rules?: Record<RuleKey, number>; features?: Record<FeatureKey, boolean>; business?: BusinessInfo; welcome?: WelcomeConfig }) {
+export function applySettings(next: { rules?: Record<RuleKey, number>; features?: Record<FeatureKey, boolean>; business?: BusinessInfo; welcome?: WelcomeConfig; expiry?: ExpiryConfig }) {
   if (next.rules) rules = next.rules;
   if (next.features) features = next.features;
   if (next.business) businessInfo = next.business;
   if (next.welcome) welcomeConfig = next.welcome;
+  if (next.expiry) expiryConfig = next.expiry;
 }
 
 export function startSettingsRefresh() {
@@ -193,9 +214,10 @@ export function startSettingsRefresh() {
 }
 
 /** For tests: set values directly, or put the defaults back. */
-export function setSettingsForTest(next: { rules?: Partial<Record<RuleKey, number>>; features?: Partial<Record<FeatureKey, boolean>>; business?: Partial<BusinessInfo>; welcome?: unknown } | null) {
-  if (next === null) { rules = defaults(); features = cleanFeatures(null); businessInfo = cleanBusiness(null); welcomeConfig = cleanWelcome(null); return; }
+export function setSettingsForTest(next: { rules?: Partial<Record<RuleKey, number>>; features?: Partial<Record<FeatureKey, boolean>>; business?: Partial<BusinessInfo>; welcome?: unknown; expiry?: unknown } | null) {
+  if (next === null) { rules = defaults(); features = cleanFeatures(null); businessInfo = cleanBusiness(null); welcomeConfig = cleanWelcome(null); expiryConfig = cleanExpiry(null); return; }
   if (next.welcome !== undefined) welcomeConfig = cleanWelcome(next.welcome);
+  if (next.expiry !== undefined) expiryConfig = cleanExpiry(next.expiry);
   if (next.rules) rules = { ...rules, ...next.rules };
   if (next.features) features = { ...features, ...next.features };
   if (next.business) businessInfo = { ...businessInfo, ...next.business };

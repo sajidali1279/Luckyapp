@@ -13,6 +13,7 @@ import { excludeDeletedCustomers } from './accountDeletion';
 import { startOfStoreDate, storeDateKey } from './storeTime';
 import { sendPushToUser } from './push';
 import { rule } from './appSettings';
+import { addLot } from './pointLots';
 
 type Db = Prisma.TransactionClient | PrismaClient;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -162,13 +163,14 @@ export async function creditReferral(db: Db, saleId: string, now: Date = new Dat
   const pay = async (customerId: string, amount: number, note: string) => {
     if (amount <= 0) return;
     const fee = r2(amount * feeRate);
-    await db.pointsTransaction.create({
+    const line = await db.pointsTransaction.create({
       data: {
         customerId, grantedById: customerId, storeId: sale.storeId, purchaseAmount: 0, pointsAwarded: amount, devCut: fee, storeCost: fee,
         cashbackRate: 0, category: sale.category, status: TransactionStatus.APPROVED, notes: note, referralId: ref.id, rewardForSaleId: sale.id,
       },
     });
-    await db.user.update({ where: { id: customerId }, data: { pointsBalance: { increment: amount }, periodPoints: { increment: amount } } });
+    const after = await db.user.update({ where: { id: customerId }, data: { pointsBalance: { increment: amount }, periodPoints: { increment: amount } } });
+    await addLot(db, customerId, amount, 'REFERRAL', line.id, after.pointsBalance);
   };
   const awards: ReferralAward[] = [];
   await pay(ref.friendId, settings.friendReward, `Referral reward: welcome bonus (invited by ${shortName(referrer?.name)})`);

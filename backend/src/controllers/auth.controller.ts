@@ -24,6 +24,7 @@ import { isTestPhone } from '../utils/testAccounts';
 import { sendPushToUser } from '../utils/push';
 import { attachReferral } from '../utils/referrals';
 import { rule } from '../utils/appSettings';
+import { addLot } from '../utils/pointLots';
 
 const SALT_ROUNDS = 12;
 
@@ -744,10 +745,10 @@ export async function grantGoodwillCredit(req: AuthRequest, res: Response) {
   });
   if (!customer) { res.status(404).json({ success: false, error: 'That customer no longer exists.' }); return; }
 
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: { pointsBalance: { increment: amount } },
-    select: { pointsBalance: true },
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.user.update({ where: { id: userId }, data: { pointsBalance: { increment: amount } }, select: { pointsBalance: true } });
+    await addLot(tx, userId, amount, 'GOODWILL', null, u.pointsBalance);   // points expiry (utils/pointLots.ts)
+    return u;
   });
 
   const actor = req.user!;

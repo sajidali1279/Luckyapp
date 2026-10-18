@@ -15,6 +15,7 @@ import { startDailyReportReminderCron } from './utils/daily-report-reminder-cron
 import { startLabelPriceExpiryCron } from './utils/label-price-expiry-cron';
 import { startNotificationRetentionCron } from './utils/notification-retention-cron';
 import { startChatRetentionCron } from './utils/chat-retention-cron';
+import { startPointsExpiryCron } from './utils/points-expiry-cron';
 import { startReceiptRetentionCron } from './utils/receipt-retention-cron';
 import { startOfferAnnounceCron } from './utils/offerAnnounce';
 import { startOfferLastDayCron } from './utils/offerLastDay';
@@ -134,6 +135,7 @@ app.listen(PORT, () => {
   startDailyReportReminderCron();
   startLabelPriceExpiryCron();
   startNotificationRetentionCron();
+  startPointsExpiryCron();          // points expiry and its warning push (nothing while HQ has it off)
   startChatRetentionCron();          // store chat older than 90 days (the staff privacy notice says 3 months)
   startReceiptRetentionCron();   // receipt photos older than 2 years
   startOfferAnnounceCron();

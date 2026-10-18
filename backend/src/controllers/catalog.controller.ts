@@ -15,6 +15,7 @@ import { usableStoreIds } from '../utils/storeAccess';
 import { pointsForPrice } from '../utils/rewardPoints';
 import { resolveServedBy, servedByDetails } from '../utils/servedBy';
 import { rule } from '../utils/appSettings';
+import { useLots } from '../utils/pointLots';
 
 
 function generateCode(): string {
@@ -259,6 +260,7 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
       },
       include: { catalogItem: true },
     });
+    await useLots(tx, customer.id, costInDollars, 'CATALOG', created.id);   // oldest points first (utils/pointLots.ts)
     return { ok: true as const, redemption: created, balance: fresh.pointsBalance - costInDollars };
   });
   if (!outcome.ok) {

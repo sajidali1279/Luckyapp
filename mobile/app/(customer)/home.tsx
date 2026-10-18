@@ -51,6 +51,7 @@ import { sized } from '../../utils/imageUrl';
 import FocusStatusBar from '../../components/FocusStatusBar';
 import { tierBenefitLines } from '../../utils/tierLines';
 import { useAppSettings } from '../../hooks/useAppSettings';
+import { usePointsExpiry, expiryDate } from '../../hooks/usePointsExpiry';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -662,6 +663,7 @@ export default function CustomerHome() {
   const { user, token, setAuth } = useAuthStore();
   const { tierConfig: TIER_CONFIG, liveRates } = useLiveTierConfig();
   const { limits } = useAppSettings();
+  const expiry = usePointsExpiry();   // the next points to expire (only while HQ has expiry on)
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const sheetMaxHeight = windowHeight - insets.top - 24;
@@ -936,6 +938,7 @@ export default function CustomerHome() {
     qc.invalidateQueries({ queryKey: ['receipt-scan-access'] });
     qc.invalidateQueries({ queryKey: ['my-referrals'] });
     qc.invalidateQueries({ queryKey: ['unread-count'] });
+    qc.invalidateQueries({ queryKey: ['my-expiry'] });
   }
 
   const tier = TIER_CONFIG[user?.tier || 'BRONZE'];
@@ -1032,6 +1035,9 @@ export default function CustomerHome() {
           <Text style={styles.balanceLabel}>{t('customerHome.pointsBalance')}</Text>
           <Text style={styles.balanceAmount}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
           <Text style={styles.balanceSubtext}>{t('customerHome.redeemablePoints')}</Text>
+          {expiry?.enabled && expiry.next && (
+            <Text style={styles.balanceExpiry}>{t('customerHome.pointsExpireOn', { points: expiry.next.points.toLocaleString(), date: expiryDate(expiry.next.date, i18n.language) })}</Text>
+          )}
           <TouchableOpacity
             style={styles.redeemButton}
             onPress={() => router.push('/(customer)/rewards')}
@@ -2102,6 +2108,7 @@ const styles = StyleSheet.create({
   balanceLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
   balanceAmount: { fontSize: 54, fontWeight: '900', color: '#fff', marginVertical: 6, letterSpacing: -1.5 },
   balanceSubtext: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' },
+  balanceExpiry: { color: '#FCD34D', fontSize: 12, fontWeight: '700', marginTop: 4 },
   redeemButton: {
     backgroundColor: COLORS.accent, borderRadius: 14,
     paddingHorizontal: 28, paddingVertical: 12, marginTop: 18,

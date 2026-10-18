@@ -92,7 +92,11 @@ export async function sendWinBack(req: AuthRequest, res: Response) {
         category: ProductCategory.OTHER, status: TransactionStatus.APPROVED, notes: `Win-back gift: ${d.title}`, challengeId: campaign.id,
       })) });
       await db.user.updateMany({ where: { id: { in: ids } }, data: { pointsBalance: { increment: amount }, periodPoints: { increment: amount } } });
-      const after = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, periodPoints: true, tier: true } });
+      const after = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, periodPoints: true, tier: true, pointsBalance: true } });
+      // a dated batch each, for points expiry (utils/pointLots.ts): only the part above zero when a balance was below it
+      const lots = after.map((u) => ({ userId: u.id, amount, remaining: Math.round(Math.min(amount, Math.max(0, u.pointsBalance)) * 100) / 100, source: 'WINBACK', sourceId: campaign.id }))
+        .filter((l) => l.remaining > 0);
+      if (lots.length) await db.pointLot.createMany({ data: lots });
       for (const u of after) if (TIER_LADDER.indexOf(calculateTier(u.periodPoints, thresholds)) > TIER_LADDER.indexOf(u.tier)) tierUps.push(u);
     }, { timeout: 60_000 });
     given += batch.length;

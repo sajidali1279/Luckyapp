@@ -266,6 +266,9 @@ export const customersApi = {
   testPush: (userId: string) => api.post(`/users/${userId}/test-push`, {}, { timeout: 60_000 }),
   goodwillCredit: (userId: string, amount: number, reason: string) =>
     api.post(`/users/customers/${userId}/goodwill-credit`, { amount, reason }),
+  // Points expiry (2026-10-17): what expires next / expired, and HQ giving expired points back
+  pointsExpiry: (userId: string) => api.get(`/points/expiry/customer/${userId}`),
+  undoPointsExpiry: (userId: string) => api.post(`/points/expiry/undo/${userId}`, {}),
   // Say which state you want: restricting twice, or a double click, cannot switch the account back on
   setActive: (userId: string, isActive: boolean, fraudNote?: string) =>
     api.patch(`/users/${userId}/toggle-active`, { isActive, ...(fraudNote ? { fraudNote } : {}) }),
@@ -588,6 +591,8 @@ export const settingsApi = {
   history: (limit = 100) => api.get('/settings/history', { params: { limit } }),
   // What any signed-in screen may read (the numbers HQ set that words on the page repeat)
   app: () => api.get('/settings/app'),
+  savePointsExpiry: (data: { enabled?: boolean; days?: number; warnDays?: number }) => api.put('/settings/points-expiry', data),
+  pointsExpiryPreview: (days: number) => api.get('/settings/points-expiry/preview', { params: { days } }),
 };
 
 export const hotFoodCatalogApi = {

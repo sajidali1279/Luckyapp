@@ -17,6 +17,7 @@ import CardSkeleton from '../components/CardSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAuthStore } from '../store/authStore';
 import { useLimits } from '../components/SettingsCards';
+import CustomerPointsExpiry from '../components/CustomerPointsExpiry';
 
 type Tab = 'overview' | 'activity' | 'referrals' | 'notes' | 'devices' | 'cards' | 'history';
 const fmt$ = (n: number | null | undefined) => (n == null ? '-' : `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -115,7 +116,7 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
     onError: (e) => { toast.error(serverMessage(e, 'Could not change the account.')); setRestrictOpen(false); },
   });
   const amount = Number(gAmt);
-  const gOk = gAmt.trim() !== '' && amount > 0 && amount <= 25 && /^\d+(\.\d{1,2})?$/.test(gAmt.trim()) && gReason.trim().length > 0;
+  const gOk = gAmt.trim() !== '' && amount > 0 && amount <= limits.goodwillCreditMax && /^\d+(\.\d{1,2})?$/.test(gAmt.trim()) && gReason.trim().length > 0;
   const goodwill = useMutation({
     mutationFn: () => customersApi.goodwillCredit(id, amount, gReason.trim()),
     onSuccess: () => { toast.success(`${fmt$(amount)} added. They were told by push notification.`); setGAmt(''); setGReason(''); onChanged(); },
@@ -178,6 +179,7 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
           </div>
           {gAmt.trim() !== '' && amount > limits.goodwillCreditMax && <div role="alert" style={{ color: C.danger, fontSize: FONT.small, marginTop: 6 }}>At most ${limits.goodwillCreditMax}. For a larger amount tied to a purchase, use a missing-points report.</div>}
         </Card>
+        <CustomerPointsExpiry id={id} onChanged={onChanged} />
         <Card>
           <SectionTitle>Account status</SectionTitle>
           <p style={{ margin: '-4px 0 12px', color: C.muted, fontSize: FONT.small }}>{c.isActive ? 'Restricting stops them earning and redeeming, and signs them out. You can restore it later.' : 'Restoring lets them earn and redeem again.'}</p>

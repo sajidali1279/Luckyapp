@@ -12,6 +12,7 @@
  */
 
 import { Prisma, Tier } from '@prisma/client';
+import { closeLots } from './pointLots';
 
 // Real phones are digits only, so this can never collide with a live account.
 // Rewriting the phone also frees the number to register again.
@@ -40,6 +41,7 @@ export async function anonymizeCustomerAccount(db: Prisma.TransactionClient, use
   await db.pointsDispute.updateMany({ where: { customerId: userId }, data: { description: REMOVED_TEXT } });
   await db.hotFoodOrder.updateMany({ where: { customerId: userId }, data: { note: null } });
   await db.pointsTransaction.updateMany({ where: { customerId: userId }, data: { notes: 'ACCOUNT_DELETED' } });
+  await closeLots(db, userId);   // the balance is forfeited below: no batch is left to expire
 
   await db.user.update({
     where: { id: userId },

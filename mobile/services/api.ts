@@ -87,6 +87,7 @@ export const pointsApi = {
   getMyHistory: (page = 1) =>
     api.get(`/points/my-history?page=${page}`),
   getMyBenefitStatus: () => api.get('/points/my-benefit-status'),
+  getMyExpiry: () => api.get('/points/my-expiry'),   // points expiry (2026-10-17)
   initiateGrant: (data: { customerQrCode: string; storeId: string; purchaseAmount: number; category?: string; notes?: string; isGas?: boolean; gasGallons?: number; gasPricePerGallon?: number; siblingIds?: string[] }) =>
     api.post('/points/grant', data),
   /** What a grant of these lines would pay (the server's own math, promotions included); nothing is saved */

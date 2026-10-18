@@ -348,6 +348,10 @@
     "positionStoreManager": "Store Manager"
   },
   "customerHistory": {
+    "expiringTitle": "Points expiring",
+    "expiringLine": "{{points}} pts on {{date}}",
+    "expiredLine": "{{points}} pts expired on {{date}}",
+    "expiryNote": "Points expire {{days}} days after you earn them. Your oldest points are used first.",
     "headerTitle": "History",
     "loading": "Loading history…",
     "footerEnd": "- All transactions loaded -",
@@ -2283,6 +2287,7 @@
     "tierMember": "{{tier}} Member",
     "pointsBalance": "Points Balance",
     "redeemablePoints": "redeemable points",
+    "pointsExpireOn": "{{points}} pts expire on {{date}}",
     "redeemRewardsA11y": "Redeem rewards with points",
     "redeemRewards": "Redeem Rewards",
     "viewTierDetailsA11y": "View {{tier}} tier details",

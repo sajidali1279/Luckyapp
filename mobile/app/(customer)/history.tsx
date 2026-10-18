@@ -3,7 +3,7 @@ import { Text } from '../../components/ScaledText';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { FlatList as FlatListType } from 'react-native';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTit
 import RefreshControl from '../../components/AppRefreshControl';
 import { useAuthStore } from '../../store/authStore';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
+import { usePointsExpiry, expiryDate } from '../../hooks/usePointsExpiry';
 
 const CATEGORY_ICONS: Record<string, string> = {
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', GROCERIES: '🛒',
@@ -51,7 +52,9 @@ export default function HistoryScreen() {
     if (firstFocus.current) { firstFocus.current = false; return; }   // the first visit has just loaded it
     refetch();
   }, [refetch]));
-  const { refreshing, onRefresh } = usePullRefresh([() => refetch(), () => useAuthStore.getState().refreshAccount()]);
+  const qc = useQueryClient();
+  const expiry = usePointsExpiry();
+  const { refreshing, onRefresh } = usePullRefresh([() => refetch(), () => useAuthStore.getState().refreshAccount(), () => qc.invalidateQueries({ queryKey: ['my-expiry'] })]);
 
   // A dispute/points push can target a transaction older than whatever page(s)
   // of this paginated history are already loaded. `searchId` stays set for as
@@ -122,6 +125,22 @@ export default function HistoryScreen() {
           onScroll={largeTitle.onScroll}
           scrollEventThrottle={largeTitle.scrollEventThrottle}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={expiry && ((expiry.enabled && expiry.upcoming.length > 0) || expiry.expired.length > 0) ? (
+            <View style={s.expiryBox}>
+              {expiry.enabled && expiry.upcoming.length > 0 && (
+                <>
+                  <Text style={s.expiryTitle}>{t('customerHistory.expiringTitle')}</Text>
+                  {expiry.upcoming.slice(0, 3).map((u) => (
+                    <Text key={u.date} style={s.expiryLine}>{t('customerHistory.expiringLine', { points: u.points.toLocaleString(), date: expiryDate(u.date, i18n.language) })}</Text>
+                  ))}
+                  <Text style={s.expiryNote}>{t('customerHistory.expiryNote', { days: expiry.days })}</Text>
+                </>
+              )}
+              {expiry.expired.slice(0, 5).map((e) => (
+                <Text key={`x${e.date}`} style={[s.expiryLine, s.expiredLine]}>{t('customerHistory.expiredLine', { points: e.points.toLocaleString(), date: expiryDate(e.date, i18n.language) })}</Text>
+              ))}
+            </View>
+          ) : null}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           onScrollToIndexFailed={(info) => {
             setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);
@@ -266,6 +285,11 @@ export default function HistoryScreen() {
 }
 
 const s = StyleSheet.create({
+  expiryBox: { marginHorizontal: 16, marginTop: 12, marginBottom: 4, padding: 14, borderRadius: 14, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A' },
+  expiryTitle: { fontSize: 14, fontWeight: '800', color: '#92400E', marginBottom: 4 },
+  expiryLine: { fontSize: 13, fontWeight: '600', color: '#78350F', marginTop: 2 },
+  expiredLine: { color: '#9CA3AF' },
+  expiryNote: { fontSize: 12, color: '#92400E', marginTop: 6 },
   root: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   loadingText: { color: COLORS.textMuted, fontSize: 14 },

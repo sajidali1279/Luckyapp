@@ -181,7 +181,7 @@ Think of points as in-store credits:
 - Points are earned on every qualifying purchase.
 - Points can be redeemed for free products or applied as a discount on future purchases.
 
-**Points never expire** as long as you make at least one qualifying purchase every 36 months.
+**Points do not expire right now.** If that changes, you will be told at least 90 days before, and the app will show when your points expire (your oldest points are always used first).
 
 ---
 

@@ -348,6 +348,10 @@
     "positionStoreManager": "Gerente de Tienda"
   },
   "customerHistory": {
+    "expiringTitle": "Puntos por vencer",
+    "expiringLine": "{{points}} pts el {{date}}",
+    "expiredLine": "{{points}} pts vencieron el {{date}}",
+    "expiryNote": "Los puntos vencen {{days}} días después de ganarlos. Se usan primero tus puntos más antiguos.",
     "headerTitle": "Historial",
     "transactionCount_one": "{{count}} transacción",
     "transactionCount_other": "{{count}} transacciones",
@@ -2283,6 +2287,7 @@
     "tierMember": "Miembro {{tier}}",
     "pointsBalance": "Saldo de Puntos",
     "redeemablePoints": "puntos canjeables",
+    "pointsExpireOn": "{{points}} pts vencen el {{date}}",
     "redeemRewardsA11y": "Canjear recompensas con puntos",
     "redeemRewards": "Canjear Recompensas",
     "viewTierDetailsA11y": "Ver detalles del nivel {{tier}}",

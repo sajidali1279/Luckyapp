@@ -10,6 +10,7 @@ import prisma from '../config/prisma';
 import { rollCustomerPeriod } from './tier';
 import { creditChallenges } from './challenges';
 import { creditReferral } from './referrals';
+import { addLot } from './pointLots';
 
 export interface SaleToCredit {
   id: string;
@@ -43,6 +44,7 @@ export async function approveAndCredit(
     where: { id: sale.customerId },
     data: { pointsBalance: { increment: totalPoints }, periodPoints: { increment: totalPoints } },
   });
+  await addLot(db, sale.customerId, totalPoints, 'SALE', sale.id, user.pointsBalance);   // a dated batch, for points expiry (utils/pointLots.ts)
   const challengeAwards = await creditChallenges(db, sale.id);
   const referralAwards = await creditReferral(db, sale.id);
   const extra = challengeAwards.reduce((n, a) => n + a.reward, 0)

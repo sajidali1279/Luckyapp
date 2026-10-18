@@ -23,6 +23,7 @@ import { resolveAudience } from '../utils/audience';
 import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
 import { withSharedReads } from './adminNotificationReads.controller';
 import { rule } from '../utils/appSettings';
+import { addLot } from '../utils/pointLots';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 /** PUMP_OUT_OF_ORDER as "Pump out of order" (a store alert with no note showed the code) */
@@ -1234,7 +1235,8 @@ export async function seedTestTransactions(_req: AuthRequest, res: Response) {
   await prisma.pointsTransaction.createMany({ data: txRows });
 
   for (const [id, balance] of Object.entries(balanceMap)) {
-    await prisma.user.update({ where: { id }, data: { pointsBalance: { increment: parseFloat(balance.toFixed(2)) } } });
+    const after = await prisma.user.update({ where: { id }, data: { pointsBalance: { increment: parseFloat(balance.toFixed(2)) } } });
+    await addLot(prisma, id, parseFloat(balance.toFixed(2)), 'TEST', null, after.pointsBalance);
   }
 
   res.json({

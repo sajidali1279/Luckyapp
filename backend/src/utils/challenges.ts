@@ -13,6 +13,7 @@ import { DEFAULT_DEV_CUT_RATE } from '../config/constants';
 import { forCustomer } from './offerAudience';
 import { sendPushToUser } from './push';
 import { feature } from './appSettings';
+import { addLot } from './pointLots';
 
 type Db = Prisma.TransactionClient | PrismaClient;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -69,7 +70,7 @@ export async function creditChallenges(db: Db, saleId: string, now: Date = new D
     });
     if (claimed.count === 0) { await db.challengeProgress.update({ where: { id: p.id }, data: { progress: { increment: add } } }); continue; }
     const fee = r2(c.reward * (sale.store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE));
-    await db.pointsTransaction.create({
+    const line = await db.pointsTransaction.create({
       data: {
         customerId: sale.customerId, grantedById: sale.customerId, storeId: sale.storeId,
         purchaseAmount: 0, pointsAwarded: c.reward, devCut: fee, storeCost: fee, cashbackRate: 0,
@@ -77,7 +78,8 @@ export async function creditChallenges(db: Db, saleId: string, now: Date = new D
         notes: `Challenge reward: ${c.title}`, challengeId: c.id, rewardForSaleId: sale.id,
       },
     });
-    await db.user.update({ where: { id: sale.customerId }, data: { pointsBalance: { increment: c.reward }, periodPoints: { increment: c.reward } } });
+    const after = await db.user.update({ where: { id: sale.customerId }, data: { pointsBalance: { increment: c.reward }, periodPoints: { increment: c.reward } } });
+    await addLot(db, sale.customerId, c.reward, 'CHALLENGE', line.id, after.pointsBalance);
     awards.push({ challengeId: c.id, title: c.title, titleEs: c.titleEs, customerId: sale.customerId, reward: c.reward });
   }
   return awards;

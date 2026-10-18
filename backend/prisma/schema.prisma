@@ -252,6 +252,8 @@ model User {
   pointsEarned         PointsTransaction[]  @relation("PointsEarner")
   pointsGranted        PointsTransaction[]  @relation("PointsGranter")
   pointsServed         PointsTransaction[]  @relation("PointsServer")
+  pointLots            PointLot[]
+  pointLotUses         PointLotUse[]
   redemptions          Redemption[]
   creditRedemptions    CreditRedemption[]   @relation("CustomerRedemptions")
   processedRedemptions CreditRedemption[]   @relation("ProcessorRedemptions")
@@ -1909,3 +1911,53 @@ model CustomerNote {
   @@index([customerId, createdAt])
   @@map("customer_notes")
 }
+
+// ─── Points expiry (2026-10-17) ──────────────────────────────────────────────
+// Every credit to a customer's balance is a batch (lot) with its own date; spending takes the oldest batches first (first in, first
+// out), so points expire in the order they were earned. A batch expires HQ's days after its date, or after the day HQ switched expiry
+// on if that is later (Settings > Rewards & offers > Points expiry, utils/appSettings.ts pointsExpiry()). utils/pointLots.ts keeps them.
+// Amounts are dollars of credit, like users.pointsBalance (100 points = $1). The balance is the sum of what is left in the batches; a
+// balance below zero (a voided sale the customer had already spent) has no batches left and is paid back by the next credit.
+model PointLot {
+  id            String    @id @default(uuid())
+  userId        String
+  amount        Float               // what was credited
+  remaining     Float               // what is left of it
+  earnedAt      DateTime  @default(now())
+  source        String              // SALE, RECEIPT_QR, CHALLENGE, REFERRAL, WINBACK, GOODWILL, DISPUTE, RESTORED, OPENING, TEST
+  sourceId      String?             // the sale, redemption or order it came from
+  expiredAmount Float     @default(0)
+  expiredAt     DateTime?
+  expiryUndoneAt DateTime?          // HQ gave the expired points back (they became a new RESTORED batch)
+  removedAmount Float     @default(0)  // taken back when its sale was voided
+  warnedAt      DateTime?           // the "expiring soon" push for it was sent
+  createdAt     DateTime  @default(now())
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uses PointLotUse[]
+
+  @@index([userId, earnedAt])
+  @@index([remaining, earnedAt])
+  @@index([sourceId])
+  @@map("point_lots")
+}
+
+// Which batches a spend took, so a refund (an unused reward code, a cancelled hot food order) puts the points back where they came from
+model PointLotUse {
+  id         String    @id @default(uuid())
+  lotId      String
+  userId     String
+  amount     Float
+  refType    String              // CREDIT_REDEMPTION, CATALOG, HOT_FOOD, VOID
+  refId      String?
+  restoredAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  lot  PointLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, refType, refId])
+  @@index([lotId])
+  @@map("point_lot_uses")
+}
+

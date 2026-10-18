@@ -10,6 +10,7 @@ import { refuse } from '../utils/refusal';
 import { DELETED_PHONE_PREFIX } from '../utils/accountDeletion';
 import { emailHQ } from '../utils/adminEmail';
 import { rule } from '../utils/appSettings';
+import { addLot } from '../utils/pointLots';
 
 const submitSchema = z.object({
   storeId:       z.string().uuid().optional(),
@@ -306,10 +307,11 @@ export async function resolveDispute(req: AuthRequest, res: Response) {
       if (claimed.count === 0) throw new AlreadyDecided();
 
       if (finalCreditedAmt) {
-        await tx.user.update({
+        const after = await tx.user.update({
           where: { id: dispute.customerId },
           data: { pointsBalance: { increment: finalCreditedAmt } },
         });
+        await addLot(tx, dispute.customerId, finalCreditedAmt, 'DISPUTE', id, after.pointsBalance);   // points expiry (utils/pointLots.ts)
       }
     });
   } catch (err) {
