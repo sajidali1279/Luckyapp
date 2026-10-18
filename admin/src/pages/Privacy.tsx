@@ -41,7 +41,7 @@ export default function Privacy() {
       </div>
 
       <h1 style={s.h1}>Privacy Policy</h1>
-      <p style={s.updated}>Last updated: October 16, 2026</p>
+      <p style={s.updated}>Last updated: October 17, 2026</p>
       <p style={s.updated}>Effective date: June 7, 2026</p>
 
       <p style={s.intro}>
@@ -276,7 +276,7 @@ export default function Privacy() {
             ['Details read from a receipt', 'Kept with the transaction record, including the card brand and last 4 digits'],
             ['Missing-points dispute reports', '24 months from the date of submission'],
             ['Push notification tokens', 'Refreshed automatically; stale tokens deleted after 90 days of inactivity'],
-            ['Employee chat messages', '6 months from the date sent'],
+            ['Employee chat messages', '3 months from the date sent, then deleted automatically'],
             ['App crash and error logs', '90 days, stored anonymously'],
             ['Deleted account data', 'Fully purged within 30 days of deletion request, except where retention is required by law'],
           ].map(([type, period]) => (
