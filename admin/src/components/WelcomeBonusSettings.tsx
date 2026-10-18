@@ -91,7 +91,7 @@ export default function WelcomeBonusSettings() {
             ))}
           </div>
           <div style={{ fontSize: FONT.small, color: TEXT_MUTED, marginTop: 6 }}>
-            Switch an item off to stop offering it; saved items are never deleted, so gifts already given keep their name. The Spanish name is shown when the app is in Spanish.
+            Untick an item to stop offering it; saved items are never deleted, so gifts already given keep their name. The Spanish name is shown when the app is in Spanish.
           </div>
           <div style={{ marginTop: 8 }}>
             <Button size="sm" variant="secondary" disabled={items.length >= saved.maxItems} onClick={() => setItems((p) => [...p, { name: '', nameEs: '', emoji: '🎁', active: true }])}>

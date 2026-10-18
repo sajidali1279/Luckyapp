@@ -21,6 +21,7 @@ import OfferRequestsPanel from '../components/offers/OfferRequestsPanel';
 import OfferCalendar from '../components/offers/OfferCalendar';
 import ShelfDealsSection from '../components/offers/ShelfDealsSection';
 import ChallengesPanel from '../components/offers/ChallengesPanel';
+import WelcomeBonusSettings from '../components/WelcomeBonusSettings';
 import IdeasPanel, { type IdeaOffer } from '../components/offers/IdeasPanel';
 import ComboIdeasPanel, { type ComboOffer } from '../components/offers/ComboIdeasPanel';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
@@ -150,8 +151,8 @@ type PostKind = 'promo' | 'quick' | 'deal';
 type QuickDuration = 'today' | '3d' | '1w' | '2w' | '1m';
 /** Everything the "are you sure" box shows before a post goes to customers. */
 type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[]; notify: string; estimate: EstimateInput; preview: PreviewOffer };
-type MainTab = 'promotions' | 'deals' | 'challenges' | 'requests' | 'calendar';
-const MAIN_TABS: MainTab[] = ['promotions', 'deals', 'challenges', 'requests', 'calendar'];
+type MainTab = 'promotions' | 'deals' | 'challenges' | 'welcome' | 'requests' | 'calendar';
+const MAIN_TABS: MainTab[] = ['promotions', 'deals', 'challenges', 'welcome', 'requests', 'calendar'];
 
 const BONUS_TOO_BIG = `A bonus can be at most ${CASHBACK_CAP * 100}%, because total cashback is capped at ${CASHBACK_CAP * 100}% of a sale.`;
 /** A percentage typed as 7.5 as the fraction the server stores (0.075), without 0.07500000000000001. */
@@ -752,7 +753,7 @@ export default function Offers() {
       <PageHeader
         title="Offers"
         description="Promotions add cashback automatically. Deals show price specials in the app."
-        actions={mainTab === 'requests' || mainTab === 'calendar' || mainTab === 'challenges' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
+        actions={mainTab === 'requests' || mainTab === 'calendar' || mainTab === 'challenges' || mainTab === 'welcome' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
           <>
             {(showQuick || showTemplates || showIdeas) && (
               <Button icon={<X />} onClick={() => openPanel(null)}>Close {showQuick ? 'quick post' : showTemplates ? 'templates' : 'ideas'}</Button>
@@ -782,6 +783,7 @@ export default function Offers() {
           { value: 'promotions', label: 'Promotions', count: promotionOffers.length },
           { value: 'deals', label: 'Deals', count: dealOffers.length },
           ...(isHQ ? [{ value: 'challenges' as const, label: 'Challenges' }] : []),
+          ...(isHQ ? [{ value: 'welcome' as const, label: 'Joining bonus' }] : []),
           ...(isHQ ? [{ value: 'requests' as const, label: 'Requests', count: waitingRequests || undefined }] : []),
           { value: 'calendar', label: 'Calendar' },
         ]}
@@ -1108,6 +1110,8 @@ export default function Offers() {
 
       {mainTab === 'requests' && isHQ && <OfferRequestsPanel />}
       {mainTab === 'challenges' && isHQ && <ChallengesPanel />}
+      {/* The joining bonus (2026-10-17): with the other customer perks; it was first on Settings > Rewards & offers */}
+      {mainTab === 'welcome' && isHQ && <div style={{ maxWidth: 880 }}><WelcomeBonusSettings /></div>}
       {mainTab === 'calendar' && <OfferCalendar offers={offers} past={pastOffers} stores={stores} />}
 
       {/* Promotions */}
