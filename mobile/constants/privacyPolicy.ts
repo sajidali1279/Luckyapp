@@ -54,7 +54,7 @@ For privacy inquiries: **support@luckystop.cliffindus.com**
 - Contacts, calendar, or other device app data
 - Data from children under 13
 
-**Missing person posters:** when the police or an official alert (such as an AMBER Alert) ask the public for help, Lucky Stop may show a poster with that person's photo, name, age, where they were last seen and the agency's phone number. This information comes only from the agency or the official alert. We do not collect sightings or tips (please call the police), and if you report a problem with a poster we keep your report to check it. When the case ends, the poster is taken down and the photo and personal details are deleted.
+**Missing person posters:** when the police or an official alert (such as an AMBER Alert) ask the public for help, Lucky Stop may show a poster with that person's photo, name, age, where they were last seen and the agency's phone number. This information comes only from the agency or the official alert. We do not collect sightings or tips (please call the police), and if you report a problem with a poster we keep your report to check it. When the case ends, the poster is taken down and the photo and personal details are deleted. If you ask us to post a missing person, we collect what you send: the person's photo and details, the police case number and department, how you know them, and a phone number HQ can call you on. Only Lucky Stop HQ sees it, and your name and number are never on a poster. HQ checks the case with the police; the photo and details are deleted when HQ answers (if it is posted, the poster keeps them until the case ends), or after 30 days if HQ has not answered.
 
 ---
 

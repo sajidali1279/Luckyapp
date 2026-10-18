@@ -1,6 +1,8 @@
 // Missing persons (HQ, 2026-10-18): posters for people reported missing to the police, shown to customers on Home near the stores chosen,
 // with "Call the agency" and "Call 911". HQ posts only from an official source (case number, AMBER Alert), checks each poster every 30 days,
-// can send one push, and takes it down when the person is found. Backend: controllers/missingPersons.controller.ts.
+// can send one push, and takes it down when the person is found. Customers can ask HQ to post someone (police case number required): HQ
+// checks it with the agency, then "Check and post" opens the poster form filled in from the request, or declines it with a reason.
+// Backend: controllers/missingPersons.controller.ts.
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -17,6 +19,13 @@ type Poster = {
   agencyName: string; agencyPhone: string; caseNumber: string; sourceUrl: string | null; urgent: boolean; storeIds: string[]; status: string;
   reviewDueAt: string; pushSentAt: string | null; pushCount: number; endedAt: string | null; endNote: string | null; createdAt: string; showing: boolean; needsCheck: boolean;
 };
+type Req = {
+  id: string; name: string; age: number | null; photoUrl: string | null; lastSeenAt: string; lastSeenPlace: string; description: string | null; agencyName: string;
+  agencyPhone: string | null; caseNumber: string; relationship: 'FAMILY' | 'FRIEND' | 'OTHER'; requesterName: string; requesterPhone: string; storeId: string | null;
+  storeName: string | null; createdAt: string; expiresAt: string;
+};
+type Answered = { id: string; status: string; caseNumber: string; agencyName: string; declineReason: string | null; decidedAt: string | null; requesterName: string };
+const RELATION: Record<Req['relationship'], string> = { FAMILY: 'family', FRIEND: 'a friend', OTHER: 'other' };
 const phoneText = (d: string) => (d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d);
 const blank = { name: '', age: '', lastSeenAt: '', lastSeenPlace: '', description: '', descriptionEs: '', agencyName: '', agencyPhone: '', caseNumber: '', sourceUrl: '', urgent: false, storeIds: [] as string[], allStores: true, officialConfirmed: false };
 
@@ -29,21 +38,32 @@ export default function MissingPersons() {
   const posters: Poster[] = q.data?.data?.data ?? [];
   const active = posters.filter((p) => p.status === 'ACTIVE');
   const ended = posters.filter((p) => p.status !== 'ACTIVE');
+  const rq = useQuery({ queryKey: ['missing-requests'], queryFn: () => missingApi.requests() });
+  const requests: Req[] = rq.data?.data?.data?.pending ?? [];
+  const answered: Answered[] = rq.data?.data?.data?.decided ?? [];
 
   const [editing, setEditing] = useState<Poster | 'new' | null>(null);
+  const [fromRequest, setFromRequest] = useState<Req | null>(null);   // "Check and post": the new poster is made from this request
   const [f, setF] = useState(blank);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   useEffect(() => { if (!photo) { setPreview(null); return; } const u = URL.createObjectURL(photo); setPreview(u); return () => URL.revokeObjectURL(u); }, [photo]);
   const open = (p: Poster | 'new') => {
-    setEditing(p); setPhoto(null);
+    setEditing(p); setPhoto(null); setFromRequest(null);
     setF(p === 'new' ? blank : {
       name: p.name, age: p.age == null ? '' : String(p.age), lastSeenAt: p.lastSeenAt.slice(0, 10), lastSeenPlace: p.lastSeenPlace, description: p.description ?? '', descriptionEs: p.descriptionEs ?? '',
       agencyName: p.agencyName, agencyPhone: phoneText(p.agencyPhone), caseNumber: p.caseNumber, sourceUrl: p.sourceUrl ?? '', urgent: p.urgent, storeIds: p.storeIds, allStores: p.storeIds.length === 0, officialConfirmed: true,
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const done = (msg: string) => { toast.success(msg); qc.invalidateQueries({ queryKey: ['missing-persons'] }); };
+  const openRequest = (r: Req) => {
+    setEditing('new'); setPhoto(null); setFromRequest(r);
+    setF({ ...blank, name: r.name, age: r.age == null ? '' : String(r.age), lastSeenAt: r.lastSeenAt.slice(0, 10), lastSeenPlace: r.lastSeenPlace, description: r.description ?? '',
+      agencyName: r.agencyName, agencyPhone: r.agencyPhone ? phoneText(r.agencyPhone) : '', caseNumber: r.caseNumber, storeIds: r.storeId ? [r.storeId] : [], allStores: !r.storeId });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const close = () => { setEditing(null); setFromRequest(null); };
+  const done = (msg: string) => { toast.success(msg); qc.invalidateQueries({ queryKey: ['missing-persons'] }); qc.invalidateQueries({ queryKey: ['missing-requests'] }); };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -54,14 +74,14 @@ export default function MissingPersons() {
         const fd = new FormData();
         for (const [k, v] of Object.entries({ ...body, officialConfirmed: f.officialConfirmed })) fd.append(k, k === 'storeIds' ? JSON.stringify(v) : String(v ?? ''));
         if (photo) fd.append('photo', photo);
-        return missingApi.create(fd);
+        return fromRequest ? missingApi.approveRequest(fromRequest.id, fd) : missingApi.create(fd);
       }
       const id = (editing as Poster).id;
       await missingApi.update(id, { ...body, age: f.age === '' ? null : Number(f.age) });
       if (photo) { const fd = new FormData(); fd.append('photo', photo); await missingApi.photo(id, fd); }
       return null;
     },
-    onSuccess: () => { done(editing === 'new' ? 'Poster is up in the app.' : 'Poster updated.'); setEditing(null); },
+    onSuccess: () => { done(fromRequest ? 'Poster is up in the app. The customer was told.' : editing === 'new' ? 'Poster is up in the app.' : 'Poster updated.'); close(); },
     onError: (e) => toast.error(serverMessage(e, 'Could not save the poster.')),
   });
 
@@ -76,6 +96,12 @@ export default function MissingPersons() {
     onSuccess: () => done('Confirmed. It shows for another 30 days.'),
     onError: (e) => toast.error(serverMessage(e, 'Could not confirm it.')),
   });
+  const [declining, setDeclining] = useState<Req | null>(null);
+  const decline = useMutation({
+    mutationFn: (reason: string) => missingApi.declineRequest(declining!.id, reason),
+    onSuccess: () => { done('Declined. The photo and details were deleted and the customer was told.'); if (fromRequest?.id === declining?.id) close(); setDeclining(null); },
+    onError: (e) => { toast.error(serverMessage(e, 'Could not decline it.')); setDeclining(null); },
+  });
   const [alerting, setAlerting] = useState<Poster | null>(null);
   const reach = useQuery({ queryKey: ['missing-alert-reach', alerting?.id], queryFn: () => missingApi.alertPreview(alerting!.id), enabled: !!alerting });
   const alert = useMutation({
@@ -86,7 +112,7 @@ export default function MissingPersons() {
 
   const phoneOk = f.agencyPhone.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '').length === 10;
   const canSave = !!f.name.trim() && !!f.lastSeenAt && !!f.lastSeenPlace.trim() && !!f.agencyName.trim() && phoneOk && !!f.caseNumber.trim()
-    && (f.allStores || f.storeIds.length > 0) && (editing !== 'new' || (f.officialConfirmed && !!photo));
+    && (f.allStores || f.storeIds.length > 0) && (editing !== 'new' || (f.officialConfirmed && (!!photo || !!fromRequest?.photoUrl)));
   const set = (patch: Partial<typeof blank>) => setF((p) => ({ ...p, ...patch }));
   const toggleStore = (id: string) => set({ storeIds: f.storeIds.includes(id) ? f.storeIds.filter((x) => x !== id) : [...f.storeIds, id] });
   const sortedStores = useMemo(() => [...storeList].sort((a, b) => a.name.localeCompare(b.name)), [storeList]);
@@ -100,19 +126,26 @@ export default function MissingPersons() {
         Post only a person the police or an official alert (AMBER, Silver, Endangered Missing) report as missing, with their case number. Customers see
         the poster on the app's Home at the stores you choose, with buttons to call the agency and 911. Sightings go to the police, never to Lucky Stop.
         You can send one push to those stores' customers. Every 30 days, check with the agency and press "Still missing", or the poster stops showing.
-        When the person is found, mark it found: it comes down everywhere, and the photo and personal details are deleted.
+        When the person is found, mark it found: it comes down everywhere, and the photo and personal details are deleted. Customers can also ask you
+        to post someone, with the police case number: call the agency to check it, then post it or decline it. Unanswered requests are deleted after 30 days.
       </HowItWorks>
 
       {editing && (
         <Card style={{ margin: '16px 0', maxWidth: 900 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-            <SectionTitle>{editing === 'new' ? 'New missing person poster' : `Edit: ${(editing as Poster).name}`}</SectionTitle>
-            <div style={{ marginLeft: 'auto' }}><Button size="sm" variant="ghost" icon={<X />} onClick={() => setEditing(null)}>Cancel</Button></div>
+            <SectionTitle>{fromRequest ? `Post from ${fromRequest.requesterName}'s request` : editing === 'new' ? 'New missing person poster' : `Edit: ${(editing as Poster).name}`}</SectionTitle>
+            <div style={{ marginLeft: 'auto' }}><Button size="sm" variant="ghost" icon={<X />} onClick={close}>Cancel</Button></div>
           </div>
+          {fromRequest && (
+            <Notice tone="warning">
+              Call {fromRequest.agencyName}{fromRequest.agencyPhone ? ` at ${phoneText(fromRequest.agencyPhone)}` : ''} and confirm case {fromRequest.caseNumber} is open and the person is who the request says.
+              Correct anything from the official record, add the agency's public number, then put the poster up. The customer is told when it is up.
+            </Notice>
+          )}
           <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-            <Field label={editing === 'new' ? 'Photo from the official poster' : 'Replace the photo (optional)'} htmlFor="mp-photo" required={editing === 'new'}>
+            <Field label={fromRequest ? 'Photo (the customer\'s, or a better one from the police)' : editing === 'new' ? 'Photo from the official poster' : 'Replace the photo (optional)'} htmlFor="mp-photo" required={editing === 'new' && !fromRequest}>
               <input id="mp-photo" type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
-              {(preview || (editing !== 'new' && (editing as Poster).photoUrl)) && <img src={preview ?? (editing as Poster).photoUrl!} alt="" style={{ marginTop: 8, width: 140, height: 170, objectFit: 'cover', borderRadius: 10, border: `1px solid ${C.border}` }} />}
+              {(preview || fromRequest?.photoUrl || (editing !== 'new' && (editing as Poster).photoUrl)) && <img src={preview ?? fromRequest?.photoUrl ?? (editing as Poster).photoUrl!} alt="" style={{ marginTop: 8, width: 140, height: 170, objectFit: 'cover', borderRadius: 10, border: `1px solid ${C.border}` }} />}
             </Field>
             <div style={{ display: 'grid', gap: 12 }}>
               <Field label="Full name" htmlFor="mp-name" required><input id="mp-name" style={INPUT} maxLength={80} value={f.name} onChange={(e) => set({ name: e.target.value })} /></Field>
@@ -147,13 +180,42 @@ export default function MissingPersons() {
           )}
           <div style={{ marginTop: 14, display: 'flex', gap: 10 }}>
             <Button variant="primary" disabled={!canSave || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : editing === 'new' ? 'Put the poster up' : 'Save changes'}</Button>
-            <Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button variant="secondary" onClick={close}>Cancel</Button>
+            {fromRequest && <Button variant="ghost" onClick={() => setDeclining(fromRequest)}>Decline the request</Button>}
           </div>
         </Card>
       )}
 
       {q.isLoading ? <div style={{ color: C.muted }}>Loading…</div> : q.isError ? <Notice tone="danger">Could not load the posters.</Notice> : (
         <>
+          {requests.length > 0 && (
+            <>
+              <div style={{ marginTop: 18 }}><SectionTitle count={requests.length}>Requests from customers</SectionTitle></div>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {requests.map((r) => (
+                  <Card key={r.id} style={{ display: 'flex', gap: 16, flexWrap: 'wrap', borderLeft: `4px solid ${C.warning}` }}>
+                    {r.photoUrl && <img src={r.photoUrl} alt="" style={{ width: 110, height: 135, objectFit: 'cover', borderRadius: 10 }} />}
+                    <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: FONT.section, color: C.text }}>{r.name}{r.age != null ? `, ${r.age}` : ''}</strong>
+                        <Badge tone="warning">Not checked yet</Badge>
+                      </div>
+                      <div style={{ fontSize: FONT.small, color: C.text2, marginTop: 4, lineHeight: 1.5 }}>
+                        Last seen {storeDay(r.lastSeenAt)} at {r.lastSeenPlace}.{r.description ? ` ${r.description}` : ''}<br />
+                        Police: {r.agencyName}{r.agencyPhone ? `, ${phoneText(r.agencyPhone)}` : ''}, case {r.caseNumber}.<br />
+                        Asked by {r.requesterName} ({RELATION[r.relationship]}) on {storeDay(r.createdAt)}, call back {phoneText(r.requesterPhone)}{r.storeName ? `, shops at ${r.storeName}` : ''}.<br />
+                        <span style={{ color: C.muted }}>Deleted {storeDay(r.expiresAt)} if nobody answers it.</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                        <Button size="sm" variant="primary" onClick={() => openRequest(r)}>Check and post</Button>
+                        <Button size="sm" variant="secondary" onClick={() => setDeclining(r)}>Decline</Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
           <div style={{ marginTop: 18 }}><SectionTitle count={active.length}>Up now</SectionTitle></div>
           {active.length === 0 ? (
             <EmptyState icon={<UserSearch />} title="No missing person posters" description="When the police ask for help finding someone near your stores, post it here." />
@@ -200,6 +262,18 @@ export default function MissingPersons() {
               </Card>
             </details>
           )}
+          {answered.length > 0 && (
+            <details style={{ marginTop: 12 }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 600, color: C.text2 }}>Answered requests ({answered.length})</summary>
+              <Card padding={0} style={{ marginTop: 8 }}>
+                {answered.map((a, i) => (
+                  <div key={a.id} style={{ padding: '10px 14px', borderTop: i ? `1px solid ${C.border}` : 'none', fontSize: FONT.small, color: C.text2 }}>
+                    <strong>{a.status === 'APPROVED' ? 'Posted' : a.status === 'DECLINED' ? 'Declined' : 'Expired (nobody answered)'}</strong> {a.decidedAt ? storeDay(a.decidedAt) : ''}: {a.requesterName}, case {a.caseNumber}, {a.agencyName}{a.declineReason ? `. Told them: ${a.declineReason}` : ''}
+                  </div>
+                ))}
+              </Card>
+            </details>
+          )}
         </>
       )}
 
@@ -209,6 +283,10 @@ export default function MissingPersons() {
         withInput inputLabel="Note (optional)" inputPlaceholder="e.g. Found safe, confirmed by Katy PD"
         confirmLabel={ending?.status === 'FOUND' ? 'Mark found' : ending?.status === 'RESOLVED' ? 'Mark resolved' : 'Remove'}
         onConfirm={(v) => end.mutate(v?.trim() || undefined)} onCancel={() => setEnding(null)} />
+      <ConfirmModal open={!!declining} danger busy={decline.isPending} title={`Decline the request for ${declining?.name ?? ''}?`}
+        message={<p style={{ margin: 0 }}>Nothing is posted. The photo and details are deleted, and {declining?.requesterName ?? 'the customer'} gets a message with your reason and a reminder to keep working with the police.</p>}
+        withInput inputRequired inputLabel="Reason (the customer is sent this)" inputPlaceholder="e.g. The sheriff's office has no open case with that number."
+        confirmLabel="Decline" onConfirm={(v) => decline.mutate((v ?? '').trim())} onCancel={() => setDeclining(null)} />
       <ConfirmModal open={!!alerting} busy={alert.isPending} title={`Send the alert for ${alerting?.name ?? ''}?`} confirmLabel="Send alert" confirmDisabled={reach.isLoading}
         message={<p style={{ margin: 0 }}>{reach.isLoading ? 'Counting…' : `${(reach.data?.data?.data?.customers ?? 0).toLocaleString('en-US')} customers of ${alerting?.storeIds.length ? 'the chosen stores' : 'every store'} get one push, in their language: "Help find ${alerting?.name}… If you see them, call 911." It can be sent only once per poster.`}</p>}
         onConfirm={() => alert.mutate()} onCancel={() => setAlerting(null)} />

@@ -1997,3 +1997,35 @@ model MissingPerson {
   @@map("missing_persons")
 }
 
+// A customer asks HQ to post a missing person (2026-10-18). Only with a police case number: HQ checks it with the agency, then posts it
+// (the poster is made from the request, photo and all) or declines it, and the requester is told either way. When HQ decides, or after
+// 30 days with no decision, the person's details and the photo are cleared; the cleared record goes 30 days later.
+model MissingPersonRequest {
+  id             String    @id @default(uuid())
+  requesterId    String
+  requesterPhone String              // who HQ calls back; only HQ sees it
+  relationship   String              // FAMILY, FRIEND, OTHER
+  storeId        String?             // the requester's store, so HQ knows where to show it
+  name           String
+  age            Int?
+  photoUrl       String?
+  photoPublicId  String?
+  lastSeenAt     DateTime
+  lastSeenPlace  String
+  description    String?
+  agencyName     String
+  agencyPhone    String?             // the requester may not know it; HQ finds it when checking
+  caseNumber     String
+  status         String    @default("PENDING") // PENDING, APPROVED, DECLINED, EXPIRED
+  declineReason  String?
+  posterId       String?
+  decidedById    String?
+  decidedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([requesterId, createdAt])
+  @@map("missing_person_requests")
+}
+

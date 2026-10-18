@@ -164,7 +164,7 @@ export function AppSidebar() {
   const {
     unreadCount, supportUnread, careersNewCount, requestsPendingCount, disputesPendingCount, chatUnreadCount,
     transactionsPendingCount, schedulingPendingCount, promotionsPendingCount, hotFoodPendingCount,
-    categoriesPendingCount, billingPendingCount, offerRequestsPendingCount,
+    categoriesPendingCount, billingPendingCount, offerRequestsPendingCount, missingRequestsPendingCount,
   } = badges;
 
   // Pinned pages (from the command palette, Shift+Enter) and pages opened recently through it. Both are
@@ -320,7 +320,7 @@ export function AppSidebar() {
                 <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot Food" badge={hotFoodPendingCount} />
               )}
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/missing-persons" icon={<UserSearch size={16} />} label="Missing persons" />
+                <SidebarNavItem to="/missing-persons" icon={<UserSearch size={16} />} label="Missing persons" badge={missingRequestsPendingCount} />
               )}
             </SidebarMenu>
           </SidebarGroupContent>

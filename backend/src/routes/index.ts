@@ -246,7 +246,8 @@ import {
 } from '../controllers/storeHours.controller';
 
 const router = Router();
-import { getActiveMissing, getMissingPublic, reportMissing, listMissing, createMissing, updateMissing, replaceMissingPhoto, confirmMissing, endMissing, previewMissingAlert, sendMissingAlert } from '../controllers/missingPersons.controller';
+import { getActiveMissing, getMissingPublic, reportMissing, listMissing, createMissing, updateMissing, replaceMissingPhoto, confirmMissing, endMissing, previewMissingAlert, sendMissingAlert,
+  requestMissing, getMyMissingRequest, listMissingRequests, approveMissingRequest, declineMissingRequest } from '../controllers/missingPersons.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
 
@@ -373,6 +374,12 @@ router.post('/offers/shelf-deals/visibility', authenticate, requireRole(Role.SUP
 
 // Missing person posters (2026-10-18): HQ posts them from an official source; customers see them near their store and call the police
 router.get('/missing-persons/active', authenticate, getActiveMissing);
+// customers ask HQ to post someone (police case number required); HQ checks it with the agency, then posts or declines
+router.post('/missing-persons/requests', authenticate, upload.single('photo'), requestMissing);
+router.get('/missing-persons/requests/mine', authenticate, getMyMissingRequest);
+router.get('/missing-persons/requests', authenticate, requireRole(Role.SUPER_ADMIN), listMissingRequests);
+router.post('/missing-persons/requests/:id/approve', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('photo'), approveMissingRequest);
+router.post('/missing-persons/requests/:id/decline', authenticate, requireRole(Role.SUPER_ADMIN), declineMissingRequest);
 router.get('/missing-persons/:id/public', authenticate, getMissingPublic);
 router.post('/missing-persons/:id/report', authenticate, reportMissing);
 router.get('/missing-persons', authenticate, requireRole(Role.SUPER_ADMIN), listMissing);

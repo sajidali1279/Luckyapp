@@ -1,5 +1,6 @@
 // "Help find" on Home (2026-10-18): missing person posters HQ put up for the customer's store (or every store), urgent first. A tap opens
-// the poster (app/(customer)/missing/[id].tsx) with the agency's number and 911. Nothing shows when there is no poster.
+// the poster (app/(customer)/missing/[id].tsx) with the agency's number and 911. Nothing shows when there is no poster. A link under the
+// posters opens the request form (missing/request.tsx), with this store, for someone the customer knows.
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -40,6 +41,9 @@ export default function MissingPersonsCard({ storeId }: { storeId?: string }) {
           </TouchableOpacity>
         ))}
       </ScrollView>
+      <TouchableOpacity onPress={() => router.push({ pathname: '/(customer)/missing/request', params: storeId ? { storeId } : {} } as any)} accessibilityRole="button" style={st.askWrap}>
+        <Text style={st.ask}>{t('missingRequest.someoneYouKnow')}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -56,4 +60,6 @@ const st = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '800', color: '#111827' },
   line: { fontSize: 12, color: '#4B5563', marginTop: 2 },
   tap: { fontSize: 12, fontWeight: '700', color: '#1D4ED8', marginTop: 4 },
+  askWrap: { alignSelf: 'flex-start', marginHorizontal: 16, marginTop: 8, paddingVertical: 4 },
+  ask: { fontSize: 13, color: '#4B5563', textDecorationLine: 'underline' },
 });

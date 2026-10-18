@@ -8,7 +8,7 @@ import { useAppSettings } from '../../hooks/useAppSettings';
 import {
   HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
   BriefcaseIcon, ShoppingBagIcon, BellIcon, FlameIcon,
-  UserIcon, BookOpenIcon, ClipboardIcon, GiftIcon,
+  UserIcon, BookOpenIcon, ClipboardIcon, GiftIcon, AlertCircleIcon,
 } from '../../components/Icons';
 
 export default function CustomerLayout() {
@@ -44,6 +44,7 @@ export default function CustomerLayout() {
         { route: '/(customer)/leaderboard',     icon: (p) => <TrophyIcon {...p} />,      label: t('nav.leaderboard') },
         { route: '/(customer)/careers',         icon: (p) => <BriefcaseIcon {...p} />,   label: t('nav.careers') },
         { route: '/(customer)/request-product', icon: (p) => <ShoppingBagIcon {...p} />, label: t('nav.requestProduct') },
+        { route: '/(customer)/missing/request', icon: (p) => <AlertCircleIcon {...p} />, label: t('nav.missingRequest') },
       ],
     },
     {
@@ -64,6 +65,7 @@ export default function CustomerLayout() {
         <Tabs.Screen name="scan-receipt" options={{ href: null }} />
         <Tabs.Screen name="receipt-photo" options={{ href: null }} />
         <Tabs.Screen name="missing/[id]" options={{ href: null }} />
+        <Tabs.Screen name="missing/request" options={{ href: null }} />
         <Tabs.Screen name="rewards" />
         <Tabs.Screen name="ads" />
         <Tabs.Screen name="history" />

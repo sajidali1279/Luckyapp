@@ -280,6 +280,7 @@ export default function Privacy() {
             ['Push notification tokens', 'Refreshed automatically; stale tokens deleted after 90 days of inactivity'],
             ['Employee chat messages', '3 months from the date sent, then deleted automatically'],
             ['Missing person posters (information from police agencies and official alerts)', 'Until the case ends; then the photo and personal details are deleted, and only the case number, agency and dates are kept'],
+            ['Requests to post a missing person (photo, details, police case, your call-back number)', 'Until HQ answers, or 30 days if it does not; then the photo and details are deleted (a posted request continues as the poster), and the rest 30 days later'],
             ['App crash and error logs', '90 days, stored anonymously'],
             ['Deleted account data', 'Fully purged within 30 days of deletion request, except where retention is required by law'],
           ].map(([type, period]) => (

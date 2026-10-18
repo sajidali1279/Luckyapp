@@ -29,7 +29,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       data: {
         transactionsPendingCount: 0, disputesPendingCount: 0, requestsPendingCount: 0, chatUnreadCount: 0,
         schedulingPendingCount: 0, promotionsPendingCount: 0, hotFoodPendingCount: 0, categoriesPendingCount: 0,
-        billingPendingCount: 0, careersNewCount: 0, supportUnread: 0, offerRequestsPendingCount: 0,
+        billingPendingCount: 0, careersNewCount: 0, supportUnread: 0, offerRequestsPendingCount: 0, missingRequestsPendingCount: 0,
       },
     });
     return;
@@ -66,6 +66,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
     careersNewCount,
     supportUnread,
     offerRequestsPendingCount,
+    missingRequestsPendingCount,
   ] = await Promise.all([
     // points.controller.ts getTransactionsPendingCount
     prisma.pointsTransaction.count({ where: { storeId: { in: storeIds }, status: { in: ['PENDING', 'FLAGGED'] } } }),
@@ -97,6 +98,8 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       : prisma.supportMessage.count({ where: { isRead: false, senderRole: 'DEV_ADMIN', thread: { fromUserId: user.id } } }),
     // offerRequests.controller.ts: store managers' promotion requests waiting for HQ
     prisma.offerRequest.count({ where: { status: 'PENDING', storeId: { in: storeIds } } }),
+    // missingPersons.controller.ts: customers' requests to post a missing person, waiting for HQ to check them with the police
+    prisma.missingPersonRequest.count({ where: { status: 'PENDING' } }),
   ]);
 
   res.json({
@@ -114,6 +117,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       careersNewCount,
       supportUnread,
       offerRequestsPendingCount,
+      missingRequestsPendingCount,
     },
   });
 }

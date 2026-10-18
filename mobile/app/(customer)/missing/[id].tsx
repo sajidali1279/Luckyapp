@@ -1,6 +1,6 @@
 // A missing person poster (2026-10-18): the photo, last seen, description, and the two things a customer can do: call the agency with
 // information, or 911 if they see the person now. Lucky Stop takes no tips. A push or the Home card opens it; a poster that has come down
-// says so. "Something wrong with this poster?" goes to HQ, who checks it with the police.
+// says so. "Something wrong with this poster?" goes to HQ, who checks it with the police. "Someone you know is missing?" opens the request form.
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, Share, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -83,6 +83,9 @@ export default function MissingPosterScreen() {
           </View>
           <TouchableOpacity onPress={report} disabled={reporting} accessibilityRole="button" style={{ marginTop: 18, alignSelf: 'center' }}>
             <Text style={s.report}>{reporting ? '…' : t('missing.reportLink')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(customer)/missing/request' as any)} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'center' }}>
+            <Text style={s.report}>{t('missingRequest.someoneYouKnow')}</Text>
           </TouchableOpacity>
         </ScrollView>
       )}

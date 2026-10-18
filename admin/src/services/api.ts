@@ -310,6 +310,10 @@ export const missingApi = {
   end: (id: string, status: 'FOUND' | 'RESOLVED' | 'REMOVED', note?: string) => api.post(`/missing-persons/${id}/end`, { status, note }),
   alertPreview: (id: string) => api.get(`/missing-persons/${id}/alert-preview`),
   alert: (id: string) => api.post(`/missing-persons/${id}/alert`, {}),
+  // customer requests: HQ checks the case with the agency, then posts it (the poster form, photo optional) or declines it with a reason
+  requests: () => api.get('/missing-persons/requests'),
+  approveRequest: (id: string, fd: FormData) => api.post(`/missing-persons/requests/${id}/approve`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  declineRequest: (id: string, reason: string) => api.post(`/missing-persons/requests/${id}/decline`, { reason }),
 };
 
 export const storesApi = {

@@ -88,6 +88,17 @@ export const missingApi = {
   active: (storeId?: string) => api.get('/missing-persons/active', { params: storeId ? { storeId } : {} }),
   get: (id: string) => api.get(`/missing-persons/${id}/public`),
   report: (id: string, reason: string) => api.post(`/missing-persons/${id}/report`, { reason }),
+  // a customer asks HQ to post someone (police case number required); HQ checks it with the agency first
+  mine: () => api.get('/missing-persons/requests/mine'),
+  request: async (fields: Record<string, string>, photo: { uri: string; type: string }) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    (fd as any).append('photo', { uri: photo.uri, name: photo.type === 'image/png' ? 'photo.png' : 'photo.jpg', type: photo.type });
+    const res = await fetchWithAuth('/missing-persons/requests', { method: 'POST', body: fd as any });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw { response: { data: json, status: res.status } };
+    return { data: json };
+  },
 };
 
 export const pointsApi = {

@@ -62,6 +62,7 @@ export function useAdminBadges() {
     categoriesPendingCount: b.categoriesPendingCount ?? 0,
     billingPendingCount: b.billingPendingCount ?? 0,
     offerRequestsPendingCount: b.offerRequestsPendingCount ?? 0,
+    missingRequestsPendingCount: b.missingRequestsPendingCount ?? 0,
   };
 }
 
@@ -83,4 +84,5 @@ export const BADGE_LABELS: Record<BadgeKey, { one: string; many: string }> = {
   unreadCount: { one: 'unread notification', many: 'unread notifications' },
   supportUnread: { one: 'unread support ticket', many: 'unread support tickets' },
   offerRequestsPendingCount: { one: 'promotion request from a store', many: 'promotion requests from stores' },
+  missingRequestsPendingCount: { one: 'missing person request to check', many: 'missing person requests to check' },
 };
