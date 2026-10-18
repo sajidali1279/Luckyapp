@@ -38,6 +38,7 @@ import {
   createBanner, getActiveBanners, deleteBanner, updateBanner,
   estimateOfferCost, getPromotionIdeas, getComboIdeas, dismissComboIdea, restoreComboIdeas,
   listShelfDeals,
+  setShelfDealsHidden,
   setShelfDealHidden,
 } from '../controllers/offers.controller';
 import { createOfferRequest, listOfferRequests, withdrawOfferRequest, approveOfferRequest, declineOfferRequest } from '../controllers/offerRequests.controller';
@@ -366,6 +367,7 @@ router.post('/challenges', authenticate, requireRole(Role.SUPER_ADMIN), createCh
 router.patch('/challenges/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateChallenge); // Words, last day, End now
 router.get('/offers/shelf-deals', authenticate, requireRole(Role.SUPER_ADMIN), listShelfDeals);                    // Label deals shown in the app
 router.patch('/offers/shelf-deals/:labelId', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealHidden);     // Hide or show one
+router.post('/offers/shelf-deals/visibility', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealsHidden);   // Hide or show many (2026-10-18)
 router.post('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), createOfferRequest);                 // A manager asks HQ for a cashback promotion
 router.get('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), listOfferRequests);                   // Manager: own stores; HQ: all
 router.post('/offer-requests/:id/withdraw', authenticate, requireRole(Role.STORE_MANAGER), withdrawOfferRequest);  // The manager takes it back

@@ -12,7 +12,7 @@ import { refuse } from '../utils/refusal';
 import { startOfStoreDate, endOfStoreDate, isRealDateKey } from '../utils/storeTime';
 import { storeDateKey } from '../utils/storeTime';
 import { checkHours, offerPaysAt, hoursText } from '../utils/offerHours';
-import { shelfDealsForStore } from '../utils/shelfDeals';
+import { shelfDealsForStore, shelfDealsShownAt } from '../utils/shelfDeals';
 import { estimateOffer } from '../utils/offerEstimate';
 import { isRestrictedCategory } from '../utils/dealSuggest';
 import { AUDIENCES, forCustomer, audienceText } from '../utils/offerAudience';
@@ -888,18 +888,43 @@ export async function translateOffer(req: AuthRequest, res: Response) {
 
 /** GET /offers/shelf-deals (HQ): every label with a deal: how many stores carry it, and whether it is hidden from the app. */
 export async function listShelfDeals(_req: AuthRequest, res: Response) {
-  const labels = await prisma.label.findMany({
-    where: { dealText: { not: null } },
-    select: { id: true, productName: true, dealText: true, priceText: true, category: true, dealHiddenInApp: true, updatedAt: true, _count: { select: { storeLabels: true } } },
-    orderBy: { updatedAt: 'desc' },
-  });
+  const [labels, shown] = await Promise.all([
+    prisma.label.findMany({
+      where: { dealText: { not: null } },
+      select: { id: true, productName: true, dealText: true, priceText: true, category: true, dealHiddenInApp: true, updatedAt: true, _count: { select: { storeLabels: true } } },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    shelfDealsShownAt(),
+  ]);
   res.json({
     success: true,
     data: labels.filter((l) => l.dealText && l.dealText.trim()).map((l) => ({
       labelId: l.id, productName: l.productName, dealText: l.dealText, priceText: l.priceText, hidden: l.dealHiddenInApp, stores: l._count.storeLabels,
+      category: l.category, updatedAt: l.updatedAt,
       restricted: isRestrictedCategory(l.category),   // tobacco, vape or alcohol: never shown in the app
+      shownAt: shown.shownAt.get(l.id) ?? 0,           // active stores whose customers see it right now (2026-10-18)
     })),
+    // a store shows only its first `perStore` label deals: "showing" on the page means shownAt > 0, not "not hidden"
+    meta: { perStore: shown.perStore, stores: shown.stores },
   });
+}
+
+/** POST /offers/shelf-deals/visibility (HQ) { labelIds: string[], hidden: boolean }: hide or show many label deals at once. */
+export async function setShelfDealsHidden(req: AuthRequest, res: Response) {
+  const ids = Array.isArray(req.body?.labelIds) ? [...new Set((req.body.labelIds as unknown[]).filter((x): x is string => typeof x === 'string'))] : [];
+  if (typeof req.body?.hidden !== 'boolean') { res.status(400).json({ success: false, error: 'Say whether to hide them (true) or show them (false).' }); return; }
+  if (ids.length === 0 || ids.length > 2000) { res.status(400).json({ success: false, error: 'Choose from 1 to 2,000 deals.' }); return; }
+  const hidden = req.body.hidden as boolean;
+  const { count } = await prisma.label.updateMany({ where: { id: { in: ids }, dealText: { not: null }, dealHiddenInApp: !hidden }, data: { dealHiddenInApp: hidden } });
+  if (count > 0) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'SHELF_DEAL_VISIBILITY', entity: 'label', entityId: null,
+      details: { summary: `${hidden ? 'Hid' : 'Showed'} ${count} shelf deal${count === 1 ? '' : 's'} ${hidden ? 'from' : 'in'} the app at once.`, labelIds: ids.slice(0, 200) },
+      storeId: null,
+    });
+  }
+  res.json({ success: true, data: { changed: count, hidden } });
 }
 
 /** PATCH /offers/shelf-deals/:labelId (HQ): { hidden: true|false }: hide a label's deal from the app's Today's Deals, or show it again. */

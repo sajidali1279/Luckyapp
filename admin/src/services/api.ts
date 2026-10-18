@@ -143,6 +143,7 @@ export const offersApi = {
   /** Label deals the app shows in Today's Deals, and hiding one (HQ). */
   getShelfDeals: () => api.get('/offers/shelf-deals'),
   setShelfDealHidden: (labelId: string, hidden: boolean) => api.patch(`/offers/shelf-deals/${labelId}`, { hidden }),
+  setShelfDealsHidden: (labelIds: string[], hidden: boolean) => api.post('/offers/shelf-deals/visibility', { labelIds, hidden }),   // many at once (2026-10-18)
 };
 
 /** Store managers' cashback promotion requests, which HQ approves (with any changes) or declines with a reason. */
