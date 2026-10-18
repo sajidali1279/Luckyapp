@@ -29,6 +29,7 @@ import { ImagePick } from '../components/offers/ImagePick';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from '../components/offers/SpanishFields';
 import { PhonePreview, type PreviewOffer } from '../components/offers/PhonePreview';
 import { AudienceLimitsField, NO_AUDIENCE, audienceFrom, audiencePayload, audienceProblem, audienceLabel, type AudienceLimitsValue } from '../components/offers/AudienceLimits';
+import { useLimits } from '../components/SettingsCards';
 
 // ─── Suggestion Templates ─────────────────────────────────────────────────────
 
@@ -172,6 +173,7 @@ const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Offers() {
+  const limits = useLimits();   // HQ's numbers that these words repeat (Settings, 2026-10-17)
   const qc = useQueryClient();
   const { user } = useAuthStore();
   const isStoreManager = user?.role === 'STORE_MANAGER';
@@ -583,7 +585,7 @@ export default function Offers() {
     const timing = startsNow ? 'right away' : `on its first day (${storeDayLong(new Date(startMs))})`;
     const who = fd.get('audience') && fd.get('audience') !== 'EVERYONE' ? ` in its audience (${audienceLabel({ audience: String(fd.get('audience')), audienceTier: String(fd.get('audienceTier') ?? ''), audienceDays: String(fd.get('audienceDays') ?? '') })})` : '';
     const notify = single
-      ? `Customers of ${where}${who} (an approved purchase there in the last 6 months) are notified ${timing}.`
+      ? `Customers of ${where}${who} (an approved purchase there in the last ${limits.audienceRecentMonths} months) are notified ${timing}.`
       : who ? `Customers${who} are notified ${timing}.` : `Every customer is notified ${timing}.`;
     // What the customer's phone will show (the same words, picture and hours as the post)
     const str = (k: string) => String(fd.get(k) ?? '');

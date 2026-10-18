@@ -16,13 +16,14 @@ import ConfirmModal from '../components/ConfirmModal';
 import { RulesCard, FeaturesCard, BusinessCard, HistoryCard, LastChanged, useSettings } from '../components/SettingsCards';
 import { useAnyUnsaved } from '../lib/unsaved';
 
-type Tab = 'features' | 'hotfood' | 'review' | 'receipts' | 'rewards' | 'deals' | 'staff' | 'app' | 'history';
+type Tab = 'features' | 'hotfood' | 'review' | 'receipts' | 'rewards' | 'care' | 'deals' | 'staff' | 'app' | 'history';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'features', label: 'Features' },
   { value: 'hotfood', label: 'Hot food' },
   { value: 'review', label: 'Sales review' },
   { value: 'receipts', label: 'Receipt scanning' },
   { value: 'rewards', label: 'Rewards & offers' },
+  { value: 'care', label: 'Customer care' },
   { value: 'deals', label: 'Deals' },
   { value: 'staff', label: 'Staff' },
   { value: 'app', label: 'App' },
@@ -30,7 +31,7 @@ const TABS: { value: Tab; label: string }[] = [
 ];
 // Links made before the tabs were split still land somewhere sensible
 const OLD: Record<string, Tab> = { app: 'app' };
-const GROUP_TAB: Record<string, Tab> = { hotFood: 'hotfood', review: 'review', receipts: 'receipts', offers: 'rewards', staff: 'staff' };
+const GROUP_TAB: Record<string, Tab> = { hotFood: 'hotfood', review: 'review', receipts: 'receipts', offers: 'rewards', perks: 'rewards', care: 'care', staff: 'staff' };
 const TAB_LABEL = Object.fromEntries(TABS.map((t) => [t.value, t.label])) as Record<Tab, string>;
 
 const narrow = { maxWidth: 820, display: 'grid', gap: 16 } as const;
@@ -161,11 +162,18 @@ export default function Settings() {
               <li><Link to="/offers" style={{ color: PRIMARY, fontWeight: 700 }}>Offers</Link>: promotions, deals and challenges themselves</li>
             </ul>
           </Card>
+          <RulesCard group="perks" title="Tier perks and rewards" intro="What each tier gets beyond cashback, how long a reward code from the app lasts, and the invite-code window. The app shows these numbers to customers." />
           <div>
             <ReferralsPanel part="deal" />
             <LastChanged actions={['REFERRAL_SETTINGS_UPDATE']} />
           </div>
           <RulesCard group="offers" title="Promotions" intro="When the last-day reminder goes out, and who counts as away or new for promotions that do not set their own days." />
+        </div>
+      )}
+
+      {tab === 'care' && (
+        <div style={narrow}>
+          <RulesCard group="care" title="Customer care" intro="Credits HQ and managers can give, and how long customers have to report a problem or keep a product request open." />
         </div>
       )}
 
@@ -180,7 +188,7 @@ export default function Settings() {
 
       {tab === 'staff' && (
         <div style={narrow}>
-          <RulesCard group="staff" title="Staff check-in" intro="When someone counts as working, for check-ins, Who's where and hot food alerts." />
+          <RulesCard group="staff" title="Staff" intro="When someone counts as working (check-ins, Who's where, hot food alerts), and when managers are reminded about an old gas price." />
         </div>
       )}
 

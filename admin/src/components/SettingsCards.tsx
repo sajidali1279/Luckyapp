@@ -11,13 +11,20 @@ import { Button, Card, Badge, EmptyState, Field, Notice, Chip } from './kit';
 import ConfirmModal from './ConfirmModal';
 import { useUnsaved } from '../lib/unsaved';
 
-export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'staff';
+export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'perks' | 'care' | 'staff';
 type Rule = { key: string; group: RuleGroup; label: string; help: string; unit: string; def: number; min: number; max: number; int: boolean; value: number; section?: string };
 type Feature = { key: string; label: string; help: string; on: boolean };
 type HistoryRow = { id: string; area: string; action: string; by: string; at: string; summary: string; keys: string[] };
 
 export function useSettings() {
   return useQuery({ queryKey: ['settings'], queryFn: () => settingsApi.get(), staleTime: 30_000 });
+}
+/** The numbers HQ set that a page's words repeat (GET /settings/app, any signed-in user): today's defaults until it loads or on an older
+ *  server, so a sentence never shows an empty number. */
+export const LIMIT_DEFAULTS = { refillSilverPerPeriod: 7, refillDailyPerDay: 1, rewardHoldMinutes: 30, productRequestDays: 7, referralLateDays: 7, disputeMaxDays: 60, audienceRecentMonths: 6, goodwillCreditMax: 25, disputeCreditMax: 50 };
+export function useLimits(): typeof LIMIT_DEFAULTS {
+  const q = useQuery({ queryKey: ['settings-app'], queryFn: () => settingsApi.app(), staleTime: 5 * 60_000 });
+  return { ...LIMIT_DEFAULTS, ...(q.data?.data?.data?.limits ?? {}) };
 }
 export function useSettingsHistory() {
   return useQuery({ queryKey: ['settings-history'], queryFn: () => settingsApi.history(100), staleTime: 30_000 });

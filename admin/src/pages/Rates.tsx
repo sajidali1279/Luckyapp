@@ -690,7 +690,7 @@ export default function Rates() {
                       {fill ? (
                         <div>
                           <span style={s.effectiveTag}>{money(fill.total)} ({pctOne(fill.percent)} of the sale)</span>
-                          {bonusCents > 0 && <div style={s.tierSub}>{cpgNum}¢ + {bonusCents}¢ fixed extra = {parseFloat((cpgNum + bonusCents).toFixed(2))}¢ a gallon</div>}
+                          {bonusCents > 0 && <div style={s.tierSub} title="The tier gas bonus is set in Settings › Rewards & offers › Tier perks">{cpgNum}¢ + {bonusCents}¢ tier bonus = {parseFloat((cpgNum + bonusCents).toFixed(2))}¢ a gallon</div>}
                         </div>
                       ) : (
                         <span style={{ fontSize: 14, color: TEXT_MUTED }}>enter a rate</span>

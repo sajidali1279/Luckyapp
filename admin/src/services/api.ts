@@ -586,6 +586,8 @@ export const settingsApi = {
   // The joining bonus (2026-10-17): on/off, days, items (an item without a key is new)
   saveWelcome: (data: { enabled?: boolean; days?: number; items?: { key?: string; name: string; nameEs: string; emoji: string; active: boolean }[] }) => api.put('/settings/welcome', data),
   history: (limit = 100) => api.get('/settings/history', { params: { limit } }),
+  // What any signed-in screen may read (the numbers HQ set that words on the page repeat)
+  app: () => api.get('/settings/app'),
 };
 
 export const hotFoodCatalogApi = {

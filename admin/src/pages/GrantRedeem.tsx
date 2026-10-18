@@ -17,6 +17,7 @@ import { showPhone } from '../lib/phoneText';
 import { pickStore, rememberStore } from '../lib/lastStore';
 import { readQrPhoto, isCustomerQr } from '../lib/qrPhoto';
 import { fingerprint, shrinkPhoto } from '../lib/photoPrep';
+import { useLimits } from '../components/SettingsCards';
 
 const PAGE_KEY = 'grant-redeem';
 const MAX_PHOTO = 10 * 1024 * 1024;   // the server's upload limit
@@ -163,6 +164,7 @@ export default function GrantRedeem() {
 }
 
 function Counter() {
+  const limits = useLimits();   // HQ's numbers that these words repeat (Settings, 2026-10-17)
   // ── Store and the employee who served ──────────────────────────────────────
   const storesQ = useQuery({ queryKey: ['counter-stores'], queryFn: () => counterApi.stores().then((r) => (r.data.data ?? []) as StoreRow[]) });
   const stores = storesQ.data ?? [];
@@ -784,7 +786,7 @@ function Counter() {
 
           {tab === 'held' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ fontSize: FONT.small, color: C.muted }}>Rewards {who} reserved in the app. The points are already taken; confirm once the employee has handed the item over. A reservation lasts 30 minutes.</div>
+              <div style={{ fontSize: FONT.small, color: C.muted }}>Rewards {who} reserved in the app. The points are already taken; confirm once the employee has handed the item over. A reservation lasts {limits.rewardHoldMinutes} minutes.</div>
               {held.map((h) => (
                 <div key={h.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: 12, borderRadius: RADIUS.md, border: `1px solid ${C.border}` }}>
                   <div>
@@ -812,7 +814,7 @@ function Counter() {
                   <div style={{ fontWeight: 600, color: C.text }}>{customer.benefit?.type === 'SILVER_FOUNTAIN' ? 'Free fountain drink refill' : 'Free daily drink refill'}</div>
                   <div style={{ fontSize: FONT.small, color: C.muted }}>
                     {customer.benefit?.type === 'SILVER_FOUNTAIN'
-                      ? `${customer.benefit.silverRemaining} of 7 left this half-year.`
+                      ? `${customer.benefit.silverRemaining} of ${limits.refillSilverPerPeriod} left this half-year.`
                       : customer.benefit?.available ? 'Not used today.' : 'Already used today.'}
                   </div>
                 </div>

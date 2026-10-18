@@ -16,6 +16,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAuthStore } from '../store/authStore';
+import { useLimits } from '../components/SettingsCards';
 
 type Tab = 'overview' | 'activity' | 'referrals' | 'notes' | 'devices' | 'cards' | 'history';
 const fmt$ = (n: number | null | undefined) => (n == null ? '-' : `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -98,6 +99,7 @@ export default function CustomerProfile() {
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => void }) {
+  const limits = useLimits();   // HQ's numbers that these words repeat (Settings, 2026-10-17)
   const c = d.customer, s = d.stats, t = d.tier;
   const [unlocking, setUnlocking] = useState(false);
   const [restrictOpen, setRestrictOpen] = useState(false);
@@ -168,13 +170,13 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
         </Card>
         <Card>
           <SectionTitle>Goodwill credit</SectionTitle>
-          <p style={{ margin: '-4px 0 10px', color: C.muted, fontSize: FONT.small }}>For something that is not a missing-points report: an apology, a one-off gesture. Up to $25, with a reason they are shown.</p>
+          <p style={{ margin: '-4px 0 10px', color: C.muted, fontSize: FONT.small }}>For something that is not a missing-points report: an apology, a one-off gesture. Up to ${limits.goodwillCreditMax}, with a reason they are shown.</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input style={{ ...INPUT, width: 100 }} inputMode="decimal" placeholder="$0.00" aria-label="Credit in dollars" value={gAmt} maxLength={5} onChange={(e) => setGAmt(e.target.value.replace(/[^0-9.]/g, ''))} />
             <input style={{ ...INPUT, flex: '1 1 160px', width: 'auto' }} placeholder="Reason (required)" aria-label="Reason" value={gReason} maxLength={300} onChange={(e) => setGReason(e.target.value)} />
             <Button variant="primary" disabled={!gOk || goodwill.isPending} onClick={() => goodwill.mutate()}>{goodwill.isPending ? 'Adding…' : 'Add credit'}</Button>
           </div>
-          {gAmt.trim() !== '' && amount > 25 && <div role="alert" style={{ color: C.danger, fontSize: FONT.small, marginTop: 6 }}>At most $25. For a larger amount tied to a purchase, use a missing-points report.</div>}
+          {gAmt.trim() !== '' && amount > limits.goodwillCreditMax && <div role="alert" style={{ color: C.danger, fontSize: FONT.small, marginTop: 6 }}>At most ${limits.goodwillCreditMax}. For a larger amount tied to a purchase, use a missing-points report.</div>}
         </Card>
         <Card>
           <SectionTitle>Account status</SectionTitle>

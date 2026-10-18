@@ -213,6 +213,7 @@ export async function getAppSettings(_req: AuthRequest, res: Response) {
       // 2026-10-17: numbers the app's words repeat, so a change here is what customers read
       refillSilverPerPeriod: rule('refillSilverPerPeriod'), refillDailyPerDay: rule('refillDailyPerDay'), rewardHoldMinutes: rule('rewardHoldMinutes'),
       productRequestDays: rule('productRequestDays'), referralLateDays: rule('referralLateDays'), disputeMaxDays: rule('disputeMaxDays'),
+      audienceRecentMonths: rule('audienceRecentMonths'), goodwillCreditMax: rule('goodwillCreditMax'), disputeCreditMax: rule('disputeCreditMax'),
     },
     payWithPoints: feature('hotFoodPayWithPoints'),
   } });
