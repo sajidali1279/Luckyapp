@@ -83,6 +83,13 @@ export const authApi = {
   deleteAccount: (pin: string) => api.delete('/auth/account', { data: { pin } }),
 };
 
+// Missing person posters (2026-10-18)
+export const missingApi = {
+  active: (storeId?: string) => api.get('/missing-persons/active', { params: storeId ? { storeId } : {} }),
+  get: (id: string) => api.get(`/missing-persons/${id}/public`),
+  report: (id: string, reason: string) => api.post(`/missing-persons/${id}/report`, { reason }),
+};
+
 export const pointsApi = {
   getMyHistory: (page = 1) =>
     api.get(`/points/my-history?page=${page}`),

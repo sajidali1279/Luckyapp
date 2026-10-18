@@ -246,6 +246,8 @@ import {
 } from '../controllers/storeHours.controller';
 
 const router = Router();
+import { getActiveMissing, getMissingPublic, reportMissing, listMissing, createMissing, updateMissing, replaceMissingPhoto, confirmMissing, endMissing, previewMissingAlert, sendMissingAlert } from '../controllers/missingPersons.controller';
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -368,6 +370,19 @@ router.patch('/challenges/:id', authenticate, requireRole(Role.SUPER_ADMIN), upd
 router.get('/offers/shelf-deals', authenticate, requireRole(Role.SUPER_ADMIN), listShelfDeals);                    // Label deals shown in the app
 router.patch('/offers/shelf-deals/:labelId', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealHidden);     // Hide or show one
 router.post('/offers/shelf-deals/visibility', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealsHidden);   // Hide or show many (2026-10-18)
+
+// Missing person posters (2026-10-18): HQ posts them from an official source; customers see them near their store and call the police
+router.get('/missing-persons/active', authenticate, getActiveMissing);
+router.get('/missing-persons/:id/public', authenticate, getMissingPublic);
+router.post('/missing-persons/:id/report', authenticate, reportMissing);
+router.get('/missing-persons', authenticate, requireRole(Role.SUPER_ADMIN), listMissing);
+router.post('/missing-persons', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('photo'), createMissing);
+router.patch('/missing-persons/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateMissing);
+router.post('/missing-persons/:id/photo', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('photo'), replaceMissingPhoto);
+router.post('/missing-persons/:id/confirm', authenticate, requireRole(Role.SUPER_ADMIN), confirmMissing);
+router.post('/missing-persons/:id/end', authenticate, requireRole(Role.SUPER_ADMIN), endMissing);
+router.get('/missing-persons/:id/alert-preview', authenticate, requireRole(Role.SUPER_ADMIN), previewMissingAlert);
+router.post('/missing-persons/:id/alert', authenticate, requireRole(Role.SUPER_ADMIN), sendMissingAlert);
 router.post('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), createOfferRequest);                 // A manager asks HQ for a cashback promotion
 router.get('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), listOfferRequests);                   // Manager: own stores; HQ: all
 router.post('/offer-requests/:id/withdraw', authenticate, requireRole(Role.STORE_MANAGER), withdrawOfferRequest);  // The manager takes it back

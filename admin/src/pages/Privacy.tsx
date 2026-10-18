@@ -41,7 +41,7 @@ export default function Privacy() {
       </div>
 
       <h1 style={s.h1}>Privacy Policy</h1>
-      <p style={s.updated}>Last updated: October 17, 2026</p>
+      <p style={s.updated}>Last updated: October 18, 2026</p>
       <p style={s.updated}>Effective date: June 7, 2026</p>
 
       <p style={s.intro}>
@@ -279,6 +279,7 @@ export default function Privacy() {
             ['Missing-points dispute reports', '24 months from the date of submission'],
             ['Push notification tokens', 'Refreshed automatically; stale tokens deleted after 90 days of inactivity'],
             ['Employee chat messages', '3 months from the date sent, then deleted automatically'],
+            ['Missing person posters (information from police agencies and official alerts)', 'Until the case ends; then the photo and personal details are deleted, and only the case number, agency and dates are kept'],
             ['App crash and error logs', '90 days, stored anonymously'],
             ['Deleted account data', 'Fully purged within 30 days of deletion request, except where retention is required by law'],
           ].map(([type, period]) => (
@@ -340,6 +341,7 @@ export default function Privacy() {
       <ul style={s.ul}>
         <li style={s.li}>Confirmations when cashback is added to your account</li>
         <li style={s.li}>A reminder before points expire (only if points expiry is in effect)</li>
+        <li style={s.li}>Missing person alerts for your store's area, when the police ask the public for help</li>
         <li style={s.li}>Special offers and limited-time promotions from your store</li>
         <li style={s.li}>Updates on product requests or missing-points disputes</li>
         <li style={s.li}>Operational updates from your store (employees only)</li>

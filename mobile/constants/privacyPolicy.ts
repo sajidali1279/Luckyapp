@@ -1,7 +1,7 @@
 export const PRIVACY_POLICY = `# Privacy Policy
 
 **Lucky Stop Inc. / Cliff Industries**
-Last updated: October 17, 2026
+Last updated: October 18, 2026
 
 ---
 
@@ -53,6 +53,8 @@ For privacy inquiries: **support@luckystop.cliffindus.com**
 - Biometric data (fingerprints or face geometry) - biometric login is handled entirely by your device and the result is never sent to our servers
 - Contacts, calendar, or other device app data
 - Data from children under 13
+
+**Missing person posters:** when the police or an official alert (such as an AMBER Alert) ask the public for help, Lucky Stop may show a poster with that person's photo, name, age, where they were last seen and the agency's phone number. This information comes only from the agency or the official alert. We do not collect sightings or tips (please call the police), and if you report a problem with a poster we keep your report to check it. When the case ends, the poster is taken down and the photo and personal details are deleted.
 
 ---
 
@@ -148,6 +150,7 @@ We may send notifications for:
 
 - Cashback confirmations when points are added
 - A reminder before points expire (only if points expiry is in effect)
+- Missing person alerts for your store's area, when the police ask the public for help
 - Special offers, limited-time promotions and challenges, in your app language
 - Updates on disputes or product requests
 - Operational updates (for store employees)

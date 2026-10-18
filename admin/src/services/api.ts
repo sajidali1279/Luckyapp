@@ -300,6 +300,18 @@ export const disputesApi = {
   getPendingCount: () => api.get('/disputes/pending-count'),
 };
 
+// Missing person posters (HQ, 2026-10-18)
+export const missingApi = {
+  list: () => api.get('/missing-persons'),
+  create: (fd: FormData) => api.post('/missing-persons', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id: string, data: Record<string, unknown>) => api.patch(`/missing-persons/${id}`, data),
+  photo: (id: string, fd: FormData) => api.post(`/missing-persons/${id}/photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  confirm: (id: string) => api.post(`/missing-persons/${id}/confirm`, {}),
+  end: (id: string, status: 'FOUND' | 'RESOLVED' | 'REMOVED', note?: string) => api.post(`/missing-persons/${id}/end`, { status, note }),
+  alertPreview: (id: string) => api.get(`/missing-persons/${id}/alert-preview`),
+  alert: (id: string) => api.post(`/missing-persons/${id}/alert`, {}),
+};
+
 export const storesApi = {
   getAll: () => api.get('/stores'),
   // SuperAdmin+ only. For any store-filter UI a Store Manager might also

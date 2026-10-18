@@ -5,7 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, TrendingUp, Package, Tag, Image, Gift, MessageSquare, Calendar, Users, UserCircle,
   ClipboardList, ShoppingCart, Briefcase, Trophy, Percent, Megaphone, Receipt, Activity, Store, CreditCard,
-  Bell, Headphones, FileText, ClipboardCheck, ListChecks, Barcode, Printer, Flame, User, Pin, ScanLine,
+  Bell, Headphones, FileText, ClipboardCheck, ListChecks, Barcode, Printer, Flame, User, Pin, ScanLine, UserSearch,
 } from 'lucide-react';
 import type { BadgeKey } from '../hooks/useAdminBadges';
 
@@ -30,6 +30,7 @@ export const NAV_ITEMS: NavEntry[] = [
   { to: '/notices', label: 'Notices', icon: Pin, group: 'Content' },
   { to: '/catalog', label: 'Catalog', icon: Gift, group: 'Content' },
   { to: '/promotions', label: 'Promotions', icon: Megaphone, group: 'Content', roles: ['DEV_ADMIN'], badgeKey: 'promotionsPendingCount' },
+  { to: '/missing-persons', label: 'Missing persons', icon: UserSearch, group: 'Content', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
   { to: '/hot-food', label: 'Hot Food', icon: Flame, group: 'Content', roles: ['DEV_ADMIN', 'SUPER_ADMIN'], badgeKey: 'hotFoodPendingCount' },
 
   { to: '/chat', label: 'Chat', icon: MessageSquare, group: 'People', badgeKey: 'chatUnreadCount' },

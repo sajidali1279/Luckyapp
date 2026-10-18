@@ -52,6 +52,7 @@ import FocusStatusBar from '../../components/FocusStatusBar';
 import { tierBenefitLines } from '../../utils/tierLines';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { usePointsExpiry, expiryDate } from '../../hooks/usePointsExpiry';
+import MissingPersonsCard from '../../components/MissingPersonsCard';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -939,6 +940,7 @@ export default function CustomerHome() {
     qc.invalidateQueries({ queryKey: ['my-referrals'] });
     qc.invalidateQueries({ queryKey: ['unread-count'] });
     qc.invalidateQueries({ queryKey: ['my-expiry'] });
+    qc.invalidateQueries({ queryKey: ['missing-active'] });
   }
 
   const tier = TIER_CONFIG[user?.tier || 'BRONZE'];
@@ -1121,6 +1123,7 @@ export default function CustomerHome() {
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         <NotificationsOffBanner dismissible />
         <WelcomeBonusCard />
+        <MissingPersonsCard storeId={nearestStore?.id} />
       </Animated.View>
 
       {/* Order (2026-10-12): hot food, today's deals, promotions, gas, HQ banners, rewards, challenges, invite, local businesses */}

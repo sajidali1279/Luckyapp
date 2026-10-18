@@ -1961,3 +1961,39 @@ model PointLotUse {
   @@map("point_lot_uses")
 }
 
+// ─── Missing person posters (2026-10-18) ─────────────────────────────────────
+// HQ posts them from an official source only (a police case number, an AMBER Alert): customers see an active poster on Home near
+// their store, can call the agency or 911, and may get one push when HQ sends it. Tips go to the police, never to the app. A poster stays
+// up until HQ marks it found or resolved, and every 30 days HQ must confirm it is still active (reviewDueAt) or it stops showing.
+// When it ends, the photo is deleted and the personal details are cleared; the case number, agency and dates stay for the record.
+model MissingPerson {
+  id               String    @id @default(uuid())
+  name             String
+  age              Int?
+  photoUrl         String?
+  photoPublicId    String?             // Cloudinary id, to delete the photo when the poster ends
+  lastSeenAt       DateTime
+  lastSeenPlace    String
+  description      String?             // height, hair, clothing, vehicle...
+  descriptionEs    String?
+  agencyName       String              // e.g. "Harris County Sheriff's Office"
+  agencyPhone      String              // the number customers call with information
+  caseNumber       String
+  sourceUrl        String?             // the official alert or agency page
+  urgent           Boolean   @default(false)   // an AMBER Alert or an endangered person: shown first, in red
+  storeIds         String[]  @default([])      // the stores whose customers see it; empty = every store
+  status           String    @default("ACTIVE") // ACTIVE, FOUND, RESOLVED, REMOVED
+  reviewDueAt      DateTime            // HQ confirms it is still active by then, or it stops showing
+  reviewNotifiedAt DateTime?
+  pushSentAt       DateTime?
+  pushCount        Int       @default(0)
+  endedAt          DateTime?
+  endNote          String?
+  createdById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, reviewDueAt])
+  @@map("missing_persons")
+}
+

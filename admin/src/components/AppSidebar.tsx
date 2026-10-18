@@ -55,7 +55,7 @@ import {
   ChevronRight,
   Barcode,
   Printer,
-  SlidersHorizontal,
+  SlidersHorizontal, UserSearch,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -318,6 +318,9 @@ export function AppSidebar() {
               )}
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot Food" badge={hotFoodPendingCount} />
+              )}
+              {(isDevAdmin || isSuperAdmin) && (
+                <SidebarNavItem to="/missing-persons" icon={<UserSearch size={16} />} label="Missing persons" />
               )}
             </SidebarMenu>
           </SidebarGroupContent>
