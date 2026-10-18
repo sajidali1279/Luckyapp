@@ -1,7 +1,7 @@
 export const PRIVACY_POLICY = `# Privacy Policy
 
 **Lucky Stop Inc. / Cliff Industries**
-Last updated: October 16, 2026
+Last updated: October 17, 2026
 
 ---
 
@@ -34,6 +34,7 @@ For privacy inquiries: **support@luckystop.cliffindus.com**
 - **Unique QR code** - an opaque identifier assigned to your account. Never contains personal data.
 - **Transaction history** - store, purchase amount, product category, cashback earned, and timestamp for each rewarded purchase.
 - **Rewards balance** - your running total of cashback credits earned and redeemed.
+- **Points record** - each batch of points you earn, with its date and what it came from (a purchase, a reward, a credit), and which batches each redemption used. It lets us spend your oldest points first and, if points expiry is in effect, show and apply when points expire.
 - **Redemption history** - records of credits redeemed for in-store products.
 - **Receipt photos** - taken by store staff to verify a purchase, or by you when you scan your own receipt in the app (where offered).
 - **Details read from a receipt** - the store, date and time, items and amounts, the register's transaction numbers, and how it was paid, including the card brand and the last 4 digits of the card. We never see or keep the full card number.
@@ -115,6 +116,7 @@ We do not use advertising networks or data brokers.
 
 - **Account profile** - until you delete your account
 - **Transaction history** - 7 years from the purchase, for financial record-keeping; after you delete your account it is kept without your name or phone number
+- **Points record** - kept with your transaction history; when you delete your account your remaining balance is forfeited and the record is closed
 - **Receipt photos** - automatically deleted 2 years after the transaction date (kept longer only while a missing-points report about it is open)
 - **Details read from a receipt** - kept with the transaction record, including the card brand and last 4 digits
 - **Dispute reports** - 24 months from submission
@@ -145,6 +147,7 @@ We respond within 30 days for data rights requests.
 We may send notifications for:
 
 - Cashback confirmations when points are added
+- A reminder before points expire (only if points expiry is in effect)
 - Special offers, limited-time promotions and challenges, in your app language
 - Updates on disputes or product requests
 - Operational updates (for store employees)

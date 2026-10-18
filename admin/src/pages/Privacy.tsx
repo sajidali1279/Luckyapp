@@ -119,6 +119,7 @@ export default function Privacy() {
             ['Unique QR code', 'A unique identifier assigned to your account. Used by store cashiers to look up your account when granting rewards. Never contains personal data - it is an opaque code that maps to your account.'],
             ['Transaction history', 'A record of each purchase for which you earned cashback: the store location, purchase amount, product category (e.g. groceries, gas, hot food), cashback amount awarded, and timestamp.'],
             ['Rewards balance', 'Your running total of cashback credits earned and redeemed.'],
+            ['Points record', 'Each batch of points you earn, with its date and what it came from (a purchase, a reward, a credit), and which batches each redemption used. It lets us spend your oldest points first and, if points expiry is in effect, show and apply when points expire.'],
             ['Redemption history', 'Records of credits you have redeemed for in-store products, including the item, store, and date.'],
             ['Receipt photos', 'Photos of purchase receipts taken by store staff to verify a purchase, or by you when you scan your own receipt in the app (where offered). Required for fraud prevention.'],
             ['Details read from a receipt', 'The store, date and time, items and amounts, the register\'s transaction numbers, and how it was paid, including the card brand and the last 4 digits of the card. We never see or keep the full card number. Used to check that a receipt is used only once and is yours, by comparing transaction numbers, card brand and last 4 digits across accounts.'],
@@ -272,6 +273,7 @@ export default function Privacy() {
           {[
             ['Account profile (phone number, name, email)', 'Until you delete your account'],
             ['Transaction history and rewards balance', '7 years from the purchase for financial record-keeping; after you delete your account it is kept without your name or phone number'],
+            ['Points record (the batches of points and what used them)', 'Kept with the transaction history; when you delete your account your remaining balance is forfeited and the record is closed'],
             ['Receipt photos', '2 years from the date of the transaction, then automatically deleted (longer only while a missing-points report about it is open)'],
             ['Details read from a receipt', 'Kept with the transaction record, including the card brand and last 4 digits'],
             ['Missing-points dispute reports', '24 months from the date of submission'],
@@ -337,6 +339,7 @@ export default function Privacy() {
       </p>
       <ul style={s.ul}>
         <li style={s.li}>Confirmations when cashback is added to your account</li>
+        <li style={s.li}>A reminder before points expire (only if points expiry is in effect)</li>
         <li style={s.li}>Special offers and limited-time promotions from your store</li>
         <li style={s.li}>Updates on product requests or missing-points disputes</li>
         <li style={s.li}>Operational updates from your store (employees only)</li>
