@@ -1,4 +1,48 @@
 {
+  "employeeRecent": {
+    "title": "Recent sales",
+    "sub": "Your sales and redemptions today",
+    "empty": "Nothing yet today. Sales you grant show here.",
+    "customerLast4": "Customer ··{{last4}}",
+    "addLeft": "Receipts you can still add after a customer left: {{left}} of {{perDay}} today, within {{minutes}} minutes of the sale.",
+    "addedTag": "(added)",
+    "addReceipt": "Add a receipt",
+    "addA11y": "Add a receipt the customer left, for {{customer}}",
+    "redemptions": "Redemptions",
+    "reward": "Reward",
+    "credits": "Credits",
+    "points": "{{points}} pts",
+    "back": "Back",
+    "forCustomer": "For {{customer}}, sale at {{time}}",
+    "rule": "Only for a receipt this customer left behind from the same visit. They get a message saying you added it.",
+    "category": "Category",
+    "amount": "Amount on the receipt ($)",
+    "gallons": "Gallons",
+    "photo": "Receipt photo",
+    "takePhoto": "Take a photo of this receipt",
+    "photoHint": "A new photo of this receipt: the first receipt's photo cannot be used again.",
+    "willHold": "From ${{amount}}, a manager checks it before the points are added.",
+    "addIt": "Add to their sale",
+    "retryUpload": "Upload the photo again",
+    "addedCredited": "Added and credited",
+    "addedHeld": "Added: a manager checks it first",
+    "customerTold": "The customer was told.",
+    "failed": "Could not add it. Try again.",
+    "needAmount": "Enter the amount on the receipt.",
+    "needPhoto": "Take a photo of the receipt.",
+    "cameraDenied": "Camera access is off. Allow it in Settings.",
+    "discardTitle": "Stop adding this receipt?",
+    "discardBody": "Nothing is added to the customer.",
+    "keepGoing": "Keep going",
+    "discard": "Stop",
+    "status": {
+      "CREDITED": "Credited",
+      "HELD": "Held for review",
+      "NOT_FINISHED": "No photo yet",
+      "REJECTED": "Rejected",
+      "VOIDED": "Voided"
+    }
+  },
   "missingRequest": {
     "title": "Report a missing person",
     "someoneYouKnow": "Someone you know is missing?",
@@ -90,6 +134,7 @@
     "photoA11y": "Photo of {{name}}"
   },
   "nav": {
+    "recentSales": "Recent sales",
     "home": "Home",
     "rewards": "Rewards",
     "history": "History",
@@ -1732,6 +1777,7 @@
     "genericErrorMsg": "Something went wrong."
   },
   "employeeScan": {
+    "anotherReceiptLater": "Customer left another receipt? Add it from Recent sales",
     "heldSub_other": "{{count}} lines are held: a manager checks them before the points are added. Tell the customer the points show once approved.",
     "heldSub_one": "A manager checks this sale before the points are added. Tell the customer the points show once it is approved.",
     "heldHeading": "Held for review",

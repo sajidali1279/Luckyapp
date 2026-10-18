@@ -13,6 +13,7 @@ import {
 import { Text, TextInput } from '../../components/ScaledText';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView } from 'expo-camera';
 import { useCameraAccess } from '../../hooks/useCameraAccess';
@@ -1427,6 +1428,10 @@ export default function EmployeeScanScreen() {
                   <Text style={s.promoBannerText}>{t('employeeScan.promoAppliedCelebrate', { promo: promotionApplied })}</Text>
                 </View>
               )}
+              {/* A receipt the customer left behind can be added from Recent sales (2026-10-18) */}
+              <TouchableOpacity onPress={() => { reset(); router.push('/(employee)/recent' as any); }} accessibilityRole="button" style={{ marginTop: 12, paddingVertical: 6 }}>
+                <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 14, textAlign: 'center' }}>{t('employeeScan.anotherReceiptLater')}</Text>
+              </TouchableOpacity>
             </>
           }
           onNext={reset}

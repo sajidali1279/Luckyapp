@@ -1,4 +1,48 @@
 {
+  "employeeRecent": {
+    "title": "Ventas recientes",
+    "sub": "Tus ventas y canjes de hoy",
+    "empty": "Nada todavía hoy. Las ventas que otorgues aparecen aquí.",
+    "customerLast4": "Cliente ··{{last4}}",
+    "addLeft": "Recibos que aún puedes agregar después de que un cliente se fue: {{left}} de {{perDay}} hoy, dentro de {{minutes}} minutos de la venta.",
+    "addedTag": "(agregado)",
+    "addReceipt": "Agregar un recibo",
+    "addA11y": "Agregar un recibo que el cliente dejó, para {{customer}}",
+    "redemptions": "Canjes",
+    "reward": "Recompensa",
+    "credits": "Créditos",
+    "points": "{{points}} pts",
+    "back": "Atrás",
+    "forCustomer": "Para {{customer}}, venta a las {{time}}",
+    "rule": "Solo para un recibo que este cliente dejó de la misma visita. Recibe un mensaje diciendo que lo agregaste.",
+    "category": "Categoría",
+    "amount": "Monto del recibo ($)",
+    "gallons": "Galones",
+    "photo": "Foto del recibo",
+    "takePhoto": "Toma una foto de este recibo",
+    "photoHint": "Una foto nueva de este recibo: la foto del primer recibo no se puede volver a usar.",
+    "willHold": "Desde ${{amount}}, un gerente lo revisa antes de agregar los puntos.",
+    "addIt": "Agregar a su venta",
+    "retryUpload": "Subir la foto otra vez",
+    "addedCredited": "Agregado y acreditado",
+    "addedHeld": "Agregado: un gerente lo revisa primero",
+    "customerTold": "Se le avisó al cliente.",
+    "failed": "No se pudo agregar. Inténtalo de nuevo.",
+    "needAmount": "Escribe el monto del recibo.",
+    "needPhoto": "Toma una foto del recibo.",
+    "cameraDenied": "El acceso a la cámara está apagado. Permítelo en Ajustes.",
+    "discardTitle": "¿Dejar de agregar este recibo?",
+    "discardBody": "No se agrega nada al cliente.",
+    "keepGoing": "Continuar",
+    "discard": "Dejar",
+    "status": {
+      "CREDITED": "Acreditado",
+      "HELD": "En revisión",
+      "NOT_FINISHED": "Sin foto aún",
+      "REJECTED": "Rechazado",
+      "VOIDED": "Anulado"
+    }
+  },
   "missingRequest": {
     "title": "Reportar persona desaparecida",
     "someoneYouKnow": "¿Falta alguien que conoces?",
@@ -90,6 +134,7 @@
     "photoA11y": "Foto de {{name}}"
   },
   "nav": {
+    "recentSales": "Ventas recientes",
     "home": "Inicio",
     "rewards": "Recompensas",
     "history": "Historial",
@@ -1732,6 +1777,7 @@
     "genericErrorMsg": "Algo salió mal."
   },
   "employeeScan": {
+    "anotherReceiptLater": "¿El cliente dejó otro recibo? Agrégalo desde Ventas recientes",
     "heldSub_other": "{{count}} líneas están en revisión: un gerente las revisa antes de agregar los puntos. Dile al cliente que los puntos aparecen cuando se aprueben.",
     "heldSub_one": "Un gerente revisa esta venta antes de agregar los puntos. Dile al cliente que los puntos aparecen cuando se apruebe.",
     "heldHeading": "En revisión",

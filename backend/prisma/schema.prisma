@@ -539,6 +539,9 @@ model PointsTransaction {
   // cashier started the same customer's sale again, TIMEOUT = no receipt photo within 30 minutes, MANAGER = cleared by a manager or HQ.
   cancelledAt       DateTime?
   cancelReason      String?
+  // A receipt the customer left behind, added by the cashier to that customer's sale from the Recent tab after they had gone (2026-10-18):
+  // no QR scan, so only to their own sale of the last hour, with a new receipt photo, a few a day, and held for a manager from HQ's amount.
+  addOn             Boolean   @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 

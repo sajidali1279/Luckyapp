@@ -8,7 +8,7 @@ import { clientKey } from '../utils/rateLimitKey';
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
 import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, removePushToken, setLanguage, setBirthday, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
-  initiateGrant, previewGrant, cancelGrant,
+  initiateGrant, previewGrant, cancelGrant, getCashierRecent,
   uploadReceiptAndApprove,
   reviewFlaggedTransaction,
   voidTransaction,
@@ -330,7 +330,8 @@ router.post('/points/catalog-redeem', authenticate, requireRole(Role.EMPLOYEE), 
 
 router.post('/points/grant', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, initiateGrant);
 router.post('/points/preview', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, previewGrant);
-router.post('/points/grant/cancel', authenticate, requireRole(Role.EMPLOYEE), cancelGrant);   // Cancel after Grant, before the receipt photo   // the cashier's points preview, the grant's own math, nothing saved
+router.post('/points/grant/cancel', authenticate, requireRole(Role.EMPLOYEE), cancelGrant);
+router.get('/points/cashier/recent', authenticate, requireRole(Role.EMPLOYEE), getCashierRecent);   // the cashier's own sales and redemptions today (Recent tab)   // Cancel after Grant, before the receipt photo   // the cashier's points preview, the grant's own math, nothing saved
 router.post('/points/redeem', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, redeemCredits);
 router.post(
   '/points/grant/:transactionId/receipt',

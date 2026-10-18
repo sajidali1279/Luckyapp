@@ -9,7 +9,7 @@ import ShiftCheckIn from '../../components/ShiftCheckIn';
 import {
   HomeIcon, CameraIcon, CalendarIcon, MessageCircleIcon,
   ClipboardIcon, BellIcon, TrophyIcon, PackageIcon, FlameIcon,
-  UserIcon, BookOpenIcon, FileCheckIcon, ListChecksIcon, TagIcon,
+  UserIcon, BookOpenIcon, FileCheckIcon, ListChecksIcon, TagIcon, ClockIcon,
 } from '../../components/Icons';
 
 export default function EmployeeLayout() {
@@ -52,6 +52,7 @@ export default function EmployeeLayout() {
       items: [
         { route: '/(employee)/home', icon: (p) => <HomeIcon {...p} />,   label: t('nav.home') },
         { route: '/(employee)/scan', icon: (p) => <CameraIcon {...p} />, label: t('nav.scanGrant') },
+        { route: '/(employee)/recent', icon: (p) => <ClockIcon {...p} />, label: t('nav.recentSales') },
       ],
     },
     {
@@ -86,6 +87,7 @@ export default function EmployeeLayout() {
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
         <Tabs.Screen name="scan" />
+        <Tabs.Screen name="recent" />
         <Tabs.Screen name="schedule" />
         <Tabs.Screen name="chat" />
         <Tabs.Screen name="requests" />

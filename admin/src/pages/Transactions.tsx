@@ -57,6 +57,7 @@ const FRAUD_FLAG_LABELS: Record<string, string> = {
   NO_TIME:           'No time on the photo',
   SPOT_CHECK:        'A clean scan picked at random for a check',
   RECEIPT_SCANNED:   'The customer scanned a receipt here in the last 3 hours: maybe the same purchase',
+  ADDED_AFTER_LEFT:  'Added by the cashier after the customer left (no QR scan): check the receipt photo',
 };
 
 function fmt$(n: number) {
@@ -133,7 +134,9 @@ export default function Transactions() {
   const [minAmount, setMinAmount] = useState<string>(() => paramOr('minAmount', ''));
   const [maxAmount, setMaxAmount] = useState<string>(() => paramOr('maxAmount', ''));
   const [includeTestData, setIncludeTestData] = useState<boolean>(() => paramOr('includeTestData', '') === 'true');
-  const [moreFiltersOpen, setMoreFiltersOpen] = useState<boolean>(() => !!minAmount || !!maxAmount || includeTestData);
+  // Only receipts a cashier added after the customer left, from the app's Recent tab (2026-10-18)
+  const [onlyAddOns, setOnlyAddOns] = useState<boolean>(() => paramOr('addOn', '') === 'true');
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState<boolean>(() => !!minAmount || !!maxAmount || includeTestData || onlyAddOns);
   const [page, setPage] = useState<number>(() => { const p = Number(paramOr('page', '1')); return Number.isInteger(p) && p >= 1 ? p : 1; });
 
   // The search and amount boxes commit 300ms after the last keystroke, so a fetch does not fire on every character.
@@ -156,10 +159,11 @@ export default function Transactions() {
     if (minAmount) next.set('minAmount', minAmount);
     if (maxAmount) next.set('maxAmount', maxAmount);
     if (includeTestData) next.set('includeTestData', 'true');
+    if (onlyAddOns) next.set('addOn', 'true');
     if (page > 1) next.set('page', String(page));
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStore, statusFilter, categoryFilter, from, to, search, minAmount, maxAmount, includeTestData, page]);
+  }, [selectedStore, statusFilter, categoryFilter, from, to, search, minAmount, maxAmount, includeTestData, onlyAddOns, page]);
 
   // Changing a filter always goes back to page 1 in the same step, so the old page number is never sent with the new filter.
   const withPageReset = (setter: (v: string) => void) => (v: string) => { setter(v); setPage(1); };
@@ -169,6 +173,7 @@ export default function Transactions() {
   const changeFrom = withPageReset(setFrom);
   const changeTo = withPageReset(setTo);
   const changeIncludeTestData = (v: boolean) => { setIncludeTestData(v); setPage(1); };
+  const changeOnlyAddOns = (v: boolean) => { setOnlyAddOns(v); setPage(1); };
 
   // Pre-fill status filter from notification deep-link (e.g. navigate('/transactions', { state: { statusFilter: 'REJECTED' } }))
   useEffect(() => {
@@ -211,6 +216,7 @@ export default function Transactions() {
   if (minAmount)        allTxParams.minAmount = minAmount;
   if (maxAmount)        allTxParams.maxAmount = maxAmount;
   if (includeTestData)  allTxParams.includeTestData = 'true';
+  if (onlyAddOns)       allTxParams.addOn = 'true';
 
   const { data: allTxData, isLoading: allTxLoading, isError: allTxError, refetch: refetchAll } = useQuery({
     queryKey: ['all-transactions', allTxParams],
@@ -361,7 +367,7 @@ export default function Transactions() {
   // whichever sale is active (the one open in the panel, or the highlighted one if the panel is closed).
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [panelId, setPanelId] = useState<string | null>(null);
-  useEffect(() => { setFocusedIndex(-1); setPanelId(null); }, [selectedStore, statusFilter, categoryFilter, from, to, search, minAmount, maxAmount, includeTestData, page]);
+  useEffect(() => { setFocusedIndex(-1); setPanelId(null); }, [selectedStore, statusFilter, categoryFilter, from, to, search, minAmount, maxAmount, includeTestData, onlyAddOns, page]);
   useEffect(() => {
     // A decided sale leaves the current filtered view once the list refetches: close a panel pointed at it.
     if (panelId && !transactions.some((t: any) => t.id === panelId)) setPanelId(null);
@@ -414,6 +420,7 @@ export default function Transactions() {
       if (minAmount)       params.minAmount = minAmount;
       if (maxAmount)       params.maxAmount = maxAmount;
       if (includeTestData) params.includeTestData = 'true';
+      if (onlyAddOns)      params.addOn = 'true';
       const res = await api.get('/points/export', { params, responseType: 'blob' });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement('a');
@@ -531,6 +538,7 @@ export default function Transactions() {
       )}
       <TableCell style={s.td}>
         <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || ' - '}</span>
+        {tx.addOn && <div style={{ fontSize: 11, color: '#8a5300', fontWeight: 700, marginTop: 3 }} title="The cashier added this receipt to the customer's sale after they left (no QR scan)">Added after customer left</div>}
       </TableCell>
       <TableCell style={s.td}>{flags.includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : tx.servedBy ? <span title={`Entered by HQ (${tx.grantedBy?.name || 'HQ'})`}>{tx.servedBy.name || tx.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
       <TableCell style={s.td}>
@@ -798,6 +806,10 @@ export default function Transactions() {
           <label style={s.testDataLabel}>
             <input type="checkbox" checked={includeTestData} onChange={(e) => changeIncludeTestData(e.target.checked)} />
             Include test data
+          </label>
+          <label style={s.testDataLabel}>
+            <input type="checkbox" checked={onlyAddOns} onChange={(e) => changeOnlyAddOns(e.target.checked)} />
+            Only receipts added after the customer left
           </label>
         </div>
       )}

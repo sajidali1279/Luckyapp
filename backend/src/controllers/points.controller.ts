@@ -42,7 +42,9 @@ const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; chal
 
 // Employee: initiate a points grant (before receipt upload)
 const grantSchema = z.object({
-  customerQrCode: z.string(),
+  customerQrCode: z.string().optional(),
+  // Instead of the QR: a receipt the customer left behind, added to their sale (any line of it) from the Recent tab (2026-10-18)
+  addToSaleId: z.string().uuid().optional(),
   storeId: z.string().uuid(),
   purchaseAmount: z.number().positive(),
   category: z.nativeEnum(ProductCategory).optional().default(ProductCategory.OTHER),
@@ -95,8 +97,13 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  const { customerQrCode, storeId, purchaseAmount, category, notes, isGas, gasGallons, gasPricePerGallon, servedById, siblingIds } = parsed.data;
+  const { customerQrCode, addToSaleId, storeId, purchaseAmount, category, notes, isGas, gasGallons, gasPricePerGallon, servedById, siblingIds } = parsed.data;
   const employee = req.user!;
+  if (!customerQrCode && !addToSaleId) { res.status(400).json({ success: false, error: 'Scan the customer\'s QR code.' }); return; }
+  if (addToSaleId && servedById) { res.status(400).json({ success: false, error: 'A receipt the customer left is added by the cashier who served them.' }); return; }
+  // A receipt the customer left behind: no QR, so only to this cashier's own sale of the last hour, at this store, a few a day
+  const addOnOf = addToSaleId ? await addOnTarget(employee.id, addToSaleId, storeId) : null;
+  if (addOnOf && !addOnOf.ok) { res.status(addOnOf.status).json({ success: false, code: addOnOf.code, error: addOnOf.error }); return; }
   const served = await resolveServedBy(employee, servedById, storeId);
   if (!served.ok) { res.status(served.status).json({ success: false, error: served.error }); return; }
   const servedBy = served.servedBy;
@@ -105,7 +112,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const byCashier: Prisma.PointsTransactionWhereInput = servedBy ? { OR: [{ grantedById: cashierId }, { servedById: cashierId }] } : { grantedById: cashierId };
 
   // Prevent employee from granting to themselves
-  const customer = await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
+  const customer = addOnOf?.ok ? addOnOf.customer : await prisma.user.findUnique({ where: { qrCode: customerQrCode } });
   if (!customer) {
     res.status(404).json({ success: false, error: 'Customer QR code not found' });
     return;
@@ -151,16 +158,18 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     orderBy: { createdAt: 'asc' },
   }) : [];
   const siblings = siblingRows.map((t) => t.id);
+  // An added receipt belongs to the sale it is added to: its lines are not a duplicate of it nor another sale today
+  const sameVisit = [...siblings, ...(addOnOf?.ok ? addOnOf.lineIds : [])];
   // One sale id for all its lines: the first line's id (HQ's Transactions page shows them as one sale)
-  const saleId = siblingRows.length ? siblingRows.find((t) => t.saleId)?.saleId ?? siblingRows[0].id : null;
-  const notSibling: Prisma.PointsTransactionWhereInput = siblings.length ? { id: { notIn: siblings } } : {};
+  const saleId = addOnOf?.ok ? addOnOf.root : siblingRows.length ? siblingRows.find((t) => t.saleId)?.saleId ?? siblingRows[0].id : null;
+  const notSibling: Prisma.PointsTransactionWhereInput = sameVisit.length ? { id: { notIn: sameVisit } } : {};
 
   // Starting this customer's sale again (a wrong category, Cancel and scan again) leaves the earlier attempt waiting for a photo that
   // will never come. This granter's own unfinished lines for this customer at this store, not part of this sale, are cancelled first:
   // nothing was credited, and they would otherwise refuse this sale as a duplicate and count as more sales today. Lines made in the last
   // 5 seconds are left alone (an older app sends a sale's lines at the same moment, without siblingIds).
   const abandoned = await prisma.pointsTransaction.findMany({
-    where: { AND: [{ customerId: customer.id, grantedById: employee.id, storeId, id: { notIn: siblingIds ?? [] }, createdAt: { lt: new Date(Date.now() - 5000) } }, UNFINISHED] },
+    where: { AND: [{ customerId: customer.id, grantedById: employee.id, storeId, id: { notIn: [...(siblingIds ?? []), ...sameVisit] }, createdAt: { lt: new Date(Date.now() - 5000) } }, UNFINISHED] },
     select: { id: true },
   });
   if (abandoned.length) await cancelUnfinished({ id: { in: abandoned.map((t) => t.id) } }, 'NEW_SCAN');
@@ -210,6 +219,8 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
   const scanIds = scansHere.flatMap((s) => s.transactionIds);
   const scannedHere = scanIds.length > 0 && (await prisma.pointsTransaction.count({ where: { id: { in: scanIds }, status: { notIn: [...NOT_A_SALE, TransactionStatus.VOIDED] } } })) > 0;
   if (scannedHere)                            fraudFlags.push('RECEIPT_SCANNED');
+  // Added after the customer left: held for a manager from HQ's amount (Settings > Sales review > Customer left a receipt)
+  if (addOnOf?.ok && purchaseAmount >= rule('addOnHoldAmount')) fraudFlags.push('ADDED_AFTER_LEFT');
 
   const isFlagged = fraudFlags.length > 0;
 
@@ -236,10 +247,11 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       offerId: promotionApplied ? activeOffer!.id : null,
       offerCashback,
       saleId,
+      addOn: !!addOnOf?.ok,
     },
   });
   // The first line did not know it would have company: it gets the sale id now
-  if (saleId) await prisma.pointsTransaction.updateMany({ where: { id: { in: siblings }, saleId: null }, data: { saleId } });
+  if (saleId) await prisma.pointsTransaction.updateMany({ where: { id: { in: addOnOf?.ok ? [addOnOf.root, ...siblings] : siblings }, saleId: null }, data: { saleId } });
 
   // This sale may have used up the promotion's budget: then it stops, and HQ is told
   if (promotionApplied && activeOffer?.budgetCap != null) noteBudgetUse(activeOffer, now).catch((e) => console.error('[offers] budget check failed:', e?.message ?? e));
@@ -252,6 +264,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     message: isFlagged ? 'Transaction flagged for manager review. Upload receipt to continue.' : 'Transaction created. Upload receipt to complete.',
     flagged: isFlagged,
     fraudFlags,
+    addOn: transaction.addOn,
     data: {
       transactionId: transaction.id,
       customer: { id: customer.id, name: customer.name, phone: customer.phone },
@@ -329,7 +342,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   // sale minutes later (2026-10-18). A cancelled or rejected sale's photo does not block anything.
   const sameHash = await prisma.pointsTransaction.findMany({
     where: { receiptImageHash: receiptHash, id: { not: transactionId }, status: { notIn: NOT_A_SALE } },
-    select: { id: true, customerId: true, grantedById: true, storeId: true, createdAt: true, saleId: true },
+    select: { id: true, customerId: true, grantedById: true, storeId: true, createdAt: true, saleId: true, addOn: true },
   });
   const sameSale = (t: { id: string; saleId: string | null }) => {
     const mine = transaction.saleId ?? transaction.id;
@@ -338,6 +351,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   const duplicateReceipt = sameHash.find((t) => !(
     t.customerId === transaction.customerId && t.grantedById === transaction.grantedById && t.storeId === transaction.storeId
     && (sameSale(t) || Math.abs(t.createdAt.getTime() - transaction.createdAt.getTime()) <= SALE_WINDOW_MS)
+    && !transaction.addOn && !t.addOn   // a receipt added after the customer left needs its own photo, never the first one
   ));
   if (duplicateReceipt) {
     res.status(409).json({ success: false, error: 'This receipt image has already been used for another transaction. Upload the original receipt photo.' });
@@ -368,6 +382,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     if (saved.count === 0) { res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE }); return; }
     const updatedTransaction = await prisma.pointsTransaction.findUniqueOrThrow({ where: { id: transactionId } });
     await alertHeldSale(updatedTransaction, employee).catch((e) => console.error('[points] held-sale alert failed:', e?.message ?? e));
+    if (transaction.addOn) tellAddOn(transaction, employee, true).catch(() => {});
     res.json({
       success: true,
       message: 'Receipt uploaded. This transaction is flagged - a manager must approve it before points are credited.',
@@ -398,7 +413,8 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   pushChallengeAwards(updatedCustomer.challengeAwards).catch((e) => console.error('[challenges] push failed:', e?.message ?? e));
   pushReferralAwards(updatedCustomer.referralAwards).catch((e) => console.error('[referrals] push failed:', e?.message ?? e));   // a challenge this sale completed
 
-  sendPushToUser(
+  if (transaction.addOn) tellAddOn(transaction, employee, false).catch(() => {});
+  else sendPushToUser(
     transaction.customerId,
     '💰 Points Credited!',
     `${Math.round(totalPoints * 100)} pts added to your Lucky Stop balance.`,
@@ -414,6 +430,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
       pointsAwarded: transaction.pointsAwarded,
       category: transaction.category,
       customerId: transaction.customerId,
+      ...(transaction.addOn ? { addedAfterCustomerLeft: true, sale: transaction.saleId } : {}),
       ...(transaction.servedById ? servedByDetails(await prisma.user.findUnique({ where: { id: transaction.servedById }, select: { id: true, name: true } })) : {}),
     },
     storeId: transaction.storeId,
@@ -1307,10 +1324,10 @@ const NEEDS_REVIEW = 'NEEDS_REVIEW';
 function parseTransactionFilters(q: Record<string, unknown>):
   | { where: Prisma.PointsTransactionWhereInput; needsReview: boolean }
   | { error: string } {
-  for (const key of ['storeId', 'status', 'category', 'from', 'to', 'search', 'customerId', 'grantedById', 'minAmount', 'maxAmount', 'includeTestData']) {
+  for (const key of ['storeId', 'status', 'category', 'from', 'to', 'search', 'customerId', 'grantedById', 'minAmount', 'maxAmount', 'includeTestData', 'addOn']) {
     if (q[key] !== undefined && typeof q[key] !== 'string') return { error: `"${key}" may be given only once` };
   }
-  const { storeId, status, category, from, to, search, customerId, grantedById, minAmount, maxAmount, includeTestData } = q as Record<string, string | undefined>;
+  const { storeId, status, category, from, to, search, customerId, grantedById, minAmount, maxAmount, includeTestData, addOn } = q as Record<string, string | undefined>;
   const where: Prisma.PointsTransactionWhereInput = {};
   let needsReview = false;
 
@@ -1366,6 +1383,8 @@ function parseTransactionFilters(q: Record<string, unknown>):
   // Analytics, billing and the store health figures — this page's own numbers should match those without
   // asking. "includeTestData=true" shows both; there is no "test data only" mode, since nothing needs it yet.
   if (includeTestData !== 'true') where.isTestData = false;
+  // Only receipts a cashier added after the customer left (2026-10-18)
+  if (addOn === 'true') where.addOn = true;
 
   // Unfinished and cancelled sales stay out unless asked for by name
   if (status !== TransactionStatus.CANCELLED) where.AND = [...((where.AND as Prisma.PointsTransactionWhereInput[] | undefined) ?? []), ...(SHOWN.AND as Prisma.PointsTransactionWhereInput[])];
@@ -1572,4 +1591,109 @@ export async function cancelGrant(req: AuthRequest, res: Response) {
   const cancelled = await cancelUnfinished({ id: { in: ids }, ...who }, reason);
   if (cancelled) audit({ actorId: user.id, actorName: user.name, actorRole: user.role, action: 'CANCEL_UNFINISHED_SALES', entity: 'transaction', details: { count: cancelled, ids, reason }, storeId: null });
   res.json({ success: true, data: { cancelled } });
+}
+
+// ── A receipt the customer left behind (2026-10-18) ──
+// The QR scan is what proves the customer was there. Without it, a receipt can only go to a customer this cashier served at this store
+// in the last hour (HQ's minutes), as part of that sale, with a new photo, a few a day (HQ's number), held for a manager from HQ's amount,
+// and the customer is told who added it. HQ sees it labelled on the Transactions page.
+
+const firstName = (name?: string | null) => (name ?? '').trim().split(/\s+/)[0] || 'A cashier';
+const lastFour = (phone?: string | null) => (phone ?? '').replace(/\D/g, '').slice(-4);
+
+type AddOnCheck =
+  | { ok: true; root: string; lineIds: string[]; customer: NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique>>> }
+  | { ok: false; status: number; code: string; error: string };
+
+/** Can this cashier add a receipt to the sale that `lineId` is a line of? */
+async function addOnTarget(employeeId: string, lineId: string, storeId?: string, now: Date = new Date()): Promise<AddOnCheck> {
+  const perDay = rule('addOnsPerDay');
+  if (perDay <= 0) return { ok: false, status: 403, code: 'ADD_ON_OFF', error: 'Adding a receipt after the customer left is switched off. Ask your manager.' };
+  const line = await prisma.pointsTransaction.findUnique({ where: { id: lineId } });
+  if (!line || line.grantedById !== employeeId || line.challengeId || line.referralId) {
+    return { ok: false, status: 404, code: 'NOT_YOUR_SALE', error: 'You can only add a receipt to a sale you entered.' };
+  }
+  if (storeId && line.storeId !== storeId) return { ok: false, status: 400, code: 'OTHER_STORE', error: 'That sale was at another store.' };
+  const root = line.saleId ?? line.id;
+  const lines = await prisma.pointsTransaction.findMany({ where: { OR: [{ id: root }, { saleId: root }] }, select: { id: true, createdAt: true, status: true, receiptImageUrl: true } });
+  const first = lines.reduce((a, b) => (b.createdAt < a.createdAt ? b : a), lines[0] ?? { ...line });
+  const live = lines.some((l) => l.receiptImageUrl && ([TransactionStatus.APPROVED, TransactionStatus.PENDING, TransactionStatus.FLAGGED] as TransactionStatus[]).includes(l.status));
+  if (!live) return { ok: false, status: 409, code: 'SALE_NOT_LIVE', error: 'That sale was not finished or was rejected, so a receipt cannot be added to it.' };
+  const minutes = rule('addOnWindowMinutes');
+  if (now.getTime() - first.createdAt.getTime() > minutes * 60_000) {
+    return { ok: false, status: 409, code: 'TOO_LATE', error: `A receipt can be added only within ${minutes} minutes of the sale. Ask the customer to report missing points in the app.` };
+  }
+  const used = await prisma.pointsTransaction.count({ where: { grantedById: employeeId, addOn: true, createdAt: { gte: storeDayStart(now) }, status: { not: TransactionStatus.CANCELLED } } });
+  if (used >= perDay) return { ok: false, status: 429, code: 'ADD_ON_LIMIT', error: `You have added ${perDay} receipts this way today, the most allowed. Ask your manager.` };
+  const customer = await prisma.user.findUnique({ where: { id: line.customerId } });
+  if (!customer || !isCustomerAccount(customer)) return { ok: false, status: 404, code: 'NO_CUSTOMER', error: 'That customer account is no longer active.' };
+  return { ok: true, root, lineIds: lines.map((l) => l.id), customer };
+}
+
+/** The customer hears who added a receipt they left, and whether it is credited or being checked. */
+async function tellAddOn(t: { id: string; customerId: string; storeId: string; purchaseAmount: number; pointsAwarded: number; gasBonusPoints: number }, employee: { name?: string | null }, held: boolean) {
+  const [store, customer] = await Promise.all([
+    prisma.store.findUnique({ where: { id: t.storeId }, select: { name: true } }),
+    prisma.user.findUnique({ where: { id: t.customerId }, select: { language: true } }),
+  ]);
+  const es = customer?.language === 'es';
+  const who = firstName(employee.name), where = store?.name ?? 'Lucky Stop', amount = `$${t.purchaseAmount.toFixed(2)}`, pts = Math.round((t.pointsAwarded + t.gasBonusPoints) * 100);
+  const [title, body] = held
+    ? (es ? ['Recibo agregado', `${who} agregó tu compra de ${amount} de hoy en ${where}. Un gerente la revisa antes de agregar los puntos.`]
+          : ['Receipt added', `${who} added your ${amount} purchase from today at ${where}. A manager checks it before the points are added.`])
+    : (es ? ['💰 ¡Puntos acreditados!', `${who} agregó tu compra de ${amount} de hoy en ${where}. ${pts} pts agregados.`]
+          : ['💰 Points Credited!', `${who} added your ${amount} purchase from today at ${where}. ${pts} pts added.`]);
+  sendPushToUser(t.customerId, title, body, 'POINTS', pointsUrl(t.id));
+}
+
+/**
+ * GET /points/cashier/recent (2026-10-18): the cashier's own sales and redemptions today, newest first, a sale's lines together, so they
+ * can check "did that go through?" and add a receipt the customer left behind. The customer shows as first name and the last 4 digits
+ * of their phone. Cancelled attempts are left out.
+ */
+export async function getCashierRecent(req: AuthRequest, res: Response) {
+  const me = req.user!;
+  const now = new Date();
+  const since = storeDayStart(now);
+  const [sales, credits, rewards, used] = await Promise.all([
+    prisma.pointsTransaction.findMany({
+      where: { OR: [{ grantedById: me.id }, { servedById: me.id }], createdAt: { gte: since }, challengeId: null, referralId: null, status: { not: TransactionStatus.CANCELLED } },
+      include: { customer: { select: { name: true, phone: true } }, store: { select: { name: true } } },
+      orderBy: { createdAt: 'desc' }, take: 200,
+    }),
+    prisma.creditRedemption.findMany({ where: { processedBy: me.id, createdAt: { gte: since } }, include: { customer: { select: { name: true, phone: true } } }, orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.catalogRedemption.findMany({ where: { processedById: me.id, createdAt: { gte: since }, status: 'COMPLETED' }, include: { customer: { select: { name: true, phone: true } }, catalogItem: { select: { title: true } } }, orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.pointsTransaction.count({ where: { grantedById: me.id, addOn: true, createdAt: { gte: since }, status: { not: TransactionStatus.CANCELLED } } }),
+  ]);
+  const who = (c?: { name: string | null; phone: string | null } | null) => ({ name: firstName(c?.name ?? '') === 'A cashier' ? '' : firstName(c?.name ?? ''), last4: lastFour(c?.phone) });
+  const status = (t: { status: TransactionStatus; receiptImageUrl: string | null }) =>
+    t.status === TransactionStatus.APPROVED ? 'CREDITED'
+    : (t.status === TransactionStatus.PENDING || t.status === TransactionStatus.FLAGGED) && !t.receiptImageUrl ? 'NOT_FINISHED'
+    : t.status === TransactionStatus.PENDING || t.status === TransactionStatus.FLAGGED ? 'HELD'
+    : t.status;   // REJECTED, VOIDED
+  const perDay = rule('addOnsPerDay'), minutes = rule('addOnWindowMinutes');
+  const left = Math.max(0, perDay - used);
+  const bySale = new Map<string, typeof sales>();
+  for (const t of sales) { const k = t.saleId ?? t.id; bySale.set(k, [...(bySale.get(k) ?? []), t]); }
+  const out = [...bySale.entries()].map(([saleId, lines]) => {
+    const first = lines.reduce((a, b) => (b.createdAt < a.createdAt ? b : a));
+    const until = new Date(first.createdAt.getTime() + minutes * 60_000);
+    const live = lines.some((l) => l.receiptImageUrl && l.status !== TransactionStatus.REJECTED && l.status !== TransactionStatus.VOIDED);
+    return {
+      saleId, createdAt: first.createdAt, store: first.store?.name ?? null, customer: who(first.customer),
+      lines: lines.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()).map((l) => ({
+        id: l.id, category: l.category, purchaseAmount: l.purchaseAmount, points: Math.round((l.pointsAwarded + l.gasBonusPoints) * 100), status: status(l), addOn: l.addOn,
+      })),
+      canAddReceipt: perDay > 0 && left > 0 && live && first.grantedById === me.id && until > now,
+      addReceiptUntil: until,
+    };
+  }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  res.json({ success: true, data: {
+    sales: out,
+    redemptions: [
+      ...credits.map((c) => ({ id: c.id, kind: 'CREDITS', createdAt: c.createdAt, customer: who(c.customer), points: Math.round(c.amount * 100), title: null as string | null })),
+      ...rewards.map((r) => ({ id: r.id, kind: 'REWARD', createdAt: r.createdAt, customer: who(r.customer), points: r.pointsSpent, title: r.catalogItem?.title ?? null })),
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+    addReceipts: { left, perDay, minutes, holdFrom: rule('addOnHoldAmount') },
+  } });
 }

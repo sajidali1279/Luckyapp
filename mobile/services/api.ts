@@ -106,13 +106,16 @@ export const pointsApi = {
     api.get(`/points/my-history?page=${page}`),
   getMyBenefitStatus: () => api.get('/points/my-benefit-status'),
   getMyExpiry: () => api.get('/points/my-expiry'),   // points expiry (2026-10-17)
-  initiateGrant: (data: { customerQrCode: string; storeId: string; purchaseAmount: number; category?: string; notes?: string; isGas?: boolean; gasGallons?: number; gasPricePerGallon?: number; siblingIds?: string[] }) =>
+  // addToSaleId instead of the QR: a receipt the customer left behind, added to their sale from the Recent tab (2026-10-18)
+  initiateGrant: (data: { customerQrCode?: string; addToSaleId?: string; storeId: string; purchaseAmount: number; category?: string; notes?: string; isGas?: boolean; gasGallons?: number; gasPricePerGallon?: number; siblingIds?: string[] }) =>
     api.post('/points/grant', data),
   /** What a grant of these lines would pay (the server's own math, promotions included); nothing is saved */
   previewGrant: (data: { customerQrCode: string; storeId: string; lines: { category: string; amount: number; gasGallons?: number }[] }) =>
     api.post('/points/preview', data),
   /** Cancel after Grant, before the receipt photo (2026-10-18): the server cancels these lines if they are still waiting for a photo */
   cancelGrant: (ids: string[]) => api.post('/points/grant/cancel', { ids }),
+  /** The cashier's own sales and redemptions today (Recent tab) */
+  getCashierRecent: () => api.get('/points/cashier/recent'),
   uploadReceipt: async (transactionId: string, receiptFile: FormData) => {
     const res = await fetchWithAuth(`/points/grant/${transactionId}/receipt`, { method: 'POST', body: receiptFile as any });
     const json = await res.json();
