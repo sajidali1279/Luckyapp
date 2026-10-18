@@ -301,7 +301,7 @@ The customer will need to go back to their app, cancel the expired redemption (t
 
 ## 9. Welcome Bonus - New Customers
 
-For the first 7 days after signing up, a new customer gets **one free item a day**: a fountain drink, a coffee, a 12oz soda or a hot food snack. No purchase is needed.
+For their first days after signing up (HQ sets how many, 7 to start), a new customer gets **one free item a day** from the items HQ offers (for example a fountain drink, a coffee, a 12oz soda or a hot food snack). No purchase is needed.
 
 ### Step 1: Scan the Customer's QR Code
 
@@ -309,11 +309,11 @@ From the home screen, tap **Scan QR** and scan the customer's QR code.
 
 ### Step 2: Give the Welcome Gift
 
-If they have a gift waiting today, a highlighted **Welcome gift: Day N of 7** card is the first thing on the screen:
+If they have a gift waiting today, a highlighted **Welcome gift: Day N of M** card is the first thing on the screen:
 - **They already chose an item in their app:** the card shows what they chose and their code. Hand it over and tap **Give**.
 - **They did not choose yet:** tap the item you are handing over, then **Give it** to confirm.
 
-Do not use **Grant Points** for the welcome gift: that records a sale. The gift is recorded with your name and store, and can only be given once a day. If the card is not there, they already had today's gift or it has been more than 7 days.
+Do not use **Grant Points** for the welcome gift: that records a sale. The gift is recorded with your name and store, and can only be given once a day. If the card is not there, they already had today's gift or their welcome days are over.
 
 ---
 

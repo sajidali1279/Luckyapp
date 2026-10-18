@@ -6,13 +6,18 @@ import { settingsAppApi } from '../services/api';
 export interface AppSettings {
   features: { hotFoodOrdering: boolean; hotFoodPayWithPoints: boolean; hotFoodCombos: boolean; challenges: boolean };
   business: { supportPhone: string; supportEmail: string; supportHours: string };
-  limits: { hotFoodMaxPerItem: number; receiptScansPerDay: number; receiptMaxDays: number; staffAtStoreFeet: number };
+  limits: {
+    hotFoodMaxPerItem: number; receiptScansPerDay: number; receiptMaxDays: number; staffAtStoreFeet: number;
+    // 2026-10-17: HQ's numbers that customers read (Settings > Rewards & offers, Customer care)
+    refillSilverPerPeriod: number; refillDailyPerDay: number; rewardHoldMinutes: number; productRequestDays: number; referralLateDays: number; disputeMaxDays: number;
+  };
 }
 
 export const APP_SETTINGS_DEFAULT: AppSettings = {
   features: { hotFoodOrdering: true, hotFoodPayWithPoints: true, hotFoodCombos: true, challenges: true },
   business: { supportPhone: '', supportEmail: '', supportHours: '' },
-  limits: { hotFoodMaxPerItem: 20, receiptScansPerDay: 3, receiptMaxDays: 3, staffAtStoreFeet: 800 },
+  limits: { hotFoodMaxPerItem: 20, receiptScansPerDay: 3, receiptMaxDays: 3, staffAtStoreFeet: 800,
+    refillSilverPerPeriod: 7, refillDailyPerDay: 1, rewardHoldMinutes: 30, productRequestDays: 7, referralLateDays: 7, disputeMaxDays: 60 },
 };
 
 export function useAppSettings(enabled = true): AppSettings {

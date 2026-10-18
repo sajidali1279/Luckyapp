@@ -28,6 +28,7 @@ import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { haptic } from '../../utils/haptics';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 
 
@@ -230,6 +231,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
   item: any; pts: number; onConfirm: () => void; onClose: () => void; loading: boolean;
 }) {
   const { t } = useTranslation();
+  const { limits } = useAppSettings();   // HQ's numbers in these words (Settings, 2026-10-17)
   const catCfg = getCatCfg(item.category, t);
   const remaining = pts - item.pointsCost;
   return (
@@ -257,7 +259,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
           <View style={md.warningBox}>
             <ClockIcon size={20} color="#F4A226" strokeWidth={2} />
             <Text style={md.warningText}>
-              {t('customerRewards.warningPart1')} <Text style={{ fontWeight: '800' }}>{t('customerRewards.warningMinutes')}</Text> {t('customerRewards.warningPart2')}
+              {t('customerRewards.warningPart1')} <Text style={{ fontWeight: '800' }}>{t('customerRewards.warningMinutes', { minutes: limits.rewardHoldMinutes })}</Text> {t('customerRewards.warningPart2')}
             </Text>
           </View>
           <TouchableOpacity
@@ -287,6 +289,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
 
 // ─── Success modal ─────────────────────────────────────────────────────────────
 function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
+  const { limits } = useAppSettings();   // HQ's numbers in these words (Settings, 2026-10-17)
   const { t } = useTranslation();
   const { mins, secs, expired } = useCountdown(data.expiresAt);
   const urgency = mins < 5;
@@ -299,7 +302,7 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
               <Text style={{ fontSize: 40 }}>⏰</Text>
             </View>
             <Text style={[md.itemTitle, { marginTop: 12, color: '#E63946' }]}>{t('customerRewards.expiredTitle')}</Text>
-            <Text style={md.itemDesc}>{t('customerRewards.expiredDesc')}</Text>
+            <Text style={md.itemDesc}>{t('customerRewards.expiredDesc', { minutes: limits.rewardHoldMinutes })}</Text>
             <View style={suc.refundCard}>
               <Text style={suc.refundIcon}>✅</Text>
               <View>
@@ -359,6 +362,7 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
 
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function RewardsScreen() {
+  const { limits } = useAppSettings();   // HQ's numbers in these words (Settings, 2026-10-17)
   const { t } = useTranslation();
   const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
@@ -528,7 +532,7 @@ export default function RewardsScreen() {
                   return (
                     <View key={b.key} style={r.benefitRow}>
                       <Text style={[r.benefitDot, { color: tierCfg.color }]}>●</Text>
-                      <Text style={r.benefitText}>{b.needsGasCents ? t(b.textKey, { cents: liveGasBonusCents ?? GAS_BONUS_FALLBACK[tier] }) : t(b.textKey)}</Text>
+                      <Text style={r.benefitText}>{b.needsGasCents ? t(b.textKey, { cents: liveGasBonusCents ?? GAS_BONUS_FALLBACK[tier] }) : t(b.textKey, { count: b.key === 'silverRefills' ? limits.refillSilverPerPeriod : limits.refillDailyPerDay })}</Text>
                       {isDaily && benefitStatus && (
                         <View style={[r.benefitStatusPill, { backgroundColor: available ? '#E8F5E9' : '#FFF3E0' }]}>
                           <Text style={[r.benefitStatusText, { color: available ? COLORS.success : '#F4A226' }]}>

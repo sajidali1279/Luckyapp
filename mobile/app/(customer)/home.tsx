@@ -49,6 +49,8 @@ import { haptic } from '../../utils/haptics';
 import { useFullBrightness } from '../../hooks/useFullBrightness';
 import { sized } from '../../utils/imageUrl';
 import FocusStatusBar from '../../components/FocusStatusBar';
+import { tierBenefitLines } from '../../utils/tierLines';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -658,7 +660,8 @@ export default function CustomerHome() {
   const dateLocale = i18n.language === 'es' ? 'es-US' : 'en-US';
   const qc = useQueryClient();
   const { user, token, setAuth } = useAuthStore();
-  const { tierConfig: TIER_CONFIG } = useLiveTierConfig();
+  const { tierConfig: TIER_CONFIG, liveRates } = useLiveTierConfig();
+  const { limits } = useAppSettings();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const sheetMaxHeight = windowHeight - insets.top - 24;
@@ -1717,10 +1720,10 @@ export default function CustomerHome() {
                 )}
                 <View style={ti.divider} />
                 <View style={ti.benefitsWrap}>
-                  {cfg.benefits.map((b, idx) => (
+                  {tierBenefitLines(selectedTier, t, liveRates, limits).map((line, idx) => (
                     <View key={idx} style={ti.benefitRow}>
                       <View style={[ti.dot, { backgroundColor: cfg.color }]} />
-                      <Text style={ti.benefitText}>{t(`customerHome.benefit_${selectedTier}_${idx}`, { defaultValue: b })}</Text>
+                      <Text style={ti.benefitText}>{line}</Text>
                     </View>
                   ))}
                 </View>

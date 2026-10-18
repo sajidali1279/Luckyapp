@@ -14,6 +14,7 @@ import { useAuthStore, UserRole } from '../store/authStore';
 import { COLORS } from '../constants';
 import { useTranslation } from 'react-i18next';
 import FocusStatusBar from '../components/FocusStatusBar';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 const { width } = Dimensions.get('window');
 
@@ -32,7 +33,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
       {
         emoji: '🎁',
         title: 'Redeem from the Catalog',
-        subtitle: 'Browse the Catalog tab to see available rewards. Tap Redeem, get a 6-char code, and show it to the cashier within 30 minutes.',
+        subtitle: 'Browse the Catalog tab to see available rewards. Tap Redeem, get a 6-char code, and show it to the cashier within {{minutes}} minutes.',
       },
       {
         emoji: '👑',
@@ -128,6 +129,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
 };
 
 export default function RoleTourScreen() {
+  const appLimits = useAppSettings().limits;   // HQ's reward code time (Settings)
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const role = user?.role ?? 'CUSTOMER';
@@ -188,7 +190,7 @@ export default function RoleTourScreen() {
               <Text style={s.emoji}>{item.emoji}</Text>
             </View>
             <Text style={s.slideTitle}>{t(`roleTour.${tourKey}${index + 1}Title`, { defaultValue: item.title })}</Text>
-            <Text style={s.slideSub}>{t(`roleTour.${tourKey}${index + 1}Sub`, { defaultValue: item.subtitle })}</Text>
+            <Text style={s.slideSub}>{t(`roleTour.${tourKey}${index + 1}Sub`, { defaultValue: item.subtitle, minutes: appLimits.rewardHoldMinutes })}</Text>
           </View>
         )}
       />

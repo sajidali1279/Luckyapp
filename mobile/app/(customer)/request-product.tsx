@@ -25,6 +25,7 @@ import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 const STATUS_CONFIG = {
   PENDING:  { labelKey: 'customerRequestProduct.statusPending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
@@ -68,6 +69,7 @@ interface ProductRequest {
 }
 
 export default function RequestProductScreen() {
+  const appLimits = useAppSettings().limits;   // HQ's days (Settings > Customer care)
   const { t } = useTranslation();
   const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
@@ -214,7 +216,7 @@ export default function RequestProductScreen() {
                 </View>
                 <Text style={styles.successTitle}>{t('customerRequestProduct.successTitle')}</Text>
                 <Text style={styles.successSub}>
-                  {t('customerRequestProduct.successSub')}
+                  {t('customerRequestProduct.successSub', { days: appLimits.productRequestDays })}
                 </Text>
                 <TouchableOpacity
                   style={styles.doneBtn}
@@ -294,7 +296,7 @@ export default function RequestProductScreen() {
 
                 <View style={styles.hintBox}>
                   <Text style={styles.hintText}>
-                    {t('customerRequestProduct.hintText')}
+                    {t('customerRequestProduct.hintText', { days: appLimits.productRequestDays })}
                   </Text>
                 </View>
 
