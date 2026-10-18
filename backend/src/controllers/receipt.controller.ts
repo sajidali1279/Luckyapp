@@ -9,7 +9,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ProductCategory, Tier } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON, effectiveTier, rollCustomerPeriod } from '../utils/tier';
+import { updateCustomerTierIfNeeded, gasBonusPerGallon, effectiveTier, rollCustomerPeriod } from '../utils/tier';
 import { pickOffer, percentBonus } from '../utils/offerPick';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl } from '../utils/notificationRoutes';
@@ -304,7 +304,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       const pointsAwarded = cashbackIssued; // customer gets full cashback
 
       // Gas tier bonus — extra per-gallon bonus for Gold+ (stacks on top)
-      const gasBonusRate = isGasItem ? (GAS_BONUS_PER_GALLON[customerTier] ?? 0) : 0;
+      const gasBonusRate = isGasItem ? gasBonusPerGallon(customerTier) : 0;
       const gasBonusPoints = isGasItem && estimatedGallons != null
         ? parseFloat((estimatedGallons * gasBonusRate).toFixed(4))
         : 0;

@@ -9,6 +9,7 @@ import { audit } from '../utils/audit';
 import { refuse } from '../utils/refusal';
 import { DELETED_PHONE_PREFIX } from '../utils/accountDeletion';
 import { emailHQ } from '../utils/adminEmail';
+import { rule } from '../utils/appSettings';
 
 const submitSchema = z.object({
   storeId:       z.string().uuid().optional(),
@@ -33,7 +34,7 @@ export async function submitDispute(req: AuthRequest, res: Response) {
   if (transactionId) {
     const transaction = await prisma.pointsTransaction.findUnique({
       where: { id: transactionId },
-      select: { id: true, customerId: true, storeId: true, challengeId: true, referralId: true },
+      select: { id: true, customerId: true, storeId: true, challengeId: true, referralId: true, createdAt: true },
     });
     if (!transaction) {
       res.status(404).json({ success: false, error: 'Transaction not found' });
@@ -45,6 +46,12 @@ export async function submitDispute(req: AuthRequest, res: Response) {
     }
     if (transaction.customerId !== req.user!.id) {
       res.status(403).json({ success: false, error: 'Not authorized for this transaction' });
+      return;
+    }
+    // The terms of service: a problem with a sale is reported within HQ's days of it (Settings > Customer care, 60 by default)
+    const maxDays = rule('disputeMaxDays');
+    if (Date.now() - transaction.createdAt.getTime() > maxDays * 86_400_000) {
+      res.status(400).json({ success: false, code: 'TOO_OLD', error: `A sale can be reported for ${maxDays} days. This one is older.` });
       return;
     }
     const existingPending = await prisma.pointsDispute.findFirst({
@@ -228,15 +235,15 @@ export async function getPendingDisputeCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
-const DISPUTE_CREDIT_HARD_CAP = 50; // $50 max credit per dispute
-const CREDIT_HELP = `Enter the amount to credit (from $0.01 to $${DISPUTE_CREDIT_HARD_CAP}). To turn the report down, choose Reject.`;
+// The most one report can credit is HQ's (Settings > Customer care, 2026-10-17); it was a fixed $50
+const creditHelp = () => `Enter the amount to credit (from $0.01 to $${rule('disputeCreditMax')}). To turn the report down, choose Reject.`;
 
 const resolveSchema = z.object({
   action:       z.enum(['APPROVED', 'REJECTED'], { message: 'Choose Approve or Reject.' }),
   resolvedNote: z.string({ message: 'The note must be text.' }).max(300, 'The note is too long (300 characters at most).').optional(),
   creditedAmt:  z.number({ message: 'The credit must be a number.' })
     .positive('The credit must be more than $0. To turn the report down, choose Reject.')
-    .max(DISPUTE_CREDIT_HARD_CAP, `The most one report can credit is $${DISPUTE_CREDIT_HARD_CAP}.`)
+    .refine((v) => v <= rule('disputeCreditMax'), () => ({ message: `The most one report can credit is $${rule('disputeCreditMax')}.` }))
     .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, 'The credit is dollars and cents, at most two decimals.')
     .optional(),
 });
@@ -273,7 +280,7 @@ export async function resolveDispute(req: AuthRequest, res: Response) {
   }
 
   if (action === 'APPROVED') {
-    if (creditedAmt == null) { res.status(400).json({ success: false, error: CREDIT_HELP }); return; }
+    if (creditedAmt == null) { res.status(400).json({ success: false, error: creditHelp() }); return; }
     // Enforce cap: creditedAmt cannot exceed estimatedAmt (if provided)
     if (dispute.estimatedAmt && creditedAmt > dispute.estimatedAmt) {
       res.status(400).json({ success: false, error: `Credit cannot exceed the claimed purchase amount ($${dispute.estimatedAmt.toFixed(2)})` });

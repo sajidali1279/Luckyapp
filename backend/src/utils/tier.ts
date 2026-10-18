@@ -1,4 +1,5 @@
 import { Prisma, Tier } from '@prisma/client';
+import { rule } from './appSettings';
 import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
 import { storeDateKey } from './storeTime';
@@ -92,12 +93,12 @@ export async function rollCustomerPeriod(db: Prisma.TransactionClient | typeof p
   return moved.count > 0;
 }
 
-// Bonus points per gallon IN DOLLARS (e.g. 0.05 = 5 pts)
-export const GAS_BONUS_PER_GALLON: Record<string, number> = {
-  GOLD:     0.05,
-  DIAMOND:  0.07,
-  PLATINUM: 0.10,
-};
+// Bonus cashback per gallon IN DOLLARS (e.g. 0.05 = 5 pts) for a tier: HQ's cents (Settings > Rewards & offers > Tier perks, 2026-10-17).
+// It was fixed here: Gold 5, Diamond 7, Platinum 10 cents.
+export function gasBonusPerGallon(tier: string): number {
+  const cents = tier === 'GOLD' ? rule('gasBonusGoldCents') : tier === 'DIAMOND' ? rule('gasBonusDiamondCents') : tier === 'PLATINUM' ? rule('gasBonusPlatinumCents') : 0;
+  return Math.round(cents) / 100;
+}
 
 export const TIER_LABELS: Record<string, string> = {
   BRONZE:   '🥉 Bronze',

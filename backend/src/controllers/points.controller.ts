@@ -16,14 +16,14 @@ import { audit } from '../utils/audit';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl, redemptionUrl } from '../utils/notificationRoutes';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { getCurrentPeriod, GAS_BONUS_PER_GALLON, getNextTierProgress, getStoredThresholds, updateCustomerTierIfNeeded, effectiveTier } from '../utils/tier';
+import { getCurrentPeriod, gasBonusPerGallon, getNextTierProgress, getStoredThresholds, updateCustomerTierIfNeeded, effectiveTier } from '../utils/tier';
 import { pickOffer, percentBonus, isCentsPerGallon } from '../utils/offerPick';
 import { storeDayStart, storeDayEnd, storeMonthStart, storeDateKey, addStoreDays, startOfStoreDate, endOfStoreDate, isRealDateKey, storeDateText, storeTimeText } from '../utils/storeTime';
 import { approveAndCredit, rejectIfStill, ALREADY_DECIDED_MESSAGE } from '../utils/saleDecision';
 import { csvText } from '../utils/csv';
 import { flaggedSaleRecipientIds } from '../utils/alertRecipients';
 import { refuseIfStoreClosed } from '../utils/storeRules';
-import { emailHQ, URGENT_SALE_AMOUNT } from '../utils/adminEmail';
+import { emailHQ } from '../utils/adminEmail';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { classifyCashbackRatio } from './billing.controller';
 import { transactionSearchWhere } from '../utils/transactionSearch';
@@ -234,7 +234,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
       sendPushToUser(id, '🚨 Sale held for review', `$${purchaseAmount.toFixed(2)} sale held for review at ${store?.name ?? 'your store'}.`, 'ALERT');
     }
     // A large one also goes to HQ's email: an admin who is not looking at the page or the phone would not hear about it until much later
-    if (purchaseAmount >= URGENT_SALE_AMOUNT) {
+    if (purchaseAmount >= rule('reviewEmailHQAmount')) {   // HQ's amount (Settings > Sales review); it was a fixed $500
       emailHQ(
         `Sale held for review: $${purchaseAmount.toFixed(2)} at ${store?.name ?? 'a store'}`,
         'A large sale is held for review',
@@ -1055,14 +1055,14 @@ export async function getCustomerInfo(req: AuthRequest, res: Response) {
     const used = await prisma.tierBenefitClaim.count({
       where: { userId: customer.id, period, benefitType: 'SILVER_FOUNTAIN' },
     });
-    silverRemaining = Math.max(0, 7 - used);
+    silverRemaining = Math.max(0, rule('refillSilverPerPeriod') - used);   // HQ's number (Settings, 2026-10-17); it was 7
     benefitAvailable = silverRemaining > 0;
     benefitType = 'SILVER_FOUNTAIN';
   } else if (['GOLD', 'DIAMOND', 'PLATINUM'].includes(tier)) {
     const usedToday = await prisma.tierBenefitClaim.count({
       where: { userId: customer.id, period, benefitType: 'DAILY_REFILL', claimedAt: { gte: todayStart, lte: todayEnd } },
     });
-    benefitAvailable = usedToday === 0;
+    benefitAvailable = usedToday < rule('refillDailyPerDay');
     benefitType = 'DAILY_REFILL';
   }
 
@@ -1123,14 +1123,14 @@ export async function getMyBenefitStatus(req: AuthRequest, res: Response) {
     const used = await prisma.tierBenefitClaim.count({
       where: { userId, period, benefitType: 'SILVER_FOUNTAIN' },
     });
-    silverRemaining = Math.max(0, 7 - used);
+    silverRemaining = Math.max(0, rule('refillSilverPerPeriod') - used);
     available = silverRemaining > 0;
     benefitType = 'SILVER_FOUNTAIN';
   } else if (['GOLD', 'DIAMOND', 'PLATINUM'].includes(tier)) {
     const usedToday = await prisma.tierBenefitClaim.count({
       where: { userId, period, benefitType: 'DAILY_REFILL', claimedAt: { gte: todayStart, lte: todayEnd } },
     });
-    available = usedToday === 0;
+    available = usedToday < rule('refillDailyPerDay');
     benefitType = 'DAILY_REFILL';
   }
 
@@ -1167,12 +1167,14 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     await lockCustomer(tx, customer.id);
     if (benefitType === 'SILVER_FOUNTAIN') {
       const used = await tx.tierBenefitClaim.count({ where: { userId: customer.id, period, benefitType } });
-      if (used >= 7) return 'Silver benefit limit reached (7 refills this period)';
+      const most = rule('refillSilverPerPeriod');
+      if (used >= most) return most === 0 ? 'The Silver refill is switched off.' : `Silver benefit limit reached (${most} refills this period)`;
     } else {
       const usedToday = await tx.tierBenefitClaim.count({
         where: { userId: customer.id, period, benefitType, claimedAt: { gte: storeDayStart(), lte: storeDayEnd() } },
       });
-      if (usedToday > 0) return 'Daily refill already claimed today';
+      const most = rule('refillDailyPerDay');
+      if (usedToday >= most) return most === 0 ? 'The daily refill is switched off.' : most === 1 ? 'Daily refill already claimed today' : `All ${most} refills for today were already used`;
     }
     await tx.tierBenefitClaim.create({ data: { userId: customer.id, period, benefitType } });
     return null;

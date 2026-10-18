@@ -23,6 +23,7 @@ import { staffFootprint, footprintTotal, cannotDeleteMessage } from '../utils/ac
 import { isTestPhone } from '../utils/testAccounts';
 import { sendPushToUser } from '../utils/push';
 import { attachReferral } from '../utils/referrals';
+import { rule } from '../utils/appSettings';
 
 const SALT_ROUNDS = 12;
 
@@ -195,7 +196,7 @@ export async function register(req: Request, res: Response) {
   // The invite code, if they gave one: a code that does not work is reported back (the app says so) but the account stands
   let referral: { invitedBy?: string; error?: string } | undefined;
   if (referralCode?.trim()) {
-    const r = await attachReferral(prisma, user.id, referralCode).catch(() => ({ ok: false as const, error: 'The invite code could not be added. You can add it in the app within 7 days.' }));
+    const r = await attachReferral(prisma, user.id, referralCode).catch(() => ({ ok: false as const, error: rule('referralLateDays') > 0 ? `The invite code could not be added. You can add it in the app within ${rule('referralLateDays')} days.` : 'The invite code could not be added.' }));
     referral = r.ok ? { invitedBy: r.referrerName } : { error: r.error };
   }
 
@@ -722,12 +723,11 @@ export async function getCustomerDetail(req: AuthRequest, res: Response) {
 // gesture): a small credit with a reason, capped lower than a dispute's since nothing here is backed by
 // a claimed purchase amount. Every credit is audited and the customer is told why.
 
-const GOODWILL_CREDIT_CAP = 25;
-
+// The most one goodwill credit can be is HQ's (Settings > Customer care, 2026-10-17); it was a fixed $25
 const goodwillSchema = z.object({
   amount: z.number({ message: 'The credit must be a number.' })
     .positive('The credit must be more than $0.')
-    .max(GOODWILL_CREDIT_CAP, `A goodwill credit can be at most $${GOODWILL_CREDIT_CAP}. For a larger amount tied to a specific purchase, use a missing-points report instead.`)
+    .refine((v) => v <= rule('goodwillCreditMax'), () => ({ message: `A goodwill credit can be at most $${rule('goodwillCreditMax')}. For a larger amount tied to a specific purchase, use a missing-points report instead.` }))
     .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, 'The credit is dollars and cents, at most two decimals.'),
   reason: z.string({ message: 'A reason is required.' }).trim().min(1, 'A reason is required.').max(300, 'The reason is too long (300 characters at most).'),
 });

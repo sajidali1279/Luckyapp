@@ -64,8 +64,8 @@ export async function runExpiryCheck() {
   }
 }
 
-// Schedule: daily at 08:00 UTC
+// Schedule: daily at 8 AM store time (2026-10-17: it ran at 08:00 UTC, which is 2 or 3 AM in Texas, so managers got it in the night)
 export function startExpiryCron() {
-  cron.schedule('0 8 * * *', runExpiryCheck, { timezone: 'UTC' });
-  console.log('[expiry-cron] Offer expiry job scheduled (daily 08:00 UTC)');
+  cron.schedule('0 8 * * *', runExpiryCheck, { timezone: 'America/Chicago' });
+  console.log('[expiry-cron] Offer expiry job scheduled (daily 8 AM America/Chicago)');
 }

@@ -9,7 +9,7 @@ import { Role } from '@prisma/client';
 import prisma from '../config/prisma';
 import { sendEmail } from './email';
 
-export const URGENT_SALE_AMOUNT = 500;
+// The amount from which a held sale is also emailed is HQ's (Settings > Sales review, rule reviewEmailHQAmount, 2026-10-17); it was a fixed $500 here
 export const ADMIN_URL = 'https://admin.luckystop.cliffindus.com';
 
 export const escapeHtml = (text: unknown) =>

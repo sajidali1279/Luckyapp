@@ -10,9 +10,11 @@
 import cron from 'node-cron';
 import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
+import { rule } from './appSettings';
 
 const REMINDER_TIMEZONE = 'America/Chicago'; // Central Time — stores are in Texas
-export const STALE_AFTER_MS = 2 * 24 * 60 * 60 * 1000; // 2 days, the audit's own suggested threshold
+/** HQ's days (Settings > Staff > Gas prices, 2026-10-17): it was 2 days here and 3 on the Stores page */
+export const staleAfterMs = () => rule('priceStaleDays') * 24 * 60 * 60 * 1000;
 
 export async function runPriceReminderCheck(now: Date = new Date()): Promise<{ storesReminded: number }> {
   const stores = await prisma.store.findMany({
@@ -20,7 +22,7 @@ export async function runPriceReminderCheck(now: Date = new Date()): Promise<{ s
     select: { id: true, name: true, gasPricePerGallon: true, dieselPricePerGallon: true, gasPriceUpdatedAt: true, dieselPriceUpdatedAt: true },
   });
 
-  const stale = (at: Date | null) => !!at && now.getTime() - at.getTime() > STALE_AFTER_MS;
+  const stale = (at: Date | null) => !!at && now.getTime() - at.getTime() > staleAfterMs();
 
   let storesReminded = 0;
   for (const store of stores) {

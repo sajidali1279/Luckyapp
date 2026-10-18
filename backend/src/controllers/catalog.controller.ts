@@ -14,8 +14,8 @@ import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { usableStoreIds } from '../utils/storeAccess';
 import { pointsForPrice } from '../utils/rewardPoints';
 import { resolveServedBy, servedByDetails } from '../utils/servedBy';
+import { rule } from '../utils/appSettings';
 
-const HOLD_MINUTES = 30;
 
 function generateCode(): string {
   return crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
@@ -218,7 +218,8 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
 
   const costInDollars = item.pointsCost / 100;
 
-  const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
+  const holdMinutes = rule('rewardHoldMinutes');   // HQ's time (Settings, 2026-10-17); it was a fixed 30
+  const expiresAt = new Date(Date.now() + holdMinutes * 60 * 1000);
   let code = generateCode();
   // Ensure code is unique
   while (await prisma.catalogRedemption.findFirst({ where: { redemptionCode: code } })) {
@@ -273,7 +274,7 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
       redemptionCode: code,
       item: { title: item.title, emoji: item.emoji, pointsCost: item.pointsCost },
       expiresAt: expiresAt.toISOString(),
-      expiresInMinutes: HOLD_MINUTES,
+      expiresInMinutes: holdMinutes,
       remainingPts: Math.round(outcome.balance * 100),
     },
   });

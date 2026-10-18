@@ -6,7 +6,7 @@
 // 30 seconds (another server instance's change arrives within that), and at once on this instance when HQ saves.
 import prisma from '../config/prisma';
 
-export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'staff';
+export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'perks' | 'care' | 'staff';
 /** section: a heading inside the group's card on the Settings page, for a long group (2026-10-17) */
 export interface RuleMeta { group: RuleGroup; label: string; help: string; unit: string; def: number; min: number; max: number; int: boolean; section?: string }
 
@@ -23,6 +23,8 @@ export const RULES = {
   reviewMaxSale: { group: 'review', section: 'Amounts', label: 'Largest sale a cashier can enter', unit: '$', def: 2000, min: 100, max: 20000, int: false, help: 'Above this the sale is refused at the register.' },
   reviewCustomerSalesPerDay: { group: 'review', section: 'How often', label: 'Hold a customer\'s sale once they have this many at one store in a day', unit: 'sales', def: 4, min: 2, max: 50, int: true, help: 'Catches the same customer being scanned again and again.' },
   reviewCashierGrantsPerHour: { group: 'review', section: 'How often', label: 'Hold a cashier\'s sale once they have granted this many in an hour', unit: 'sales', def: 15, min: 3, max: 200, int: true, help: 'Busy stores may need a higher number.' },
+  // 2026-10-17: it was a fixed $500 in utils/adminEmail.ts, so lowering the hold amount still emailed only from $500
+  reviewEmailHQAmount: { group: 'review', section: 'Amounts', label: 'Also email HQ about a held sale of at least', unit: '$', def: 500, min: 50, max: 20000, int: false, help: 'Held sales below this are only shown here and in the app.' },
   reviewPendingExpiryHours: { group: 'review', section: 'Receipt photo', label: 'A sale with no receipt photo expires after', unit: 'hours', def: 24, min: 1, max: 168, int: true, help: 'It is rejected and nothing is credited.' },
   receiptScansPerDay: { group: 'receipts', section: 'Limits', label: 'Receipts one customer can scan a day', unit: 'receipts', def: 3, min: 1, max: 20, int: true, help: 'Failed reads count up to 8 tries a day.' },
   receiptMaxDays: { group: 'receipts', section: 'Limits', label: 'How old a scanned receipt can be', unit: 'days', def: 3, min: 0, max: 14, int: true, help: '0 means today only.' },
@@ -38,8 +40,22 @@ export const RULES = {
   offerLastDayHour: { group: 'offers', label: 'Send the "last day" reminder at', unit: 'o\'clock', def: 10, min: 6, max: 20, int: true, help: 'Store time, 24-hour clock (10 = 10 AM, 14 = 2 PM).' },
   offerLapsedDays: { group: 'offers', label: 'A customer counts as "away" after', unit: 'days', def: 30, min: 7, max: 365, int: true, help: 'For win-back promotions that do not set their own days.' },
   offerNewDays: { group: 'offers', label: 'A customer counts as "new" for', unit: 'days', def: 14, min: 1, max: 90, int: true, help: 'For new-customer promotions that do not set their own days.' },
-  staffEarlyMinutes: { group: 'staff', label: 'A shift counts from this many minutes before it starts', unit: 'minutes', def: 30, min: 0, max: 120, int: true, help: 'For check-ins and who hears about hot food orders.' },
-  staffAtStoreFeet: { group: 'staff', label: 'A phone counts as "at the store" within', unit: 'feet', def: 800, min: 200, max: 3000, int: true, help: 'Read by the app from version 1.3.4.' },
+  // 2026-10-17: what were fixed numbers in the code (points.controller, tier.ts, catalog, referrals, audience, auth, disputes, product requests, price reminders)
+  audienceRecentMonths: { group: 'offers', label: "A store's customers are those who bought there in the last", unit: 'months', def: 6, min: 1, max: 24, int: true, help: "For pushes and promotion announcements sent to one store's customers." },
+  refillSilverPerPeriod: { group: 'perks', section: 'Free refills', label: 'Free fountain refills a Silver member gets each half-year', unit: 'refills', def: 7, min: 0, max: 60, int: true, help: 'Their own cup, any day. 0 turns the Silver refill off. The app shows this number.' },
+  refillDailyPerDay: { group: 'perks', section: 'Free refills', label: 'Free fountain refills a day for Gold, Diamond and Platinum', unit: 'refills', def: 1, min: 0, max: 5, int: true, help: '0 turns the daily refill off. The app shows this number.' },
+  gasBonusGoldCents: { group: 'perks', section: 'Gas bonus', label: 'Gold: extra cashback per gallon of gas', unit: 'cents', def: 5, min: 0, max: 50, int: true, help: 'Earned on gas when the cashier scans the QR (or a receipt is scanned). Not a pump price discount.' },
+  gasBonusDiamondCents: { group: 'perks', section: 'Gas bonus', label: 'Diamond: extra cashback per gallon of gas', unit: 'cents', def: 7, min: 0, max: 50, int: true, help: 'The tier cards in the app show this number.' },
+  gasBonusPlatinumCents: { group: 'perks', section: 'Gas bonus', label: 'Platinum: extra cashback per gallon of gas', unit: 'cents', def: 10, min: 0, max: 50, int: true, help: 'The printed posters say +5¢, +7¢ and +10¢.' },
+  rewardHoldMinutes: { group: 'perks', section: 'Rewards', label: 'A reward code from the app is good for', unit: 'minutes', def: 30, min: 10, max: 240, int: true, help: 'After this the reward is released and the points go back. The app shows this time.' },
+  referralLateDays: { group: 'perks', section: 'Refer a friend', label: "A new customer can still add a friend's invite code for", unit: 'days', def: 7, min: 0, max: 60, int: true, help: 'Counted from signing up, and only before their first purchase is approved. 0: only while signing up.' },
+  goodwillCreditMax: { group: 'care', section: 'Credits', label: 'Largest goodwill credit HQ can give a customer at once', unit: '$', def: 25, min: 5, max: 500, int: false, help: 'From a customer\'s profile, with a reason. For a missed purchase, use a missing-points report.' },
+  disputeCreditMax: { group: 'care', section: 'Credits', label: 'Largest credit for one missing-points report', unit: '$', def: 50, min: 10, max: 1000, int: false, help: 'What a manager or HQ can approve on one report.' },
+  disputeMaxDays: { group: 'care', section: 'Reports and requests', label: 'A customer can report a problem with a sale for', unit: 'days', def: 60, min: 7, max: 365, int: true, help: 'Counted from the sale. The terms of service say 60 days.' },
+  productRequestDays: { group: 'care', section: 'Reports and requests', label: 'A product request stays open for', unit: 'days', def: 7, min: 1, max: 60, int: true, help: 'Then it closes if the store has not answered. The app shows this number.' },
+  staffEarlyMinutes: { group: 'staff', section: 'Check-in', label: 'A shift counts from this many minutes before it starts', unit: 'minutes', def: 30, min: 0, max: 120, int: true, help: 'For check-ins and who hears about hot food orders.' },
+  staffAtStoreFeet: { group: 'staff', section: 'Check-in', label: 'A phone counts as "at the store" within', unit: 'feet', def: 800, min: 200, max: 3000, int: true, help: 'Read by the app from version 1.3.4.' },
+  priceStaleDays: { group: 'staff', section: 'Gas prices', label: 'Remind the managers when a gas or diesel price is older than', unit: 'days', def: 2, min: 1, max: 14, int: true, help: 'Sent at 9 AM. The Stores page marks the price as out of date after the same time (it was 3 days there, 2 for the reminder).' },
 } satisfies Record<string, RuleMeta>;
 export type RuleKey = keyof typeof RULES;
 

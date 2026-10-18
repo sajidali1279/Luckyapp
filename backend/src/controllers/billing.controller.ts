@@ -5,7 +5,7 @@ import { AuthRequest } from '../types';
 import { BillingType, ProductCategory, Role, Tier } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES, MAX_STORE_FEE_RATE } from '../config/constants';
-import { TIER_THRESHOLDS, GAS_BONUS_PER_GALLON } from '../utils/tier';
+import { TIER_THRESHOLDS, gasBonusPerGallon } from '../utils/tier';
 import { TIER_ORDER as RATE_TIER_ORDER, RateState, TierChange, CategoryChange, applyChanges, refusalFor, tierName, categoryName, pct } from '../utils/rateRules';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
 import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
@@ -22,6 +22,7 @@ import { GAS_PRICE_MIN, GAS_PRICE_MAX, storePhone, inUnitedStates, COORDINATES_M
 import { resolveAudience } from '../utils/audience';
 import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
 import { withSharedReads } from './adminNotificationReads.controller';
+import { rule } from '../utils/appSettings';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
 /** PUMP_OUT_OF_ORDER as "Pump out of order" (a store alert with no note showed the code) */
@@ -48,7 +49,6 @@ export async function getStoreById(req: AuthRequest, res: Response) {
 // than silently vanishing with no UI path back to reactivating it.
 // A price is old more than READINESS_FRESH_DAYS after it was last saved - the same "how stale" question
 // the price-reminder cron (utils/price-reminder-cron.ts) asks, so the card and the reminder always agree.
-const READINESS_FRESH_DAYS = 3;
 
 // The AppConfig key billing-cron.ts writes on every tick (a heartbeat) and getBillingHeartbeat reads back.
 // A plain key/value row, not a new column - billing-cron.ts imports this from here (not the other way
@@ -80,7 +80,7 @@ export async function getStores(_req: AuthRequest, res: Response) {
   const soldSet = new Set(soldStores.map((r) => r.storeId));
 
   const now = Date.now();
-  const fresh = (at: Date | null) => !!at && now - at.getTime() < READINESS_FRESH_DAYS * 24 * 60 * 60 * 1000;
+  const fresh = (at: Date | null) => !!at && now - at.getTime() < rule('priceStaleDays') * 24 * 60 * 60 * 1000;   // the same days as the reminder (Settings > Staff)
 
   const withTodayHours = stores.map(({ storeHours, storeHolidays, ...store }) => {
     const readiness = {
@@ -704,7 +704,7 @@ function tierRow(tier: string, t: RateState['tiers'][string]) {
     cashbackRate: t.cashbackRate,
     gasCentsPerGallon: t.gasCentsPerGallon,
     pointsThreshold: t.thresholdPoints ?? 0,
-    gasBonusCentsPerGallon: Math.round((GAS_BONUS_PER_GALLON[tier] ?? 0) * 100),
+    gasBonusCentsPerGallon: Math.round(gasBonusPerGallon(tier) * 100),
   };
 }
 
