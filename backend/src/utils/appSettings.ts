@@ -96,9 +96,13 @@ export interface ExpiryConfig { enabled: boolean; startedAt: string | null; days
 export const WELCOME_EMOJIS = ['🥤', '☕', '🥫', '🧃', '🌮', '🍕', '🌭', '🍔', '🍗', '🍩', '🍪', '🍫', '🍦', '🍿', '🎁'];
 export const WELCOME_DAYS = { min: 1, max: 14, def: 7 };
 export const WELCOME_MAX_ITEMS = 12;
+export const WELCOME_MAX_SPEND = 500;   // dollars
 export interface WelcomeItem { key: string; name: string; nameEs: string; emoji: string; active: boolean }
 /** offSince: when HQ switched it off. Customers who joined before then keep their days; nobody who joins while it is off gets it. */
-export interface WelcomeConfig { enabled: boolean; offSince: string | null; days: number; items: WelcomeItem[] }
+/** What one store does differently (2026-10-20): off there, its own spend amount (null = the chain's), its own list of items (null = all offered). */
+export interface WelcomeStoreRule { enabled: boolean; minSpend: number | null; items: string[] | null }
+/** minSpend: dollars a customer must have spent at the store today before the free item can be handed over (0 = nothing to spend). stores: the stores that differ. */
+export interface WelcomeConfig { enabled: boolean; offSince: string | null; days: number; items: WelcomeItem[]; minSpend: number; stores: Record<string, WelcomeStoreRule> }
 const BUILT_IN_ITEMS: WelcomeItem[] = [
   { key: 'FOUNTAIN_DRINK', name: 'Free Fountain Drink', nameEs: 'Refresco de Fuente Gratis', emoji: '🥤', active: true },
   { key: 'COFFEE', name: 'Free Coffee', nameEs: 'Café Gratis', emoji: '☕', active: true },
@@ -175,7 +179,25 @@ export function cleanWelcome(stored: unknown): WelcomeConfig {
     };
     if (at >= 0) items[at] = item; else items.push(item);
   }
-  return { enabled, offSince, days, items };
+  const cents = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= WELCOME_MAX_SPEND ? Math.round(v * 100) / 100 : null);
+  const minSpend = cents(s.minSpend) ?? 0;
+  const stores: Record<string, WelcomeStoreRule> = {};
+  const rawStores = s.stores && typeof s.stores === 'object' && !Array.isArray(s.stores) ? (s.stores as Record<string, unknown>) : {};
+  for (const [id, raw] of Object.entries(rawStores)) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    const keys = Array.isArray(r.items) ? [...new Set(r.items.filter((k): k is string => typeof k === 'string' && items.some((i) => i.key === k)))] : [];
+    const rule: WelcomeStoreRule = { enabled: r.enabled !== false, minSpend: cents(r.minSpend), items: keys.length > 0 ? keys : null };
+    if (rule.enabled && rule.minSpend === null && rule.items === null) continue;   // the same as the chain: nothing to keep
+    stores[id] = rule;
+  }
+  return { enabled, offSince, days, items, minSpend, stores };
+}
+
+/** What the joining bonus is at one store: offered there or not, the spend needed today, and the item keys it is limited to (null = every offered item). */
+export function welcomeAt(storeId: string | null | undefined, cfg: WelcomeConfig = welcomeConfig): { offered: boolean; minSpend: number; itemKeys: string[] | null } {
+  const r = storeId ? cfg.stores[storeId] : undefined;
+  return { offered: !r || r.enabled, minSpend: r?.minSpend ?? cfg.minSpend, itemKeys: r?.items ?? null };
 }
 
 /** Off unless clearly switched on with a start date; days and warning days in range, else the defaults. */

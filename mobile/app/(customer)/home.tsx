@@ -1122,7 +1122,7 @@ export default function CustomerHome() {
 
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         <NotificationsOffBanner dismissible />
-        <WelcomeBonusCard />
+        <WelcomeBonusCard storeId={nearestStore?.id} storeName={nearestStore?.name} />
         <MissingPersonsCard storeId={nearestStore?.id} />
       </Animated.View>
 

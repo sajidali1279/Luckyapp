@@ -7,7 +7,7 @@ import { audit } from '../utils/audit';
 import { previewExpiry } from '../utils/pointLots';
 import {
   RULES, FEATURES, RULES_KEY, FEATURES_KEY, BUSINESS_KEY, allRules, allFeatures, business, cleanRules, cleanFeatures, cleanBusiness, applySettings,
-  WELCOME_KEY, WELCOME_EMOJIS, WELCOME_DAYS, WELCOME_MAX_ITEMS, welcome, cleanWelcome, type WelcomeItem,
+  WELCOME_KEY, WELCOME_EMOJIS, WELCOME_DAYS, WELCOME_MAX_ITEMS, WELCOME_MAX_SPEND, welcome, cleanWelcome, type WelcomeItem, type WelcomeStoreRule,
   EXPIRY_KEY, EXPIRY_LIMITS, pointsExpiry, cleanExpiry,
   rule, feature, type RuleKey, type RuleMeta, type FeatureKey,
 } from '../utils/appSettings';
@@ -26,7 +26,7 @@ export async function getSettings(_req: AuthRequest, res: Response) {
     rules: (Object.entries(RULES) as [RuleKey, RuleMeta][]).map(([key, m]) => ({ key, ...m, value: values[key] })),
     features: (Object.entries(FEATURES) as [FeatureKey, { label: string; help: string }][]).map(([key, m]) => ({ key, ...m, on: allFeatures()[key] })),
     business: business(),
-    welcome: { ...welcome(), emojis: WELCOME_EMOJIS, minDays: WELCOME_DAYS.min, maxDays: WELCOME_DAYS.max, maxItems: WELCOME_MAX_ITEMS },
+    welcome: { ...welcome(), emojis: WELCOME_EMOJIS, minDays: WELCOME_DAYS.min, maxDays: WELCOME_DAYS.max, maxItems: WELCOME_MAX_ITEMS, maxSpend: WELCOME_MAX_SPEND },
     expiry: { ...pointsExpiry(), limits: EXPIRY_LIMITS },
   } });
 }
@@ -155,9 +155,47 @@ export async function putWelcome(req: AuthRequest, res: Response) {
     items = next;
   }
   if (enabled && !items.some((i) => i.active)) { res.status(400).json({ success: false, error: 'Switch on at least one item, or switch the joining bonus off.' }); return; }
+  // What a customer must spend first (dollars, 0 = nothing), chain-wide
+  let minSpend = before.minSpend;
+  if (b.minSpend !== undefined) {
+    const v = Number(b.minSpend);
+    if (!Number.isFinite(v) || v < 0 || v > WELCOME_MAX_SPEND) { res.status(400).json({ success: false, error: `The amount to spend must be from $0 to $${WELCOME_MAX_SPEND}. Use 0 for no purchase needed.` }); return; }
+    minSpend = Math.round(v * 100) / 100;
+  }
+  // Stores that differ: { [storeId]: { enabled?, minSpend?: number | null, items?: string[] | null } }; sent whole, a store left out follows the chain
+  let stores: Record<string, WelcomeStoreRule> = before.stores;
+  if (b.stores !== undefined) {
+    if (!b.stores || typeof b.stores !== 'object' || Array.isArray(b.stores)) { res.status(400).json({ success: false, error: 'Send the stores as a list of rules.' }); return; }
+    const sent = b.stores as Record<string, Record<string, unknown>>;
+    const ids = Object.keys(sent);
+    const found = ids.length ? await prisma.store.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }) : [];
+    const nameOf = new Map(found.map((s) => [s.id, s.name]));
+    const next: Record<string, WelcomeStoreRule> = {};
+    for (const id of ids) {
+      const r = sent[id] ?? {};
+      const name = nameOf.get(id);
+      if (!name) { res.status(400).json({ success: false, error: 'One of the stores does not exist. Reload the page.' }); return; }
+      if (r.enabled !== undefined && typeof r.enabled !== 'boolean') { res.status(400).json({ success: false, error: `${name}: on or off must be true or false.` }); return; }
+      let ms: number | null = null;
+      if (r.minSpend !== undefined && r.minSpend !== null) {
+        const v = Number(r.minSpend);
+        if (!Number.isFinite(v) || v < 0 || v > WELCOME_MAX_SPEND) { res.status(400).json({ success: false, error: `${name}: the amount to spend must be from $0 to $${WELCOME_MAX_SPEND}.` }); return; }
+        ms = Math.round(v * 100) / 100;
+      }
+      let keys: string[] | null = null;
+      if (r.items !== undefined && r.items !== null) {
+        if (!Array.isArray(r.items) || r.items.some((k) => typeof k !== 'string' || !items.some((i) => i.key === k))) { res.status(400).json({ success: false, error: `${name}: choose items from the list.` }); return; }
+        keys = [...new Set(r.items as string[])];
+        if (keys.length === 0) keys = null;
+        else if (r.enabled !== false && !keys.some((k) => items.find((i) => i.key === k)?.active)) { res.status(400).json({ success: false, error: `${name}: switch on at least one of its items, or switch the store off.` }); return; }
+      }
+      next[id] = { enabled: r.enabled !== false, minSpend: ms, items: keys };
+    }
+    stores = next;
+  }
   // Switched off now: customers who already joined keep their days; switched on: everyone from now on gets it
   const offSince = enabled ? null : before.enabled ? new Date().toISOString() : before.offSince;
-  const clean = cleanWelcome({ enabled, offSince, days, items });
+  const clean = cleanWelcome({ enabled, offSince, days, items, minSpend, stores });
   const changes: string[] = [];
   if (clean.enabled !== before.enabled) changes.push(clean.enabled ? 'Switched on' : 'Switched off for new sign-ups');
   if (clean.days !== before.days) changes.push(`Days: ${before.days} to ${clean.days}`);
@@ -168,6 +206,17 @@ export async function putWelcome(req: AuthRequest, res: Response) {
     else if (was.nameEs !== i.nameEs) changes.push(`${i.name}: Spanish name ${i.nameEs}`);
     if (was.emoji !== i.emoji) changes.push(`${i.name}: picture ${i.emoji}`);
     if (was.active !== i.active) changes.push(`${i.name}: ${i.active ? 'on' : 'off'}`);
+  }
+  if (clean.minSpend !== before.minSpend) changes.push(clean.minSpend > 0 ? `Spend first: $${before.minSpend.toFixed(2)} to $${clean.minSpend.toFixed(2)}` : 'Spend first: nothing needed any more');
+  {
+    const ids = [...new Set([...Object.keys(before.stores), ...Object.keys(clean.stores)])];
+    const names = new Map((ids.length ? await prisma.store.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }) : []).map((s) => [s.id, s.name]));
+    const itemNames = (keys: string[] | null) => (keys ?? ['every offered item']).map((k) => clean.items.find((i) => i.key === k)?.name ?? k).join(', ');
+    const rule = (r?: WelcomeStoreRule) => (!r ? 'follows the chain' : `${r.enabled ? 'on' : 'off'}${r.minSpend !== null ? `, spend $${r.minSpend.toFixed(2)}` : ''}${r.items ? `, items ${itemNames(r.items)}` : ''}`);
+    for (const id of ids) {
+      const was = before.stores[id], now = clean.stores[id];
+      if (JSON.stringify(was ?? null) !== JSON.stringify(now ?? null)) changes.push(`${names.get(id) ?? 'A store'}: ${rule(now)}`);
+    }
   }
   if (changes.length === 0) { res.json({ success: true, data: clean, changed: false }); return; }
   await save(WELCOME_KEY, clean);

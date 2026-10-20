@@ -19,7 +19,7 @@ const REWARD_OPTIONS = [
 const GOLD = '#F59E0B';
 const GREEN = '#22C55E';
 
-export default function WelcomeBonusCard() {
+export default function WelcomeBonusCard({ storeId, storeName }: { storeId?: string; storeName?: string }) {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
@@ -27,8 +27,8 @@ export default function WelcomeBonusCard() {
   const [copied, setCopied] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['welcome-bonus'],
-    queryFn: () => welcomeBonusApi.getStatus(),
+    queryKey: ['welcome-bonus', storeId ?? null],
+    queryFn: () => welcomeBonusApi.getStatus(storeId),
     staleTime: 60_000,
   });
 
@@ -73,6 +73,10 @@ export default function WelcomeBonusCard() {
     : null;
   const selectedLabel = optionLabel(options.find(r => r.rewardType === selected));
   const totalDays: number = bonus.totalDays ?? 7;
+  // A store can ask for a purchase first ("spend $10 today to unlock"): the item can be chosen now, the cashier hands it over once it is met
+  const spend = bonus.spend && bonus.spend.required > 0 && bonus.spend.unlocked !== true && !bonus.confirmed ? bonus.spend : null;
+  const unlockedNow = !!bonus.spend && bonus.spend.required > 0 && bonus.spend.unlocked === true && !bonus.confirmed;
+  const money = (n: number) => `$${Number(n).toFixed(2)}`;
 
   return (
     <>
@@ -97,6 +101,19 @@ export default function WelcomeBonusCard() {
 
         <View style={st.body}>
           <Text style={st.tag}>{t('customerWelcomeBonus.tag', { day: bonus.dayNumber, total: totalDays })}</Text>
+
+          {spend && (
+            <View style={st.spendBox} accessible accessibilityLabel={t('customerWelcomeBonus.spendNeeded', { amount: money(spend.required), store: storeName || t('customerWelcomeBonus.thisStore') })}>
+              <Text style={st.spendTitle}>{t('customerWelcomeBonus.spendNeeded', { amount: money(spend.required), store: storeName || t('customerWelcomeBonus.thisStore') })}</Text>
+              {spend.spent !== null && spend.spent !== undefined && (
+                <>
+                  <View style={st.spendTrack}><View style={[st.spendFill, { width: `${Math.max(4, Math.min(100, (spend.spent / spend.required) * 100))}%` }]} /></View>
+                  <Text style={st.spendSub}>{t('customerWelcomeBonus.spendProgress', { spent: money(spend.spent), amount: money(spend.required) })}</Text>
+                </>
+              )}
+            </View>
+          )}
+          {unlockedNow && <Text style={st.spendDone}>{t('customerWelcomeBonus.spendUnlocked')}</Text>}
 
           {/* Already confirmed */}
           {bonus.confirmed && (
@@ -285,6 +302,12 @@ const st = StyleSheet.create({
   confirmedEmoji: { fontSize: 44 },
   confirmedLabel: { fontSize: 18, fontWeight: '900', color: '#1D3557' },
   confirmedSub: { fontSize: 13, color: GREEN, fontWeight: '700' },
+  spendBox: { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FCD34D', borderRadius: 12, padding: 12, marginTop: 10, gap: 6 },
+  spendTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
+  spendTrack: { height: 8, borderRadius: 4, backgroundColor: '#FDE68A', overflow: 'hidden' },
+  spendFill: { height: 8, borderRadius: 4, backgroundColor: GOLD },
+  spendSub: { fontSize: 12, color: '#78350F' },
+  spendDone: { fontSize: 13, fontWeight: '800', color: GREEN, marginTop: 8 },
 
   claimedOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   claimedOptionEmoji: { fontSize: 32 },

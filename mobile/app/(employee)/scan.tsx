@@ -270,6 +270,8 @@ export default function EmployeeScanScreen() {
   const [confirmedPending, setConfirmedPending] = useState<any>(null);
   const [welcomeBonus, setWelcomeBonus] = useState<any>(null);
   const [confirmedWelcomeBonus, setConfirmedWelcomeBonus] = useState<any>(null);
+  // The free item that this sale just unlocked (a store can ask for a purchase first), shown on the done screen
+  const [unlockedGift, setUnlockedGift] = useState<any>(null);
 
   // Store gas prices + enabled categories (fetched once on mount)
   const [storeGasPrices, setStoreGasPrices] = useState<Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }>>({});
@@ -471,6 +473,7 @@ export default function EmployeeScanScreen() {
     setPendingRedemptions([]);
     setConfirmedPending(null);
     setWelcomeBonus(null);
+    setUnlockedGift(null);
     setConfirmedWelcomeBonus(null);
   }
 
@@ -513,7 +516,7 @@ export default function EmployeeScanScreen() {
         pointsApi.getCustomerInfo(data),
         catalogApi.getActive(),
         catalogApi.getPendingForCustomer(data),
-        welcomeBonusApi.getForCustomer(data).catch(() => null),
+        welcomeBonusApi.getForCustomer(data, storeId ?? undefined).catch(() => null),
       ]);
       const pendingList = pendingRes.data.data || [];
       const wb = wbRes?.data?.data ?? null;
@@ -527,7 +530,9 @@ export default function EmployeeScanScreen() {
       // confirm, an unconfirmed welcome bonus, or an available tier benefit). Those
       // still land on mode-select so nothing gets missed. "Other options" on the
       // grant-amount screen routes back here without re-scanning.
-      const needsModeSelect = pendingList.length > 0 || !!wb || !!infoRes.data.data?.benefit?.available;
+      // A gift still locked by the store's spend rule does not stop the fast path: it shows again once the sale unlocks it
+      const giftLocked = !!wb && wb.spend?.unlocked === false;
+      const needsModeSelect = pendingList.length > 0 || (!!wb && !giftLocked) || !!infoRes.data.data?.benefit?.available;
       setStep(needsModeSelect ? 'mode' : 'grant-amount');
     } catch (err: any) {
       const msg = err.response?.data?.error || t('employeeScan.customerNotFound');
@@ -635,6 +640,13 @@ export default function EmployeeScanScreen() {
       if (failed) throw failed.reason;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setStep('grant-done');
+      // Did this sale reach the spend a store asks for the free item? Look again, quietly.
+      if (customerQr && storeId && welcomeBonus?.spend?.unlocked === false) {
+        welcomeBonusApi.getForCustomer(customerQr, storeId).then(r => {
+          const wb = r?.data?.data;
+          if (wb && wb.spend?.unlocked === true) setUnlockedGift(wb);
+        }).catch(() => {});
+      }
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       // Keep the captured photo — most failures here are transient network/server
@@ -922,10 +934,18 @@ export default function EmployeeScanScreen() {
           {welcomeBonus && (
             <View style={s.welcomeCard}>
               <Text style={s.welcomeTitle}>🎁 {t('employeeScan.welcomeGiftTitle', { day: welcomeBonus.day, total: welcomeBonus.totalDays ?? 7 })}</Text>
+              {welcomeBonus.spend?.unlocked === false && (
+                <Text style={s.welcomeLock}>🔒 {welcomeBonus.spend.spent != null
+                  ? t('employeeScan.welcomeLocked', { amount: `$${Number(welcomeBonus.spend.required).toFixed(2)}`, spent: `$${Number(welcomeBonus.spend.spent).toFixed(2)}` })
+                  : t('employeeScan.welcomeLockedNoStore', { amount: `$${Number(welcomeBonus.spend.required).toFixed(2)}` })}</Text>
+              )}
+              {welcomeBonus.claimed !== false && welcomeBonus.itemHere === false && (
+                <Text style={s.welcomeLock}>{t('employeeScan.welcomeItemNotHere')}</Text>
+              )}
               {welcomeBonus.claimed !== false ? (
                 <>
                   <Text style={s.welcomeSub}>{t('employeeScan.welcomeGiftChoseSub', { label: welcomeLabel(welcomeBonus), code: welcomeBonus.claimCode })}</Text>
-                  <TouchableOpacity style={s.welcomeGiveBtn} onPress={handleConfirmWelcomeBonus} disabled={loading} activeOpacity={0.85} accessibilityRole="button"
+                  <TouchableOpacity style={[s.welcomeGiveBtn, (welcomeBonus.spend?.unlocked === false || welcomeBonus.itemHere === false) && { opacity: 0.4 }]} onPress={handleConfirmWelcomeBonus} disabled={loading || welcomeBonus.spend?.unlocked === false || welcomeBonus.itemHere === false} activeOpacity={0.85} accessibilityRole="button"
                     accessibilityLabel={t('employeeScan.confirmWelcomeBonusA11y', { day: welcomeBonus.day })}>
                     {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.welcomeGiveText}>{welcomeBonus.rewardEmoji || '🎁'}  {t('employeeScan.welcomeGiftGive', { label: welcomeLabel(welcomeBonus) })}</Text>}
                   </TouchableOpacity>
@@ -935,7 +955,7 @@ export default function EmployeeScanScreen() {
                   <Text style={s.welcomeSub}>{t('employeeScan.welcomeGiftPickSub')}</Text>
                   <View style={s.welcomeGrid}>
                     {(welcomeBonus.rewards ?? []).map((r: any) => (
-                      <TouchableOpacity key={r.rewardType} style={s.welcomeOption} onPress={() => handleGiveWelcomeGift(r)} disabled={loading} activeOpacity={0.85} accessibilityRole="button">
+                      <TouchableOpacity key={r.rewardType} style={s.welcomeOption} onPress={() => handleGiveWelcomeGift(r)} disabled={loading || welcomeBonus.spend?.unlocked === false} activeOpacity={0.85} accessibilityRole="button">
                         <Text style={s.welcomeOptionEmoji}>{r.emoji}</Text>
                         <Text style={s.welcomeOptionText} numberOfLines={2}>{welcomeLabel(r)}</Text>
                       </TouchableOpacity>
@@ -1428,6 +1448,11 @@ export default function EmployeeScanScreen() {
                   <Text style={s.promoBannerText}>{t('employeeScan.promoAppliedCelebrate', { promo: promotionApplied })}</Text>
                 </View>
               )}
+              {unlockedGift && (
+                <TouchableOpacity onPress={() => { setWelcomeBonus(unlockedGift); setUnlockedGift(null); setStep('mode'); }} accessibilityRole="button" style={s.welcomeUnlockBtn}>
+                  <Text style={s.welcomeUnlockText}>🎁 {t('employeeScan.welcomeUnlockedNow')}</Text>
+                </TouchableOpacity>
+              )}
               {/* A receipt the customer left behind can be added from Recent sales (2026-10-18) */}
               <TouchableOpacity onPress={() => { reset(); router.push('/(employee)/recent' as any); }} accessibilityRole="button" style={{ marginTop: 12, paddingVertical: 6 }}>
                 <Text style={{ color: COLORS.primary, fontWeight: '700', fontSize: 14, textAlign: 'center' }}>{t('employeeScan.anotherReceiptLater')}</Text>
@@ -1674,6 +1699,9 @@ export default function EmployeeScanScreen() {
 const s = StyleSheet.create({
   welcomeCard: { backgroundColor: '#FFFBEB', borderWidth: 2, borderColor: '#F59E0B', borderRadius: 18, padding: 16, marginBottom: 14 },
   welcomeTitle: { fontSize: 18, fontWeight: '900', color: '#92400E' },
+  welcomeLock: { fontSize: 13, fontWeight: '800', color: '#B45309', marginTop: 6 },
+  welcomeUnlockBtn: { marginTop: 12, backgroundColor: '#FEF3C7', borderWidth: 1.5, borderColor: '#F59E0B', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16 },
+  welcomeUnlockText: { color: '#92400E', fontSize: 15, fontWeight: '800', textAlign: 'center' },
   welcomeSub: { fontSize: 14, color: '#78350F', marginTop: 4, lineHeight: 20 },
   welcomeGiveBtn: { marginTop: 12, backgroundColor: '#D97706', borderRadius: 14, paddingVertical: 14, alignItems: 'center' },
   welcomeGiveText: { color: '#fff', fontSize: 16, fontWeight: '800' },

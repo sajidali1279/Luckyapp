@@ -39,8 +39,10 @@ type CustomerInfo = {
 };
 type HeldReward = { id: string; pointsSpent: number; redemptionCode: string | null; expiresAt: string | null; catalogItem: { title: string; emoji?: string | null } };
 type WelcomeGift =
-  | { claimed: true; claimCode: string; day: number; rewardLabel?: string; rewardEmoji?: string }
-  | { claimed: false; day: number; rewards: { rewardType: string; label: string; emoji: string }[] };
+  | { claimed: true; claimCode: string; day: number; rewardLabel?: string; rewardEmoji?: string; itemHere?: boolean; spend?: WelcomeSpend }
+  | { claimed: false; day: number; rewards: { rewardType: string; label: string; emoji: string }[]; spend?: WelcomeSpend };
+// What the store asks to be spent today before the free item is handed over (spent is null until a store is chosen)
+type WelcomeSpend = { required: number; spent: number | null; unlocked: boolean | null };
 type Reward = { id: string; title: string; emoji?: string | null; pointsCost: number; storeId: string | null; isActive: boolean };
 type Line = { key: string; category: string; amount: string; ppg: string };
 type Created = { id: string; flagged: boolean; flags: string[]; points: number; promotion: string | null };
@@ -216,6 +218,8 @@ function Counter() {
   const [held, setHeld] = useState<HeldReward[]>([]);
   const [welcome, setWelcome] = useState<WelcomeGift | null>(null);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
+  // The gift depends on the store (its items and what must be spent there), so look again when the store changes
+  useEffect(() => { if (qr && storeId) counterApi.welcomeGift(qr, storeId).then((g) => setWelcome(g?.data?.data ?? null)).catch(() => {}); }, [storeId]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [qrPhoto, setQrPhoto] = useState<File | null>(null);
   const [qrProblem, setQrProblem] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -228,7 +232,7 @@ function Counter() {
       const [info, pending, gift] = await Promise.all([
         counterApi.customerInfo(code),
         counterApi.heldRewards(code).catch(() => null),
-        counterApi.welcomeGift(code).catch(() => null),
+        counterApi.welcomeGift(code, storeId || undefined).catch(() => null),
       ]);
       setQr(code);
       setCustomer(info.data.data);
@@ -834,10 +838,18 @@ function Counter() {
                 <PartyPopper size={20} color={C.primary} />
                 <div style={{ fontSize: FONT.body, color: C.text }}>Day {welcome.day} of {who}'s welcome week: one free item today.</div>
               </div>
+              {welcome.spend && welcome.spend.required > 0 && welcome.spend.unlocked !== true && (
+                <Notice tone="warning">
+                  {welcome.spend.spent == null
+                    ? `This store asks for ${money(welcome.spend.required)} spent today before the free item. Choose the store above.`
+                    : `Locked: ${store?.name ?? 'this store'} asks for ${money(welcome.spend.required)} spent today first. ${who} has spent ${money(welcome.spend.spent)}. Grant the sale first, then come back.`}
+                </Notice>
+              )}
+              {welcome.claimed && welcome.itemHere === false && <Notice tone="warning">That item is not offered at this store. Ask {who} to choose another in the app.</Notice>}
               {welcome.claimed ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                   <div style={{ fontWeight: 600 }}>{welcome.rewardEmoji} {welcome.rewardLabel} <span style={{ color: C.muted, fontWeight: 400 }}>(code {welcome.claimCode})</span></div>
-                  <Button size="sm" variant="primary" disabled={acting} onClick={() => ask('Confirm the welcome gift', forLine(`Confirm ${who} got "${welcome.rewardLabel}"?`), 'Confirm handed over', async () => {
+                  <Button size="sm" variant="primary" disabled={acting || welcome.spend?.unlocked === false || welcome.itemHere === false} onClick={() => ask('Confirm the welcome gift', forLine(`Confirm ${who} got "${welcome.rewardLabel}"?`), 'Confirm handed over', async () => {
                     await counterApi.confirmWelcome(welcome.claimCode, storeId, servedById);
                     return `Welcome gift confirmed for ${who}.`;
                   })}>Confirm handed over</Button>
@@ -847,7 +859,7 @@ function Counter() {
                   <div style={{ fontSize: FONT.small, color: C.muted }}>{who} has not chosen today's item in the app. Pick the one the employee handed over.</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {welcome.rewards.map((r) => (
-                      <Button key={r.rewardType} disabled={acting} onClick={() => ask('Give the welcome gift', forLine(`Record "${r.label}" as ${who}'s welcome gift today?`), 'Record gift', async () => {
+                      <Button key={r.rewardType} disabled={acting || welcome.spend?.unlocked === false} onClick={() => ask('Give the welcome gift', forLine(`Record "${r.label}" as ${who}'s welcome gift today?`), 'Record gift', async () => {
                         await counterApi.giveWelcome(qr!, r.rewardType, storeId, servedById);
                         return `Welcome gift recorded for ${who}.`;
                       })}>{r.emoji} {r.label}</Button>

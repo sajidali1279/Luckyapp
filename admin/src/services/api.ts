@@ -604,7 +604,10 @@ export const settingsApi = {
   saveFeatures: (features: Record<string, boolean>) => api.put('/settings/features', { features }),
   saveBusiness: (data: { supportPhone: string; supportEmail: string; supportHours: string }) => api.put('/settings/business', data),
   // The joining bonus (2026-10-17): on/off, days, items (an item without a key is new)
-  saveWelcome: (data: { enabled?: boolean; days?: number; items?: { key?: string; name: string; nameEs: string; emoji: string; active: boolean }[] }) => api.put('/settings/welcome', data),
+  saveWelcome: (data: {
+    enabled?: boolean; days?: number; items?: { key?: string; name: string; nameEs: string; emoji: string; active: boolean }[];
+    minSpend?: number; stores?: Record<string, { enabled: boolean; minSpend: number | null; items: string[] | null }>;
+  }) => api.put('/settings/welcome', data),
   history: (limit = 100) => api.get('/settings/history', { params: { limit } }),
   // What any signed-in screen may read (the numbers HQ set that words on the page repeat)
   app: () => api.get('/settings/app'),
@@ -658,7 +661,7 @@ export const counterApi = {
   stores: () => api.get('/stores/gas-prices'),
   customerInfo: (qrCode: string) => api.get(`/points/customer-info/${encodeURIComponent(qrCode)}`),
   heldRewards: (qrCode: string) => api.get(`/catalog/pending/${encodeURIComponent(qrCode)}`),
-  welcomeGift: (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`, { params: { offer: 1 } }),
+  welcomeGift: (qrCode: string, storeId?: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`, { params: { offer: 1, ...(storeId ? { storeId } : {}) } }),
   rewards: () => api.get('/catalog'),
   preview: (customerQrCode: string, storeId: string, lines: { category: string; amount: number; gasGallons?: number }[]) =>
     api.post('/points/preview', { customerQrCode, storeId, lines }),

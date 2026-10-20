@@ -1777,6 +1777,10 @@
     "genericErrorMsg": "Something went wrong."
   },
   "employeeScan": {
+    "welcomeLocked": "Locked: this store asks for {{amount}} spent today first. The customer has spent {{spent}}.",
+    "welcomeLockedNoStore": "Locked: a purchase of {{amount}} today is needed first.",
+    "welcomeItemNotHere": "This item is not offered at this store. Ask the customer to choose another in their app.",
+    "welcomeUnlockedNow": "Free item unlocked! Tap to give it now",
     "anotherReceiptLater": "Customer left another receipt? Add it from Recent sales",
     "heldSub_other": "{{count}} lines are held: a manager checks them before the points are added. Tell the customer the points show once approved.",
     "heldSub_one": "A manager checks this sale before the points are added. Tell the customer the points show once it is approved.",
@@ -2614,6 +2618,10 @@
     "dealOfA11y": "Deal {{n}} of {{total}}"
   },
   "customerWelcomeBonus": {
+    "spendNeeded": "Spend {{amount}} at {{store}} today to unlock your free item",
+    "thisStore": "your store",
+    "spendProgress": "{{spent}} of {{amount}} spent today. Choose your item now, the cashier gives it once you reach it.",
+    "spendUnlocked": "✅ Unlocked! Show your code to the cashier.",
     "optionFountain": "Free Fountain Drink",
     "optionCoffee": "Free Coffee",
     "optionSoda": "Free 12oz Soda",

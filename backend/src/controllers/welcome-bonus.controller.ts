@@ -1,12 +1,13 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest as Request } from '../types';
-import { storeDateKey, storeDaysBetween } from '../utils/storeTime';
+import { storeDateKey, storeDaysBetween, storeDayStart } from '../utils/storeTime';
+import { AWAITING_DECISION } from '../utils/unfinishedSales';
 import { canUseStore } from '../utils/storeAccess';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { resolveServedBy, servedByDetails, ServedBy } from '../utils/servedBy';
 import { audit } from '../utils/audit';
-import { welcome } from '../utils/appSettings';
+import { welcome, welcomeAt } from '../utils/appSettings';
 
 // HQ's Grant & Redeem page (2026-10-15) hands the gift out for an employee with no phone: the Activity Log keeps who served
 function auditHQGift(req: Request, servedBy: ServedBy | null, customerId: string, rewardType: string, day: number, storeId?: string) {
@@ -27,8 +28,52 @@ function itemOf(rewardType: string): { label: string; labelEs: string; emoji: st
   const i = welcome().items.find((x) => x.key === rewardType);
   return i ? { label: i.name, labelEs: i.nameEs, emoji: i.emoji } : { label: 'Free item', labelEs: 'Artículo gratis', emoji: '🎁' };
 }
-/** The items a customer can choose today, for the app (both languages: the app shows the one it is set to). */
-const choices = () => welcome().items.filter((i) => i.active).map((i) => ({ rewardType: i.key, label: i.name, labelEs: i.nameEs, emoji: i.emoji }));
+/** The items a customer can choose today, for the app (both languages: the app shows the one it is set to). At a store, only the items that store offers. */
+const choices = (storeId?: string) => { const keys = welcomeAt(storeId).itemKeys; return welcome().items.filter((i) => i.active && (!keys || keys.includes(i.key))).map((i) => ({ rewardType: i.key, label: i.name, labelEs: i.nameEs, emoji: i.emoji })); };
+const uuidOnly = (v: unknown): string | undefined => (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : undefined);
+
+/**
+ * What the customer has spent at this store today (the store's day): approved sales and sales waiting for a manager with their photo.
+ * Not a reward line, not test data, and a sale that was never finished, rejected or voided does not count (2026-10-20, "spend $X to get your free item").
+ */
+export async function welcomeSpentToday(customerId: string, storeId: string, now: Date = new Date()): Promise<number> {
+  const r = await prisma.pointsTransaction.aggregate({
+    where: { customerId, storeId, createdAt: { gte: storeDayStart(now) }, isTestData: false, challengeId: null, referralId: null, OR: [{ status: 'APPROVED' }, AWAITING_DECISION] },
+    _sum: { purchaseAmount: true },
+  });
+  return Math.round((r._sum.purchaseAmount ?? 0) * 100) / 100;
+}
+
+/** The spend a store asks for today and how far the customer is (spent is null when the store is not known, or nothing is asked). */
+async function spendInfo(customerId: string, storeId?: string) {
+  const required = welcomeAt(storeId).minSpend;
+  if (required <= 0) return { required: 0, spent: null as number | null, unlocked: true as boolean | null };
+  if (!storeId) return { required, spent: null as number | null, unlocked: null as boolean | null };
+  const spent = await welcomeSpentToday(customerId, storeId);
+  return { required, spent, unlocked: spent + 0.005 >= required };
+}
+
+/**
+ * May this item be handed over at this store now? null = yes. The store has to offer it, and the customer has to have spent what the store asks
+ * today. Where the chain or any store has a rule, the store must be named, so an old cashier app cannot hand it out without the checks.
+ */
+async function welcomeGate(customerId: string, storeId: string | undefined, rewardType: string): Promise<{ status: number; code: string; error: string; data?: unknown } | null> {
+  const w = welcome();
+  if (!storeId) return w.minSpend > 0 || Object.keys(w.stores).length > 0 ? { status: 400, code: 'STORE_REQUIRED', error: 'Choose which store you are at to hand out the welcome gift.' } : null;
+  const here = welcomeAt(storeId);
+  if (!here.offered) return { status: 400, code: 'NOT_HERE', error: 'The welcome gift is not offered at this store.' };
+  if (here.itemKeys && !here.itemKeys.includes(rewardType)) {
+    const names = choices(storeId).map((c) => c.label).join(', ');
+    return { status: 400, code: 'ITEM_NOT_HERE', error: `That item is not offered at this store.${names ? ` Offered here: ${names}.` : ''}` };
+  }
+  if (here.minSpend > 0) {
+    const spent = await welcomeSpentToday(customerId, storeId);
+    if (spent + 0.005 < here.minSpend) {
+      return { status: 400, code: 'SPEND_MORE', error: `Spend $${here.minSpend.toFixed(2)} here today to unlock the free item. This customer has spent $${spent.toFixed(2)} so far.`, data: { required: here.minSpend, spent } };
+    }
+  }
+  return null;
+}
 const canChoose = (rewardType: unknown): rewardType is string => typeof rewardType === 'string' && welcome().items.some((i) => i.key === rewardType && i.active);
 /** The claimed item's words, as the app has always read them (rewardLabel / rewardEmoji), plus the Spanish name. */
 const claimedWords = (rewardType: string) => { const i = itemOf(rewardType); return { rewardLabel: i.label, rewardLabelEs: i.labelEs, rewardEmoji: i.emoji }; };
@@ -60,6 +105,8 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
     const customerId = req.user!.id;
     const user = await prisma.user.findUnique({ where: { id: customerId }, select: { createdAt: true } });
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+    // The store the customer is at (the app sends the nearest one): its own rules, items and spend
+    const storeId = uuidOnly(req.query?.storeId);
 
     const dayNumber = welcomeDay(user.createdAt);
 
@@ -71,7 +118,8 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
       where: { customerId_day: { customerId, day: dayNumber } },
     });
     // Nothing to choose (HQ switched every item off) and nothing chosen: no card today
-    if (!todayClaim && choices().length === 0) return res.json({ success: true, data: { active: false } });
+    // (or this store does not offer it)
+    if (!todayClaim && (choices(storeId).length === 0 || !welcomeAt(storeId).offered)) return res.json({ success: true, data: { active: false } });
 
     return res.json({
       success: true,
@@ -79,8 +127,10 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
         active: true,
         dayNumber,
         totalDays: welcome().days,
+        // What this store asks to be spent today first, and how far the customer is
+        spend: await spendInfo(customerId, storeId),
         // Available choices (only sent when not yet claimed today)
-        rewards: !todayClaim ? choices() : undefined,
+        rewards: !todayClaim ? choices(storeId) : undefined,
         // Claimed info
         claimed: !!todayClaim,
         confirmed: todayClaim?.confirmedAt != null,
@@ -165,6 +215,8 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
     });
     if (!customer) return res.status(404).json({ success: false, error: 'Customer not found' });
     if (!isCustomerAccount(customer)) return res.status(403).json({ success: false, error: NOT_A_CUSTOMER });
+    const storeId = uuidOnly(req.query?.storeId);   // the store the cashier is at (2026-10-20): its rules, items and spend
+    if (storeId && !welcomeAt(storeId).offered) return res.json({ success: true, data: null });
 
     const dayNumber = welcomeDay(customer.createdAt);
     if (dayNumber == null) {
@@ -181,10 +233,10 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
     // Not chosen in the customer's app yet (2026-10-10): an app that asks with ?offer=1 lets the cashier give it straight from the scan
     // (POST /welcome-bonus/give). Older cashier apps do not ask, and get nothing here, as before.
     if (!claim) {
-      if (req.query.offer !== '1' || choices().length === 0) return res.json({ success: true, data: null });
+      if (req.query.offer !== '1' || choices(storeId).length === 0) return res.json({ success: true, data: null });
       return res.json({
         success: true,
-        data: { claimed: false, day: dayNumber, totalDays: welcome().days, customerName: customer.name, rewards: choices() },
+        data: { claimed: false, day: dayNumber, totalDays: welcome().days, customerName: customer.name, rewards: choices(storeId), spend: await spendInfo(customer.id, storeId) },
       });
     }
 
@@ -199,6 +251,8 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
         rewardType: claim.rewardType,
         ...claimedWords(claim.rewardType),
         customerName: customer.name,
+        spend: await spendInfo(customer.id, storeId),
+        itemHere: !storeId || !welcomeAt(storeId).itemKeys || welcomeAt(storeId).itemKeys!.includes(claim.rewardType),
       },
     });
   } catch (err) {
@@ -224,6 +278,9 @@ export async function confirmWelcomeBonus(req: Request, res: Response) {
     if (storeId && !(req.user!.storeIds ?? []).includes(storeId) && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
       return res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' });
     }
+    // This store's rules: it offers the item, and the customer has spent what it asks today
+    const gate = await welcomeGate(claim.customerId, storeId, claim.rewardType);
+    if (gate) return res.status(gate.status).json({ success: false, code: gate.code, error: gate.error, data: gate.data });
     const served = await resolveServedBy(req.user!, req.body.servedById, storeId);
     if (!served.ok) return res.status(served.status).json({ success: false, error: served.error });
 
@@ -266,6 +323,8 @@ export async function giveWelcomeBonus(req: Request, res: Response) {
     if (storeId && !(req.user!.storeIds ?? []).includes(storeId) && !(await canUseStore(req.user!.id, req.user!.role, storeId))) {
       return res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' });
     }
+    const gate = await welcomeGate(customer.id, storeId, rewardType);
+    if (gate) return res.status(gate.status).json({ success: false, code: gate.code, error: gate.error, data: gate.data });
     const served = await resolveServedBy(req.user!, req.body.servedById, storeId);
     if (!served.ok) return res.status(served.status).json({ success: false, error: served.error });
     const given = { confirmedAt: new Date(), confirmedById: req.user!.id, storeId: storeId ?? null, rewardType };

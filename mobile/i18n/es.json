@@ -1777,6 +1777,10 @@
     "genericErrorMsg": "Algo salió mal."
   },
   "employeeScan": {
+    "welcomeLocked": "Bloqueado: esta tienda pide {{amount}} gastados hoy primero. El cliente ha gastado {{spent}}.",
+    "welcomeLockedNoStore": "Bloqueado: primero se necesita una compra de {{amount}} hoy.",
+    "welcomeItemNotHere": "Este artículo no se ofrece en esta tienda. Pide al cliente que elija otro en su app.",
+    "welcomeUnlockedNow": "¡Artículo gratis desbloqueado! Toca para darlo ahora",
     "anotherReceiptLater": "¿El cliente dejó otro recibo? Agrégalo desde Ventas recientes",
     "heldSub_other": "{{count}} líneas están en revisión: un gerente las revisa antes de agregar los puntos. Dile al cliente que los puntos aparecen cuando se aprueben.",
     "heldSub_one": "Un gerente revisa esta venta antes de agregar los puntos. Dile al cliente que los puntos aparecen cuando se apruebe.",
@@ -2614,6 +2618,10 @@
     "dealOfA11y": "Oferta {{n}} de {{total}}"
   },
   "customerWelcomeBonus": {
+    "spendNeeded": "Gasta {{amount}} hoy en {{store}} para desbloquear tu artículo gratis",
+    "thisStore": "tu tienda",
+    "spendProgress": "{{spent}} de {{amount}} gastados hoy. Elige tu artículo ahora, el cajero te lo da cuando llegues.",
+    "spendUnlocked": "✅ ¡Desbloqueado! Muestra tu código al cajero.",
     "optionFountain": "Refresco de Fuente Gratis",
     "optionCoffee": "Café Gratis",
     "optionSoda": "Refresco de 12 oz Gratis",
