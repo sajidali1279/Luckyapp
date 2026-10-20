@@ -612,6 +612,12 @@ export const settingsApi = {
   pointsExpiryPreview: (days: number) => api.get('/settings/points-expiry/preview', { params: { days } }),
 };
 
+// Store menus grid (2026-10-20): which stores carry which item and what is in stock, read and changed for many at once
+export const hotFoodGridApi = {
+  get: () => api.get('/hot-food/menu-grid'),
+  apply: (changes: { itemId: string; storeId: string; carried?: boolean; available?: boolean }[]) => api.post('/hot-food/menu-grid', { changes }),
+};
+
 export const hotFoodCatalogApi = {
   getAll: () => api.get('/hot-food/catalog'),
   create: (formData: FormData) =>

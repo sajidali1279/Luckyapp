@@ -12,6 +12,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import HotFoodHoursModal, { hotFoodNowText, HotFoodNow } from '../components/HotFoodHoursModal';
 import HotFoodImportModal from '../components/HotFoodImportModal';
 import HotFoodCombosPanel from '../components/HotFoodCombosPanel';
+import HotFoodMenuGrid from '../components/HotFoodMenuGrid';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
@@ -20,7 +21,7 @@ import Glyph from '../components/Glyph';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MainView   = 'orders' | 'catalog' | 'combos' | 'availability';
+type MainView   = 'orders' | 'catalog' | 'menus' | 'combos' | 'availability';
 type OrderTab   = 'PENDING' | 'ACCEPTED' | 'READY' | 'ALL';
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -626,8 +627,9 @@ export default function HotFood() {
         tabs={[
           { value: 'orders', label: 'Orders', count: pendingCount > 0 ? pendingCount : undefined },
           { value: 'catalog', label: 'Catalog' },
+          { value: 'menus', label: 'Store menus' },
           { value: 'combos', label: 'Combos' },
-          { value: 'availability', label: 'Availability' },
+          { value: 'availability', label: 'Stores and hours' },
         ]}
       />
 
@@ -769,6 +771,8 @@ export default function HotFood() {
       )}
 
       {/* ── Availability view ───────────────────────────────────────────── */}
+      {view === 'menus' && <HotFoodMenuGrid />}
+
       {view === 'combos' && <HotFoodCombosPanel catalog={catalogItems} stores={stores} />}
 
       {view === 'availability' && (

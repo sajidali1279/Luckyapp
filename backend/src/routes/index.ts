@@ -181,6 +181,7 @@ import {
   assignCatalogItemToStore as assignHotFoodCatalogItemToStore,
   removeCatalogItemFromStore as removeHotFoodCatalogItemFromStore,
 } from '../controllers/hotFood.controller';
+import { getMenuGrid, applyMenuGrid } from '../controllers/hotFoodMenuGrid.controller';
 import {
   getCustomerLeaderboard,
   getEmployeeLeaderboard,
@@ -736,6 +737,9 @@ router.patch('/hot-food/store/:storeId/catalog/:catalogItemId/availability',    
 router.get('/hot-food/store/:storeId/menu', authenticate, requireRole(Role.CUSTOMER), getStoreMenu);
 router.post('/hot-food/orders',             authenticate, requireRole(Role.CUSTOMER), placeOrder);
 // Catalog — admin (global item library with store assignment)
+// Store menus grid (2026-10-20): which stores carry which item, and what is in stock today, set for many at once
+router.get('/hot-food/menu-grid',                      authenticate, requireRole(Role.SUPER_ADMIN),   getMenuGrid);
+router.post('/hot-food/menu-grid',                     authenticate, requireRole(Role.SUPER_ADMIN),   applyMenuGrid);
 router.get('/hot-food/catalog',                         authenticate, requireRole(Role.SUPER_ADMIN),   getHotFoodCatalog);
 router.post('/hot-food/catalog',                        authenticate, requireRole(Role.SUPER_ADMIN),   upload.single('image'), createHotFoodCatalogItem);
 router.patch('/hot-food/catalog/:id',                   authenticate, requireRole(Role.SUPER_ADMIN),   updateHotFoodCatalogItem);
