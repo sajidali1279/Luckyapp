@@ -391,6 +391,12 @@ export async function updateOffer(req: AuthRequest, res: Response) {
         if (before.title !== offer.title) changes.push(`renamed from "${before.title}"`);
         if (+before.startDate !== +offer.startDate) changes.push(`now starts ${storeDateKey(offer.startDate)}`);
         if (+before.endDate !== +offer.endDate) changes.push(offer.endDate.getTime() <= Date.now() + 60_000 ? 'ended early' : `now ends ${storeDateKey(offer.endDate)}`);
+        // What it pays (HQ, 2026-10-20): from now on; sales already made keep what they earned
+        const pays = (o: { bonusRate: number | null; tierBonusRates: unknown; gasBonusCentsPerGallon: number | null }) =>
+          o.gasBonusCentsPerGallon != null ? `${o.gasBonusCentsPerGallon} cents a gallon`
+          : o.tierBonusRates && Object.keys(o.tierBonusRates as object).length ? Object.entries(o.tierBonusRates as Record<string, number>).map(([t, v]) => `${t.toLowerCase()} ${+(v * 100).toFixed(2)}%`).join(', ')
+          : `${+(((o.bonusRate ?? 0)) * 100).toFixed(2)}%`;
+        if (pays(before) !== pays(offer)) changes.push(`bonus changed from ${pays(before)} to ${pays(offer)} for sales from now on`);
         if (hoursText(before) !== hoursText(offer)) changes.push(hoursText(offer) ? `happy hours ${hoursText(offer)}` : 'happy hours removed (all day)');
         if (audienceText(before) !== audienceText(offer)) changes.push(`now for ${audienceText(offer)}`);
         if ((before.budgetCap ?? null) !== (offer.budgetCap ?? null)) changes.push(offer.budgetCap != null ? `budget $${offer.budgetCap.toFixed(2)}${before.budgetReachedAt && !offer.budgetReachedAt ? ' (started again)' : ''}` : 'no budget');

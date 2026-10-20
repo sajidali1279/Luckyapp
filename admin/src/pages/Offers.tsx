@@ -1416,19 +1416,44 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
   const [aud, setAud] = useState<AudienceLimitsValue>(audienceFrom(offer));
   const audBefore = JSON.stringify(audiencePayload(audienceFrom(offer)));
   const [removePicture, setRemovePicture] = useState(false);
+  // What it pays (HQ): the same kind it was posted as (one percentage, a percentage per tier, or cents a gallon), new numbers from now on
+  const oldTiers: Record<string, number> = offer.tierBonusRates && Object.keys(offer.tierBonusRates).length > 0 ? offer.tierBonusRates : {};
+  const kind: 'cpg' | 'tiers' | 'pct' = offer.gasBonusCentsPerGallon != null ? 'cpg' : Object.keys(oldTiers).length > 0 ? 'tiers' : 'pct';
+  const oldPct = offer.bonusRate ? pctText(offer.bonusRate) : '';
+  const [pct, setPct] = useState<string>(oldPct);
+  const [cpg, setCpg] = useState<string>(offer.gasBonusCentsPerGallon != null ? String(offer.gasBonusCentsPerGallon) : '');
+  const [tierPct, setTierPct] = useState<Record<string, string>>(() => Object.fromEntries(TIERS.map((t) => [t, oldTiers[t] != null ? pctText(oldTiers[t]) : ''])));
+  const editsPay = !!canEditHours && !offer.dealText;
+  const maxPct = CASHBACK_CAP * 100;
+  const tierNums = Object.fromEntries(TIERS.map((t) => [t, parseFloat(tierPct[t])]).filter(([, v]) => Number.isFinite(v as number) && (v as number) > 0)) as Record<string, number>;
+  const payProblem = !editsPay ? null
+    : kind === 'cpg' ? (!(parseFloat(cpg) > 0) ? 'Enter the cents a gallon.' : parseFloat(cpg) > MAX_CENTS_PER_GALLON ? `At most ${MAX_CENTS_PER_GALLON} cents a gallon.` : null)
+    : kind === 'tiers' ? (Object.keys(tierNums).length === 0 ? 'Enter a percentage for at least one tier.' : Math.max(...Object.values(tierNums)) > maxPct + 1e-9 ? BONUS_TOO_BIG : null)
+    : (!(parseFloat(pct) > 0) ? 'Enter the bonus percentage.' : parseFloat(pct) > maxPct + 1e-9 ? BONUS_TOO_BIG : null);
   const today = storeToday();
   const problem = !title.trim() ? 'Add a title.' : end < today ? 'The last day has already passed.' : end < start ? 'The last day is before the first day.'
-    : canEditHours ? (hoursProblem(hours) ?? audienceProblem(aud)) : null;
+    : canEditHours ? (hoursProblem(hours) ?? audienceProblem(aud) ?? payProblem) : null;
   const hoursChanged = canEditHours && hoursLabel(hoursPayload(hours)) !== hoursLabel(offer);
+  const payChanged = editsPay && !payProblem && (kind === 'cpg' ? parseFloat(cpg) !== offer.gasBonusCentsPerGallon
+    : kind === 'tiers' ? JSON.stringify(Object.fromEntries(Object.entries(tierNums).map(([k, v]) => [k, frac(v)]).sort())) !== JSON.stringify(Object.fromEntries(Object.entries(oldTiers).filter(([, v]) => v > 0).sort()))
+    : frac(parseFloat(pct)) !== (offer.bonusRate ?? 0));
+  // A single percentage also lives in the words ("an extra 3% cashback"): the old figure is changed to the new one in the title and
+  // description (English and Spanish) when it is saved, so the offer never says one thing and pays another
+  const pctWordsChange = kind === 'pct' && payChanged && !!oldPct;
+  const swapPct = (t: string) => pctWordsChange ? t.replace(new RegExp(`(?<![\\d.])${oldPct.replace('.', '\\.')}%`, 'g'), `${pctText(frac(parseFloat(pct)))}%`) : t;
+  const wordsWillChange = pctWordsChange && [title, description, spanish.titleEs, spanish.descriptionEs].some((t) => swapPct(t) !== t);
   return (
-    <Modal title={offer.dealText ? 'Edit deal' : 'Edit promotion'} subtitle={offer.dealText ? 'Change the words, the picture and the dates.' : canEditHours ? 'Change the words, the picture, the dates and the hours. What a promotion pays stays as it was posted; to change that, End it and post a new one.' : 'Change the words, the picture and the dates. What a promotion pays stays as it was posted; to change that, End it and post a new one.'} onClose={onClose} busy={saving} maxWidth={560}>
+    <Modal title={offer.dealText ? 'Edit deal' : 'Edit promotion'} subtitle={offer.dealText ? 'Change the words, the picture and the dates.' : canEditHours ? 'Change the words, the picture, the dates, the hours and what it pays. A new rate applies to sales from now on; sales already made keep what they earned.' : 'Change the words, the picture and the dates. What a promotion pays stays as it was posted; to change that, End it and post a new one.'} onClose={onClose} busy={saving} maxWidth={560}>
       <form onSubmit={(e) => {
         e.preventDefault();
         if (problem) return;
         onSave({
-          title: title.trim(),
-          description: description.trim(),   // empty clears it
-          titleEs: spanish.titleEs.trim(), descriptionEs: spanish.descriptionEs.trim(),   // empty takes the Spanish off
+          title: swapPct(title).trim(),
+          description: swapPct(description).trim(),   // empty clears it
+          titleEs: swapPct(spanish.titleEs).trim(), descriptionEs: swapPct(spanish.descriptionEs).trim(),   // empty takes the Spanish off
+          ...(payChanged ? (kind === 'cpg' ? { gasBonusCentsPerGallon: parseFloat(cpg) }
+            : kind === 'tiers' ? { tierBonusRates: Object.fromEntries(Object.entries(tierNums).map(([k, v]) => [k, frac(v)])), bonusRate: frac(Math.max(...Object.values(tierNums))) }
+            : { bonusRate: frac(parseFloat(pct)) }) : {}),
           ...(offer.dealText ? { dealTextEs: spanish.dealTextEs.trim() } : {}),
           ...(!started ? { startDate: startOfStoreDay(start).toISOString() } : {}),
           endDate: endOfStoreDay(end).toISOString(),
@@ -1437,6 +1462,27 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
           ...(canEditHours && JSON.stringify(audiencePayload(aud)) !== audBefore ? audiencePayload(aud) : {}),
         }, { file: picture, remove: removePicture });
       }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {editsPay && (
+          <Field label="What it pays" hint="Applies to sales from now on. Sales already made keep what they earned.">
+            {kind === 'cpg' ? (
+              <div style={s.inline}><input id="edit-offer-cpg" aria-label="Cents a gallon" type="number" min="0" max={MAX_CENTS_PER_GALLON} step="1" className="ui-input" style={{ ...INPUT, width: 120 }} value={cpg} onChange={(e) => setCpg(e.target.value)} /><span style={s.unit}>¢ / gallon bonus</span></div>
+            ) : kind === 'tiers' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 }}>
+                {TIERS.map((t) => (
+                  <div key={t} style={s.inline}>
+                    <span style={{ fontSize: FONT.body, minWidth: 70, color: C.text2 }}>{t[0] + t.slice(1).toLowerCase()}</span>
+                    <input aria-label={`${t[0]}${t.slice(1).toLowerCase()} bonus percent`} type="number" min="0" max={maxPct} step="0.5" className="ui-input" style={{ ...INPUT, width: 90 }} value={tierPct[t]} onChange={(e) => setTierPct({ ...tierPct, [t]: e.target.value })} />
+                    <span style={s.unit}>%</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={s.inline}><input id="edit-offer-pct" aria-label="Bonus percent" type="number" min="0" max={maxPct} step="0.5" className="ui-input" style={{ ...INPUT, width: 120 }} value={pct} onChange={(e) => setPct(e.target.value)} /><span style={s.unit}>% of the purchase amount</span></div>
+            )}
+            {wordsWillChange && <Notice tone="info" style={{ fontSize: FONT.small, marginTop: 8 }}>The words say {oldPct}%. When you save, they will say {pctText(frac(parseFloat(pct)))}% (title and description, English and Spanish).</Notice>}
+            {pctWordsChange && !wordsWillChange && <Notice tone="neutral" style={{ fontSize: FONT.small, marginTop: 8 }}>The title and description do not mention {oldPct}%, so they stay as they are.</Notice>}
+          </Field>
+        )}
         <Field label="Title" htmlFor="edit-offer-title" required>
           <input id="edit-offer-title" className="ui-input" style={INPUT} value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
         </Field>
