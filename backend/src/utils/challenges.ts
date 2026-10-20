@@ -19,6 +19,22 @@ type Db = Prisma.TransactionClient | PrismaClient;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 export type ChallengeKind = 'SPEND' | 'VISITS';
+// A reward is kept in dollars (as all cashback is) and shown to customers as points: 100 points = $1 (2026-10-20), so "get $2 back" is
+// "get 200 pts back" everywhere a customer reads it.
+export const rewardPoints = (dollars: number) => Math.round(dollars * 100);
+const usd = (n: number) => `$${n.toFixed(2)}`;
+type Rule = { kind: string; target: number; reward: number; minPurchase: number | null; category: string | null; repeats: boolean };
+const ruleWords = (c: Rule, reward: string) => {
+  const cat = c.category ? ` on ${c.category.replace(/_/g, ' ').toLowerCase()}` : '';
+  if (c.kind === 'SPEND') return `Spend ${usd(c.target)}${cat}, get ${reward} back`;
+  const min = c.minPurchase ? ` of ${usd(c.minPurchase)} or more` : '';
+  return `${c.repeats ? 'Every' : 'The'} ${c.target}${['th', 'st', 'nd', 'rd'][c.target % 10 > 3 || [11, 12, 13].includes(c.target % 100) ? 0 : c.target % 10]} purchase${cat}${min} earns ${reward}`;
+};
+/** "Spend $30 on groceries, get 300 pts back" / "Every 5th purchase of $2 or more earns 100 pts" (English, for HQ, the Activity Log and a title left blank). */
+export const challengeRule = (c: Rule) => ruleWords(c, `${rewardPoints(c.reward)} pts`);
+/** The same rule as it used to be written, with the reward in dollars: a title that is exactly this is shown in points. */
+export const legacyChallengeRule = (c: Rule) => ruleWords(c, usd(c.reward));
+
 export interface ChallengeAward { challengeId: string; title: string; titleEs: string | null; customerId: string; reward: number }
 
 /** What a sale adds to a challenge: its amount (SPEND), or one purchase when it is big enough (VISITS). */
@@ -93,7 +109,7 @@ export async function pushChallengeAwards(awards: ChallengeAward[]): Promise<voi
     const es = langs.get(a.customerId) === 'es';
     sendPushToUser(a.customerId,
       es ? '🏆 ¡Reto cumplido!' : '🏆 Challenge complete!',
-      es ? `${a.titleEs || a.title}: $${a.reward.toFixed(2)} agregados a tu saldo.` : `${a.title}: $${a.reward.toFixed(2)} added to your balance.`,
+      es ? `${a.titleEs || a.title}: ${rewardPoints(a.reward)} pts agregados a tu saldo.` : `${a.title}: ${rewardPoints(a.reward)} pts added to your balance.`,
       'OFFER', '/(customer)/home?scrollTo=challenges');
   }
 }
@@ -113,7 +129,8 @@ export async function challengesFor(customerId: string, storeId: string | null, 
     const p = progress.get(c.id);
     const done = !c.repeats && (p?.timesEarned ?? 0) >= 1;
     return {
-      id: c.id, kind: c.kind, title: c.title, titleEs: c.titleEs, description: c.description, descriptionEs: c.descriptionEs,
+      // a title that is just the old dollar sentence ("Spend $20.00, get $2.00 back") is shown in points, so older challenges need no re-posting
+      id: c.id, kind: c.kind, title: c.title === legacyChallengeRule(c) ? challengeRule(c) : c.title, titleEs: c.titleEs, description: c.description, descriptionEs: c.descriptionEs,
       category: c.category, store: c.store?.name ?? null, target: c.target, minPurchase: c.minPurchase, reward: c.reward, repeats: c.repeats,
       endDate: c.endDate, progress: done ? c.target : r2(p?.progress ?? 0), timesEarned: p?.timesEarned ?? 0, done,
     };

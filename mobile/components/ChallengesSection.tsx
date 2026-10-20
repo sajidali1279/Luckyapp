@@ -12,6 +12,8 @@ type Challenge = { id: string; kind: 'SPEND' | 'VISITS'; title: string; titleEs:
   store: string | null; target: number; minPurchase: number | null; reward: number; repeats: boolean; endDate: string; progress: number; timesEarned: number; done: boolean };
 
 const money = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+// A reward is stored in dollars and shown in points, like every other balance in the app: $2 is 200 pts (2026-10-20)
+const pts = (dollars: number) => Math.round(dollars * 100).toLocaleString('en-US');
 // HQ often uses the rule itself as the title ("Spend $30.00 on groceries, get $3.00 back"); then the rule line would just repeat it
 const same = (a: string, b: string) => { const k = (x: string) => x.toLowerCase().replace(/\.00\b/g, '').replace(/[^a-z0-9]/g, ''); return k(a) === k(b); };
 
@@ -26,20 +28,20 @@ export default function ChallengesSection({ storeId, enabled }: { storeId?: stri
       <View style={s.head}><TrophyIcon size={17} color={COLORS.primary} /><Text style={s.headText}>{t('challenges.title')}</Text></View>
       {list.map((c) => {
         const cat = c.category ? t('challenges.on', { cat: t(`challenges.cat_${c.category}`) }) : '';
-        const rule = c.kind === 'SPEND' ? t('challenges.spendRule', { target: money(c.target), reward: money(c.reward), cat })
-          : t(c.repeats ? 'challenges.visitsRepeat' : 'challenges.visitsOnce', { n: c.target, reward: money(c.reward), cat });
+        const rule = c.kind === 'SPEND' ? t('challenges.spendRule', { target: money(c.target), reward: pts(c.reward), cat })
+          : t(c.repeats ? 'challenges.visitsRepeat' : 'challenges.visitsOnce', { n: c.target, reward: pts(c.reward), cat });
         const shown = Math.min(c.progress, c.target);
         const progressText = c.kind === 'SPEND' ? t('challenges.progressSpend', { done: money(shown), target: money(c.target) }) : t('challenges.progressVisits', { done: shown, target: c.target });
         const pct = Math.max(0, Math.min(100, (shown / c.target) * 100));
         const title = (es && c.titleEs) || c.title;
         return (
-          <View key={c.id} style={s.card} accessible accessibilityLabel={t('challenges.a11y', { title, progress: c.done ? t('challenges.done', { reward: money(c.reward) }) : progressText })}>
+          <View key={c.id} style={s.card} accessible accessibilityLabel={t('challenges.a11y', { title, progress: c.done ? t('challenges.done', { reward: pts(c.reward) }) : progressText })}>
             <Text style={s.title} numberOfLines={2}>{title}</Text>
             {!same(title, rule) && <Text style={s.rule}>{rule}</Text>}
             {c.kind === 'VISITS' && c.minPurchase ? <Text style={s.small}>{t('challenges.minEach', { min: money(c.minPurchase) })}</Text> : null}
             <View style={s.barBg}><View style={[s.bar, { width: `${pct}%` }, c.done && { backgroundColor: COLORS.success }]} /></View>
             <View style={s.row}>
-              <Text style={[s.small, { fontWeight: '700', color: c.done ? COLORS.success : COLORS.text }]}>{c.done ? t('challenges.done', { reward: money(c.reward) }) : progressText}</Text>
+              <Text style={[s.small, { fontWeight: '700', color: c.done ? COLORS.success : COLORS.text }]}>{c.done ? t('challenges.done', { reward: pts(c.reward) }) : progressText}</Text>
               <Text style={s.small}>{t('challenges.endsOn', { date: new Date(c.endDate).toLocaleDateString(es ? 'es-US' : 'en-US', { month: 'short', day: 'numeric' }) })}</Text>
             </View>
             {c.repeats && c.timesEarned > 0 ? <Text style={s.small}>{t('challenges.earned', { count: c.timesEarned })}</Text> : null}
