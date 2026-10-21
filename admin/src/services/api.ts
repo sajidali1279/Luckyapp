@@ -671,7 +671,9 @@ export const counterApi = {
       customerQrCode, storeId, servedById, siblingIds, purchaseAmount: line.amount, category: line.category,
       ...(line.gasGallons ? { isGas: true, gasGallons: line.gasGallons, ...(line.gasPricePerGallon ? { gasPricePerGallon: line.gasPricePerGallon } : {}) } : {}),
     }),
-  uploadReceipt: (transactionId: string, file: File) => {
+  // file null = HQ enters the sale without a receipt photo (2026-10-20): the server credits it and the Activity Log says so
+  uploadReceipt: (transactionId: string, file: File | null) => {
+    if (!file) return api.post(`/points/grant/${transactionId}/receipt`, { noReceipt: true });
     const fd = new FormData();
     fd.append('receipt', file);
     return api.post(`/points/grant/${transactionId}/receipt`, fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60_000 });

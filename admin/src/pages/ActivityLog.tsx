@@ -228,6 +228,8 @@ function fmtDetails(details: string | null): string {
     if (d.labelCount != null)     parts.push(`${d.labelCount} label${d.labelCount === 1 ? '' : 's'}`);
     if (d.totalCopies != null)    parts.push(`${d.totalCopies} cop${d.totalCopies === 1 ? 'y' : 'ies'} printed`);
     // HQ's Grant & Redeem page: who served the customer
+    if (d.noReceipt)              parts.push('no receipt photo');
+    if (d.heldFlagsWaived)        parts.push('review flags waived by HQ');
     if (d.enteredByHQ)            parts.push(`served by ${d.servedByName || 'an employee'}, entered by HQ`);
     return parts.join(' · ');
   } catch {

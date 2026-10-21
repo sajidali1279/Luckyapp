@@ -326,13 +326,17 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'Transaction already processed' });
     return;
   }
-  if (!req.file) {
+  // HQ's Grant & Redeem page (2026-10-20): HQ enters a sale from photos an employee sends, so it needs no receipt photo (send noReceipt),
+  // is not held for review (HQ is the one who would review it) and is not refused for a photo used before. A photo it does send is kept.
+  const hqEntry = hasMinRole(employee.role, Role.SUPER_ADMIN);
+  const noReceipt = hqEntry && !req.file && (req.body?.noReceipt === true || req.body?.noReceipt === 'true');
+  if (!req.file && !noReceipt) {
     res.status(400).json({ success: false, error: 'Receipt image is required' });
     return;
   }
 
   // Duplicate receipt detection — hash file bytes to prevent reusing the same photo
-  const receiptHash = createHash('sha256').update(req.file!.buffer).digest('hex');
+  const receiptHash = req.file ? createHash('sha256').update(req.file.buffer).digest('hex') : null;
   // A multi-item sale (gas + groceries on one receipt) is one transaction per item, and the phone sends the same photo to each. Those
   // siblings (same customer, cashier and store, made within two minutes of each other) may share it; any other sale may not. Before,
   // the siblings only got through when their uploads happened to overlap: if one finished first, the next was refused as a reused
@@ -340,7 +344,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   const SALE_WINDOW_MS = 2 * 60 * 1000;
   // Lines of the same sale (same saleId) may share it at any time apart: HQ's Grant & Redeem page can fix a refused line and finish the
   // sale minutes later (2026-10-18). A cancelled or rejected sale's photo does not block anything.
-  const sameHash = await prisma.pointsTransaction.findMany({
+  const sameHash = !receiptHash || hqEntry ? [] : await prisma.pointsTransaction.findMany({
     where: { receiptImageHash: receiptHash, id: { not: transactionId }, status: { notIn: NOT_A_SALE } },
     select: { id: true, customerId: true, grantedById: true, storeId: true, createdAt: true, saleId: true, addOn: true },
   });
@@ -359,7 +363,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   }
 
   // Upload receipt to Cloudinary
-  const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+  const uploadResult = !req.file ? { secure_url: null as string | null } : await new Promise<{ secure_url: string }>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder: 'luckystop/receipts', resource_type: 'image' },
       (error, result) => {
@@ -370,7 +374,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     stream.end(req.file!.buffer);
   });
 
-  const wasFlagged = transaction.status === TransactionStatus.FLAGGED;
+  const wasFlagged = transaction.status === TransactionStatus.FLAGGED && !hqEntry;
 
   if (wasFlagged) {
     // Flagged: save receipt but hold points — manager must review
@@ -396,10 +400,10 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   // (an admin may have rejected it while the receipt was uploading)
   const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
   const settled = await prisma.$transaction(async (db) => {
-    const customer = await approveAndCredit(db, transaction, TransactionStatus.PENDING, {
+    const customer = await approveAndCredit(db, transaction, hqEntry ? transaction.status : TransactionStatus.PENDING, req.file ? {
       receiptImageUrl: uploadResult.secure_url,
       receiptImageHash: receiptHash,
-    });
+    } : {});
     if (!customer) return null;
     return { customer, sale: await db.pointsTransaction.findUniqueOrThrow({ where: { id: transactionId } }) };
   });
@@ -431,6 +435,8 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
       category: transaction.category,
       customerId: transaction.customerId,
       ...(transaction.addOn ? { addedAfterCustomerLeft: true, sale: transaction.saleId } : {}),
+      ...(noReceipt ? { noReceipt: true } : {}),
+      ...(hqEntry && transaction.status === TransactionStatus.FLAGGED ? { heldFlagsWaived: true } : {}),
       ...(transaction.servedById ? servedByDetails(await prisma.user.findUnique({ where: { id: transaction.servedById }, select: { id: true, name: true } })) : {}),
     },
     storeId: transaction.storeId,
