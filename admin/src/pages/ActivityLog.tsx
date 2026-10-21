@@ -9,6 +9,7 @@ import { storeToday, addDays, startOfStoreDay, endOfStoreDay } from '../lib/stor
 import { PageHeader, Button } from '../components/kit';
 import { RefreshCw } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import { useIsMobile } from '../hooks/use-mobile';
 
 // ─── Action metadata ──────────────────────────────────────────────────────────
 
@@ -152,9 +153,9 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
 const ROLE_META: Record<string, { label: string; color: string }> = {
   DEV_ADMIN:    { label: 'Dev Admin',     color: '#1a7f45' },
   SUPER_ADMIN:  { label: 'Super Admin',   color: '#8a5300' },
-  STORE_MANAGER:{ label: 'Store Manager', color: '#4cc9f0' },
+  STORE_MANAGER:{ label: 'Store Manager', color: '#1d6fa5' },
   EMPLOYEE:     { label: 'Employee',      color: TEXT_MUTED },
-  CUSTOMER:     { label: 'Customer',      color: '#e4e7ec' },
+  CUSTOMER:     { label: 'Customer',      color: '#7a3e9d' },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -190,6 +191,24 @@ function fmtDetails(details: string | null): string {
     if (d.targetRole)             parts.push(d.targetRole);
     if (d.isActive != null)       parts.push(d.isActive ? 'activated' : 'deactivated');
     if (Array.isArray(d.before) && Array.isArray(d.after)) parts.push(`${d.before.join(', ') || 'no store'} → ${d.after.join(', ') || 'no store'}`);
+    // What changed (hot food items, job openings and applications, order categories, missing person posters)
+    if (typeof d.applicant === 'string') parts.push(d.position ? `${d.applicant} for ${d.position}` : d.applicant);
+    if (d.price != null && d.changes === undefined) parts.push(`$${Number(d.price).toFixed(2)}`);
+    if (d.changes && typeof d.changes === 'object') {
+      for (const [k, v] of Object.entries(d.changes as Record<string, { was: unknown; now: unknown }>)) {
+        const show = (x: unknown) => (k === 'price' && x != null ? `$${Number(x).toFixed(2)}` : x == null || x === '' ? 'none' : String(x));
+        parts.push(`${k.replace(/([A-Z])/g, ' $1').toLowerCase()}: ${show(v?.was)} → ${show(v?.now)}`);
+      }
+    }
+    if (d.status && typeof d.status === 'object' && 'was' in d.status) parts.push(`status ${String(d.status.was).toLowerCase()} → ${String(d.status.now).toLowerCase()}`);
+    if (typeof d.renamedTo === 'string') parts.push(`renamed to ${d.renamedTo}`);
+    if (Array.isArray(d.changed)) {
+      const said = d.changed.filter((k: string) => !((k === 'name' && d.renamedTo) || (k === 'status' && d.status && typeof d.status === 'object')));
+      if (said.length) parts.push(`changed ${said.join(', ')}`);
+    }
+    if (d.notesChanged) parts.push('notes changed');
+    if (typeof d.live === 'boolean') parts.push(d.live ? 'live' : 'hidden');
+    if (typeof d.reason === 'string' && d.reason && !d.footprint && !d.summary) parts.push(`“${d.reason.length > 120 ? d.reason.slice(0, 117) + '…' : d.reason}”`);
     if (d.mode === 'anonymized')  parts.push('personal details removed, sales kept');
     if (d.mode === 'deleted')     parts.push('deleted');
     if (d.footprint && typeof d.reason === 'string') parts.push(d.reason);
@@ -223,6 +242,7 @@ function monthAgoStr() { return addDays(storeToday(), -30); }
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ActivityLog() {
+  const narrow = useIsMobile();   // a phone: each entry stacks (the four columns pushed the time and the detail off the screen)
   const [action,    setAction]    = useState('');
   const [actorRole, setActorRole] = useState('');
   const [storeId,   setStoreId]   = useState('');
@@ -266,7 +286,7 @@ export default function ActivityLog() {
   }
 
   return (
-    <div style={s.container}>
+    <div style={narrow ? { ...s.container, padding: 16 } : s.container}>
       {/* Header */}
       <PageHeader
         title="Activity Log"
@@ -414,28 +434,28 @@ export default function ActivityLog() {
             const roleMeta = ROLE_META[log.actorRole] || { label: log.actorRole, color: TEXT_MUTED };
             const detail = fmtDetails(log.details);
             return (
-              <div key={log.id} style={s.row}>
+              <div key={log.id} style={narrow ? { ...s.row, gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 } : s.row}>
                 {/* Action badge */}
-                <div style={{ ...s.actionBadge, background: meta.bg, color: meta.color }}>
+                <div style={{ ...s.actionBadge, background: meta.bg, color: meta.color, ...(narrow ? { justifySelf: 'start' } : {}) }}>
                   <span style={{ fontSize: 16 }}><Glyph e={meta.icon} size={18} /></span>
                   <span style={s.actionLabel}>{meta.label}</span>
                 </div>
 
                 {/* Actor */}
-                <div style={s.actor}>
+                <div style={narrow ? { ...s.actor, gridColumn: '1 / -1', flexDirection: 'row', gap: 8, alignItems: 'baseline', order: 3 } : s.actor}>
                   <div style={s.actorName}>{log.actorName || log.actorId.slice(0, 8)}</div>
                   <div style={{ ...s.roleBadge, color: roleMeta.color }}>{roleMeta.label}</div>
                 </div>
 
                 {/* Detail */}
-                <div style={s.detail}>
-                  {detail && <span style={s.detailText}>{detail}</span>}
+                <div style={narrow ? { ...s.detail, gridColumn: '1 / -1', order: 4 } : s.detail}>
+                  {detail && <span style={narrow ? { ...s.detailText, whiteSpace: 'normal' } : s.detailText}>{detail}</span>}
                   {log.storeName && <span style={s.storeTag}>{log.storeName}</span>}
                   {!log.storeName && log.storeId && <span style={s.storeTag}>store</span>}
                 </div>
 
                 {/* Time */}
-                <div style={s.time} title={new Date(log.createdAt).toLocaleString()}>
+                <div style={narrow ? { ...s.time, order: 2 } : s.time} title={new Date(log.createdAt).toLocaleString()}>
                   {timeAgo(log.createdAt)}
                 </div>
               </div>
@@ -482,7 +502,7 @@ const s: Record<string, React.CSSProperties> = {
   logList: { display: 'flex', flexDirection: 'column', gap: 6 },
   row: {
     display: 'grid',
-    gridTemplateColumns: '180px 160px 1fr 80px',
+    gridTemplateColumns: '230px 150px minmax(0, 1fr) 80px',
     alignItems: 'center',
     gap: 16,
     background: '#fff',
@@ -493,9 +513,9 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   actionBadge: { display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '5px 10px', fontWeight: 700, fontSize: 14 },
-  actionLabel: { whiteSpace: 'nowrap' as const },
+  actionLabel: { whiteSpace: 'normal' as const, lineHeight: 1.25 },
 
-  actor: { display: 'flex', flexDirection: 'column', gap: 2 },
+  actor: { display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 },
   actorName: { fontWeight: 700, fontSize: 14, color: PRIMARY, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
   roleBadge: { fontSize: 13, fontWeight: 600 },
 
