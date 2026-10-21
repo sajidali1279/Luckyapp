@@ -81,7 +81,9 @@ function getCatCfg(
 
 // ─── Countdown hook ────────────────────────────────────────────────────────────
 function useCountdown(expiresAt: string | null) {
-  const [remaining, setRemaining] = useState(0);
+  // Starts from the real time left, not 0: a 0 for the first moment read as "expired", so the code sheet flashed the expired screen (and the
+  // banner vanished) each time it opened, before the first tick put the time in
+  const [remaining, setRemaining] = useState(() => (expiresAt ? Math.max(0, new Date(expiresAt).getTime() - Date.now()) : 0));
   useEffect(() => {
     if (!expiresAt) return;
     const tick = () => setRemaining(Math.max(0, new Date(expiresAt).getTime() - Date.now()));
