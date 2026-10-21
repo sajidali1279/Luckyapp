@@ -89,7 +89,9 @@ export default function RootLayout() {
     }
 
     navigate();
-  }, [user, isLoading]);
+    // Who is signed in (and as what), not the user object: refreshAccount hands back a NEW object each time it reads the balance, and
+    // depending on the object sent a customer back to Home a second or two after opening Rewards (2026-10-21)
+  }, [user?.id, user?.role, isLoading]);
 
   useEffect(() => {
     if (user) {
