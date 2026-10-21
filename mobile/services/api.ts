@@ -13,6 +13,30 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
 
 const api = axios.create({ baseURL: API_URL });
 
+/** A signed-in request was refused (401): the session expired, the PIN was reset or the account was closed. Sign out properly so the app
+ *  goes to the sign-in screen. The auth store imports this file, so it is required here, not imported. Shared by axios and the uploads. */
+async function endSessionOn401() {
+  await SecureStore.deleteItemAsync('jwt_token');
+  const { useAuthStore } = require('../store/authStore');
+  if (useAuthStore.getState().user) await useAuthStore.getState().endSession();
+}
+
+/** A photo or form upload (fetch, not axios: React Native needs it for multipart). It answers like an axios call: `{ data }`, or a thrown
+ *  `{ response: { data, status } }`. A page that is not JSON (a 502 while the server restarts, a proxy's 413) is turned into a plain
+ *  message instead of a SyntaxError, a 401 signs out like every other call, and a connection that hangs gives up after `timeoutMs`
+ *  (a network failure or the timeout is thrown as it is, with no `response`, as axios does). */
+async function uploadForm(path: string, body: FormData, timeoutMs = 90_000) {
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), timeoutMs);
+  try {
+    const res = await fetchWithAuth(path, { method: 'POST', body: body as any, signal: stop.signal });
+    const json = await res.json().catch(() => null);
+    if (res.status === 401 && !path.startsWith('/auth/login')) await endSessionOn401();
+    if (!res.ok) throw { response: { data: json ?? { success: false, error: 'The server did not answer properly. Please try again in a moment.' }, status: res.status } };
+    return { data: json ?? {} };
+  } finally { clearTimeout(timer); }
+}
+
 // Attach JWT to every request automatically
 api.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('jwt_token');
@@ -94,10 +118,7 @@ export const missingApi = {
     const fd = new FormData();
     for (const [k, v] of Object.entries(fields)) fd.append(k, v);
     (fd as any).append('photo', { uri: photo.uri, name: photo.type === 'image/png' ? 'photo.png' : 'photo.jpg', type: photo.type });
-    const res = await fetchWithAuth('/missing-persons/requests', { method: 'POST', body: fd as any });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw { response: { data: json, status: res.status } };
-    return { data: json };
+    return uploadForm('/missing-persons/requests', fd);
   },
 };
 
@@ -117,10 +138,7 @@ export const pointsApi = {
   /** The cashier's own sales and redemptions today (Recent tab) */
   getCashierRecent: () => api.get('/points/cashier/recent'),
   uploadReceipt: async (transactionId: string, receiptFile: FormData) => {
-    const res = await fetchWithAuth(`/points/grant/${transactionId}/receipt`, { method: 'POST', body: receiptFile as any });
-    const json = await res.json();
-    if (!res.ok) throw { response: { data: json, status: res.status } };
-    return { data: json };
+    return uploadForm(`/points/grant/${transactionId}/receipt`, receiptFile);
   },
   redeemCredits: (data: { customerQrCode: string; storeId: string; amount: number }) =>
     api.post('/points/redeem', data),
@@ -171,10 +189,7 @@ export const offersApi = {
   estimate:    (data: object) => api.post('/offers/estimate', data),
   deleteBanner:(bannerId: string) => api.delete(`/banners/${bannerId}`),
   createBanner: async (formData: FormData) => {
-    const res = await fetchWithAuth('/banners', { method: 'POST', body: formData as any });
-    const json = await res.json();
-    if (!res.ok) throw { response: { data: json, status: res.status } };
-    return { data: json };
+    return uploadForm('/banners', formData);
   },
 };
 
@@ -326,10 +341,7 @@ export const promotionsApi = {
       const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
       const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
       (fd as any).append('image', { uri: data.imageUri, name: filename, type: mimeMap[ext] ?? 'image/jpeg' });
-      const res = await fetchWithAuth('/promotions/request', { method: 'POST', body: fd as any });
-      const json = await res.json();
-      if (!res.ok) throw { response: { data: json, status: res.status } };
-      return { data: json };
+      return uploadForm('/promotions/request', fd);
     }
     return api.post('/promotions/request', {
       requesterName: data.requesterName,
@@ -494,14 +506,7 @@ export const receiptScanApi = {
   send: async (uri: string) => {
     const form = new FormData();
     form.append('image', { uri, name: 'receipt.jpg', type: 'image/jpeg' } as any);
-    const stop = new AbortController();
-    const timer = setTimeout(() => stop.abort(), 90_000);   // reading a receipt can take half a minute
-    try {
-      const res = await fetchWithAuth('/receipt-scan', { method: 'POST', body: form as any, signal: stop.signal });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw { response: { data: json, status: res.status } };
-      return { data: json };
-    } finally { clearTimeout(timer); }
+    return uploadForm('/receipt-scan', form, 90_000);   // reading a receipt can take half a minute
   },
 };
 
