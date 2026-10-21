@@ -44,6 +44,7 @@ import {
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
+import HalloweenHost from '../../components/halloween/HalloweenHost';
 import ModalToastHost from '../../components/ModalToastHost';
 import { haptic } from '../../utils/haptics';
 import { useFullBrightness } from '../../hooks/useFullBrightness';
@@ -657,7 +658,12 @@ function cardDescription(desc?: string | null): string {
   return (desc ?? '').replace(/\s*Valid (?:[A-Z][a-z]{2} \d{1,2}(?:, \d{4})? (?:to|–|-) [A-Z][a-z]{2} \d{1,2}, \d{4}|today|3 days|this week|2 weeks|this month)\.$/, '').trim();
 }
 
+// The seasonal opening (2026-10-21) plays over Home while HQ's Halloween theme is on; otherwise this is just the screen
 export default function CustomerHome() {
+  return <HalloweenHost><CustomerHomeScreen /></HalloweenHost>;
+}
+
+function CustomerHomeScreen() {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'es' ? 'es-US' : 'en-US';
   const qc = useQueryClient();

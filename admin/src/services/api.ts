@@ -604,6 +604,7 @@ export const settingsApi = {
   saveFeatures: (features: Record<string, boolean>) => api.put('/settings/features', { features }),
   saveBusiness: (data: { supportPhone: string; supportEmail: string; supportHours: string }) => api.put('/settings/business', data),
   // The joining bonus (2026-10-17): on/off, days, items (an item without a key is new)
+  saveTheme: (data: { preset?: 'NONE' | 'HALLOWEEN'; startsOn?: string | null; endsOn?: string | null; intro?: boolean; background?: boolean }) => api.put('/settings/theme', data),
   saveWelcome: (data: {
     enabled?: boolean; days?: number; items?: { key?: string; name: string; nameEs: string; emoji: string; active: boolean }[];
     minSpend?: number; stores?: Record<string, { enabled: boolean; minSpend: number | null; items: string[] | null }>;

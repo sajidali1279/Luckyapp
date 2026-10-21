@@ -14,6 +14,7 @@ import ReferralsPanel from '../components/ReferralsPanel';
 import { DealLimitsCard } from '../components/DealsPanel';
 import ConfirmModal from '../components/ConfirmModal';
 import { RulesCard, FeaturesCard, BusinessCard, HistoryCard, LastChanged, useSettings } from '../components/SettingsCards';
+import AppThemeSettings from '../components/AppThemeSettings';
 import { useAnyUnsaved } from '../lib/unsaved';
 import PointsExpirySettings from '../components/PointsExpirySettings';
 
@@ -198,6 +199,7 @@ export default function Settings() {
       {tab === 'app' && (
         <div style={narrow}>
           <BusinessCard />
+          <AppThemeSettings />
           {isDevAdmin ? (
             <div>
               <AppVersionsCard />

@@ -5,6 +5,7 @@
 // The values are kept in memory and read without waiting (rule(), feature(), business()): loaded when the server starts, refreshed every
 // 30 seconds (another server instance's change arrives within that), and at once on this instance when HQ saves.
 import prisma from '../config/prisma';
+import { storeDateKey } from './storeTime';
 
 export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'perks' | 'care' | 'staff';
 /** section: a heading inside the group's card on the Settings page, for a long group (2026-10-17) */
@@ -84,6 +85,16 @@ export const FEATURES_KEY = 'APP_FEATURES';
 export const BUSINESS_KEY = 'BUSINESS_INFO';
 export const WELCOME_KEY = 'WELCOME_BONUS';
 export const EXPIRY_KEY = 'POINTS_EXPIRY';
+export const THEME_KEY = 'APP_THEME';
+
+// The app's seasonal theme (2026-10-21, admin Settings > App): a preset HQ picks, between two dates or until HQ takes it off. Only
+// Halloween is drawn so far; a new preset is a new name here plus its art in the app. The phones ask GET /app/theme and show whatever it
+// says today, so a holiday never needs a new app build.
+export const THEME_PRESETS = ['HALLOWEEN'] as const;
+export type ThemePreset = (typeof THEME_PRESETS)[number];
+/** startsOn / endsOn: store days ('YYYY-MM-DD', Central), either may be empty (no start = now, no end = until switched off).
+ *  intro: the opening animation (once a day on a phone). background: the drifting creatures behind the dashboards. */
+export interface ThemeConfig { preset: ThemePreset | 'NONE'; startsOn: string | null; endsOn: string | null; intro: boolean; background: boolean }
 
 // Points expiry (2026-10-17, Settings > Rewards & offers > Points expiry): off until HQ switches it on. Then every batch of points
 // (utils/pointLots.ts) expires `days` after it was earned, or after `startedAt` (the day it was switched on) if that is later, so nobody
@@ -116,6 +127,7 @@ let features: Record<FeatureKey, boolean> = featureDefaults();
 let businessInfo: BusinessInfo = { supportPhone: '', supportEmail: '', supportHours: '' };
 let welcomeConfig: WelcomeConfig = cleanWelcome(null);
 let expiryConfig: ExpiryConfig = cleanExpiry(null);
+let themeConfig: ThemeConfig = cleanTheme(null);
 
 /** A rule's value now (its default until HQ changes it). */
 export const rule = (k: RuleKey): number => rules[k];
@@ -209,25 +221,49 @@ export function cleanExpiry(stored: unknown): ExpiryConfig {
   return { enabled, startedAt: enabled ? startedAt : null, days: num(s.days, EXPIRY_LIMITS.days), warnDays: num(s.warnDays, EXPIRY_LIMITS.warnDays) };
 }
 
+function validDay(v: unknown): string | null {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : null;
+}
+export function cleanTheme(stored: unknown): ThemeConfig {
+  const s = (stored && typeof stored === 'object' ? stored : {}) as Record<string, unknown>;
+  const preset = (THEME_PRESETS as readonly string[]).includes(s.preset as string) ? (s.preset as ThemePreset) : 'NONE';
+  const startsOn = validDay(s.startsOn);
+  let endsOn = validDay(s.endsOn);
+  if (startsOn && endsOn && endsOn < startsOn) endsOn = null;
+  return { preset, startsOn, endsOn, intro: s.intro !== false, background: s.background !== false };
+}
+/** The theme HQ has set (before the dates are looked at). */
+export const themeSetting = (): ThemeConfig => themeConfig;
+/** What the phones show today: the preset only while today (the store's day) is inside the dates, else none. */
+export function activeTheme(now: Date = new Date(), cfg: ThemeConfig = themeConfig) {
+  const today = storeDateKey(now);
+  const on = cfg.preset !== 'NONE' && (!cfg.startsOn || today >= cfg.startsOn) && (!cfg.endsOn || today <= cfg.endsOn);
+  return { preset: on ? cfg.preset : ('NONE' as const), intro: on && cfg.intro, background: on && cfg.background, today, until: on ? cfg.endsOn : null };
+}
+
 const parse = (v: string | undefined) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
 
 /** Reads all three from the database. A failure keeps what was there (the server runs on the last known values). */
 export async function refreshSettings(): Promise<void> {
   try {
-    const rows = await prisma.appConfig.findMany({ where: { key: { in: [RULES_KEY, FEATURES_KEY, BUSINESS_KEY, WELCOME_KEY, EXPIRY_KEY] } } });
+    const rows = await prisma.appConfig.findMany({ where: { key: { in: [RULES_KEY, FEATURES_KEY, BUSINESS_KEY, WELCOME_KEY, EXPIRY_KEY, THEME_KEY] } } });
     const by = new Map(rows.map((r: { key: string; value: string }) => [r.key, r.value]));
     rules = cleanRules(parse(by.get(RULES_KEY)));
     features = cleanFeatures(parse(by.get(FEATURES_KEY)));
     businessInfo = cleanBusiness(parse(by.get(BUSINESS_KEY)));
     welcomeConfig = cleanWelcome(parse(by.get(WELCOME_KEY)));
     expiryConfig = cleanExpiry(parse(by.get(EXPIRY_KEY)));
+    themeConfig = cleanTheme(parse(by.get(THEME_KEY)));
   } catch (e: any) {
     console.error('[settings] could not load, keeping the last values:', e?.message ?? e);
   }
 }
 
 /** Saved by the settings controller: this instance uses the new values at once. */
-export function applySettings(next: { rules?: Record<RuleKey, number>; features?: Record<FeatureKey, boolean>; business?: BusinessInfo; welcome?: WelcomeConfig; expiry?: ExpiryConfig }) {
+export function applySettings(next: { rules?: Record<RuleKey, number>; features?: Record<FeatureKey, boolean>; business?: BusinessInfo; welcome?: WelcomeConfig; expiry?: ExpiryConfig; theme?: ThemeConfig }) {
+  if (next.theme) themeConfig = next.theme;
   if (next.rules) rules = next.rules;
   if (next.features) features = next.features;
   if (next.business) businessInfo = next.business;

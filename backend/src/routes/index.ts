@@ -110,7 +110,7 @@ import {
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
-import { getSettings, putRules, putFeatures, putBusiness, putWelcome, putPointsExpiry, getPointsExpiryPreview, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
+import { getSettings, putRules, putFeatures, putBusiness, putWelcome, putTheme, getAppTheme, putPointsExpiry, getPointsExpiryPreview, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
   getUnreadCount as getSupportUnreadCount, updatePriority, getSupportStats,
@@ -254,6 +254,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 router.get('/referrals/check', checkReferralCode);                                  // Whose invite code it is (no sign-in: the sign-up screen)
+router.get('/app/theme', getAppTheme);                                             // What theme the app shows today (no sign-in: asked when the app opens)
 router.get('/app/version', getAppVersion);                                         // Latest + minimum app version per platform (no sign-in: asked when the app opens)
 router.post('/auth/register', register);                                          // New customer signup
 router.post('/auth/login', login);                                                // Phone + PIN login
@@ -754,6 +755,7 @@ router.get('/settings',                 authenticate, requireRole(Role.SUPER_ADM
 router.put('/settings/rules',           authenticate, requireRole(Role.SUPER_ADMIN),   putRules);
 router.put('/settings/features',        authenticate, requireRole(Role.SUPER_ADMIN),   putFeatures);
 router.put('/settings/business',        authenticate, requireRole(Role.SUPER_ADMIN),   putBusiness);
+router.put('/settings/theme',           authenticate, requireRole(Role.SUPER_ADMIN),   putTheme);         // the seasonal app theme (2026-10-21)
 router.put('/settings/welcome',         authenticate, requireRole(Role.SUPER_ADMIN),   putWelcome);       // the joining bonus (2026-10-17)
 router.put('/settings/points-expiry',   authenticate, requireRole(Role.SUPER_ADMIN),   putPointsExpiry);  // points expiry (2026-10-17)
 router.get('/settings/points-expiry/preview', authenticate, requireRole(Role.SUPER_ADMIN), getPointsExpiryPreview);

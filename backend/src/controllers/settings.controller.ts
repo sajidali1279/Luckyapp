@@ -1,6 +1,6 @@
 // HQ settings (2026-10-12, admin Settings): the rules, the feature switches, the business details, and the history of every settings change.
 // The app reads what it needs from GET /settings/app. The values themselves live in utils/appSettings.ts.
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { audit } from '../utils/audit';
@@ -9,6 +9,7 @@ import {
   RULES, FEATURES, RULES_KEY, FEATURES_KEY, BUSINESS_KEY, allRules, allFeatures, business, cleanRules, cleanFeatures, cleanBusiness, applySettings,
   WELCOME_KEY, WELCOME_EMOJIS, WELCOME_DAYS, WELCOME_MAX_ITEMS, WELCOME_MAX_SPEND, welcome, cleanWelcome, type WelcomeItem, type WelcomeStoreRule,
   EXPIRY_KEY, EXPIRY_LIMITS, pointsExpiry, cleanExpiry,
+  THEME_KEY, THEME_PRESETS, themeSetting, activeTheme, cleanTheme,
   rule, feature, type RuleKey, type RuleMeta, type FeatureKey,
 } from '../utils/appSettings';
 
@@ -26,6 +27,7 @@ export async function getSettings(_req: AuthRequest, res: Response) {
     rules: (Object.entries(RULES) as [RuleKey, RuleMeta][]).map(([key, m]) => ({ key, ...m, value: values[key] })),
     features: (Object.entries(FEATURES) as [FeatureKey, { label: string; help: string }][]).map(([key, m]) => ({ key, ...m, on: allFeatures()[key] })),
     business: business(),
+    theme: { ...themeSetting(), presets: THEME_PRESETS, active: activeTheme() },
     welcome: { ...welcome(), emojis: WELCOME_EMOJIS, minDays: WELCOME_DAYS.min, maxDays: WELCOME_DAYS.max, maxItems: WELCOME_MAX_ITEMS, maxSpend: WELCOME_MAX_SPEND },
     expiry: { ...pointsExpiry(), limits: EXPIRY_LIMITS },
   } });
@@ -113,6 +115,52 @@ export async function putBusiness(req: AuthRequest, res: Response) {
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'SETTINGS_BUSINESS_UPDATE', entity: 'app_config', entityId: BUSINESS_KEY,
     details: { summary: changed.map((k) => `${label[k]}: ${next[k] || '(none)'}`).join('; '), keys: changed }, storeId: null });
   res.json({ success: true, data: next, changed: true });
+}
+
+/** GET /app/theme (no sign-in, like the version check): what the phones show today. Nothing private in it. */
+export async function getAppTheme(_req: Request, res: Response) {
+  res.json({ success: true, data: activeTheme() });
+}
+
+/** PUT /settings/theme (HQ) { preset: 'NONE' | 'HALLOWEEN', startsOn?, endsOn?, intro?, background? }: the app's seasonal theme. */
+export async function putTheme(req: AuthRequest, res: Response) {
+  const b = (req.body ?? {}) as Record<string, unknown>;
+  const before = themeSetting();
+  const preset = b.preset === undefined ? before.preset : b.preset;
+  if (preset !== 'NONE' && !(THEME_PRESETS as readonly string[]).includes(preset as string)) { res.status(400).json({ success: false, error: 'Choose a theme from the list, or None.' }); return; }
+  for (const k of ['intro', 'background'] as const) {
+    if (b[k] !== undefined && typeof b[k] !== 'boolean') { res.status(400).json({ success: false, error: 'On or off must be true or false.' }); return; }
+  }
+  const day = (v: unknown, label: string): string | null | undefined => {
+    if (v === undefined) return undefined;
+    if (v === null || v === '') return null;
+    const ok = cleanTheme({ preset: 'HALLOWEEN', startsOn: v }).startsOn;
+    if (!ok) throw new Error(`${label} must be a real date.`);
+    return ok;
+  };
+  let startsOn: string | null | undefined, endsOn: string | null | undefined;
+  try { startsOn = day(b.startsOn, 'The start date'); endsOn = day(b.endsOn, 'The end date'); } catch (e: any) { res.status(400).json({ success: false, error: e.message }); return; }
+  const wantStart = startsOn === undefined ? before.startsOn : startsOn, wantEnd = endsOn === undefined ? before.endsOn : endsOn;
+  if (wantStart && wantEnd && wantEnd < wantStart) { res.status(400).json({ success: false, error: 'The end date cannot be before the start date.' }); return; }
+  const next = cleanTheme({
+    preset,
+    startsOn: wantStart,
+    endsOn: wantEnd,
+    intro: b.intro === undefined ? before.intro : b.intro,
+    background: b.background === undefined ? before.background : b.background,
+  });
+  const changes: string[] = [];
+  if (next.preset !== before.preset) changes.push(`Theme: ${before.preset === 'NONE' ? 'none' : before.preset.toLowerCase()} to ${next.preset === 'NONE' ? 'none' : next.preset.toLowerCase()}`);
+  if (next.startsOn !== before.startsOn) changes.push(`Starts: ${before.startsOn ?? 'now'} to ${next.startsOn ?? 'now'}`);
+  if (next.endsOn !== before.endsOn) changes.push(`Ends: ${before.endsOn ?? 'when switched off'} to ${next.endsOn ?? 'when switched off'}`);
+  if (next.intro !== before.intro) changes.push(`Opening animation: ${next.intro ? 'on' : 'off'}`);
+  if (next.background !== before.background) changes.push(`Background creatures: ${next.background ? 'on' : 'off'}`);
+  if (changes.length === 0) { res.json({ success: true, data: { ...next, presets: THEME_PRESETS, active: activeTheme(new Date(), next) }, changed: false }); return; }
+  await save(THEME_KEY, next);
+  applySettings({ theme: next });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'SETTINGS_THEME_UPDATE', entity: 'app_config', entityId: THEME_KEY,
+    details: { summary: changes.join('; '), keys: ['theme'] }, storeId: null });
+  res.json({ success: true, data: { ...next, presets: THEME_PRESETS, active: activeTheme(new Date(), next) }, changed: true });
 }
 
 /** PUT /settings/welcome (HQ) { enabled, days, items: [{ key?, name, nameEs, emoji, active }] }: the joining bonus. An item sent without
@@ -274,7 +322,7 @@ export async function getPointsExpiryPreview(req: AuthRequest, res: Response) {
 
 /** Every settings change HQ or the Dev Admin made, wherever it was made, and which Settings tab it belongs to. */
 export const SETTINGS_ACTIONS: Record<string, string> = {
-  SETTINGS_RULES_UPDATE: 'Rules', SETTINGS_FEATURES_UPDATE: 'Features', SETTINGS_BUSINESS_UPDATE: 'Business details', SETTINGS_WELCOME_UPDATE: 'Joining bonus',
+  SETTINGS_RULES_UPDATE: 'Rules', SETTINGS_FEATURES_UPDATE: 'Features', SETTINGS_BUSINESS_UPDATE: 'Business details', SETTINGS_WELCOME_UPDATE: 'Joining bonus', SETTINGS_THEME_UPDATE: 'App theme',
   SETTINGS_EXPIRY_UPDATE: 'Points expiry',
   RECEIPT_SCAN_SETTINGS: 'Receipt scanning', REFERRAL_SETTINGS_UPDATE: 'Refer a friend', DEAL_LIMITS: 'Deal limits',
   APP_VERSIONS_UPDATE: 'App updates', PROMOTION_SETTINGS: 'Featured ads', DEV_CUT_RATE_UPDATE: 'Default fee',

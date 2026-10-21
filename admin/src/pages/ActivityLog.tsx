@@ -116,6 +116,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   CAREERS_OPENING_UPDATED:      { label: 'Job Opening Changed', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
   CAREERS_OPENING_DELETED:      { label: 'Job Opening Deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
   ORDER_CATEGORY_UPDATED:       { label: 'Order Category Changed', color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
+  SETTINGS_THEME_UPDATE:      { label: 'App Theme Changed', color: '#1D3557', bg: '#0369a118', icon: '🎃' },
   ORDER_CATEGORY_DELETED:       { label: 'Order Category Deleted', color: '#c42130', bg: '#E6394618', icon: '🗂️' },
   BILLING_RECALCULATE:       { label: 'Recalculate Bill',       color: '#1D3557', bg: '#0369a118', icon: '🔄' },
   BILLING_MARK_PAID:         { label: 'Mark Bill Paid',         color: '#1a7f45', bg: '#2DC65318', icon: '💳' },

@@ -2617,6 +2617,9 @@
     "periodH2": "Jul to Dec {{year}}",
     "dealOfA11y": "Deal {{n}} of {{total}}"
   },
+  "halloween": {
+    "skip": "Tap to skip"
+  },
   "customerWelcomeBonus": {
     "spendNeeded": "Spend {{amount}} at {{store}} today to unlock your free item",
     "thisStore": "your store",

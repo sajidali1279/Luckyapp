@@ -1,6 +1,8 @@
 import { memo, useRef, useEffect } from 'react';
 import { View, Animated, Easing, StyleSheet, ViewStyle } from 'react-native';
 import { StarIcon, TagIcon, GiftIcon, PercentIcon } from './Icons';
+import { useAppTheme } from '../hooks/useAppTheme';
+import HalloweenWatermark from './halloween/HalloweenWatermark';
 
 type IconComponent = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number; filled?: boolean }>;
 
@@ -49,6 +51,8 @@ const FloatingIcon = memo(function FloatingIcon({ item, color }: { item: Item; c
  * dashboard's content — a shared ambient background used across the
  * Customer, Employee, and Manager home screens. */
 const DashboardWatermark = memo(function DashboardWatermark({ color }: { color: string }) {
+  const theme = useAppTheme();   // HQ's seasonal theme (2026-10-21): Halloween swaps these for bats, ghosts and spiders
+  if (theme.preset === 'HALLOWEEN' && theme.background) return <HalloweenWatermark />;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
       <View style={styles.opacityLayer}>
