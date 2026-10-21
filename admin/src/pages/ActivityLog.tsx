@@ -100,6 +100,22 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   // Billing
   BILLING_GENERATE:          { label: 'Make Bills',             color: '#1D3557', bg: '#0369a118', icon: '🧾' },
   BILLING_FILL_MISSING:      { label: 'Fill In Missing Bills',  color: '#1D3557', bg: '#0369a118', icon: '🧩' },
+  HOT_FOOD_ITEM_CREATED:        { label: 'Hot Food Item Added', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_UPDATED:        { label: 'Hot Food Item Changed', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_DELETED:        { label: 'Hot Food Item Deleted', color: '#c42130', bg: '#E6394618', icon: '🔥' },
+  HOT_FOOD_ITEM_STORE_ADDED:    { label: 'Hot Food Item Added to Store', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_STORE_REMOVED:  { label: 'Hot Food Item Removed from Store', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  MISSING_PERSON_POSTED:        { label: 'Missing Person Posted', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_EDITED:        { label: 'Missing Person Edited', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_CONFIRMED:     { label: 'Missing Person Rechecked', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_REPORTED:      { label: 'Missing Person Poster Reported', color: '#c42130', bg: '#E6394618', icon: '🔎' },
+  CAREERS_APPLICATION_UPDATED:  { label: 'Job Application Updated', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_APPLICATION_DELETED:  { label: 'Job Application Deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
+  CAREERS_OPENING_CREATED:      { label: 'Job Opening Added', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_OPENING_UPDATED:      { label: 'Job Opening Changed', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_OPENING_DELETED:      { label: 'Job Opening Deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
+  ORDER_CATEGORY_UPDATED:       { label: 'Order Category Changed', color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
+  ORDER_CATEGORY_DELETED:       { label: 'Order Category Deleted', color: '#c42130', bg: '#E6394618', icon: '🗂️' },
   BILLING_RECALCULATE:       { label: 'Recalculate Bill',       color: '#1D3557', bg: '#0369a118', icon: '🔄' },
   BILLING_MARK_PAID:         { label: 'Mark Bill Paid',         color: '#1a7f45', bg: '#2DC65318', icon: '💳' },
   BILLING_MARK_PERIOD_PAID:  { label: 'Mark Month Paid',        color: '#1a7f45', bg: '#2DC65318', icon: '💳' },
@@ -339,6 +355,21 @@ export default function ActivityLog() {
           </optgroup>
           <optgroup label="── Labels ──">
             {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','LABEL_CHANGE_REFUSED','PRINT_LABEL','STORE_LABEL_PRICE','STORE_LABEL_REMOVED','PUSH_LABEL_TO_ALL_STORES','LABEL_SALE_ENDED','LABELS_MERGED','LABELS_IMPORTED','DEAL_RECOMMENDATIONS_RESTORED','DEAL_LIMITS','DEALS_BULK','DEAL_LEARNING_RESET'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Hot food ──">
+            {['HOT_FOOD_ITEM_CREATED', 'HOT_FOOD_ITEM_UPDATED', 'HOT_FOOD_ITEM_DELETED', 'HOT_FOOD_ITEM_STORE_ADDED', 'HOT_FOOD_ITEM_STORE_REMOVED'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Missing persons ──">
+            {['MISSING_PERSON_POSTED', 'MISSING_PERSON_EDITED', 'MISSING_PERSON_CONFIRMED', 'MISSING_PERSON_REPORTED'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Careers & order lists ──">
+            {['CAREERS_APPLICATION_UPDATED', 'CAREERS_APPLICATION_DELETED', 'CAREERS_OPENING_CREATED', 'CAREERS_OPENING_UPDATED', 'CAREERS_OPENING_DELETED', 'ORDER_CATEGORY_UPDATED', 'ORDER_CATEGORY_DELETED'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

@@ -87,6 +87,9 @@ export async function reportMissing(req: AuthRequest, res: Response) {
   if (!reason) { res.status(400).json({ success: false, error: 'Say what is wrong with the poster.' }); return; }
   const p = await prisma.missingPerson.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, caseNumber: true } });
   if (!p) { res.status(404).json({ success: false, error: 'This poster is no longer up.' }); return; }
+  // One report per person per poster per day: a button that emails HQ every time could be used to flood the inbox
+  const already = await prisma.auditLog.findFirst({ where: { actorId: req.user!.id, action: 'MISSING_PERSON_REPORTED', entityId: p.id, createdAt: { gte: new Date(Date.now() - DAY) } }, select: { id: true } });
+  if (already) { res.json({ success: true, already: true }); return; }
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'MISSING_PERSON_REPORTED', entity: 'missing_person', entityId: p.id, details: { reason }, storeId: null });
   emailHQ(`A missing person poster was reported: ${p.name}`, 'Someone reported a problem with a missing person poster',
     [`Poster: ${p.name} (case ${p.caseNumber})`, `What they said: ${reason}`, 'Check it with the agency, and take it down or correct it if needed.'],
@@ -152,6 +155,7 @@ export async function replaceMissingPhoto(req: AuthRequest, res: Response) {
   const oldPhoto = p.photoPublicId;
   const updated = await prisma.missingPerson.update({ where: { id: p.id }, data: { photoUrl: photo.url, photoPublicId: photo.publicId } });
   await deletePhoto(oldPhoto);
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'MISSING_PERSON_EDITED', entity: 'missing_person', entityId: p.id, details: { changed: ['photo'] }, storeId: null });
   res.json({ success: true, data: updated });
 }
 

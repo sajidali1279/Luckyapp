@@ -810,6 +810,7 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
     },
     include: { _count: { select: { stores: true } } },
   });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_CREATED', entity: 'hot_food_item', entityId: item.id, details: { name: item.name, price: item.price } });
   res.status(201).json({ success: true, data: { ...item, storeCount: item._count.stores } });
 }
 
@@ -829,6 +830,9 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
     data,
     include: { _count: { select: { stores: true } } },
   });
+  const changes: Record<string, { was: unknown; now: unknown }> = {};
+  for (const k of Object.keys(data)) { const was = (existing as any)[k], now = (item as any)[k]; if (was !== now) changes[k] = { was, now }; }
+  if (Object.keys(changes).length) audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATED', entity: 'hot_food_item', entityId: id, details: { name: item.name, changes } });
   res.json({ success: true, data: { ...item, storeCount: item._count.stores } });
 }
 
@@ -845,6 +849,7 @@ export async function updateCatalogItemImage(req: AuthRequest, res: Response) {
     data: { imageUrl },
     include: { _count: { select: { stores: true } } },
   });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATED', entity: 'hot_food_item', entityId: id, details: { name: item.name, changes: { photo: { was: existing.imageUrl ? 'a photo' : 'none', now: 'a new photo' } } } });
   res.json({ success: true, data: { ...item, storeCount: item._count.stores } });
 }
 
@@ -854,6 +859,7 @@ export async function deleteCatalogItem(req: AuthRequest, res: Response) {
   const existing = await prisma.hotFoodCatalogItem.findUnique({ where: { id } });
   if (!existing) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
   await prisma.hotFoodCatalogItem.delete({ where: { id } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_DELETED', entity: 'hot_food_item', entityId: id, details: { name: existing.name, price: existing.price } });
   res.json({ success: true });
 }
 
@@ -873,8 +879,8 @@ export async function assignCatalogItemToStore(req: AuthRequest, res: Response) 
   const { storeId } = req.body;
   if (!storeId || typeof storeId !== 'string') { res.status(400).json({ success: false, error: 'storeId is required' }); return; }
   const [item, store] = await Promise.all([
-    prisma.hotFoodCatalogItem.findUnique({ where: { id }, select: { id: true } }),
-    prisma.store.findUnique({ where: { id: storeId }, select: { id: true } }),
+    prisma.hotFoodCatalogItem.findUnique({ where: { id }, select: { id: true, name: true } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true } }),
   ]);
   if (!item || !store) { res.status(404).json({ success: false, error: !item ? 'That item does not exist.' : 'That store does not exist.' }); return; }
 
@@ -883,15 +889,23 @@ export async function assignCatalogItemToStore(req: AuthRequest, res: Response) 
     create: { catalogItemId: id, storeId },
     update: {},
   });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_STORE_ADDED', entity: 'hot_food_item', entityId: id, details: { name: item.name }, storeId: store.id, storeName: store.name });
   res.status(201).json({ success: true });
 }
 
 // DELETE /hot-food/catalog/:id/stores/:storeId
 export async function removeCatalogItemFromStore(req: AuthRequest, res: Response) {
   const { id, storeId } = req.params;
-  await prisma.hotFoodCatalogStore.deleteMany({
+  const removed = await prisma.hotFoodCatalogStore.deleteMany({
     where: { catalogItemId: id, storeId },
   });
+  if (removed.count > 0) {
+    const [item, store] = await Promise.all([
+      prisma.hotFoodCatalogItem.findUnique({ where: { id }, select: { name: true } }),
+      prisma.store.findUnique({ where: { id: storeId }, select: { name: true } }),
+    ]);
+    audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_STORE_REMOVED', entity: 'hot_food_item', entityId: id, details: { name: item?.name }, storeId, storeName: store?.name });
+  }
   res.json({ success: true });
 }
 
