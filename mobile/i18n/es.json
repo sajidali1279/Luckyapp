@@ -2621,6 +2621,7 @@
     "skip": "Toca para saltar"
   },
   "customerWelcomeBonus": {
+    "claimFailed": "No se pudo elegir ese artículo. Inténtalo de nuevo.",
     "spendNeeded": "Gasta {{amount}} hoy en {{store}} para desbloquear tu artículo gratis",
     "thisStore": "tu tienda",
     "spendProgress": "{{spent}} de {{amount}} gastados hoy. Elige tu artículo ahora, el cajero te lo da cuando llegues.",

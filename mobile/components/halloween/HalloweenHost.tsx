@@ -17,7 +17,9 @@ export default function HalloweenHost({ children }: { children: ReactNode }) {
   const pop = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (decided.current || theme.preset !== 'HALLOWEEN' || !theme.intro) return;
+    // Wait for the server's answer: the one kept on the phone has yesterday's date, and deciding on it meant the opening played on the
+    // first day only (it looked "already played today" and was never looked at again)
+    if (decided.current || !theme.settled || theme.preset !== 'HALLOWEEN' || !theme.intro) return;
     decided.current = true;
     let cancelled = false;
     (async () => {
@@ -31,7 +33,7 @@ export default function HalloweenHost({ children }: { children: ReactNode }) {
       } catch { /* the animation is a treat, never a reason to fail */ }
     })();
     return () => { cancelled = true; };
-  }, [theme.preset, theme.intro, theme.today]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [theme.preset, theme.intro, theme.today, theme.settled]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPop = () => Animated.spring(pop, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start();
 

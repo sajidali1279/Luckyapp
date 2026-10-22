@@ -2,7 +2,6 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest as Request } from '../types';
 import { storeDateKey, storeDaysBetween, storeDayStart } from '../utils/storeTime';
-import { AWAITING_DECISION } from '../utils/unfinishedSales';
 import { canUseStore } from '../utils/storeAccess';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { resolveServedBy, servedByDetails, ServedBy } from '../utils/servedBy';
@@ -33,12 +32,12 @@ const choices = (storeId?: string) => { const keys = welcomeAt(storeId).itemKeys
 const uuidOnly = (v: unknown): string | undefined => (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : undefined);
 
 /**
- * What the customer has spent at this store today (the store's day): approved sales and sales waiting for a manager with their photo.
+ * What the customer has spent at this store today (the store's day): approved sales only (a sale held for a manager counts once it is approved, so a held or later rejected sale cannot unlock the item).
  * Not a reward line, not test data, and a sale that was never finished, rejected or voided does not count (2026-10-20, "spend $X to get your free item").
  */
 export async function welcomeSpentToday(customerId: string, storeId: string, now: Date = new Date()): Promise<number> {
   const r = await prisma.pointsTransaction.aggregate({
-    where: { customerId, storeId, createdAt: { gte: storeDayStart(now) }, isTestData: false, challengeId: null, referralId: null, OR: [{ status: 'APPROVED' }, AWAITING_DECISION] },
+    where: { customerId, storeId, createdAt: { gte: storeDayStart(now) }, isTestData: false, challengeId: null, referralId: null, status: 'APPROVED' },
     _sum: { purchaseAmount: true },
   });
   return Math.round((r._sum.purchaseAmount ?? 0) * 100) / 100;
@@ -187,8 +186,14 @@ export async function claimWelcomeBonus(req: Request, res: Response) {
       claimCode = generateCode();
     }
 
+    // A double tap sends two claims at once: the second hits the one-per-day rule. Answer it with the claim that exists, not a server error.
     const claim = await prisma.welcomeBonusClaim.create({
       data: { customerId, day: dayNumber, rewardType, claimCode },
+    }).catch(async (e: any) => {
+      if (e?.code !== 'P2002') throw e;
+      const again = await prisma.welcomeBonusClaim.findUnique({ where: { customerId_day: { customerId, day: dayNumber } } });
+      if (!again) throw e;
+      return again;
     });
 
     return res.json({

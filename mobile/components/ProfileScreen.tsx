@@ -173,8 +173,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       // Refresh user from server to get the real avatarUrl regardless of response shape
       const meRes = await authApi.getMe();
       const fresh = meRes.data?.data;
-      if (fresh && user && token) {
-        setAuth({ ...user, avatarUrl: fresh.avatarUrl }, token);
+      const cur = useAuthStore.getState();   // as it is now: a balance refresh may have landed while the photo was uploading
+      if (fresh && cur.user && cur.token) {
+        cur.setAuth({ ...cur.user, avatarUrl: fresh.avatarUrl }, cur.token);
       }
       Toast.show({ type: 'success', text1: t('profile.photoUpdatedToast') });
     } catch (err: any) {
@@ -217,7 +218,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     setAvatarUploading(true);
     try {
       await authApi.removeAvatar();
-      if (user && token) setAuth({ ...user, avatarUrl: undefined }, token);
+      { const cur = useAuthStore.getState(); if (cur.user && cur.token) cur.setAuth({ ...cur.user, avatarUrl: undefined }, cur.token); }
       Toast.show({ type: 'success', text1: t('profile.photoRemovedToast') });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.photoRemoveFailedToast') });
@@ -242,7 +243,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     setLoading(true);
     try {
       await authApi.updateProfile(name.trim());
-      if (user && token) setAuth({ ...user, name: name.trim() }, token);
+      { const cur = useAuthStore.getState(); if (cur.user && cur.token) cur.setAuth({ ...cur.user, name: name.trim() }, cur.token); }
       Toast.show({ type: 'success', text1: t('profile.nameUpdatedToast') });
       setPanel(null);
     } catch (err: any) {

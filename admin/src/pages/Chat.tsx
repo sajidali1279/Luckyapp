@@ -132,15 +132,17 @@ export default function Chat() {
     enabled: !!selectedStoreId,
   });
 
+  // Order matters: when the store changes, clear first and then load, so a store whose messages are already cached shows them
+  // (the clear used to run last and wipe them, and with no timestamp the poll never started)
+  useEffect(() => { setMessages([]); setLastTimestamp(null); }, [selectedStoreId]);
+
   useEffect(() => {
     if (initialData?.data?.data) {
       const msgs: Message[] = initialData.data.data;
       setMessages(msgs);
       setLastTimestamp(msgs[msgs.length - 1]?.createdAt ?? null);
     }
-  }, [initialData]);
-
-  useEffect(() => { setMessages([]); setLastTimestamp(null); }, [selectedStoreId]);
+  }, [initialData, selectedStoreId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 

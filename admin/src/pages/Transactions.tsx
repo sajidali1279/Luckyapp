@@ -140,8 +140,12 @@ export default function Transactions() {
   const [page, setPage] = useState<number>(() => { const p = Number(paramOr('page', '1')); return Number.isInteger(p) && p >= 1 ? p : 1; });
 
   // The search and amount boxes commit 300ms after the last keystroke, so a fetch does not fire on every character.
+  const firstDebounce = useRef(true);
   useEffect(() => {
-    const t = setTimeout(() => { setSearch(searchInput.trim()); setMinAmount(minAmountInput); setMaxAmount(maxAmountInput); setPage(1); }, 300);
+    const first = firstDebounce.current;
+    firstDebounce.current = false;
+    // The first run (opening the page) must not send a bookmarked ?page=3 back to page 1; only a changed filter does
+    const t = setTimeout(() => { setSearch(searchInput.trim()); setMinAmount(minAmountInput); setMaxAmount(maxAmountInput); if (!first) setPage(1); }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput, minAmountInput, maxAmountInput]);

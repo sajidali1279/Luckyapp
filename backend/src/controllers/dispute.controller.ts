@@ -11,6 +11,7 @@ import { DELETED_PHONE_PREFIX } from '../utils/accountDeletion';
 import { emailHQ } from '../utils/adminEmail';
 import { rule } from '../utils/appSettings';
 import { addLot } from '../utils/pointLots';
+import { canUseStore } from '../utils/storeAccess';
 
 const submitSchema = z.object({
   storeId:       z.string().uuid().optional(),
@@ -128,7 +129,7 @@ export async function getStoreDisputes(req: AuthRequest, res: Response) {
   const { status } = req.query as { status?: string };
 
   const user = req.user!;
-  if (user.role === Role.STORE_MANAGER && !user.storeIds?.includes(storeId)) {
+  if (user.role === Role.STORE_MANAGER && !(user.storeIds?.includes(storeId) || await canUseStore(user.id, user.role, storeId))) {
     res.status(403).json({ success: false, error: 'Not authorized for this store' });
     return;
   }
@@ -160,7 +161,7 @@ export async function getStorePendingDisputeCount(req: AuthRequest, res: Respons
   const { storeId } = req.params;
 
   const user = req.user!;
-  if (user.role === Role.STORE_MANAGER && !user.storeIds?.includes(storeId)) {
+  if (user.role === Role.STORE_MANAGER && !(user.storeIds?.includes(storeId) || await canUseStore(user.id, user.role, storeId))) {
     res.status(403).json({ success: false, error: 'Not authorized for this store' });
     return;
   }
@@ -275,7 +276,7 @@ export async function resolveDispute(req: AuthRequest, res: Response) {
   }
 
   const user = req.user!;
-  if (user.role === Role.STORE_MANAGER && !user.storeIds?.includes(dispute.storeId)) {
+  if (user.role === Role.STORE_MANAGER && !(user.storeIds?.includes(dispute.storeId) || await canUseStore(user.id, user.role, dispute.storeId))) {
     res.status(403).json({ success: false, error: 'Not authorized for this store' });
     return;
   }

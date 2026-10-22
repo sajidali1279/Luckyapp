@@ -2621,6 +2621,7 @@
     "skip": "Tap to skip"
   },
   "customerWelcomeBonus": {
+    "claimFailed": "Could not choose that item. Please try again.",
     "spendNeeded": "Spend {{amount}} at {{store}} today to unlock your free item",
     "thisStore": "your store",
     "spendProgress": "{{spent}} of {{amount}} spent today. Choose your item now, the cashier gives it once you reach it.",

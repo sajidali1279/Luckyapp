@@ -71,8 +71,10 @@ export default function ScanReceiptScreen() {
     }
   }
 
+  const claimingRef = useRef(false);   // set on the first tap: a second one must not send a second claim and replace the success
   async function handleClaim() {
-    if (!tokenData) return;
+    if (!tokenData || claimingRef.current) return;
+    claimingRef.current = true;
     setClaiming(true);
     try {
       const { data: res } = await receiptApi.selfGrant(tokenData.tokenId);
@@ -85,6 +87,7 @@ export default function ScanReceiptScreen() {
       setErrorMsg(err.response?.data?.error || t('customerScanReceipt.claimFailedFallback'));
       setStep('error');
     } finally {
+      claimingRef.current = false;
       setClaiming(false);
     }
   }

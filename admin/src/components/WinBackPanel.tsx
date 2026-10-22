@@ -38,7 +38,7 @@ export default function WinBackPanel() {
   const [sending, setSending] = useState(false);
   const [justSent, setJustSent] = useState<string | null>(null);
 
-  const storesQ = useQuery({ queryKey: ['stores-all'], queryFn: () => storesApi.getAll().then((r) => (r.data.data ?? []) as { id: string; name: string; isActive?: boolean }[]) });
+  const storesQ = useQuery({ queryKey: ['stores-list'], queryFn: () => storesApi.getAll().then((r) => (r.data.data ?? []) as { id: string; name: string; isActive?: boolean }[]) });
   const stores = (storesQ.data ?? []).filter((s) => s.isActive !== false);
   // The preview follows the choices, a moment after the last change
   const [askFor, setAskFor] = useState({ days: 30, storeId: '' });

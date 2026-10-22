@@ -175,7 +175,7 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input style={{ ...INPUT, width: 100 }} inputMode="decimal" placeholder="$0.00" aria-label="Credit in dollars" value={gAmt} maxLength={5} onChange={(e) => setGAmt(e.target.value.replace(/[^0-9.]/g, ''))} />
             <input style={{ ...INPUT, flex: '1 1 160px', width: 'auto' }} placeholder="Reason (required)" aria-label="Reason" value={gReason} maxLength={300} onChange={(e) => setGReason(e.target.value)} />
-            <Button variant="primary" disabled={!gOk || goodwill.isPending} onClick={() => goodwill.mutate()}>{goodwill.isPending ? 'Adding…' : 'Add credit'}</Button>
+            <Button variant="primary" disabled={!gOk || goodwill.isPending} onClick={() => { if (window.confirm(`Give this customer a $${amount.toFixed(2)} credit?\n\nReason: ${gReason.trim()}`)) goodwill.mutate(); }}>{goodwill.isPending ? 'Adding…' : 'Add credit'}</Button>
           </div>
           {gAmt.trim() !== '' && amount > limits.goodwillCreditMax && <div role="alert" style={{ color: C.danger, fontSize: FONT.small, marginTop: 6 }}>At most ${limits.goodwillCreditMax}. For a larger amount tied to a purchase, use a missing-points report.</div>}
         </Card>

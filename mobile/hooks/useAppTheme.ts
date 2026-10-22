@@ -6,7 +6,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useQuery } from '@tanstack/react-query';
 import { appThemeApi } from '../services/api';
 
-export interface AppTheme { preset: 'NONE' | 'HALLOWEEN'; intro: boolean; background: boolean; today: string; until: string | null }
+export interface AppTheme { preset: 'NONE' | 'HALLOWEEN'; intro: boolean; background: boolean; today: string; until: string | null; settled?: boolean }
 export const NO_THEME: AppTheme = { preset: 'NONE', intro: false, background: false, today: '', until: null };
 const KEY = 'app_theme_last';
 
@@ -25,7 +25,7 @@ export function useAppTheme(): AppTheme {
   });
   useEffect(() => { if (q.data) SecureStore.setItemAsync(KEY, JSON.stringify(q.data)).catch(() => {}); }, [q.data]);
 
-  const theme = q.data ?? kept ?? NO_THEME;
+  const theme: AppTheme = { ...(q.data ?? kept ?? NO_THEME), settled: q.isSuccess || q.isError };   // settled: the server has answered (or could not)
   // A kept answer that is past its end date (by the phone's own day, with a day of slack for the time zone) is no longer true
   if (!q.data && theme.until && theme.until < dayKey(new Date(Date.now() - 86_400_000))) return NO_THEME;
   return theme;

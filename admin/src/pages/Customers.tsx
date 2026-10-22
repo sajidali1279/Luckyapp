@@ -12,6 +12,7 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { showPhone } from '../lib/phoneText';
 import { storeDayLong, storeDayTime, storeToday } from '../lib/storeDates';
+import { useLimits } from '../components/SettingsCards';
 import { useSingleFlight } from '../hooks/useSingleFlight';
 import { PageHeader, HeaderStat, Button, Tabs } from '../components/kit';
 import { Download } from 'lucide-react';
@@ -36,13 +37,12 @@ const GREEN_TEXT = '#17663a';
 const RED_TEXT = '#a51b28';
 const AMBER_TEXT = '#8a5300';
 
-const CREDIT_MAX = 50;
 /** The problem with an amount typed as a credit, or null when it is a good one (or still empty). Mirrors the server's rule. */
-function creditProblem(text: string): string | null {
+function creditProblem(text: string, max: number): string | null {
   const t = text.trim();
   if (t === '') return null;
-  if (!/^(\d{1,3}(\.\d{1,2})?|\.\d{1,2})$/.test(t) || !(Number(t) > 0)) return `Enter dollars and cents, from $0.01 to $${CREDIT_MAX}.`;
-  if (Number(t) > CREDIT_MAX) return `The most one report can credit is $${CREDIT_MAX}.`;
+  if (!/^(\d{1,3}(\.\d{1,2})?|\.\d{1,2})$/.test(t) || !(Number(t) > 0)) return `Enter dollars and cents, from $0.01 to $${max}.`;
+  if (Number(t) > max) return `The most one report can credit is $${max}.`;
   return null;
 }
 
@@ -215,7 +215,8 @@ export default function Customers() {
     return () => clearTimeout(timer);
   }, [highlightId, disputes, customers]);
 
-  const creditIssue = creditProblem(creditAmt);
+  const limits = useLimits();   // HQ's credit limit (Settings), not a number fixed here
+  const creditIssue = creditProblem(creditAmt, limits.disputeCreditMax);
   const creditNumber = Number(creditAmt);
   const creditOk = creditAmt.trim() !== '' && creditIssue === null;
   const lastFour = deleteTarget ? deleteTarget.phone.replace(/\D/g, '').slice(-4) : '';
@@ -633,7 +634,7 @@ export default function Customers() {
           </div>
           <form style={s.modalForm} onSubmit={(e) => e.preventDefault()} noValidate>
             <div>
-              <label style={s.fieldLabel} htmlFor="dispute-credit">Credit to award, from $0.01 to ${CREDIT_MAX} (needed to approve)</label>
+              <label style={s.fieldLabel} htmlFor="dispute-credit">Credit to award, from $0.01 to ${limits.disputeCreditMax} (needed to approve)</label>
               <input
                 id="dispute-credit"
                 style={s.fieldInput}

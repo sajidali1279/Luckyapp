@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { Plus, X, UserSearch } from 'lucide-react';
 import { missingApi, storesApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
-import { storeDay } from '../lib/storeDates';
+import { storeDay, storeToday } from '../lib/storeDates';
 import { C, FONT, INPUT } from '../lib/theme';
 import { Page, PageHeader, Card, Button, Badge, Field, Notice, HowItWorks, EmptyState, SectionTitle } from '../components/kit';
 import ConfirmModal from '../components/ConfirmModal';
@@ -154,7 +154,7 @@ export default function MissingPersons() {
                 <input type="checkbox" checked={f.urgent} onChange={(e) => set({ urgent: e.target.checked })} /> Urgent (AMBER Alert or endangered): shown first, in red
               </label>
             </div>
-            <Field label="Last seen on" htmlFor="mp-date" required><input id="mp-date" type="date" style={INPUT} value={f.lastSeenAt} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set({ lastSeenAt: e.target.value })} /></Field>
+            <Field label="Last seen on" htmlFor="mp-date" required><input id="mp-date" type="date" style={INPUT} value={f.lastSeenAt} max={storeToday()} onChange={(e) => set({ lastSeenAt: e.target.value })} /></Field>
             <Field label="Last seen at" htmlFor="mp-place" required hint="As the police poster says, e.g. Katy Mills, Katy TX"><input id="mp-place" style={INPUT} maxLength={120} value={f.lastSeenPlace} onChange={(e) => set({ lastSeenPlace: e.target.value })} /></Field>
             <Field label="Description (English)" htmlFor="mp-desc" hint="Height, hair, clothing, vehicle: only what the official poster says."><textarea id="mp-desc" style={{ ...INPUT, minHeight: 80 }} maxLength={600} value={f.description} onChange={(e) => set({ description: e.target.value })} /></Field>
             <Field label="Description (Spanish, optional)" htmlFor="mp-desc-es"><textarea id="mp-desc-es" style={{ ...INPUT, minHeight: 80 }} maxLength={600} value={f.descriptionEs} onChange={(e) => set({ descriptionEs: e.target.value })} /></Field>

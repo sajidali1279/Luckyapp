@@ -4,6 +4,7 @@ import { Text } from './ScaledText';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 import { welcomeBonusApi } from '../services/api';
 import { COLORS } from '../constants';
 
@@ -39,6 +40,10 @@ export default function WelcomeBonusCard({ storeId, storeName }: { storeId?: str
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['welcome-bonus'] });
       setShowModal(true);
+    },
+    onError: (e: any) => {
+      Toast.show({ type: 'error', text1: e?.response?.data?.error || t('customerWelcomeBonus.claimFailed') });
+      qc.invalidateQueries({ queryKey: ['welcome-bonus'] });   // the list may have changed (an item no longer offered)
     },
   });
 

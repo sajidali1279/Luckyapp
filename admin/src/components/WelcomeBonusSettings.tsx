@@ -35,7 +35,7 @@ export default function WelcomeBonusSettings() {
   const [spend, setSpend] = useState('0');
   const [rows, setRows] = useState<Record<string, StoreRow>>({});
   const [askOff, setAskOff] = useState(false);
-  const storesQ = useQuery({ queryKey: ['stores-all'], queryFn: () => storesApi.getAll().then((r) => (r.data.data ?? []) as { id: string; name: string; isActive?: boolean }[]) });
+  const storesQ = useQuery({ queryKey: ['stores-list'], queryFn: () => storesApi.getAll().then((r) => (r.data.data ?? []) as { id: string; name: string; isActive?: boolean }[]) });
   const stores = (storesQ.data ?? []).filter((s) => s.isActive !== false);
   useEffect(() => { if (saved) { setDays(String(saved.days)); setItems(saved.items.map((i) => ({ ...i }))); setSpend(String(saved.minSpend ?? 0)); setRows(rowsFrom(saved.stores ?? {})); } }, [q.data]);   // eslint-disable-line react-hooks/exhaustive-deps
 

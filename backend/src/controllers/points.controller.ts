@@ -36,6 +36,7 @@ import { customerSearchWhere } from '../utils/customerSearch';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { useLots, voidSaleLots, expiredPartOfSale, expirySummary, lotsMatch, undoExpiry } from '../utils/pointLots';
 import { UNFINISHED, SHOWN, AWAITING_DECISION, NOT_A_SALE, cancelUnfinished } from '../utils/unfinishedSales';
+import { canUseStore } from '../utils/storeAccess';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
 const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
@@ -313,7 +314,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   }
   // Store managers can only approve transactions belonging to their own store
   if (canOverride && !hasMinRole(employee.role, Role.SUPER_ADMIN)) {
-    if (!employee.storeIds?.includes(transaction.storeId)) {
+    if (!(employee.storeIds?.includes(transaction.storeId) || await canUseStore(employee.id, employee.role, transaction.storeId))) {
       res.status(403).json({ success: false, error: 'No access to this store' });
       return;
     }
@@ -534,7 +535,8 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
 // Customer: view their own points history
 export async function getMyTransactions(req: AuthRequest, res: Response) {
   const { page = '1', limit = '20' } = req.query as { page?: string; limit?: string };
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const pageNo = Math.max(1, parseInt(page) || 1), perPage = Math.min(100, Math.max(1, parseInt(limit) || 20));   // a bad or huge value no longer breaks the query or returns everything
+  const skip = (pageNo - 1) * perPage;
 
   // Not a sale still waiting for its photo, nor a cancelled one (2026-10-18); and only the fields the customer's history uses: never
   // the review flags, the platform fee, the receipt fingerprint, a void reason or the staff's notes.
@@ -544,7 +546,7 @@ export async function getMyTransactions(req: AuthRequest, res: Response) {
       where: mine,
       orderBy: { createdAt: 'desc' },
       skip,
-      take: parseInt(limit),
+      take: perPage,
       select: {
         id: true, storeId: true, purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true, cashbackRate: true, category: true, status: true,
         isGas: true, gasGallons: true, gasPricePerGallon: true, receiptImageUrl: true, offerId: true, offerCashback: true, challengeId: true,
@@ -555,7 +557,7 @@ export async function getMyTransactions(req: AuthRequest, res: Response) {
     prisma.pointsTransaction.count({ where: mine }),
   ]);
 
-  res.json({ success: true, data: { transactions, total, page: parseInt(page), limit: parseInt(limit) } });
+  res.json({ success: true, data: { transactions, total, page: pageNo, limit: perPage } });
 }
 
 // A reason typed on Reject is optional, kept in the audit log, and told to the customer when given (a plain
@@ -585,7 +587,7 @@ export async function rejectTransaction(req: AuthRequest, res: Response) {
 
   // Store managers can only reject transactions belonging to their own store
   if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
-    if (!req.user!.storeIds?.includes(transaction.storeId)) {
+    if (!(req.user!.storeIds?.includes(transaction.storeId) || await canUseStore(req.user!.id, req.user!.role, transaction.storeId))) {
       res.status(403).json({ success: false, error: 'No access to this store' });
       return;
     }
@@ -640,7 +642,7 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
   }
 
   if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
-    if (!req.user!.storeIds?.includes(transaction.storeId)) {
+    if (!(req.user!.storeIds?.includes(transaction.storeId) || await canUseStore(req.user!.id, req.user!.role, transaction.storeId))) {
       res.status(403).json({ success: false, error: 'No access to this store' });
       return;
     }
@@ -827,6 +829,7 @@ export async function getStoreTransactions(req: AuthRequest, res: Response) {
     page?: string;
     limit?: string;
   };
+  const pageNo = Math.max(1, parseInt(page) || 1), perPage = Math.min(100, Math.max(1, parseInt(limit) || 20));
   // NEEDS_REVIEW = held or waiting sales that have their photo (what the managers are pushed about); an unknown status is a 400, not a
   // database error. Sales still waiting for their photo, and cancelled ones, show only under their own CANCELLED filter.
   if (status && status !== NEEDS_REVIEW && !(Object.values(TransactionStatus) as string[]).includes(status)) {
@@ -837,14 +840,14 @@ export async function getStoreTransactions(req: AuthRequest, res: Response) {
     : status === TransactionStatus.CANCELLED ? { storeId, status: TransactionStatus.CANCELLED }
     : { storeId, ...SHOWN, ...(status ? { status: status as TransactionStatus } : {}) };
 
-  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const skip = (pageNo - 1) * perPage;
 
   const [transactions, total] = await prisma.$transaction([
     prisma.pointsTransaction.findMany({
       where: storeWhere,
       orderBy: { createdAt: 'desc' },
       skip,
-      take: parseInt(limit),
+      take: perPage,
       include: {
         customer: { select: { id: true, name: true, phone: true } },
         grantedBy: { select: { id: true, name: true, phone: true } },
@@ -854,7 +857,7 @@ export async function getStoreTransactions(req: AuthRequest, res: Response) {
     prisma.pointsTransaction.count({ where: storeWhere }),
   ]);
 
-  res.json({ success: true, data: { transactions, total, page: parseInt(page), limit: parseInt(limit) } });
+  res.json({ success: true, data: { transactions, total, page: pageNo, limit: perPage } });
 }
 
 // SuperAdmin+: platform-wide summary stats. "Today" and "this month" are cut on the store calendar
@@ -1468,7 +1471,7 @@ export async function exportTransactionsCsv(req: AuthRequest, res: Response) {
   const user = req.user!;
   // StoreManager can only export their own store
   if (user.role === Role.STORE_MANAGER) {
-    if (!storeId || !user.storeIds?.includes(storeId)) {
+    if (!storeId || !(user.storeIds?.includes(storeId) || await canUseStore(user.id, user.role, storeId))) {
       res.status(403).json({ success: false, error: 'Specify a store you manage' });
       return;
     }

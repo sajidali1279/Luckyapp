@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
 import { registerPushToken } from '../utils/pushRegistration';
 import AppLoader from '../components/AppLoader';
+import { queryClient } from '../services/queryClient';
 import ErrorBoundary from '../components/ErrorBoundary';
 import UpdatePrompt from '../components/UpdatePrompt';
 import { loadSavedLanguage } from '../i18n';
@@ -18,7 +19,6 @@ import { loadSavedLanguage } from '../i18n';
 // Hold the splash until we're ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const queryClient = new QueryClient();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

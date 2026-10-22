@@ -15,6 +15,7 @@ import { COLORS } from '../constants';
 import { useTranslation } from 'react-i18next';
 import FocusStatusBar from '../components/FocusStatusBar';
 import { useAppSettings } from '../hooks/useAppSettings';
+import { getRoleHomeRoute } from '../utils/roleHome';
 
 const { width } = Dimensions.get('window');
 
@@ -149,13 +150,7 @@ export default function RoleTourScreen() {
 
   async function handleFinish() {
     await AsyncStorage.setItem(`tour_seen_${role}`, 'true');
-    if (role === 'STORE_MANAGER') {
-      router.replace('/(manager)/home');
-    } else if (['EMPLOYEE', 'DEV_ADMIN', 'SUPER_ADMIN'].includes(role)) {
-      router.replace('/(employee)/home');
-    } else {
-      router.replace('/(customer)/home');
-    }
+    router.replace(getRoleHomeRoute(user));   // the same split as the rest of the app (HQ roles went to the employee home from here)
   }
 
   return (

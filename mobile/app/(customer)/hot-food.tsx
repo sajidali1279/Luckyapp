@@ -370,6 +370,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
     }).catch(() => {});
   }, [updateBalance]);
 
+  const placingRef = useRef(false);   // set on the first tap: isPending only blocks the next render, so a fast double tap sent two orders
   const placeMutation = useMutation({
     mutationFn: () => hotFoodApi.placeOrder({
       storeId: store.id,
@@ -410,6 +411,11 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
       Toast.show({ type: 'error', text1: d?.error || t('customerHotFood.placeOrderError') });
     },
   });
+  const placeOnce = () => {
+    if (placingRef.current) return;
+    placingRef.current = true;
+    placeMutation.mutate(undefined, { onSettled: () => { placingRef.current = false; } });
+  };
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
@@ -492,11 +498,11 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
                 if (store.distance != null && store.distance > FAR_MILES) {
                   Alert.alert(t('customerHotFood.farTitle'), t('customerHotFood.farBody', { store: store.name, distance: milesText(store.distance) }), [
                     { text: t('customerHotFood.farCancel'), style: 'cancel' },
-                    { text: t('customerHotFood.farConfirm'), onPress: () => placeMutation.mutate() },
+                    { text: t('customerHotFood.farConfirm'), onPress: placeOnce },
                   ]);
                   return;
                 }
-                placeMutation.mutate();
+                placeOnce();
               }}
               disabled={placeMutation.isPending || !!closedText}
               activeOpacity={0.85}

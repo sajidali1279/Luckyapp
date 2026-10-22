@@ -139,15 +139,17 @@ export default function ChatScreen() {
     enabled: !!selectedStoreId,
   });
 
+  // Order matters: on a store change, clear first and then load, so a store whose messages are already cached shows them (the clear
+  // used to run last and wipe them, and with no timestamp the poll never started)
+  useEffect(() => { setMessages([]); setLastTimestamp(null); }, [selectedStoreId]);
+
   useEffect(() => {
     if (initialData?.data?.data) {
       const msgs: Message[] = initialData.data.data;
       setMessages(msgs);
       setLastTimestamp(msgs[msgs.length - 1]?.createdAt ?? null);
     }
-  }, [initialData]);
-
-  useEffect(() => { setMessages([]); setLastTimestamp(null); }, [selectedStoreId]);
+  }, [initialData, selectedStoreId]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -161,7 +163,8 @@ export default function ChatScreen() {
       const res = await chatApi.getMessages(selectedStoreId, lastTimestamp);
       const newMsgs: Message[] = res.data?.data || [];
       if (newMsgs.length > 0) {
-        setMessages((prev) => [...prev, ...newMsgs]);
+        // Never twice: a poll that was in flight while we sent can bring our own message back
+        setMessages((prev) => { const seen = new Set(prev.map((m) => m.id)); const add = newMsgs.filter((m) => !seen.has(m.id)); return add.length ? [...prev, ...add] : prev; });
         setLastTimestamp(newMsgs[newMsgs.length - 1]!.createdAt);
       }
       setPollOffline(false);
@@ -193,8 +196,10 @@ export default function ChatScreen() {
       const res = await chatApi.sendMessage(selectedStoreId, text);
       const newMsg: Message = res.data.data;
       setInputText('');
-      setMessages((prev) => [...prev, newMsg]);
-      setLastTimestamp(newMsg.createdAt);
+      setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
+      // The poll cursor stays where it was: moving it to our message skipped any teammate's message sent just before it. (An empty chat
+      // has no cursor yet, so it starts at ours.)
+      setLastTimestamp((prev) => prev ?? newMsg.createdAt);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } catch (err: any) {
       // Keep the typed text in the input — don't make the cashier retype a lost message

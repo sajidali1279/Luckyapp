@@ -2,7 +2,7 @@
 // held for a manager, not finished, rejected). A receipt the customer left behind can be added to their sale from here, without the QR:
 // only within HQ's minutes of the sale (default 60), a few a day (default 3), always with a new receipt photo; HQ's amount and over
 // (default $50) waits for a manager, and the customer is told who added it. Backend: getCashierRecent and initiateGrant (addToSaleId).
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -20,6 +20,7 @@ import { ClockIcon } from '../../components/Icons';
 import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
+import ModalToastHost from '../../components/ModalToastHost';
 
 type Line = { id: string; category: string; purchaseAmount: number; points: number; status: 'CREDITED' | 'HELD' | 'NOT_FINISHED' | 'REJECTED' | 'VOIDED'; addOn: boolean };
 type Sale = { saleId: string; storeId: string; createdAt: string; store: string | null; customer: { name: string; last4: string }; lines: Line[]; canAddReceipt: boolean; addReceiptUntil: string };
@@ -66,10 +67,12 @@ export default function RecentScreen() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<string | null>(null);   // the line, once saved: a retried upload reuses it
   const [busy, setBusy] = useState(false);
+  const sending = useRef(false);   // set on the first tap: `busy` only disables the button on the next render
   const isGas = category === 'GAS' || category === 'DIESEL';
   const amountNum = parseFloat(amount);
   const open = (s: Sale) => { setAdding(s); setCategory('GROCERIES'); setAmount(''); setGallons(''); setPhoto(null); setCreatedId(null); };
   const close = () => {
+    if (sending.current) return;   // not while the receipt is on its way: cancelling the line now would race the upload
     // Saved but no photo: it is cancelled now (the server would after 30 minutes anyway)
     if (createdId) pointsApi.cancelGrant([createdId]).catch(() => {});
     setAdding(null);
@@ -85,6 +88,8 @@ export default function RecentScreen() {
     if (!(amountNum > 0)) { Toast.show({ type: 'error', text1: t('employeeRecent.needAmount') }); return; }
     if (isGas && !(parseFloat(gallons) > 0)) { Toast.show({ type: 'error', text1: t('employeeScan.enterGallons') }); return; }
     if (!photo) { Toast.show({ type: 'error', text1: t('employeeRecent.needPhoto') }); return; }
+    if (sending.current) return;
+    sending.current = true;
     setBusy(true);
     try {
       let id = createdId;
@@ -109,9 +114,10 @@ export default function RecentScreen() {
     } catch (e: any) {
       Toast.show({ type: 'error', text1: e?.response?.data?.error || t('employeeRecent.failed') });
       if (e?.response?.data?.code === 'SALE_CANCELLED') setCreatedId(null);
-    } finally { setBusy(false); }
+    } finally { sending.current = false; setBusy(false); }
   };
   const confirmClose = () => {
+    if (sending.current) return;
     if (!createdId && !photo && !amount) { close(); return; }
     Alert.alert(t('employeeRecent.discardTitle'), t('employeeRecent.discardBody'), [
       { text: t('employeeRecent.keepGoing'), style: 'cancel' },
@@ -211,6 +217,7 @@ export default function RecentScreen() {
             </ScrollView>
           </KeyboardSafe>
         </SafeAreaView>
+        <ModalToastHost />
       </Modal>
     </SafeAreaView>
   );

@@ -6,6 +6,7 @@ import { authApi } from '../services/api';
 import Toast from 'react-native-toast-message';
 import i18next from 'i18next';
 import { EXPO_PROJECT_ID } from '../constants';
+import { queryClient } from '../services/queryClient';
 
 // Best effort, never allowed to block or fail the actual sign-out: re-derives this device's own Expo push
 // token (the same call _layout.tsx's registration makes - Expo returns the same token for this install
@@ -86,15 +87,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await SecureStore.setItemAsync('user_data', JSON.stringify(user));
     // Save phone for quick login
     await SecureStore.setItemAsync('quick_login_phone', user.phone);
+    if (get().user && get().user!.id !== user.id) queryClient.clear();   // another account signing in
     set({ user, token, isLoading: false, quickLoginPhone: user.phone });
   },
 
   logout: async () => {
-    await removeThisDevicesPushToken();
+    // The push-token call has no timeout of its own and the host may be waking up (30 to 60 s): signing out must not wait for it
+    await Promise.race([removeThisDevicesPushToken(), new Promise((r) => setTimeout(r, 3000))]).catch(() => {});
     await SecureStore.deleteItemAsync('jwt_token');
     await SecureStore.deleteItemAsync('user_data');
     await SecureStore.deleteItemAsync('biometric_pin');
     // Keep quick_login_phone and biometric_enabled for next time
+    queryClient.clear();   // the next account must not see this one's redemptions, codes or history for a moment
     set({ user: null, token: null, isLoading: false });
   },
 
@@ -107,6 +111,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await SecureStore.deleteItemAsync('jwt_token');
       await SecureStore.deleteItemAsync('user_data');
       await SecureStore.deleteItemAsync('biometric_pin');
+      queryClient.clear();
       set({ user: null, token: null, isLoading: false });
     } finally { ending = false; }
     Toast.show({ type: 'error', text1: i18next.t('customerHome.signedOut'), text2: i18next.t('customerHome.signInAgain') });
@@ -118,7 +123,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { data } = await authApi.getMe();
       const fresh = data?.data?.token;
-      if (fresh) get().setAuth(get().user!, fresh);
+      const now = get().user;   // signed out while the request was out: nothing to renew
+      if (fresh && now) get().setAuth(now, fresh);
     } catch { /* a refused session is handled by the API layer; no network leaves it as it is */ }
   },
 
