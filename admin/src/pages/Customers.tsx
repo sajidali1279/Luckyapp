@@ -433,6 +433,13 @@ export default function Customers() {
                             onClick={() => { setRestrictTarget({ id: c.id, name: displayName, isActive: c.isActive }); setFraudNote(''); setRestrictError(''); }}>
                             {c.isActive ? 'Restrict' : 'Restore'}
                           </button>
+                          {isDevAdmin && (
+                            <button type="button" style={{ background: 'none', border: 'none', color: '#a51b28', fontWeight: 600, fontSize: 13, cursor: 'pointer', marginLeft: 8 }}
+                              aria-label={`Delete ${displayName}'s account`}
+                              onClick={() => { setDeleteTarget({ id: c.id, name: displayName, phone: c.phone }); setDeleteTyped(''); setDeleteError(''); }}>
+                              Delete
+                            </button>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
