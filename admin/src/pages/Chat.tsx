@@ -174,13 +174,28 @@ export default function Chat() {
   // A photo or PDF chosen to go with the next message (2026-10-24); the server checks what it really is and shrinks photos
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  function chooseFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    e.target.value = '';
+  function acceptFile(f: File | undefined | null) {
     if (!f) return;
     if (f.type === 'application/pdf' && f.size > MAX_PDF) { toast.error('That PDF is over 5 MB. Send a smaller one.'); return; }
     if (!f.type.startsWith('image/') && f.type !== 'application/pdf') { toast.error('Send a photo or a PDF.'); return; }
     setFile(f);
+    inputRef.current?.focus();
+  }
+  function chooseFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    acceptFile(f);
+  }
+  // A photo pasted from the clipboard (a screenshot, a copied picture) or dropped on the conversation is the same as choosing it
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const f = Array.from(e.clipboardData?.files ?? []).find((x) => x.type.startsWith('image/') || x.type === 'application/pdf');
+    if (f) { e.preventDefault(); acceptFile(f); }
+  }
+  const [dragging, setDragging] = useState(false);
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    acceptFile(e.dataTransfer?.files?.[0]);
   }
 
   async function handleSend(e?: React.FormEvent) {
@@ -189,17 +204,16 @@ export default function Chat() {
     if ((!text && !file) || !selectedStoreId || sending) return;
     setSending(true);
     setInputText('');
-    const sentFile = file;
-    setFile(null);
+    const sentFile = file;   // stays shown above the box ("Sending...") until it is saved
     if (inputRef.current) inputRef.current.style.height = '44px';
     try {
       const res = sentFile ? await chatApi.sendAttachment(selectedStoreId, sentFile, text, toUserId || undefined) : await chatApi.sendMessage(selectedStoreId, text, toUserId || undefined);
       const newMsg: Message = res.data.data;
+      setFile(null);
       setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
       setLastTimestamp(newMsg.createdAt);
     } catch (e) {
       setInputText(text);
-      setFile(sentFile);
       toast.error(serverMessage(e, 'Failed to send message'));
     }
     setSending(false);
@@ -342,7 +356,12 @@ export default function Chat() {
             )}
 
             {/* Messages */}
-            <div style={s.messageList}>
+            <div
+              style={{ ...s.messageList, ...(dragging ? { outline: '3px dashed #1D3557', outlineOffset: -8 } : {}) }}
+              onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setDragging(true); } }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+            >
               {messages.length === 0 && (
                 <div style={s.noMessages}>
                   <div style={{ fontSize: 36, marginBottom: 10 }}><Glyph e="👋" size={28} color="#5a6472" /></div>
@@ -462,8 +481,8 @@ export default function Chat() {
             {/* Input bar */}
             {file && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px 0' }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{file.type === 'application/pdf' ? '📄' : '🖼️'} {file.name} · {sizeText(file.size)}</span>
-                <button type="button" onClick={() => setFile(null)} aria-label="Remove the attachment" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280' }}>✕</button>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{file.type === 'application/pdf' ? '📄' : '🖼️'} {file.name} · {sizeText(file.size)}{sending ? ' · Sending…' : ''}</span>
+                <button type="button" onClick={() => setFile(null)} disabled={sending} aria-label="Remove the attachment" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280' }}>✕</button>
               </div>
             )}
             <div style={{ ...s.inputBar, display: 'flex', alignItems: 'flex-end', gap: 10 }}>
@@ -477,6 +496,7 @@ export default function Chat() {
                   value={inputText}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
+                  onPaste={onPaste}
                   placeholder={toPerson ? `Private message to ${toPerson.name}…` : `Message ${selectedStore?.name}…`}
                   disabled={sending}
                   rows={1}

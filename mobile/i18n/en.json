@@ -183,7 +183,8 @@
     "managerManualTitle": "Store Manager Manual",
     "inviteFriends": "Invite friends",
     "badges": "Badges",
-    "gasAlerts": "Gas price alerts"
+    "gasAlerts": "Gas price alerts",
+    "myProgress": "My progress"
   },
   "navGroup": {
     "main": "Main",
@@ -688,7 +689,18 @@
     "searchMenu": "Search the menu",
     "searchNothing": "Nothing on the menu matches \"{{text}}\".",
     "addedFromHome": "{{name}} is in your order",
-    "notOnThisMenu": "That is not on the menu at {{store}} right now."
+    "notOnThisMenu": "That is not on the menu at {{store}} right now.",
+    "step_placed": "Placed",
+    "step_accepted": "Accepted",
+    "step_ready": "Ready",
+    "step_pickedUp": "Picked up",
+    "stepsA11y": "Order progress: {{step}}, step {{n}} of {{total}}",
+    "reorder": "Order again",
+    "reorderA11y": "Order #{{number}} again",
+    "reorderNone": "None of those items are on the {{store}} menu right now.",
+    "reorderAdded_one": "{{count}} item added to your cart",
+    "reorderAdded_other": "{{count}} items added to your cart",
+    "reorderMissing": "Not on the menu now: {{items}}"
   },
   "customerLeaderboard": {
     "nameYou": " (You)",
@@ -878,7 +890,13 @@
     "readySummary_other": "You can redeem {{count}} rewards now",
     "readySummaryNone": "Earn {{points}} more points for your next reward",
     "emptyReady": "Nothing to redeem yet",
-    "emptyReadySub": "Keep earning: your closest reward is in All."
+    "emptyReadySub": "Keep earning: your closest reward is in All.",
+    "ringTitle": "{{points}} pts to your next reward",
+    "ringA11y": "{{points}} points to your next reward, {{title}}",
+    "ringReadyA11y": "You can redeem {{count}} rewards now",
+    "ringAllReady": "You can get any reward!",
+    "ringReadySub": "{{count}} rewards ready to redeem",
+    "ringAlsoReady": "{{count}} ready to redeem now"
   },
   "employeeDailyReport": {
     "title": "Daily Report",
@@ -1597,7 +1615,8 @@
     "tapToOpen": "tap to open",
     "openPhotoA11y": "Photo from {{name}}, tap to open",
     "openPdfA11y": "PDF {{name}}, tap to open",
-    "close": "Close"
+    "close": "Close",
+    "sending": "Sending…"
   },
   "sharedEmployeeRequests": {
     "genericErrorMessage": "Something went wrong. Please try again.",
@@ -3381,6 +3400,21 @@
     "alertSaved": "Alert saved",
     "alertFailed": "Could not save the alert.",
     "alertRemove": "Remove",
-    "alertLine": "{{fuel}} at or under {{price}}"
+    "alertLine": "{{fuel}} at or under {{price}}",
+    "miniStart": "Buy ${{min}}+ with the app this week to start.",
+    "miniAtRisk": "Buy by {{day}} to keep it.",
+    "miniNext": "Next: {{weeks}} weeks, +{{pts}} pts",
+    "miniAll": "Every streak reward reached!",
+    "miniWeeks_one": "week in a row",
+    "miniWeeks_other": "weeks in a row",
+    "miniDone": "Checked in. Day {{n}}.",
+    "miniFixed": "+{{pts}} pts today",
+    "miniMystery": "A mystery prize today",
+    "checkInPts": "Check in +{{pts}}",
+    "progressTitle": "My progress",
+    "progressBadges": "{{earned}} of {{total}} badges",
+    "progressGoal": "Goal: {{done}} of {{target}}",
+    "progressOff": "Nothing to show yet.",
+    "goalsTitle": "Store goals"
   }
 }

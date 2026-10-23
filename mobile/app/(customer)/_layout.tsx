@@ -44,7 +44,7 @@ export default function CustomerLayout() {
         { route: '/(customer)/invite-friends',  icon: (p) => <GiftIcon {...p} />,        label: t('nav.inviteFriends') },
         { route: '/(customer)/ads',             icon: (p) => <MegaphoneIcon {...p} />,   label: t('nav.adsPromos') },
         { route: '/(customer)/leaderboard',     icon: (p) => <TrophyIcon {...p} />,      label: t('nav.leaderboard') },
-        ...(eng?.badges ? [{ route: '/(customer)/badges', icon: (p: any) => <StarIcon {...p} />, label: t('nav.badges') }] : []),
+        ...(eng && (eng.badges || eng.storeGoals || eng.streaks.enabled) ? [{ route: '/(customer)/progress', icon: (p: any) => <StarIcon {...p} />, label: t('nav.myProgress') }] : []),
         ...(eng?.gasAlerts ? [{ route: '/(customer)/gas-alerts', icon: (p: any) => <BellIcon {...p} />, label: t('nav.gasAlerts') }] : []),
         { route: '/(customer)/careers',         icon: (p) => <BriefcaseIcon {...p} />,   label: t('nav.careers') },
         { route: '/(customer)/request-product', icon: (p) => <ShoppingBagIcon {...p} />, label: t('nav.requestProduct') },
@@ -82,7 +82,7 @@ export default function CustomerLayout() {
         <Tabs.Screen name="guide" />
         <Tabs.Screen name="profile" />
         <Tabs.Screen name="invite-friends" />
-        <Tabs.Screen name="badges" options={{ href: null }} />
+        <Tabs.Screen name="progress" options={{ href: null }} />
         <Tabs.Screen name="gas-alerts" options={{ href: null }} />
       </Tabs>
     </DrawerShell>

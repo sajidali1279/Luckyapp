@@ -183,7 +183,8 @@
     "managerManualTitle": "Manual del gerente de tienda",
     "inviteFriends": "Invita amigos",
     "badges": "Insignias",
-    "gasAlerts": "Alertas de gasolina"
+    "gasAlerts": "Alertas de gasolina",
+    "myProgress": "Mi progreso"
   },
   "navGroup": {
     "main": "Principal",
@@ -688,7 +689,18 @@
     "searchMenu": "Buscar en el menú",
     "searchNothing": "Nada en el menú coincide con \"{{text}}\".",
     "addedFromHome": "{{name}} está en tu pedido",
-    "notOnThisMenu": "Eso no está en el menú de {{store}} ahora."
+    "notOnThisMenu": "Eso no está en el menú de {{store}} ahora.",
+    "step_placed": "Enviado",
+    "step_accepted": "Aceptado",
+    "step_ready": "Listo",
+    "step_pickedUp": "Recogido",
+    "stepsA11y": "Avance del pedido: {{step}}, paso {{n}} de {{total}}",
+    "reorder": "Pedir otra vez",
+    "reorderA11y": "Pedir otra vez el pedido #{{number}}",
+    "reorderNone": "Ninguno de esos productos está en el menú de {{store}} ahora.",
+    "reorderAdded_one": "{{count}} producto agregado a tu carrito",
+    "reorderAdded_other": "{{count}} productos agregados a tu carrito",
+    "reorderMissing": "Ya no están en el menú: {{items}}"
   },
   "customerLeaderboard": {
     "pointsValue": "{{points}} pts",
@@ -878,7 +890,13 @@
     "readySummary_other": "Puedes canjear {{count}} premios ahora",
     "readySummaryNone": "Gana {{points}} puntos más para tu próximo premio",
     "emptyReady": "Aún no hay nada para canjear",
-    "emptyReadySub": "Sigue sumando: tu premio más cercano está en Todos."
+    "emptyReadySub": "Sigue sumando: tu premio más cercano está en Todos.",
+    "ringTitle": "{{points}} pts para tu próximo premio",
+    "ringA11y": "{{points}} puntos para tu próximo premio, {{title}}",
+    "ringReadyA11y": "Ya puedes canjear {{count}} premios",
+    "ringAllReady": "¡Puedes tener cualquier premio!",
+    "ringReadySub": "{{count}} premios listos para canjear",
+    "ringAlsoReady": "{{count}} listos para canjear ahora"
   },
   "employeeDailyReport": {
     "loadFailed": "No se pudo cargar",
@@ -1597,7 +1615,8 @@
     "tapToOpen": "toca para abrir",
     "openPhotoA11y": "Foto de {{name}}, toca para abrir",
     "openPdfA11y": "PDF {{name}}, toca para abrir",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "sending": "Enviando…"
   },
   "sharedEmployeeRequests": {
     "alertSentTitle": "Alerta Enviada",
@@ -3381,6 +3400,21 @@
     "alertSaved": "Alerta guardada",
     "alertFailed": "No se pudo guardar la alerta.",
     "alertRemove": "Quitar",
-    "alertLine": "{{fuel}} en o por debajo de {{price}}"
+    "alertLine": "{{fuel}} en o por debajo de {{price}}",
+    "miniStart": "Compra ${{min}}+ con la app esta semana para empezar.",
+    "miniAtRisk": "Compra antes del {{day}} para mantenerla.",
+    "miniNext": "Siguiente: {{weeks}} semanas, +{{pts}} pts",
+    "miniAll": "¡Lograste todos los premios de racha!",
+    "miniWeeks_one": "semana seguida",
+    "miniWeeks_other": "semanas seguidas",
+    "miniDone": "Registrado. Día {{n}}.",
+    "miniFixed": "+{{pts}} pts hoy",
+    "miniMystery": "Un premio sorpresa hoy",
+    "checkInPts": "Registrarme +{{pts}}",
+    "progressTitle": "Mi progreso",
+    "progressBadges": "{{earned}} de {{total}} insignias",
+    "progressGoal": "Meta: {{done}} de {{target}}",
+    "progressOff": "Todavía no hay nada que mostrar.",
+    "goalsTitle": "Metas de la tienda"
   }
 }

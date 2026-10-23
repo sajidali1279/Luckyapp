@@ -58,6 +58,7 @@ interface Message {
   toUserName?: string | null;
   attachment?: { kind: 'IMAGE' | 'PDF'; name: string; bytes: number | null; url: string; thumbUrl: string } | null;   // a photo or a PDF (2026-10-24)
   createdAt: string;
+  uploading?: boolean;   // a photo or PDF still on its way: shown right away, dimmed with a spinner, replaced by the saved message
 }
 
 // What is waiting to be sent with the next message
@@ -244,18 +245,35 @@ export default function ChatScreen() {
     ]).start();
 
     setSending(true);
+    // A photo or PDF appears in the thread at once, dimmed with a spinner, so the person can see it is on its way (a slow connection takes a while)
+    const file = pending;
+    const tempId = file ? `sending-${Date.now()}` : null;
+    if (file && tempId) {
+      setMessages((prev) => [...prev, {
+        id: tempId, storeId: selectedStoreId, userId: user?.id ?? '', userName: user?.name ?? '', userRole: user?.role ?? 'EMPLOYEE', text,
+        toUserId: toUser?.id ?? null, toUserName: toUser?.name ?? null, createdAt: new Date().toISOString(), uploading: true,
+        attachment: { kind: file.kind, name: file.name, bytes: file.bytes ?? null, url: file.uri, thumbUrl: file.uri },
+      }]);
+      setInputText('');
+      setPending(null);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+    }
     try {
-      const res = pending ? await chatApi.sendAttachment(selectedStoreId, pending, text, toUser?.id) : await chatApi.sendMessage(selectedStoreId, text, toUser?.id);
+      const res = file ? await chatApi.sendAttachment(selectedStoreId, file, text, toUser?.id) : await chatApi.sendMessage(selectedStoreId, text, toUser?.id);
       const newMsg: Message = res.data.data;
       setInputText('');
       setPending(null);
-      setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
+      setMessages((prev) => {
+        const without = tempId ? prev.filter((m) => m.id !== tempId) : prev;
+        return without.some((m) => m.id === newMsg.id) ? without : [...without, newMsg];
+      });
       // The poll cursor stays where it was: moving it to our message skipped any teammate's message sent just before it. (An empty chat
       // has no cursor yet, so it starts at ours.)
       setLastTimestamp((prev) => prev ?? newMsg.createdAt);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } catch (err: any) {
-      // Keep the typed text in the input — don't make the cashier retype a lost message
+      // Keep the typed text in the input — don't make the cashier retype a lost message (and a photo or PDF goes back above the box)
+      if (tempId && file) { setMessages((prev) => prev.filter((m) => m.id !== tempId)); setPending(file); setInputText(text); }
       Toast.show({ type: 'error', text1: t('sharedChat.sendErrorTitle'), text2: err.response?.data?.error || t('sharedChat.sendErrorDefault') });
     }
     setSending(false);
@@ -326,16 +344,17 @@ export default function ChatScreen() {
               isMe && !isFirstInGroup && isLastInGroup && s.bubbleBotRight,
             ]}>
               {item.attachment?.kind === 'IMAGE' && (
-                <TouchableOpacity onPress={() => openFile(item)} activeOpacity={0.85} accessibilityRole="imagebutton" accessibilityLabel={t('sharedChat.openPhotoA11y', { name: item.userName })}>
-                  <Image source={{ uri: item.attachment.thumbUrl }} style={s.photo} contentFit="cover" transition={150} />
+                <TouchableOpacity onPress={() => openFile(item)} disabled={item.uploading} activeOpacity={0.85} accessibilityRole="imagebutton" accessibilityLabel={t('sharedChat.openPhotoA11y', { name: item.userName })}>
+                  <Image source={{ uri: item.attachment.thumbUrl }} style={[s.photo, item.uploading && { opacity: 0.55 }]} contentFit="cover" transition={150} />
+                  {item.uploading && <View style={s.uploadOverlay}><ActivityIndicator color="#fff" /><Text style={s.uploadText}>{t('sharedChat.sending')}</Text></View>}
                 </TouchableOpacity>
               )}
               {item.attachment?.kind === 'PDF' && (
-                <TouchableOpacity onPress={() => openFile(item)} activeOpacity={0.85} style={s.pdfCard} accessibilityRole="button" accessibilityLabel={t('sharedChat.openPdfA11y', { name: item.attachment.name })}>
+                <TouchableOpacity onPress={() => openFile(item)} disabled={item.uploading} activeOpacity={0.85} style={[s.pdfCard, item.uploading && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t('sharedChat.openPdfA11y', { name: item.attachment.name })}>
                   <Image source={{ uri: item.attachment.thumbUrl }} style={s.pdfThumb} contentFit="cover" />
                   <View style={{ flex: 1 }}>
                     <Text style={[s.pdfName, isMe && { color: '#fff' }]} numberOfLines={2}>{item.attachment.name}</Text>
-                    <Text style={[s.pdfSub, isMe && { color: 'rgba(255,255,255,0.8)' }]}>PDF{item.attachment.bytes ? ` · ${sizeText(item.attachment.bytes)}` : ''} · {t('sharedChat.tapToOpen')}</Text>
+                    <Text style={[s.pdfSub, isMe && { color: 'rgba(255,255,255,0.8)' }]}>PDF{item.attachment.bytes ? ` · ${sizeText(item.attachment.bytes)}` : ''} · {item.uploading ? t('sharedChat.sending') : t('sharedChat.tapToOpen')}</Text>
                   </View>
                 </TouchableOpacity>
               )}
@@ -729,6 +748,8 @@ const s = StyleSheet.create({
   sendBtnDisabled: { backgroundColor: '#d1d5db' },
   attachBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2f7', alignItems: 'center', justifyContent: 'center' },
   photo: { width: 220, height: 165, borderRadius: 12, backgroundColor: '#e5e7eb' },
+  uploadOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  uploadText: { color: '#fff', fontSize: 12, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 3 },
   pdfCard: { flexDirection: 'row', alignItems: 'center', gap: 10, width: 230, paddingVertical: 2 },
   pdfThumb: { width: 46, height: 58, borderRadius: 6, backgroundColor: '#e5e7eb' },
   pdfName: { fontSize: 14, fontWeight: '700', color: '#111827' },

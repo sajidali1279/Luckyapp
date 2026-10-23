@@ -27,6 +27,7 @@ import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { haptic } from '../../utils/haptics';
+import ProgressRing from '../../components/ProgressRing';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useAppSettings } from '../../hooks/useAppSettings';
 
@@ -555,6 +556,20 @@ export default function RewardsScreen() {
               </PulseHighlight>
             ))}
 
+            {/* ── Next reward as a ring (2026-10-24) ── */}
+            {!catalogLoading && (nextItem || readyItems.length > 0) && (
+              <View style={r.ringCard} accessible accessibilityLabel={nextItem ? t('customerRewards.ringA11y', { points: (nextItem.pointsCost - pts).toLocaleString(), title: nextItem.title }) : t('customerRewards.ringReadyA11y', { count: readyItems.length })}>
+                <ProgressRing size={88} stroke={10} progress={nextItem ? pts / Math.max(1, nextItem.pointsCost) : 1} color={nextItem ? COLORS.primary : COLORS.success}>
+                  {nextItem ? <Text style={r.ringPct} maxFontSizeMultiplier={1.15}>{Math.min(99, Math.floor((pts / Math.max(1, nextItem.pointsCost)) * 100))}%</Text> : <Text style={{ fontSize: 28 }}>🎁</Text>}
+                </ProgressRing>
+                <View style={{ flex: 1 }}>
+                  <Text style={r.ringTitle}>{nextItem ? t('customerRewards.ringTitle', { points: (nextItem.pointsCost - pts).toLocaleString() }) : t('customerRewards.ringAllReady')}</Text>
+                  <Text style={r.ringSub} numberOfLines={2}>{nextItem ? `${nextItem.emoji || '🎁'} ${nextItem.title}` : t('customerRewards.ringReadySub', { count: readyItems.length })}</Text>
+                  {nextItem && readyItems.length > 0 && <Text style={r.ringReady}>{t('customerRewards.ringAlsoReady', { count: readyItems.length })}</Text>}
+                </View>
+              </View>
+            )}
+
             {/* ── Redeem Rewards header + category filter ── */}
             <View style={r.redeemHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -716,6 +731,11 @@ const pb = StyleSheet.create({
 });
 
 const r = StyleSheet.create({
+  ringCard: { flexDirection: 'row', alignItems: 'center', gap: 16, marginHorizontal: 16, marginBottom: 14, padding: 14, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEF1F5' },
+  ringPct: { fontSize: 20, fontWeight: '900', color: COLORS.text },
+  ringTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  ringSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
+  ringReady: { fontSize: 12, fontWeight: '800', color: COLORS.success, marginTop: 4 },
   root: { flex: 1, backgroundColor: COLORS.background },
   headerBg: { backgroundColor: COLORS.secondary },
   headerInner: {

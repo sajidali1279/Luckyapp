@@ -36,6 +36,7 @@ import { byDistance, choosePickup, closerStore, locationQuality, loadSavedPickup
 import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } from '../../components/HotFoodPickup';
 import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../components/HotFoodCombos';
 import { useEngagementFlags } from '../../hooks/useEngagement';
+import OrderSteps from '../../components/OrderSteps';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -230,7 +231,7 @@ function useEtaCountdown(order: FoodOrder): string | null {
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
-function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel?: (order: FoodOrder) => void; cancelling?: boolean }) {
+function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrder; onCancel?: (order: FoodOrder) => void; cancelling?: boolean; onReorder?: (order: FoodOrder) => void }) {
   const { t } = useTranslation();
   const cfg = STATUS[order.status];
   const etaLabel = useEtaCountdown(order);
@@ -265,6 +266,7 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
         </View>
       </View>
 
+      {order.status !== 'CANCELLED' && order.status !== 'COMPLETED' && <OrderSteps status={order.status} />}
       <Text style={oc.detail}>{t(cfg.detailKey)}</Text>
       {order.paidWithPoints && order.pointsAmount ? (
         <Text style={oc.points}>
@@ -290,6 +292,18 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
           accessibilityLabel={t('customerHotFood.cancelOrderA11y', { number: order.orderNumber })}
         >
           <Text style={oc.cancelBtnText}>{cancelling ? t('customerHotFood.cancelling') : t('customerHotFood.cancelOrder')}</Text>
+        </TouchableOpacity>
+      )}
+
+      {onReorder && (order.status === 'COMPLETED' || order.status === 'CANCELLED') && order.items.length > 0 && (
+        <TouchableOpacity
+          style={oc.reorderBtn}
+          onPress={() => onReorder(order)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={t('customerHotFood.reorderA11y', { number: order.orderNumber })}
+        >
+          <Text style={oc.reorderText}>↻  {t('customerHotFood.reorder')}</Text>
         </TouchableOpacity>
       )}
 
@@ -774,6 +788,26 @@ export default function CustomerHotFoodScreen() {
   }, [addParam, menuData]);
   useEffect(() => { if (openCombo) setTab('menu'); }, [openCombo]);   // eslint-disable-line react-hooks/exhaustive-deps
 
+  // "Order again" on a past order (2026-10-24, HQ switch "Order your usual"): what is still on this store's menu goes in the cart, the rest is named
+  function reorder(order: FoodOrder) {
+    const byName = new Map(menuItems.map((m) => [m.name.trim().toLowerCase(), m]));
+    const missing: string[] = [];
+    let next = cart;
+    let added = 0;
+    for (const it of order.items) {
+      const m = byName.get(it.name.trim().toLowerCase());
+      if (!m) { missing.push(it.name); continue; }
+      added++;
+      next = next.some((c) => c.id === m.id)
+        ? next.map((c) => (c.id === m.id ? { ...c, qty: Math.min(MAX_PER_ITEM, c.qty + it.quantity) } : c))
+        : [...next, { ...m, qty: Math.min(MAX_PER_ITEM, it.quantity) }];
+    }
+    if (added === 0) { Toast.show({ type: 'info', text1: t('customerHotFood.reorderNone', { store: store?.name ?? '' }) }); return; }
+    setCart(next);
+    setTab('menu');
+    Toast.show({ type: 'success', text1: t('customerHotFood.reorderAdded', { count: added }), ...(missing.length ? { text2: t('customerHotFood.reorderMissing', { items: missing.join(', ') }) } : {}) });
+  }
+
   const removeFromCart = useCallback((item: MenuItem) => {
     setCart(prev => {
       const existing = prev.find(c => c.id === item.id);
@@ -1034,7 +1068,7 @@ export default function CustomerHotFoodScreen() {
                 {index === activeOrders.length && pastOrders.length > 0 && (
                   <Text style={[s.sectionLabel, { marginTop: 20 }]}>{t('customerHotFood.pastOrdersSection')}</Text>
                 )}
-                <OrderCard order={item} onCancel={askCancel} cancelling={cancelMutation.isPending && cancelMutation.variables === item.id} />
+                <OrderCard order={item} onCancel={askCancel} cancelling={cancelMutation.isPending && cancelMutation.variables === item.id} onReorder={engFlags?.reorder ? reorder : undefined} />
               </>
             )}
           />
@@ -1220,6 +1254,8 @@ const mc = StyleSheet.create({
 
 // ─── Order card styles ────────────────────────────────────────────────────────
 const oc = StyleSheet.create({
+  reorderBtn: { alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: COLORS.primary },
+  reorderText: { fontSize: 13.5, fontWeight: '800', color: '#fff' },
   storeAddr: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
   dirBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 8, borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F8FAFC' },
   dirBtnText: { fontSize: 12.5, fontWeight: '800', color: COLORS.secondary },
