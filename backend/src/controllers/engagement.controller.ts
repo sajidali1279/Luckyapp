@@ -90,7 +90,7 @@ function changesIn(before: EngagementConfig, after: EngagementConfig): string[] 
     const a: any = before[k], b: any = after[k];
     if (JSON.stringify(a) === JSON.stringify(b)) continue;
     if (a.enabled !== b.enabled && (b.enabled !== undefined)) { out.push(`${NAMES[k]}: ${b.enabled ? 'on' : 'off'}`); }
-    const rest = (o: any) => { const { enabled: _e, ...r } = o ?? {}; return JSON.stringify(r); };
+    const rest = (o: any) => { const { enabled: _e, since: _s, ...r } = o ?? {}; return JSON.stringify(r); };
     if (rest(a) !== rest(b)) out.push(`${NAMES[k]}: settings changed`);
   }
   return out;
@@ -102,6 +102,8 @@ export async function putEngagement(req: AuthRequest, res: Response) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) { res.status(400).json({ success: false, error: 'Send the settings to change.' }); return; }
   const before = engagement();
   const next = cleanEngagement(merge(before, body));
+  // the day streaks were switched on is the server's to set: weeks before it never count, so turning streaks on cannot pay out old history
+  next.streaks.since = next.streaks.enabled ? (before.streaks.enabled && before.streaks.since ? before.streaks.since : storeDateKey(new Date())) : null;
   const changes = changesIn(before, next);
   if (changes.length === 0) { res.json({ success: true, data: next, changed: false }); return; }
   await prisma.appConfig.upsert({ where: { key: ENGAGEMENT_KEY }, create: { key: ENGAGEMENT_KEY, value: JSON.stringify(next) }, update: { value: JSON.stringify(next) } });
@@ -123,6 +125,7 @@ const goalSchema = (b: any, stores: Set<string>) => {
   if (!(rewardPoints >= 1 && rewardPoints <= 500)) return 'The reward must be from 1 to 500 points for each customer.';
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Choose a start and an end date.';
   if (end <= start) return 'The end must be after the start.';
+  if (end <= new Date()) return 'The end date must be in the future. A goal that has already ended would pay out right away.';
   if (end.getTime() - start.getTime() > 62 * DAY) return 'A goal can run for at most about two months.';
   if (b?.storeId && (!storeId || !stores.has(storeId))) return 'That store was not found.';
   return { title, titleEs, metric, target, rewardPoints, startDate: start, endDate: end, storeId: storeId ?? null };

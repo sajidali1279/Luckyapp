@@ -2430,7 +2430,9 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
   const priceText = parts.join(' · ');
 
   // Customers who asked to hear when the price fell to what they set (admin > Engagement, gas price alerts): fire and forget
-  checkGasAlerts(storeId, { GAS: 'gasPricePerGallon' in updateData ? store.gasPricePerGallon : null, DIESEL: 'dieselPricePerGallon' in updateData ? store.dieselPricePerGallon : null }).catch((e) => console.error('[gas-alerts]', e?.message ?? e));
+  // only a price that went DOWN can meet someone's alert (a rise from $2.50 to $2.60 must not say the price dropped)
+  const fell = (now: number | null, was: number | null) => now != null && was != null && now < was ? now : null;
+  checkGasAlerts(storeId, { GAS: 'gasPricePerGallon' in updateData ? fell(store.gasPricePerGallon, before.gasPricePerGallon) : null, DIESEL: 'dieselPricePerGallon' in updateData ? fell(store.dieselPricePerGallon, before.dieselPricePerGallon) : null }).catch((e) => console.error('[gas-alerts]', e?.message ?? e));
 
   // Push + in-app → employees only (they update pump displays; managers don't need push)
   sendPushToStoreEmployees(

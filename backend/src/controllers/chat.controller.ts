@@ -213,7 +213,7 @@ export async function getChatPeople(req: AuthRequest, res: Response) {
     select: { id: true, name: true, phone: true, role: true },
     orderBy: { name: 'asc' },
   });
-  res.json({ success: true, data: people.map((p) => ({ id: p.id, name: p.name || p.phone, role: p.role })) });
+  res.json({ success: true, data: people.map((p) => ({ id: p.id, name: p.name || (p.role === Role.STORE_MANAGER ? 'Manager' : 'Employee'), role: p.role })) });
 }
 
 // ─── DELETE /chat/:storeId/messages ───────────────────────────────────────────

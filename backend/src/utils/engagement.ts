@@ -9,11 +9,13 @@ import { Prisma, PrismaClient, ProductCategory, TransactionStatus } from '@prism
 import prisma from '../config/prisma';
 import { DEFAULT_DEV_CUT_RATE } from '../config/constants';
 import { addLot } from './pointLots';
+import { rollCustomerPeriod } from './tier';
+import { excludeDeletedCustomers } from './accountDeletion';
 import { engagement } from './appSettings';
 import { addStoreDays, storeDateKey } from './storeTime';
 
 type Db = Prisma.TransactionClient | PrismaClient;
-const r2 = (n: number) => Math.round(n * 100) / 100;
+const fee4 = (n: number) => Math.round(n * 10000) / 10000;   // the platform fee to 4 places, like a real sale: a 2 pt check-in is $0.0008, not $0.00
 const DAY = 86_400_000;
 
 // ─── the hidden "system challenge" every bonus line is tied to ──────────────────────────────────────────────────────────────────────
@@ -38,7 +40,7 @@ async function systemChallengeId(db: Db, kind: keyof typeof SYSTEM): Promise<str
 export async function payBonus(db: Db, o: { customerId: string; storeId: string; category?: ProductCategory | null; points: number; note: string; kind: keyof typeof SYSTEM; forSaleId?: string | null }) {
   const dollars = o.points / 100;
   const store = await db.store.findUnique({ where: { id: o.storeId }, select: { transactionFeeRate: true } });
-  const fee = r2(dollars * (store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE));
+  const fee = fee4(dollars * (store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE));
   const challengeId = await systemChallengeId(db, o.kind);
   const line = await db.pointsTransaction.create({
     data: {
@@ -48,6 +50,7 @@ export async function payBonus(db: Db, o: { customerId: string; storeId: string;
       notes: o.note, challengeId, ...(o.forSaleId ? { rewardForSaleId: o.forSaleId } : {}),
     },
   });
+  await rollCustomerPeriod(db, o.customerId);   // a bonus paid just after a tier period ends must count in the new one, not be wiped by the reset
   const after = await db.user.update({ where: { id: o.customerId }, data: { pointsBalance: { increment: dollars }, periodPoints: { increment: dollars } } });
   await addLot(db, o.customerId, dollars, 'ENGAGEMENT', line.id, after.pointsBalance);
   return line;
@@ -87,12 +90,14 @@ const PURCHASES = (customerId: string): Prisma.PointsTransactionWhereInput => ({
   customerId, status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false,
 });
 
-export async function purchaseWeeks(db: Db, customerId: string, minPurchase: number, now: Date = new Date()): Promise<Set<string>> {
+/** The store-weeks with a qualifying purchase. `since` (the day streaks were switched on) leaves out the weeks before it. */
+export async function purchaseWeeks(db: Db, customerId: string, minPurchase: number, now: Date = new Date(), since: string | null = null): Promise<Set<string>> {
   const rows = await db.pointsTransaction.findMany({
     where: { ...PURCHASES(customerId), purchaseAmount: { gte: Math.max(0.01, minPurchase) }, createdAt: { gte: new Date(now.getTime() - 400 * DAY) } },
     select: { createdAt: true },
   });
-  return new Set(rows.map((r) => weekStartKey(r.createdAt)));
+  const first = since ? weekStartKey(new Date(`${since}T18:00:00Z`)) : null;   // the week streaks were switched on counts, the ones before do not
+  return new Set(rows.map((r) => weekStartKey(r.createdAt)).filter((w) => !first || w >= first));
 }
 
 export interface BonusAward { challengeId: string; title: string; titleEs: string | null; customerId: string; reward: number; pushTitle?: string; pushTitleEs?: string }
@@ -110,11 +115,14 @@ export async function creditStreak(db: Db, saleId: string, now: Date = new Date(
   });
   if (!sale || sale.challengeId || sale.referralId || sale.isTestData || sale.status !== TransactionStatus.APPROVED) return [];
   if (sale.purchaseAmount < Math.max(0.01, cfg.minPurchase)) return [];
-  const streak = computeStreak(await purchaseWeeks(db, sale.customerId, cfg.minPurchase, now), weekStartKey(now));
+  const thisWeek = weekStartKey(now);
+  const streak = computeStreak(await purchaseWeeks(db, sale.customerId, cfg.minPurchase, now, cfg.since), thisWeek);
   if (!streak.startWeek) return [];
   const awards: BonusAward[] = [];
   for (const m of cfg.milestones) {
     if (streak.weeks < m.weeks || m.pts <= 0) continue;
+    // only a milestone reached lately: one HQ adds or lowers later does not pay the people who passed it long ago
+    if (addStoreDays(streak.startWeek, 7 * (m.weeks - 1)) < addStoreDays(thisWeek, -14)) continue;
     const made = await db.engagementEvent.createMany({ data: [{ customerId: sale.customerId, kind: 'STREAK_AWARD', key: `${streak.startWeek}:${m.weeks}`, points: m.pts / 100 }], skipDuplicates: true });
     if (made.count === 0) continue;   // this milestone of this streak was already paid
     await payBonus(db, { customerId: sale.customerId, storeId: sale.storeId, category: sale.category, points: m.pts, note: `Streak bonus: ${m.weeks} weeks in a row`, kind: 'STREAK', forSaleId: sale.id });
@@ -130,7 +138,7 @@ export async function creditStreak(db: Db, saleId: string, now: Date = new Date(
 export async function streakFor(customerId: string, now: Date = new Date()) {
   const cfg = engagement().streaks;
   if (!cfg.enabled) return null;
-  const weeks = await purchaseWeeks(prisma, customerId, cfg.minPurchase, now);
+  const weeks = await purchaseWeeks(prisma, customerId, cfg.minPurchase, now, cfg.since);
   const s = computeStreak(weeks, weekStartKey(now));
   const next = cfg.milestones.find((m) => m.weeks > s.weeks) ?? null;
   const paid = s.startWeek ? new Set((await prisma.engagementEvent.findMany({ where: { customerId, kind: 'STREAK_AWARD', key: { startsWith: `${s.startWeek}:` } }, select: { key: true } })).map((e) => Number(e.key.split(':')[1]))) : new Set<number>();
@@ -152,7 +160,7 @@ async function checkInView(db: Db, customerId: string, now: Date): Promise<(Chec
   const cfg = engagement().checkIn;
   if (!cfg.enabled) return null;
   const today = storeDateKey(now);
-  const events = await db.engagementEvent.findMany({ where: { customerId, kind: 'CHECKIN', createdAt: { gte: new Date(now.getTime() - 45 * DAY) } }, select: { key: true, points: true } });
+  const events = await db.engagementEvent.findMany({ where: { customerId, kind: 'CHECKIN', createdAt: { gte: new Date(now.getTime() - 400 * DAY) } }, select: { key: true, points: true } });
   const keys = new Set(events.map((e) => e.key));
   const doneToday = keys.has(today);
   let n = 0, d = doneToday ? today : addStoreDays(today, -1);
@@ -267,8 +275,10 @@ export async function badgesFor(customerId: string) {
 
 // ─── store goals ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 export interface GoalProgress { sales: number; customers: number }
+/** A sale counts toward a store goal (and earns its reward) from this much: a pack of gum should not win $5. */
+export const GOAL_MIN_PURCHASE = 2;
 export async function goalProgress(db: Db, storeId: string, from: Date, to: Date): Promise<GoalProgress> {
-  const where: Prisma.PointsTransactionWhereInput = { storeId, status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gt: 0 }, createdAt: { gte: from, lte: to } };
+  const where: Prisma.PointsTransactionWhereInput = { storeId, status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gte: GOAL_MIN_PURCHASE }, createdAt: { gte: from, lte: to } };
   const [sales, customers] = await Promise.all([
     db.pointsTransaction.count({ where }),
     db.pointsTransaction.groupBy({ by: ['customerId'], where, _count: { _all: true } }).then((g) => g.length),
@@ -287,7 +297,7 @@ export async function goalsFor(customerId: string, storeId: string | null, now: 
   const out = [];
   for (const g of goals) {
     const p = await goalProgress(prisma, store, g.startDate, now);
-    const mine = await prisma.pointsTransaction.count({ where: { storeId: store, customerId, status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gt: 0 }, createdAt: { gte: g.startDate, lte: now } } });
+    const mine = await prisma.pointsTransaction.count({ where: { storeId: store, customerId, status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gte: GOAL_MIN_PURCHASE }, createdAt: { gte: g.startDate, lte: now } } });
     out.push({ id: g.id, title: g.title, titleEs: g.titleEs, metric: g.metric, target: g.target, rewardPts: g.rewardPoints, endDate: g.endDate, store: name, progress: Math.min(goalValue(g.metric, p), g.target), reached: goalValue(g.metric, p) >= g.target, joined: mine > 0 });
   }
   return out;
@@ -305,12 +315,15 @@ export async function payFinishedGoals(now: Date = new Date()): Promise<{ goals:
       const p = await goalProgress(prisma, s.id, g.startDate, g.endDate);
       if (goalValue(g.metric, p) < g.target) continue;
       const buyers = await prisma.pointsTransaction.groupBy({
-        by: ['customerId'], where: { storeId: s.id, status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gt: 0 }, createdAt: { gte: g.startDate, lte: g.endDate } },
+        by: ['customerId'], where: { storeId: s.id, status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gte: GOAL_MIN_PURCHASE }, createdAt: { gte: g.startDate, lte: g.endDate } },
         _count: { _all: true },
       });
+      // only people who can still use points: not deleted, not restricted
+      const live = new Set((await prisma.user.findMany({ where: { id: { in: buyers.map((b) => b.customerId) }, role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers }, select: { id: true } })).map((u) => u.id));
       for (const b of buyers) {
+        if (!live.has(b.customerId)) continue;
         const ok = await prisma.$transaction(async (db) => {
-          const made = await db.engagementEvent.createMany({ data: [{ customerId: b.customerId, kind: 'GOAL_AWARD', key: `${g.id}:${s.id}`, points: g.rewardPoints / 100 }], skipDuplicates: true });
+          const made = await db.engagementEvent.createMany({ data: [{ customerId: b.customerId, kind: 'GOAL_AWARD', key: g.id, points: g.rewardPoints / 100 }], skipDuplicates: true });
           if (made.count === 0) return false;
           await payBonus(db, { customerId: b.customerId, storeId: s.id, points: g.rewardPoints, note: `Store goal reached: ${g.title}`, kind: 'GOAL' });
           return true;

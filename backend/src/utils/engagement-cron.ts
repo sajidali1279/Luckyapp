@@ -20,6 +20,12 @@ export const inQuietHours = (hour: number, from: number, to: number) => (from ==
 type Who = { id: string; language: string | null };
 const CUSTOMERS = { role: 'CUSTOMER' as const, isActive: true, ...excludeDeletedCustomers, pushTokens: { some: {} } };
 
+/** Who already got this kind (and key) of nudge since `since`: left out of the query itself, so a long list of people does not starve the ones behind them. */
+async function alreadyNudged(kind: string, since: Date, key?: string): Promise<string[]> {
+  const rows = await prisma.engagementEvent.findMany({ where: { kind, ...(key ? { key } : {}), createdAt: { gte: since } }, select: { customerId: true }, take: 20_000 });
+  return rows.map((r) => r.customerId);
+}
+
 async function underWeeklyCap(customerId: string, max: number, now: Date) {
   const sent = await prisma.engagementEvent.count({ where: { customerId, kind: { startsWith: 'NUDGE_' }, createdAt: { gte: new Date(now.getTime() - 7 * DAY) } } });
   return sent < max;
@@ -48,9 +54,10 @@ export async function runNudges(now: Date = new Date()): Promise<Record<string, 
     const items = await prisma.redemptionCatalogItem.findMany({ where: { isActive: true }, select: { id: true, title: true, pointsCost: true } });
     const w = cfg.nearReward.withinPts;
     if (items.length) {
+      const skip = await alreadyNudged('NUDGE_NEAR_REWARD', new Date(now.getTime() - 14 * DAY));
       const near = await prisma.user.findMany({
-        where: { ...CUSTOMERS, OR: items.map((i) => ({ pointsBalance: { gte: (i.pointsCost - w) / 100, lt: i.pointsCost / 100 } })) },
-        select: { id: true, language: true, pointsBalance: true }, take: 400,
+        where: { ...CUSTOMERS, id: { notIn: skip }, OR: items.map((i) => ({ pointsBalance: { gte: (i.pointsCost - w) / 100, lt: i.pointsCost / 100 } })) },
+        select: { id: true, language: true, pointsBalance: true }, orderBy: { pointsBalance: 'desc' }, take: 400,
       });
       const recent = new Set((await prisma.engagementEvent.findMany({ where: { kind: 'NUDGE_NEAR_REWARD', customerId: { in: near.map((u) => u.id) }, createdAt: { gte: new Date(now.getTime() - 14 * DAY) } }, select: { customerId: true } })).map((e) => e.customerId));
       for (const u of near) {
@@ -78,12 +85,13 @@ export async function runNudges(now: Date = new Date()): Promise<Record<string, 
       prisma.pointsTransaction.groupBy({ by: ['customerId'], where: { status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gte: min }, createdAt: { gte: at(thisWeek) } }, _count: { _all: true } }),
     ]);
     const done = new Set(cur.map((c) => c.customerId));
-    const ids = prev.map((p) => p.customerId).filter((id) => !done.has(id)).slice(0, 600);
+    const told = new Set(await alreadyNudged('NUDGE_STREAK_RISK', new Date(now.getTime() - 7 * DAY), thisWeek));
+    const ids = prev.map((p) => p.customerId).filter((id) => !done.has(id) && !told.has(id)).slice(0, 600);
     const people = await prisma.user.findMany({ where: { ...CUSTOMERS, id: { in: ids } }, select: { id: true, language: true } });
     for (const u of people) {
       if (budget <= 0) break;
       if (!(await underWeeklyCap(u.id, cfg.maxPerWeek, now))) continue;
-      const s = computeStreak(await purchaseWeeks(prisma, u.id, min, now), thisWeek);
+      const s = computeStreak(await purchaseWeeks(prisma, u.id, min, now, engagement().streaks.since), thisWeek);
       if (s.weeks < 2 || !s.atRisk) continue;
       if (await nudge(u, 'NUDGE_STREAK_RISK', thisWeek,
         ['🔥 Keep your streak going', `Your ${s.weeks}-week streak ends Sunday. One purchase this weekend keeps it alive.`],
@@ -98,7 +106,8 @@ export async function runNudges(now: Date = new Date()): Promise<Record<string, 
     const endKey = half === '1' ? `${year}-06-30` : `${year}-12-31`;
     const left = Math.round((Date.parse(`${endKey}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / DAY);
     if (left >= 0 && left <= cfg.tierReset.daysBefore) {
-      const people = await prisma.user.findMany({ where: { ...CUSTOMERS, tier: { not: 'BRONZE' } }, select: { id: true, language: true, tier: true, periodPoints: true }, take: 500 });
+      const skip = await alreadyNudged('NUDGE_TIER_RESET', new Date(now.getTime() - 40 * DAY), period);
+      const people = await prisma.user.findMany({ where: { ...CUSTOMERS, id: { notIn: skip }, tier: { not: 'BRONZE' } }, select: { id: true, language: true, tier: true, periodPoints: true }, orderBy: { periodPoints: 'desc' }, take: 500 });
       for (const u of people) {
         if (budget <= 0) break;
         if (!(await underWeeklyCap(u.id, cfg.maxPerWeek, now))) continue;
@@ -114,9 +123,10 @@ export async function runNudges(now: Date = new Date()): Promise<Record<string, 
   // 4. "We miss you: you have 640 pts waiting"
   if (cfg.comeback.enabled && budget > 0) {
     const cutoff = new Date(now.getTime() - cfg.comeback.quietDays * DAY);
+    const skip = await alreadyNudged('NUDGE_COMEBACK', new Date(now.getTime() - 30 * DAY));
     const people = await prisma.user.findMany({
-      where: { ...CUSTOMERS, pointsBalance: { gte: 1 }, AND: [{ pointsEarned: { some: { status: TransactionStatus.APPROVED, purchaseAmount: { gt: 0 } } } }, { pointsEarned: { none: { status: TransactionStatus.APPROVED, createdAt: { gte: cutoff } } } }] },
-      select: { id: true, language: true, pointsBalance: true }, take: 300,
+      where: { ...CUSTOMERS, id: { notIn: skip }, pointsBalance: { gte: 1 }, AND: [{ pointsEarned: { some: { status: TransactionStatus.APPROVED, purchaseAmount: { gt: 0 } } } }, { pointsEarned: { none: { status: TransactionStatus.APPROVED, createdAt: { gte: cutoff } } } }] },
+      select: { id: true, language: true, pointsBalance: true }, orderBy: { pointsBalance: 'desc' }, take: 300,
     });
     const recent = new Set((await prisma.engagementEvent.findMany({ where: { kind: 'NUDGE_COMEBACK', customerId: { in: people.map((u) => u.id) }, createdAt: { gte: new Date(now.getTime() - 30 * DAY) } }, select: { customerId: true } })).map((e) => e.customerId));
     for (const u of people) {
@@ -148,7 +158,7 @@ export async function runGoals(now: Date = new Date()) {
  * Called when a store's gas price is saved: everyone whose alert for that store and fuel is met (price at or under what they asked for) is
  * told, at most once a day each. Fire and forget: a price save never waits on it.
  */
-export async function checkGasAlerts(storeId: string, prices: { GAS?: number | null; DIESEL?: number | null }, now: Date = new Date()): Promise<number> {
+export async function checkGasAlerts(storeId: string, prices: { GAS?: number | null; DIESEL?: number | null }, now: Date = new Date()): Promise<number> {   // pass only the fuels whose price just went DOWN
   if (!engagement().gasAlerts.enabled) return 0;
   let sent = 0;
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
@@ -172,8 +182,17 @@ export async function checkGasAlerts(storeId: string, prices: { GAS?: number | n
   return sent;
 }
 
+let nudging = false, paying = false;   // a run that is still going when the next one is due makes the next one skip, not pile on
 export function startEngagementCron() {
-  cron.schedule('*/30 * * * *', () => { runNudges().catch((e) => console.error('[engagement] nudges failed:', e?.message ?? e)); });
-  cron.schedule('20 * * * *', () => { runGoals().catch((e) => console.error('[engagement] goals failed:', e?.message ?? e)); });
+  cron.schedule('*/30 * * * *', () => {
+    if (nudging) return;
+    nudging = true;
+    runNudges().catch((e) => console.error('[engagement] nudges failed:', e?.message ?? e)).finally(() => { nudging = false; });
+  });
+  cron.schedule('20 * * * *', () => {
+    if (paying) return;
+    paying = true;
+    runGoals().catch((e) => console.error('[engagement] goals failed:', e?.message ?? e)).finally(() => { paying = false; });
+  });
   console.log('[engagement] nudges every 30 minutes and store goals every hour, only for what HQ has switched on');
 }

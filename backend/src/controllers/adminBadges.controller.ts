@@ -48,6 +48,8 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       where: {
         userId: { not: user.id },
         OR: storeIds.map((storeId) => ({ storeId, createdAt: { gt: readMap.get(storeId) ?? new Date(0) } })),
+        // a private line to someone else is not unread for this person (the same rule as the chat's own count)
+        AND: [{ OR: [{ toUserId: null }, { toUserId: user.id }] }],
       },
     });
   })();

@@ -36,6 +36,7 @@ export async function anonymizeCustomerAccount(db: Prisma.TransactionClient, use
   await db.businessPromotion.deleteMany({ where: { requesterId: userId } });
   await db.userStoreRole.deleteMany({ where: { userId } });
   await db.customerNote.deleteMany({ where: { customerId: userId } });   // HQ's notes about the person
+  await db.gasAlert.deleteMany({ where: { customerId: userId } });   // their gas price alerts (2026-10-23)
 
   // Records the store keeps stay, minus free text written about the person
   await db.pointsDispute.updateMany({ where: { customerId: userId }, data: { description: REMOVED_TEXT } });

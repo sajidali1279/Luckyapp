@@ -14,7 +14,8 @@ export const ENGAGEMENT_LIMITS = {
 export interface Milestone { weeks: number; pts: number }
 export interface MysteryPrize { pts: number; weight: number }
 export interface EngagementConfig {
-  streaks: { enabled: boolean; minPurchase: number; milestones: Milestone[] };
+  // since: the store day HQ switched streaks on (set by the server). Weeks before it do not count, so switching on never pays out old history.
+  streaks: { enabled: boolean; minPurchase: number; milestones: Milestone[]; since: string | null };
   punchCards: { enabled: boolean };
   checkIn: { enabled: boolean; mode: 'FIXED' | 'MYSTERY'; pts: number; weekBonusPts: number; mystery: MysteryPrize[]; monthlyCapPts: number; needVisitDays: number };
   badges: { enabled: boolean; off: string[] };
@@ -32,7 +33,7 @@ export interface EngagementConfig {
 }
 
 export const DEFAULT_ENGAGEMENT: EngagementConfig = {
-  streaks: { enabled: false, minPurchase: 2, milestones: [{ weeks: 3, pts: 50 }, { weeks: 6, pts: 100 }, { weeks: 12, pts: 250 }] },
+  streaks: { enabled: false, minPurchase: 2, milestones: [{ weeks: 3, pts: 50 }, { weeks: 6, pts: 100 }, { weeks: 12, pts: 250 }], since: null },
   punchCards: { enabled: false },
   checkIn: { enabled: false, mode: 'FIXED', pts: 2, weekBonusPts: 10, mystery: [{ pts: 1, weight: 60 }, { pts: 3, weight: 30 }, { pts: 5, weight: 9 }, { pts: 25, weight: 1 }], monthlyCapPts: 100, needVisitDays: 30 },
   badges: { enabled: false, off: [] },
@@ -51,13 +52,15 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const bool = (v: unknown, def: boolean) => (typeof v === 'boolean' ? v : def);
+// A number that is not a number gets the default; one that is too big or too small is held at the limit (a typo of 1500 becomes the
+// largest allowed, not the default, so the saved setting never silently turns into something else).
 const int = (v: unknown, r: { min: number; max: number }, def: number) => {
   const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : NaN;
-  return n >= r.min && n <= r.max ? n : def;
+  return Number.isNaN(n) ? def : Math.min(r.max, Math.max(r.min, n));
 };
 const num = (v: unknown, r: { min: number; max: number }, def: number) => {
   const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : NaN;
-  return n >= r.min && n <= r.max ? n : def;
+  return Number.isNaN(n) ? def : Math.min(r.max, Math.max(r.min, n));
 };
 
 /** Everything that is stored goes through here: unknown keys dropped, numbers clamped, lists kept in order and within their size. */
@@ -80,6 +83,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     const seen = new Set<number>();
     for (const m of st.milestones) {
       if (!isObj(m)) continue;
+      if (typeof m.weeks !== 'number' || typeof m.pts !== 'number' || m.weeks < L.streakWeeks.min || m.pts < L.streakPts.min) continue;   // too small is dropped, too big is held at the limit
       const weeks = int(m.weeks, L.streakWeeks, 0), pts = int(m.pts, L.streakPts, -1);
       if (weeks < 1 || pts < 0 || seen.has(weeks)) continue;
       seen.add(weeks); milestones.push({ weeks, pts });
@@ -92,6 +96,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
   if (Array.isArray(ci.mystery)) {
     for (const m of ci.mystery) {
       if (!isObj(m)) continue;
+      if (typeof m.pts !== 'number' || typeof m.weight !== 'number' || m.pts < L.mysteryPts.min || m.weight < L.mysteryWeight.min) continue;
       const pts = int(m.pts, L.mysteryPts, -1), weight = int(m.weight, L.mysteryWeight, 0);
       if (pts >= 0 && weight > 0) mystery.push({ pts, weight });
     }
@@ -103,7 +108,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
   const message = typeof sh.message === 'string' && sh.message.trim() ? sh.message.trim().slice(0, L.shareMessage) : d.sharing.message;
 
   return {
-    streaks: { enabled: bool(st.enabled, false), minPurchase: num(st.minPurchase, L.streakMinPurchase, d.streaks.minPurchase), milestones },
+    streaks: { enabled: bool(st.enabled, false), minPurchase: num(st.minPurchase, L.streakMinPurchase, d.streaks.minPurchase), milestones, since: typeof st.since === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(st.since) ? st.since : null },
     punchCards: { enabled: bool(isObj(s.punchCards) ? s.punchCards.enabled : false, false) },
     checkIn: {
       enabled: bool(ci.enabled, false), mode: ci.mode === 'MYSTERY' ? 'MYSTERY' : 'FIXED',
