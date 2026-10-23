@@ -50,6 +50,7 @@ const InventoryAnalytics     = lazy(() => import('./pages/InventoryAnalytics'));
 const Documents              = lazy(() => import('./pages/Documents'));
 const HotFood                = lazy(() => import('./pages/HotFood'));
 const MissingPersons         = lazy(() => import('./pages/MissingPersons'));
+const Engagement             = lazy(() => import('./pages/Engagement'));
 const ComingSoon             = lazy(() => import('./pages/ComingSoon'));
 const EmployeePortal         = lazy(() => import('./pages/EmployeePortal'));
 const DailyReports           = lazy(() => import('./pages/DailyReports'));
@@ -164,6 +165,7 @@ export default function App() {
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/hot-food" element={<HotFood />} />
                 <Route path="/missing-persons" element={<MissingPersons />} />
+                <Route path="/engagement" element={<Engagement />} />
                 <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
                 <Route path="/hot-food/orders" element={<ComingSoon feature="Hot Food Order Board" />} />
                 <Route path="/customers" element={<Customers />} />

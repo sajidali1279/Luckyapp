@@ -35,7 +35,7 @@ export const challengeRule = (c: Rule) => ruleWords(c, `${rewardPoints(c.reward)
 /** The same rule as it used to be written, with the reward in dollars: a title that is exactly this is shown in points. */
 export const legacyChallengeRule = (c: Rule) => ruleWords(c, usd(c.reward));
 
-export interface ChallengeAward { challengeId: string; title: string; titleEs: string | null; customerId: string; reward: number }
+export interface ChallengeAward { challengeId: string; title: string; titleEs: string | null; customerId: string; reward: number; pushTitle?: string; pushTitleEs?: string }   // pushTitle: a streak bonus says so instead of "Challenge complete"
 
 /** What a sale adds to a challenge: its amount (SPEND), or one purchase when it is big enough (VISITS). */
 export function saleCounts(c: { kind: string; minPurchase: number | null }, purchaseAmount: number): number {
@@ -108,7 +108,7 @@ export async function pushChallengeAwards(awards: ChallengeAward[]): Promise<voi
   for (const a of awards) {
     const es = langs.get(a.customerId) === 'es';
     sendPushToUser(a.customerId,
-      es ? '🏆 ¡Reto cumplido!' : '🏆 Challenge complete!',
+      es ? (a.pushTitleEs ?? '🏆 ¡Reto cumplido!') : (a.pushTitle ?? '🏆 Challenge complete!'),
       es ? `${a.titleEs || a.title}: ${rewardPoints(a.reward)} pts agregados a tu saldo.` : `${a.title}: ${rewardPoints(a.reward)} pts added to your balance.`,
       'OFFER', '/(customer)/home?scrollTo=challenges');
   }

@@ -1044,12 +1044,16 @@ model ChatMessage {
   userName  String   // denormalized for display
   userRole  String   // denormalized for role badge
   text      String
+  // A private message to one person in the store's thread (2026-10-23): only the sender, that person and HQ can read it. null = to everyone.
+  toUserId   String?
+  toUserName String?   // denormalized for display
   createdAt DateTime @default(now())
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([storeId, createdAt])
+  @@index([storeId, toUserId])
   @@map("chat_messages")
 }
 
@@ -2038,3 +2042,57 @@ model MissingPersonRequest {
   @@map("missing_person_requests")
 }
 
+// ─── Engagement (2026-10-23, admin Engagement page) ──────────────────────────
+// One row each time something engagement-related happens to a customer that must never happen twice: a streak milestone paid, a daily
+// check-in, a store goal paid, a nudge sent. The unique (customer, kind, key) is what makes each of them once-only, even when two
+// requests race (inserted with skipDuplicates). `points` is the dollars paid, when it paid anything.
+model EngagementEvent {
+  id         String   @id @default(uuid())
+  customerId String
+  kind       String   // STREAK_AWARD | CHECKIN | GOAL_AWARD | NUDGE_NEAR_REWARD | NUDGE_STREAK_RISK | NUDGE_TIER_RESET | NUDGE_COMEBACK | GAS_ALERT
+  key        String   // what makes it "the same one again": a streak and its milestone, a store day, a goal, a week
+  points     Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, kind, key])
+  @@index([kind, createdAt])
+  @@index([customerId, createdAt])
+  @@map("engagement_events")
+}
+
+// A store goal: "if Katy makes 200 sales this week, everyone who bought there gets 50 pts". Counted per store, paid once when the window
+// has ended and the target was reached (utils/engagement-cron.ts), to each customer with at least one approved purchase at that store.
+model StoreGoal {
+  id           String    @id @default(uuid())
+  storeId      String?   // null = every store, each one counted on its own
+  title        String
+  titleEs      String?
+  metric       String    // SALES (approved purchases) | CUSTOMERS (different customers who bought)
+  target       Int
+  rewardPoints Int       // points each qualifying customer gets (100 pts = $1)
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean   @default(true)
+  paidAt       DateTime? // when the reward was paid out
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([isActive, endDate])
+  @@map("store_goals")
+}
+
+// "Tell me when regular drops below $2.89 at my store" (one per customer, store and fuel).
+model GasAlert {
+  id         String    @id @default(uuid())
+  customerId String
+  storeId    String
+  fuel       String    // GAS | DIESEL
+  maxPrice   Float
+  lastSentAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([customerId, storeId, fuel])
+  @@index([storeId, fuel])
+  @@map("gas_alerts")
+}

@@ -6,6 +6,7 @@
 // 30 seconds (another server instance's change arrives within that), and at once on this instance when HQ saves.
 import prisma from '../config/prisma';
 import { storeDateKey } from './storeTime';
+import { cleanEngagement, type EngagementConfig } from './engagementConfig';
 
 export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'perks' | 'care' | 'staff';
 /** section: a heading inside the group's card on the Settings page, for a long group (2026-10-17) */
@@ -86,6 +87,7 @@ export const BUSINESS_KEY = 'BUSINESS_INFO';
 export const WELCOME_KEY = 'WELCOME_BONUS';
 export const EXPIRY_KEY = 'POINTS_EXPIRY';
 export const THEME_KEY = 'APP_THEME';
+export const ENGAGEMENT_KEY = 'ENGAGEMENT';   // 2026-10-23: streaks, punch cards, check-in, badges, goals, nudges (utils/engagementConfig.ts)
 
 // The app's seasonal theme (2026-10-21, admin Settings > App): a preset HQ picks, between two dates or until HQ takes it off. Only
 // Halloween is drawn so far; a new preset is a new name here plus its art in the app. The phones ask GET /app/theme and show whatever it
@@ -128,6 +130,7 @@ let businessInfo: BusinessInfo = { supportPhone: '', supportEmail: '', supportHo
 let welcomeConfig: WelcomeConfig = cleanWelcome(null);
 let expiryConfig: ExpiryConfig = cleanExpiry(null);
 let themeConfig: ThemeConfig = cleanTheme(null);
+let engagementConfig: EngagementConfig = cleanEngagement(null);
 
 /** A rule's value now (its default until HQ changes it). */
 export const rule = (k: RuleKey): number => rules[k];
@@ -234,6 +237,8 @@ export function cleanTheme(stored: unknown): ThemeConfig {
   if (startsOn && endsOn && endsOn < startsOn) endsOn = null;
   return { preset, startsOn, endsOn, intro: s.intro !== false, background: s.background !== false };
 }
+/** What HQ has switched on in admin > Engagement (everything is off until then). */
+export const engagement = (): EngagementConfig => engagementConfig;
 /** The theme HQ has set (before the dates are looked at). */
 export const themeSetting = (): ThemeConfig => themeConfig;
 /** What the phones show today: the preset only while today (the store's day) is inside the dates, else none. */
@@ -248,7 +253,7 @@ const parse = (v: string | undefined) => { try { return v ? JSON.parse(v) : null
 /** Reads all three from the database. A failure keeps what was there (the server runs on the last known values). */
 export async function refreshSettings(): Promise<void> {
   try {
-    const rows = await prisma.appConfig.findMany({ where: { key: { in: [RULES_KEY, FEATURES_KEY, BUSINESS_KEY, WELCOME_KEY, EXPIRY_KEY, THEME_KEY] } } });
+    const rows = await prisma.appConfig.findMany({ where: { key: { in: [RULES_KEY, FEATURES_KEY, BUSINESS_KEY, WELCOME_KEY, EXPIRY_KEY, THEME_KEY, ENGAGEMENT_KEY] } } });
     const by = new Map(rows.map((r: { key: string; value: string }) => [r.key, r.value]));
     rules = cleanRules(parse(by.get(RULES_KEY)));
     features = cleanFeatures(parse(by.get(FEATURES_KEY)));
@@ -256,14 +261,16 @@ export async function refreshSettings(): Promise<void> {
     welcomeConfig = cleanWelcome(parse(by.get(WELCOME_KEY)));
     expiryConfig = cleanExpiry(parse(by.get(EXPIRY_KEY)));
     themeConfig = cleanTheme(parse(by.get(THEME_KEY)));
+    engagementConfig = cleanEngagement(parse(by.get(ENGAGEMENT_KEY)));
   } catch (e: any) {
     console.error('[settings] could not load, keeping the last values:', e?.message ?? e);
   }
 }
 
 /** Saved by the settings controller: this instance uses the new values at once. */
-export function applySettings(next: { rules?: Record<RuleKey, number>; features?: Record<FeatureKey, boolean>; business?: BusinessInfo; welcome?: WelcomeConfig; expiry?: ExpiryConfig; theme?: ThemeConfig }) {
+export function applySettings(next: { rules?: Record<RuleKey, number>; features?: Record<FeatureKey, boolean>; business?: BusinessInfo; welcome?: WelcomeConfig; expiry?: ExpiryConfig; theme?: ThemeConfig; engagement?: EngagementConfig }) {
   if (next.theme) themeConfig = next.theme;
+  if (next.engagement) engagementConfig = next.engagement;
   if (next.rules) rules = next.rules;
   if (next.features) features = next.features;
   if (next.business) businessInfo = next.business;
@@ -280,8 +287,9 @@ export function startSettingsRefresh() {
 
 /** For tests: set values directly, or put the defaults back. */
 export function setSettingsForTest(next: { rules?: Partial<Record<RuleKey, number>>; features?: Partial<Record<FeatureKey, boolean>>; business?: Partial<BusinessInfo>; welcome?: unknown; expiry?: unknown } | null) {
-  if (next === null) { rules = defaults(); features = cleanFeatures(null); businessInfo = cleanBusiness(null); welcomeConfig = cleanWelcome(null); expiryConfig = cleanExpiry(null); return; }
+  if (next === null) { rules = defaults(); features = cleanFeatures(null); businessInfo = cleanBusiness(null); welcomeConfig = cleanWelcome(null); expiryConfig = cleanExpiry(null); engagementConfig = cleanEngagement(null); return; }
   if (next.welcome !== undefined) welcomeConfig = cleanWelcome(next.welcome);
+  if ((next as { engagement?: unknown }).engagement !== undefined) engagementConfig = cleanEngagement((next as { engagement?: unknown }).engagement);
   if (next.expiry !== undefined) expiryConfig = cleanExpiry(next.expiry);
   if (next.rules) rules = { ...rules, ...next.rules };
   if (next.features) features = { ...features, ...next.features };

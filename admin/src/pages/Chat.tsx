@@ -45,6 +45,8 @@ interface Message {
   userName: string;
   userRole: string;
   text: string;
+  toUserId?: string | null;
+  toUserName?: string | null;
   createdAt: string;
 }
 
@@ -81,6 +83,7 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastTimestamp, setLastTimestamp] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
+  const [toUserId, setToUserId] = useState('');   // a private message to this person (2026-10-23); '' = everyone
   const [sending, setSending] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -172,7 +175,7 @@ export default function Chat() {
     setInputText('');
     if (inputRef.current) inputRef.current.style.height = '44px';
     try {
-      const res = await chatApi.sendMessage(selectedStoreId, text);
+      const res = await chatApi.sendMessage(selectedStoreId, text, toUserId || undefined);
       const newMsg: Message = res.data.data;
       setMessages((prev) => [...prev, newMsg]);
       setLastTimestamp(newMsg.createdAt);
@@ -194,6 +197,10 @@ export default function Chat() {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
   }
 
+  const peopleQ = useQuery({ queryKey: ['chat-people', selectedStoreId], queryFn: () => chatApi.getPeople(selectedStoreId!).then((r) => (r.data.data ?? []) as { id: string; name: string; role: string }[]), enabled: !!selectedStoreId, staleTime: 5 * 60_000 });
+  const people = peopleQ.data ?? [];
+  useEffect(() => { setToUserId(''); }, [selectedStoreId]);   // a private message belongs to one store's thread
+  const toPerson = people.find((p) => p.id === toUserId) ?? null;
   const selectedStore = stores.find((s) => s.id === selectedStoreId);
   const storeIdx = stores.findIndex((s) => s.id === selectedStoreId);
   const gradient = STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0];
@@ -360,6 +367,11 @@ export default function Chat() {
                       )}
 
                       <div style={{ maxWidth: '62%' }}>
+                        {!!msg.toUserId && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', marginBottom: 2, textAlign: isMe ? 'right' : 'left' }}>
+                            🔒 {isMe ? `Private to ${msg.toUserName}` : msg.toUserId === user?.id ? 'Private, to you' : `Private: ${msg.userName} to ${msg.toUserName}`}
+                          </div>
+                        )}
                         {!isMe && isFirstInGroup && (
                           <div style={s.msgMeta}>
                             <span style={s.msgSenderName}>{msg.userName}</span>
@@ -403,6 +415,17 @@ export default function Chat() {
               <div ref={bottomRef} />
             </div>
 
+            {/* Who it is for: everyone, or one person privately (2026-10-23) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px 0', flexWrap: 'wrap' }}>
+              <label htmlFor="chat-to" style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>To</label>
+              <select id="chat-to" value={toUserId} onChange={(e) => setToUserId(e.target.value)} disabled={sending}
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${toUserId ? '#f59e0b' : '#d1d5db'}`, background: toUserId ? '#fffbeb' : '#fff', fontSize: 14, fontWeight: 600 }}>
+                <option value="">Everyone in this store</option>
+                {people.map((p) => <option key={p.id} value={p.id}>{p.name} ({ROLE_LABELS[p.role] || p.role})</option>)}
+              </select>
+              {toPerson && <span style={{ fontSize: 12, color: '#92400e' }}>🔒 Private: only {toPerson.name} and HQ can read this.</span>}
+            </div>
+
             {/* Input bar */}
             <div style={s.inputBar}>
               <div style={s.inputWrap}>
@@ -412,7 +435,7 @@ export default function Chat() {
                   value={inputText}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Message ${selectedStore?.name}…`}
+                  placeholder={toPerson ? `Private message to ${toPerson.name}…` : `Message ${selectedStore?.name}…`}
                   disabled={sending}
                   rows={1}
                   autoComplete="off"

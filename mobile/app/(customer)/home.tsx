@@ -32,6 +32,7 @@ import { useAuthStore } from '../../store/authStore';
 import { offerBonusText } from '../../utils/offerRate';
 import { spanishOffer } from '../../utils/offerText';
 import ChallengesSection from '../../components/ChallengesSection';
+import EngagementHome from '../../components/engagement/EngagementHome';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
@@ -1510,6 +1511,7 @@ function CustomerHomeScreen() {
 
       {/* ── Challenges: the customer's own, with their progress ── */}
       <View ref={challengesSectionRef}>
+        <EngagementHome storeId={nearestStore?.id} enabled={locationReady} />
         <ChallengesSection storeId={nearestStore?.id} enabled={locationReady} />
       </View>
 

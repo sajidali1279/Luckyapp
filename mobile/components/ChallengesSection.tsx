@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { challengesApi } from '../services/api';
 import { COLORS } from '../constants';
 import { TrophyIcon } from './Icons';
+import { useEngagementFlags } from '../hooks/useEngagement';
 
 type Challenge = { id: string; kind: 'SPEND' | 'VISITS'; title: string; titleEs: string | null; description: string; descriptionEs: string | null; category: string | null;
   store: string | null; target: number; minPurchase: number | null; reward: number; repeats: boolean; endDate: string; progress: number; timesEarned: number; done: boolean };
@@ -22,6 +23,7 @@ export default function ChallengesSection({ storeId, enabled }: { storeId?: stri
   const es = i18n.language === 'es';
   const { data } = useQuery({ queryKey: ['my-challenges', storeId ?? ''], queryFn: () => challengesApi.mine(storeId), enabled, staleTime: 30_000 });
   const list: Challenge[] = data?.data?.data ?? [];
+  const punch = !!useEngagementFlags()?.punchCards;   // punch cards (2026-10-23, admin > Engagement): a visits challenge drawn as stamps
   if (list.length === 0) return null;
   return (
     <View style={s.section}>
@@ -39,7 +41,17 @@ export default function ChallengesSection({ storeId, enabled }: { storeId?: stri
             <Text style={s.title} numberOfLines={2}>{title}</Text>
             {!same(title, rule) && <Text style={s.rule}>{rule}</Text>}
             {c.kind === 'VISITS' && c.minPurchase ? <Text style={s.small}>{t('challenges.minEach', { min: money(c.minPurchase) })}</Text> : null}
-            <View style={s.barBg}><View style={[s.bar, { width: `${pct}%` }, c.done && { backgroundColor: COLORS.success }]} /></View>
+            {punch && c.kind === 'VISITS' && c.target <= 12 ? (
+              <View style={s.stamps}>
+                {Array.from({ length: c.target }, (_, i) => (
+                  <View key={i} style={[s.stamp, i < shown && s.stampOn, c.done && { backgroundColor: COLORS.success, borderColor: COLORS.success }]}>
+                    <Text style={[s.stampText, i < shown && { color: '#fff' }]}>{i < shown ? '✓' : i + 1}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={s.barBg}><View style={[s.bar, { width: `${pct}%` }, c.done && { backgroundColor: COLORS.success }]} /></View>
+            )}
             <View style={s.row}>
               <Text style={[s.small, { fontWeight: '700', color: c.done ? COLORS.success : COLORS.text }]}>{c.done ? t('challenges.done', { reward: pts(c.reward) }) : progressText}</Text>
               <Text style={s.small}>{t('challenges.endsOn', { date: new Date(c.endDate).toLocaleDateString(es ? 'es-US' : 'en-US', { month: 'short', day: 'numeric' }) })}</Text>
@@ -54,6 +66,10 @@ export default function ChallengesSection({ storeId, enabled }: { storeId?: stri
 }
 
 const s = StyleSheet.create({
+  stamps: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  stamp: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderStyle: 'dashed', borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  stampOn: { backgroundColor: COLORS.primary, borderColor: COLORS.primary, borderStyle: 'solid' },
+  stampText: { fontSize: 12, fontWeight: '800', color: '#94A3B8' },
   section: { paddingHorizontal: 16, marginTop: 18, gap: 10 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   headText: { fontSize: 17, fontWeight: '800', color: COLORS.text },

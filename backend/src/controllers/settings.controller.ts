@@ -322,7 +322,7 @@ export async function getPointsExpiryPreview(req: AuthRequest, res: Response) {
 
 /** Every settings change HQ or the Dev Admin made, wherever it was made, and which Settings tab it belongs to. */
 export const SETTINGS_ACTIONS: Record<string, string> = {
-  SETTINGS_RULES_UPDATE: 'Rules', SETTINGS_FEATURES_UPDATE: 'Features', SETTINGS_BUSINESS_UPDATE: 'Business details', SETTINGS_WELCOME_UPDATE: 'Joining bonus', SETTINGS_THEME_UPDATE: 'App theme',
+  SETTINGS_RULES_UPDATE: 'Rules', SETTINGS_FEATURES_UPDATE: 'Features', SETTINGS_BUSINESS_UPDATE: 'Business details', SETTINGS_WELCOME_UPDATE: 'Joining bonus', SETTINGS_THEME_UPDATE: 'App theme', SETTINGS_ENGAGEMENT_UPDATE: 'Engagement',
   SETTINGS_EXPIRY_UPDATE: 'Points expiry',
   RECEIPT_SCAN_SETTINGS: 'Receipt scanning', REFERRAL_SETTINGS_UPDATE: 'Refer a friend', DEAL_LIMITS: 'Deal limits',
   APP_VERSIONS_UPDATE: 'App updates', PROMOTION_SETTINGS: 'Featured ads', DEV_CUT_RATE_UPDATE: 'Default fee',

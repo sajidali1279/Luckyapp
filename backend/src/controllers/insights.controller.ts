@@ -153,7 +153,7 @@ export async function getPromotionInsights(req: AuthRequest, res: Response) {
   const promoAmount = rows.reduce((n, r) => n + (r._sum.purchaseAmount ?? 0), 0);
 
   const challenges = await prisma.challenge.findMany({
-    where: { kind: { not: 'WINBACK' }, startDate: { lt: w.end }, endDate: { gte: w.start }, ...(w.storeId ? { OR: [{ storeId: w.storeId }, { storeId: null }] } : {}) },   // win-back gifts are not challenges
+    where: { kind: { notIn: ['WINBACK', 'SYSTEM'] }, startDate: { lt: w.end }, endDate: { gte: w.start }, ...(w.storeId ? { OR: [{ storeId: w.storeId }, { storeId: null }] } : {}) },   // win-back gifts are not challenges
     select: { id: true, title: true, kind: true, target: true, reward: true, startDate: true, endDate: true, store: { select: { name: true } } },
   });
   const ids = challenges.map((c) => c.id);

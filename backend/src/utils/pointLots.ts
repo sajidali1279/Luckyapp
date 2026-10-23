@@ -27,7 +27,7 @@ const DAY = 86_400_000;
 const c2 = (v: number) => Math.round(v * 100) / 100;
 const pts = (dollars: number) => Math.round(dollars * 100);
 
-export type LotSource = 'SALE' | 'RECEIPT_QR' | 'CHALLENGE' | 'REFERRAL' | 'WINBACK' | 'GOODWILL' | 'DISPUTE' | 'RESTORED' | 'OPENING' | 'TEST';
+export type LotSource = 'SALE' | 'RECEIPT_QR' | 'CHALLENGE' | 'REFERRAL' | 'WINBACK' | 'GOODWILL' | 'DISPUTE' | 'RESTORED' | 'OPENING' | 'TEST' | 'ENGAGEMENT';
 export type UseRef = 'CREDIT_REDEMPTION' | 'CATALOG' | 'HOT_FOOD' | 'VOID';
 
 /** When a batch earned at `earnedAt` expires, or null while expiry is off. */

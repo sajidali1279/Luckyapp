@@ -50,6 +50,8 @@ interface Message {
   userName: string;
   userRole: string;
   text: string;
+  toUserId?: string | null;
+  toUserName?: string | null;
   createdAt: string;
 }
 
@@ -94,6 +96,8 @@ export default function ChatScreen() {
   const [lastTimestamp, setLastTimestamp] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [toUser, setToUser] = useState<{ id: string; name: string } | null>(null);   // a private message to this person; null = everyone
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [pollOffline, setPollOffline] = useState(false);
   const listRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -109,6 +113,10 @@ export default function ChatScreen() {
   const unreadBy: Record<string, number> = unreadQ.data?.data?.data ?? {};
 
   const { notices: visibleNotices, dismiss: dismissNotice } = usePinnedNotices(selectedStoreId);
+  // Who a private message can go to at this store (2026-10-23)
+  const peopleQ = useQuery({ queryKey: ['chat-people', selectedStoreId], queryFn: () => chatApi.getPeople(selectedStoreId!), enabled: !!selectedStoreId, staleTime: 5 * 60_000 });
+  const people: { id: string; name: string; role: string }[] = peopleQ.data?.data?.data ?? [];
+  useEffect(() => { setToUser(null); }, [selectedStoreId]);   // a private message belongs to one store's thread
 
   const ROLE_LABELS: Record<string, string> = {
     DEV_ADMIN:     t('sharedChat.roleDev'),
@@ -193,7 +201,7 @@ export default function ChatScreen() {
 
     setSending(true);
     try {
-      const res = await chatApi.sendMessage(selectedStoreId, text);
+      const res = await chatApi.sendMessage(selectedStoreId, text, toUser?.id);
       const newMsg: Message = res.data.data;
       setInputText('');
       setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
@@ -248,9 +256,14 @@ export default function ChatScreen() {
           )}
 
           <View style={{ maxWidth: '72%' }}>
+            {!!item.toUserId && (
+              <Text style={[s.privateTag, { textAlign: isMe ? 'right' : 'left' }]}>
+                🔒 {isMe ? t('sharedChat.privateTo', { name: item.toUserName }) : item.toUserId === user?.id ? t('sharedChat.privateToYou') : t('sharedChat.privateBetween', { from: item.userName, to: item.toUserName })}
+              </Text>
+            )}
             {!isMe && isFirstInGroup && (
               <View style={s.msgMeta}>
-                <Text style={s.msgSender}>{item.userName}</Text>
+                <Text style={s.msgSender} onPress={() => { const p = people.find((x) => x.id === item.userId); if (p) setToUser({ id: p.id, name: p.name }); }} accessibilityRole="button" accessibilityLabel={t('sharedChat.replyPrivatelyA11y', { name: item.userName })}>{item.userName}</Text>
                 <View style={[s.roleBadge, { backgroundColor: roleColor }]}>
                   <Text style={s.roleBadgeText}>{ROLE_LABELS[item.userRole] || item.userRole}</Text>
                 </View>
@@ -413,6 +426,20 @@ export default function ChatScreen() {
           />
         )}
 
+        {/* ── Who it is for (2026-10-23): everyone, or one person privately ── */}
+        <View style={s.toRow}>
+          <TouchableOpacity style={[s.toChip, toUser && s.toChipPrivate]} onPress={() => setPickerOpen(true)} accessibilityRole="button"
+            accessibilityLabel={toUser ? t('sharedChat.toPersonA11y', { name: toUser.name }) : t('sharedChat.toEveryoneA11y')}>
+            <Text style={[s.toChipText, toUser && { color: '#92400e' }]}>{toUser ? `🔒 ${t('sharedChat.toPerson', { name: toUser.name })}` : `${t('sharedChat.toEveryone')}  ▾`}</Text>
+          </TouchableOpacity>
+          {toUser && (
+            <TouchableOpacity onPress={() => setToUser(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('sharedChat.toEveryoneA11y')}>
+              <Text style={s.toClear}>✕</Text>
+            </TouchableOpacity>
+          )}
+          {toUser && <Text style={s.toNote}>{t('sharedChat.privateNote')}</Text>}
+        </View>
+
         {/* ── Input ── */}
         <View style={s.inputBar}>
           <View style={s.inputWrap}>
@@ -420,7 +447,7 @@ export default function ChatScreen() {
               style={s.input}
               value={inputText}
               onChangeText={setInputText}
-              placeholder={t('sharedChat.inputPlaceholder')}
+              placeholder={toUser ? t('sharedChat.inputPlaceholderPrivate', { name: toUser.name }) : t('sharedChat.inputPlaceholder')}
               placeholderTextColor="#9ca3af"
               multiline
               maxLength={500}
@@ -442,6 +469,30 @@ export default function ChatScreen() {
           </Animated.View>
         </View>
       </View>
+
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <View style={s.pickOverlay}>
+          <View style={s.pickSheet}>
+            <Text style={s.pickTitle}>{t('sharedChat.pickPerson')}</Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              <TouchableOpacity style={s.pickRow} onPress={() => { setToUser(null); setPickerOpen(false); }} accessibilityRole="button">
+                <Text style={s.pickName}>{t('sharedChat.toEveryone')}</Text>
+                {!toUser && <Text style={s.pickCheck}>✓</Text>}
+              </TouchableOpacity>
+              {people.map((p) => (
+                <TouchableOpacity key={p.id} style={s.pickRow} onPress={() => { setToUser({ id: p.id, name: p.name }); setPickerOpen(false); }} accessibilityRole="button">
+                  <Text style={s.pickName}>{p.name}</Text>
+                  <Text style={s.pickRole}>{ROLE_LABELS[p.role] || p.role}</Text>
+                  {toUser?.id === p.id && <Text style={s.pickCheck}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+              {peopleQ.isLoading && <ActivityIndicator style={{ margin: 16 }} color={COLORS.primary} />}
+              {!peopleQ.isLoading && people.length === 0 && <Text style={s.pickEmpty}>{t('sharedChat.noPeople')}</Text>}
+            </ScrollView>
+            <TouchableOpacity style={s.pickCancel} onPress={() => setPickerOpen(false)} accessibilityRole="button"><Text style={s.pickCancelText}>{t('sharedChat.cancel')}</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardSafe>
   );
 }
@@ -519,6 +570,23 @@ const s = StyleSheet.create({
 
   msgMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 2 },
   msgSender: { fontSize: 12, fontWeight: '700', color: '#374151' },
+  privateTag: { fontSize: 11, fontWeight: '700', color: '#92400e', marginBottom: 2 },
+  toRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 6, backgroundColor: '#fff', flexWrap: 'wrap' },
+  toChip: { borderRadius: 14, borderWidth: 1, borderColor: '#d1d5db', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#f9fafb' },
+  toChipPrivate: { borderColor: '#f59e0b', backgroundColor: '#fffbeb' },
+  toChipText: { fontSize: 13, fontWeight: '700', color: '#374151' },
+  toClear: { fontSize: 15, color: '#6b7280', fontWeight: '700', paddingHorizontal: 4 },
+  toNote: { fontSize: 11, color: '#92400e', flexShrink: 1 },
+  pickOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
+  pickSheet: { backgroundColor: '#fff', borderRadius: 18, padding: 16 },
+  pickTitle: { fontSize: 17, fontWeight: '800', color: '#111827', marginBottom: 8 },
+  pickRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  pickName: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
+  pickRole: { fontSize: 12, color: '#6b7280' },
+  pickCheck: { fontSize: 16, color: '#16a34a', fontWeight: '800' },
+  pickEmpty: { padding: 16, color: '#6b7280', textAlign: 'center' },
+  pickCancel: { marginTop: 8, paddingVertical: 12, alignItems: 'center' },
+  pickCancelText: { fontSize: 15, fontWeight: '700', color: '#6b7280' },
   roleBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 5 },
   roleBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 

@@ -35,6 +35,7 @@ import { sized } from '../../utils/imageUrl';
 import { byDistance, choosePickup, closerStore, locationQuality, loadSavedPickup, savePickup, addressLine, openDirections, milesText, FAR_MILES, type Here, type PickupStore } from '../../utils/pickupStore';
 import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } from '../../components/HotFoodPickup';
 import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../components/HotFoodCombos';
+import { useEngagementFlags } from '../../hooks/useEngagement';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -724,6 +725,15 @@ export default function CustomerHotFoodScreen() {
   }
   const orders: FoodOrder[] = ordersData?.data?.data || [];
   const activeOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'ACCEPTED' || o.status === 'READY');
+  // "Your usual" (2026-10-23, HQ switch in admin > Engagement): what this customer has ordered most from this menu, one tap to add.
+  // Worked out here from their own finished orders, so a name that is no longer on this store's menu simply does not show.
+  const engFlags = useEngagementFlags();
+  const usual: MenuItem[] = (() => {
+    if (!engFlags?.reorder) return [];
+    const count = new Map<string, number>();
+    for (const o of orders) if (o.status === 'COMPLETED') for (const it of o.items) count.set(it.name, (count.get(it.name) ?? 0) + it.quantity);
+    return menuItems.filter((m) => (count.get(m.name) ?? 0) >= 2).sort((a, b) => (count.get(b.name) ?? 0) - (count.get(a.name) ?? 0)).slice(0, 4);
+  })();
   const pastOrders = orders.filter(o => o.status === 'COMPLETED' || o.status === 'CANCELLED');
 
   // Cart helpers
@@ -885,6 +895,20 @@ export default function CustomerHotFoodScreen() {
                 }}
                 ListHeaderComponent={
                   <View>
+                    {!search.trim() && !closed && usual.length > 0 && (
+                      <View style={s.usual}>
+                        <Text style={s.usualTitle}>{t('engagement.yourUsual')}</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                          {usual.map((m) => (
+                            <TouchableOpacity key={m.id} style={s.usualChip} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('customerHotFood.addToCartA11y', { name: m.name })}
+                              onPress={() => { addToCart(m); Toast.show({ type: 'success', text1: t('customerHotFood.addedFromHome', { name: m.name }) }); }}>
+                              <Text style={s.usualName} numberOfLines={1}>{m.name}</Text>
+                              <Text style={s.usualPrice}>+ ${m.price.toFixed(2)}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
                     {!search.trim() && (
                       <ComboStrip
                         combos={combos} closed={closed} countOf={comboCount} onAdd={addCombo}
@@ -1045,6 +1069,11 @@ export default function CustomerHotFoodScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
+  usual: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6, gap: 6 },
+  usualTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+  usualChip: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#E2E8F0', maxWidth: 190 },
+  usualName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  usualPrice: { fontSize: 12, fontWeight: '700', color: COLORS.primary, marginTop: 2 },
   root: { flex: 1, backgroundColor: COLORS.background },
 
   // Header

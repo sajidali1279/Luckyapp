@@ -175,6 +175,14 @@ export const receiptApi = {
 };
 
 /** Challenges: the customer's own, with their progress (spend or visit targets that pay a reward). */
+export const engagementApi = {
+  config: () => api.get('/engagement/config'),
+  me: (storeId?: string) => api.get(`/engagement/me${storeId ? `?storeId=${storeId}` : ''}`),
+  checkIn: () => api.post('/engagement/check-in'),
+  putGasAlert: (body: { storeId: string; fuel: 'GAS' | 'DIESEL'; maxPrice: number }) => api.put('/engagement/gas-alerts', body),
+  deleteGasAlert: (id: string) => api.delete(`/engagement/gas-alerts/${id}`),
+};
+
 export const challengesApi = {
   mine: (storeId?: string) => api.get(`/challenges/mine${storeId ? `?storeId=${storeId}` : ''}`),
 };
@@ -222,8 +230,10 @@ export const chatApi = {
   getMyStores: () => api.get('/chat/my-stores'),
   getMessages: (storeId: string, after?: string) =>
     api.get(`/chat/${storeId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
-  sendMessage: (storeId: string, text: string) =>
-    api.post(`/chat/${storeId}/messages`, { text }),
+  // toUserId: a private message to one person at the store (2026-10-23); left out = to everyone
+  sendMessage: (storeId: string, text: string, toUserId?: string) =>
+    api.post(`/chat/${storeId}/messages`, { text, ...(toUserId ? { toUserId } : {}) }),
+  getPeople: (storeId: string) => api.get(`/chat/${storeId}/people`),
   getUnreadCount: () => api.get('/chat/unread-count'),
   getUnreadByStore: () => api.get('/chat/unread-by-store'),   // { [storeId]: count }
 };

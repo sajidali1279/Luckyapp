@@ -112,6 +112,14 @@ export const billingApi = {
 };
 
 /** Challenges: spend or visit targets that pay a reward (HQ). */
+// Engagement (2026-10-23): HQ's switches and numbers, results, suggestions and store goals
+export const engagementApi = {
+  hq: () => api.get('/engagement/hq'),
+  save: (patch: object) => api.put('/settings/engagement', patch),
+  createGoal: (data: object) => api.post('/engagement/goals', data),
+  updateGoal: (id: string, data: object) => api.patch(`/engagement/goals/${id}`, data),
+};
+
 export const challengesApi = {
   list: () => api.get('/challenges'),
   create: (data: object) => api.post('/challenges', data),
@@ -414,8 +422,10 @@ export const chatApi = {
   getMyStores: () => api.get('/chat/my-stores'),
   getMessages: (storeId: string, after?: string) =>
     api.get(`/chat/${storeId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
-  sendMessage: (storeId: string, text: string) =>
-    api.post(`/chat/${storeId}/messages`, { text }),
+  // toUserId: a private message to one person at the store (2026-10-23); left out = to everyone
+  sendMessage: (storeId: string, text: string, toUserId?: string) =>
+    api.post(`/chat/${storeId}/messages`, { text, ...(toUserId ? { toUserId } : {}) }),
+  getPeople: (storeId: string) => api.get(`/chat/${storeId}/people`),
   getUnreadCount: () => api.get('/chat/unread-count'),
   getUnreadCountByStore: () => api.get('/chat/unread-by-store'),
   clearChat: (storeId: string) => api.delete(`/chat/${storeId}/messages`),

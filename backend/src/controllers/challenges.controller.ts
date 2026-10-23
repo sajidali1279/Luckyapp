@@ -107,7 +107,7 @@ export async function createChallenge(req: AuthRequest, res: Response) {
 // GET /challenges (HQ): every challenge, newest first, with who took part, how often it was earned and what it paid
 export async function listChallenges(_req: AuthRequest, res: Response) {
   // Win-back gifts are kept as challenges too (utils/winBack.ts) but are not challenges: they have their own list
-  const rows = await prisma.challenge.findMany({ where: { kind: { not: 'WINBACK' } }, orderBy: { startDate: 'desc' }, take: 100, include: { store: { select: { name: true } } } });
+  const rows = await prisma.challenge.findMany({ where: { kind: { notIn: ['WINBACK', 'SYSTEM'] } }, orderBy: { startDate: 'desc' }, take: 100, include: { store: { select: { name: true } } } });
   const stats = await challengeStats(rows.map((r) => r.id));
   const now = Date.now();
   res.json({

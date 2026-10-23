@@ -52,7 +52,7 @@ import {
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification, getBroadcastAudience, listBroadcasts } from '../controllers/notifications.controller';
-import { getMyChatStores, getMessages, sendMessage, clearChat, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
+import { getMyChatStores, getChatPeople, getMessages, sendMessage, clearChat, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, getPendingCountByStore, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore } from '../controllers/productRequest.controller';
 import {
@@ -110,6 +110,7 @@ import {
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
+import { getEngagementConfig, getMyEngagement, postCheckIn, putGasAlert, deleteGasAlert, getEngagementHq, putEngagement, createGoal, updateGoal } from '../controllers/engagement.controller';
 import { getSettings, putRules, putFeatures, putBusiness, putWelcome, putTheme, getAppTheme, putPointsExpiry, getPointsExpiryPreview, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
@@ -546,6 +547,7 @@ router.get('/schedule/vacancies', authenticate, getVacancies);                  
 router.get('/chat/my-stores', authenticate, getMyChatStores);                                        // Stores user can chat in
 router.get('/chat/unread-count', authenticate, getChatUnreadCount);                                  // Badge count across accessible stores
 router.get('/chat/unread-by-store', authenticate, getChatUnreadCountByStore);                        // Per-store breakdown for multi-store sidebar
+router.get('/chat/:storeId/people',   authenticate, getChatPeople);                                    // Who a private message can go to (2026-10-23)
 router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
 router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
 router.delete('/chat/:storeId/messages', authenticate, requireRole(Role.SUPER_ADMIN), clearChat);    // Permanently clear a store's chat history (SuperAdmin+ only)
@@ -755,6 +757,15 @@ router.get('/settings',                 authenticate, requireRole(Role.SUPER_ADM
 router.put('/settings/rules',           authenticate, requireRole(Role.SUPER_ADMIN),   putRules);
 router.put('/settings/features',        authenticate, requireRole(Role.SUPER_ADMIN),   putFeatures);
 router.put('/settings/business',        authenticate, requireRole(Role.SUPER_ADMIN),   putBusiness);
+router.get('/engagement/config',        authenticate,                                   getEngagementConfig);
+router.get('/engagement/me',            authenticate,                                   getMyEngagement);   // streak, check-in, badges, goals (2026-10-23)
+router.post('/engagement/check-in',      authenticate,                                   postCheckIn);
+router.put('/engagement/gas-alerts',     authenticate,                                   putGasAlert);
+router.delete('/engagement/gas-alerts/:id', authenticate,                                deleteGasAlert);
+router.get('/engagement/hq',             authenticate, requireRole(Role.SUPER_ADMIN),   getEngagementHq);   // HQ: switches, results, suggestions, goals
+router.put('/settings/engagement',       authenticate, requireRole(Role.SUPER_ADMIN),   putEngagement);
+router.post('/engagement/goals',         authenticate, requireRole(Role.SUPER_ADMIN),   createGoal);
+router.patch('/engagement/goals/:id',    authenticate, requireRole(Role.SUPER_ADMIN),   updateGoal);
 router.put('/settings/theme',           authenticate, requireRole(Role.SUPER_ADMIN),   putTheme);         // the seasonal app theme (2026-10-21)
 router.put('/settings/welcome',         authenticate, requireRole(Role.SUPER_ADMIN),   putWelcome);       // the joining bonus (2026-10-17)
 router.put('/settings/points-expiry',   authenticate, requireRole(Role.SUPER_ADMIN),   putPointsExpiry);  // points expiry (2026-10-17)

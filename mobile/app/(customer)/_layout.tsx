@@ -5,6 +5,7 @@ import { COLORS } from '../../constants';
 import { notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import { useAppSettings } from '../../hooks/useAppSettings';
+import { useEngagementFlags } from '../../hooks/useEngagement';
 import {
   HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
   BriefcaseIcon, ShoppingBagIcon, BellIcon, FlameIcon,
@@ -21,6 +22,7 @@ export default function CustomerLayout() {
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   const appSettings = useAppSettings();   // HQ's switches (admin Settings > Features)
+  const eng = useEngagementFlags();   // HQ's engagement switches (admin > Engagement)
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(customer)/home',    icon: (p) => <HomeIcon {...p} strokeWidth={2} />, label: t('nav.home') },
     { route: '/(customer)/rewards', icon: (p) => <StarIcon {...p} strokeWidth={2} />, label: t('nav.rewards') },
@@ -42,6 +44,8 @@ export default function CustomerLayout() {
         { route: '/(customer)/invite-friends',  icon: (p) => <GiftIcon {...p} />,        label: t('nav.inviteFriends') },
         { route: '/(customer)/ads',             icon: (p) => <MegaphoneIcon {...p} />,   label: t('nav.adsPromos') },
         { route: '/(customer)/leaderboard',     icon: (p) => <TrophyIcon {...p} />,      label: t('nav.leaderboard') },
+        ...(eng?.badges ? [{ route: '/(customer)/badges', icon: (p: any) => <StarIcon {...p} />, label: t('nav.badges') }] : []),
+        ...(eng?.gasAlerts ? [{ route: '/(customer)/gas-alerts', icon: (p: any) => <BellIcon {...p} />, label: t('nav.gasAlerts') }] : []),
         { route: '/(customer)/careers',         icon: (p) => <BriefcaseIcon {...p} />,   label: t('nav.careers') },
         { route: '/(customer)/request-product', icon: (p) => <ShoppingBagIcon {...p} />, label: t('nav.requestProduct') },
         { route: '/(customer)/missing/request', icon: (p) => <AlertCircleIcon {...p} />, label: t('nav.missingRequest') },
@@ -78,6 +82,8 @@ export default function CustomerLayout() {
         <Tabs.Screen name="guide" />
         <Tabs.Screen name="profile" />
         <Tabs.Screen name="invite-friends" />
+        <Tabs.Screen name="badges" options={{ href: null }} />
+        <Tabs.Screen name="gas-alerts" options={{ href: null }} />
       </Tabs>
     </DrawerShell>
   );
