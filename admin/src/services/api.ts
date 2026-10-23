@@ -426,6 +426,14 @@ export const chatApi = {
   sendMessage: (storeId: string, text: string, toUserId?: string) =>
     api.post(`/chat/${storeId}/messages`, { text, ...(toUserId ? { toUserId } : {}) }),
   getPeople: (storeId: string) => api.get(`/chat/${storeId}/people`),
+  // a photo or a PDF, with or without text (2026-10-24)
+  sendAttachment: (storeId: string, file: File, text: string, toUserId?: string) => {
+    const fd = new FormData();
+    if (text) fd.append('text', text);
+    if (toUserId) fd.append('toUserId', toUserId);
+    fd.append('file', file);
+    return api.post(`/chat/${storeId}/messages`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   getUnreadCount: () => api.get('/chat/unread-count'),
   getUnreadCountByStore: () => api.get('/chat/unread-by-store'),
   clearChat: (storeId: string) => api.delete(`/chat/${storeId}/messages`),

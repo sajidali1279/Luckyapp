@@ -1047,6 +1047,12 @@ model ChatMessage {
   // A private message to one person in the store's thread (2026-10-23): only the sender, that person and HQ can read it. null = to everyone.
   toUserId   String?
   toUserName String?   // denormalized for display
+  // A photo or a PDF in the thread (2026-10-24): kept in Cloudinary as a signed, private file; only the people who can read the message get a link.
+  // attachmentId is Cloudinary's public id; attachmentKind IMAGE or PDF. text may be empty when there is an attachment.
+  attachmentId    String?
+  attachmentKind  String?
+  attachmentName  String?
+  attachmentBytes Int?
   createdAt DateTime @default(now())
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)

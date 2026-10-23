@@ -47,8 +47,12 @@ interface Message {
   text: string;
   toUserId?: string | null;
   toUserName?: string | null;
+  attachment?: { kind: 'IMAGE' | 'PDF'; name: string; bytes: number | null; url: string; thumbUrl: string } | null;   // a photo or a PDF (2026-10-24)
   createdAt: string;
 }
+
+const MAX_PDF = 5 * 1024 * 1024;
+const sizeText = (b?: number | null) => (b == null ? '' : b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -167,20 +171,35 @@ export default function Chat() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [poll]);
 
+  // A photo or PDF chosen to go with the next message (2026-10-24); the server checks what it really is and shrinks photos
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  function chooseFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.type === 'application/pdf' && f.size > MAX_PDF) { toast.error('That PDF is over 5 MB. Send a smaller one.'); return; }
+    if (!f.type.startsWith('image/') && f.type !== 'application/pdf') { toast.error('Send a photo or a PDF.'); return; }
+    setFile(f);
+  }
+
   async function handleSend(e?: React.FormEvent) {
     e?.preventDefault();
     const text = inputText.trim();
-    if (!text || !selectedStoreId || sending) return;
+    if ((!text && !file) || !selectedStoreId || sending) return;
     setSending(true);
     setInputText('');
+    const sentFile = file;
+    setFile(null);
     if (inputRef.current) inputRef.current.style.height = '44px';
     try {
-      const res = await chatApi.sendMessage(selectedStoreId, text, toUserId || undefined);
+      const res = sentFile ? await chatApi.sendAttachment(selectedStoreId, sentFile, text, toUserId || undefined) : await chatApi.sendMessage(selectedStoreId, text, toUserId || undefined);
       const newMsg: Message = res.data.data;
-      setMessages((prev) => [...prev, newMsg]);
+      setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
       setLastTimestamp(newMsg.createdAt);
     } catch (e) {
       setInputText(text);
+      setFile(sentFile);
       toast.error(serverMessage(e, 'Failed to send message'));
     }
     setSending(false);
@@ -390,6 +409,20 @@ export default function Chat() {
                             borderBottomRightRadius: isMe && isLastInGroup ? 4 : 18,
                             borderBottomLeftRadius: !isMe && isLastInGroup ? 4 : 18,
                           }}>
+                            {msg.attachment?.kind === 'IMAGE' && (
+                              <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: msg.text ? 6 : 0 }} aria-label={`Open photo from ${msg.userName}`}>
+                                <img src={msg.attachment.thumbUrl} alt={`Photo from ${msg.userName}`} loading="lazy" style={{ display: 'block', maxWidth: 260, maxHeight: 200, borderRadius: 12, background: '#e5e7eb' }} />
+                              </a>
+                            )}
+                            {msg.attachment?.kind === 'PDF' && (
+                              <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', marginBottom: msg.text ? 6 : 0 }} aria-label={`Open PDF ${msg.attachment.name}`}>
+                                <img src={msg.attachment.thumbUrl} alt="" loading="lazy" style={{ width: 46, height: 58, objectFit: 'cover', borderRadius: 6, background: '#e5e7eb' }} />
+                                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                  <span style={{ fontWeight: 700, fontSize: 14, wordBreak: 'break-word' }}>{msg.attachment.name}</span>
+                                  <span style={{ fontSize: 12, opacity: 0.75 }}>PDF{msg.attachment.bytes ? ` · ${sizeText(msg.attachment.bytes)}` : ''} · click to open</span>
+                                </span>
+                              </a>
+                            )}
                             {msg.text}
                           </div>
                           {isLastInGroup && (
@@ -427,8 +460,17 @@ export default function Chat() {
             </div>
 
             {/* Input bar */}
-            <div style={s.inputBar}>
-              <div style={s.inputWrap}>
+            {file && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px 0' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{file.type === 'application/pdf' ? '📄' : '🖼️'} {file.name} · {sizeText(file.size)}</span>
+                <button type="button" onClick={() => setFile(null)} aria-label="Remove the attachment" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280' }}>✕</button>
+              </div>
+            )}
+            <div style={{ ...s.inputBar, display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+              <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={chooseFile} style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} />
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={sending} aria-label="Add a photo or PDF" title="Add a photo or PDF"
+                style={{ width: 44, height: 44, borderRadius: 22, border: 'none', background: '#eef2f7', cursor: 'pointer', fontSize: 22, color: '#1D3557', flexShrink: 0 }}>+</button>
+              <div style={{ ...s.inputWrap, flex: 1 }}>
                 <textarea
                   ref={inputRef}
                   style={s.textarea}
@@ -443,9 +485,9 @@ export default function Chat() {
                 <div style={s.inputActions}>
                   <span style={s.inputHint}>↵ send · ⇧↵ newline</span>
                   <button
-                    style={{ ...s.sendBtn, opacity: (!inputText.trim() || sending) ? 0.45 : 1 }}
+                    style={{ ...s.sendBtn, opacity: ((!inputText.trim() && !file) || sending) ? 0.45 : 1 }}
                     onClick={() => handleSend()}
-                    disabled={!inputText.trim() || sending}
+                    disabled={(!inputText.trim() && !file) || sending}
                   >
                     {sending ? '…' : '↑'}
                   </button>

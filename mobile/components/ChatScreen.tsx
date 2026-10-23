@@ -8,7 +8,11 @@ import {
   Animated,
   Modal,
   ScrollView,
+  Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { Text, TextInput } from './ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -20,7 +24,7 @@ import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
 import ModalCloseButton from './ModalCloseButton';
-import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon } from './Icons';
+import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon, XIcon } from './Icons';
 import { NoticeStack, usePinnedNotices } from './NoticeBanner';
 import KeyboardSafe from './KeyboardSafe';
 import ErrorState from './ErrorState';
@@ -52,8 +56,14 @@ interface Message {
   text: string;
   toUserId?: string | null;
   toUserName?: string | null;
+  attachment?: { kind: 'IMAGE' | 'PDF'; name: string; bytes: number | null; url: string; thumbUrl: string } | null;   // a photo or a PDF (2026-10-24)
   createdAt: string;
 }
+
+// What is waiting to be sent with the next message
+interface Pending { uri: string; name: string; type: string; kind: 'IMAGE' | 'PDF'; bytes?: number }
+const MAX_PDF = 5 * 1024 * 1024;
+const sizeText = (b?: number | null) => (b == null ? '' : b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 interface Store {
   id: string;
@@ -98,6 +108,9 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [toUser, setToUser] = useState<{ id: string; name: string } | null>(null);   // a private message to this person; null = everyone
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);   // a photo or PDF chosen, not yet sent
+  const [attachOpen, setAttachOpen] = useState(false);          // the 'add a photo or file' sheet (a sheet, not an Alert: Android shows an Alert's first 3 buttons only)
+  const [viewing, setViewing] = useState<string | null>(null);     // a photo opened full size
   const [pollOffline, setPollOffline] = useState(false);
   const listRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -190,9 +203,40 @@ export default function ChatScreen() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [poll]);
 
+  // Choosing a photo or a PDF to send (2026-10-24): the camera, the photo library or a PDF from Files. It waits above the box until Send.
+  async function takePhoto(camera: boolean) {
+    try {
+      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8, exif: false };
+      if (camera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) { Toast.show({ type: 'error', text1: t('sharedChat.cameraDenied') }); return; }
+      }
+      const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+      const a = r.canceled ? null : r.assets?.[0];
+      if (a) setPending({ uri: a.uri, name: a.fileName || 'photo.jpg', type: a.mimeType || 'image/jpeg', kind: 'IMAGE', bytes: a.fileSize });
+    } catch { Toast.show({ type: 'error', text1: t('sharedChat.attachFailed') }); }
+  }
+  async function pickPdf() {
+    try {
+      const r = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true, multiple: false });
+      const a = r.canceled ? null : r.assets?.[0];
+      if (!a) return;
+      if (a.size != null && a.size > MAX_PDF) { Toast.show({ type: 'error', text1: t('sharedChat.pdfTooBig') }); return; }
+      setPending({ uri: a.uri, name: a.name || 'document.pdf', type: 'application/pdf', kind: 'PDF', bytes: a.size ?? undefined });
+    } catch { Toast.show({ type: 'error', text1: t('sharedChat.attachFailed') }); }
+  }
+  // Open the next picker once the sheet has closed (iOS will not present a second screen while a Modal is still closing)
+  const chooseAttachment = () => setAttachOpen(true);
+  const attachThen = (go: () => void) => { setAttachOpen(false); setTimeout(go, 350); };
+  async function openFile(m: Message) {
+    if (!m.attachment) return;
+    if (m.attachment.kind === 'IMAGE') { setViewing(m.attachment.url); return; }
+    try { await Linking.openURL(m.attachment.url); } catch { Toast.show({ type: 'error', text1: t('sharedChat.openFailed') }); }
+  }
+
   async function handleSend() {
     const text = inputText.trim();
-    if (!text || !selectedStoreId || sending) return;
+    if ((!text && !pending) || !selectedStoreId || sending) return;
 
     Animated.sequence([
       Animated.timing(sendScale, { toValue: 0.88, duration: 80, useNativeDriver: true }),
@@ -201,9 +245,10 @@ export default function ChatScreen() {
 
     setSending(true);
     try {
-      const res = await chatApi.sendMessage(selectedStoreId, text, toUser?.id);
+      const res = pending ? await chatApi.sendAttachment(selectedStoreId, pending, text, toUser?.id) : await chatApi.sendMessage(selectedStoreId, text, toUser?.id);
       const newMsg: Message = res.data.data;
       setInputText('');
+      setPending(null);
       setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
       // The poll cursor stays where it was: moving it to our message skipped any teammate's message sent just before it. (An empty chat
       // has no cursor yet, so it starts at ours.)
@@ -280,7 +325,21 @@ export default function ChatScreen() {
               isMe && !isFirstInGroup && !isLastInGroup && s.bubbleMidRight,
               isMe && !isFirstInGroup && isLastInGroup && s.bubbleBotRight,
             ]}>
-              <Text style={[s.bubbleText, isMe && { color: '#fff' }]}>{item.text}</Text>
+              {item.attachment?.kind === 'IMAGE' && (
+                <TouchableOpacity onPress={() => openFile(item)} activeOpacity={0.85} accessibilityRole="imagebutton" accessibilityLabel={t('sharedChat.openPhotoA11y', { name: item.userName })}>
+                  <Image source={{ uri: item.attachment.thumbUrl }} style={s.photo} contentFit="cover" transition={150} />
+                </TouchableOpacity>
+              )}
+              {item.attachment?.kind === 'PDF' && (
+                <TouchableOpacity onPress={() => openFile(item)} activeOpacity={0.85} style={s.pdfCard} accessibilityRole="button" accessibilityLabel={t('sharedChat.openPdfA11y', { name: item.attachment.name })}>
+                  <Image source={{ uri: item.attachment.thumbUrl }} style={s.pdfThumb} contentFit="cover" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.pdfName, isMe && { color: '#fff' }]} numberOfLines={2}>{item.attachment.name}</Text>
+                    <Text style={[s.pdfSub, isMe && { color: 'rgba(255,255,255,0.8)' }]}>PDF{item.attachment.bytes ? ` · ${sizeText(item.attachment.bytes)}` : ''} · {t('sharedChat.tapToOpen')}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              {!!item.text && <Text style={[s.bubbleText, isMe && { color: '#fff' }, !!item.attachment && { marginTop: 6 }]}>{item.text}</Text>}
             </View>
 
             {isLastInGroup && (
@@ -440,8 +499,25 @@ export default function ChatScreen() {
           {toUser && <Text style={s.toNote}>{t('sharedChat.privateNote')}</Text>}
         </View>
 
+        {/* ── What is about to be sent (2026-10-24) ── */}
+        {pending && (
+          <View style={s.pendingRow}>
+            {pending.kind === 'IMAGE' ? <Image source={{ uri: pending.uri }} style={s.pendingThumb} contentFit="cover" /> : <View style={[s.pendingThumb, s.pendingPdf]}><Text style={{ fontSize: 22 }}>📄</Text></View>}
+            <View style={{ flex: 1 }}>
+              <Text style={s.pendingName} numberOfLines={1}>{pending.name}</Text>
+              <Text style={s.pendingSub}>{pending.kind === 'PDF' ? `PDF${pending.bytes ? ` · ${sizeText(pending.bytes)}` : ''}` : t('sharedChat.photoLabel')}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setPending(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('sharedChat.removeAttachment')}>
+              <XIcon size={18} color="#6b7280" strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ── Input ── */}
         <View style={s.inputBar}>
+          <TouchableOpacity style={s.attachBtn} onPress={chooseAttachment} disabled={sending} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('sharedChat.attach')}>
+            <PlusIcon size={22} color="#1D3557" strokeWidth={2.2} />
+          </TouchableOpacity>
           <View style={s.inputWrap}>
             <TextInput
               style={s.input}
@@ -456,9 +532,9 @@ export default function ChatScreen() {
           </View>
           <Animated.View style={{ transform: [{ scale: sendScale }] }}>
             <TouchableOpacity
-              style={[s.sendBtn, (!inputText.trim() || sending) && s.sendBtnDisabled]}
+              style={[s.sendBtn, ((!inputText.trim() && !pending) || sending) && s.sendBtnDisabled]}
               onPress={handleSend}
-              disabled={!inputText.trim() || sending}
+              disabled={(!inputText.trim() && !pending) || sending}
               activeOpacity={0.8}
             >
               {sending
@@ -469,6 +545,27 @@ export default function ChatScreen() {
           </Animated.View>
         </View>
       </View>
+
+      <Modal visible={attachOpen} transparent animationType="fade" onRequestClose={() => setAttachOpen(false)}>
+        <View style={s.pickOverlay}>
+          <View style={s.pickSheet}>
+            <Text style={s.pickTitle}>{t('sharedChat.attach')}</Text>
+            <TouchableOpacity style={s.pickRow} onPress={() => attachThen(() => takePhoto(true))} accessibilityRole="button"><Text style={s.pickName}>📷  {t('sharedChat.takePhoto')}</Text></TouchableOpacity>
+            <TouchableOpacity style={s.pickRow} onPress={() => attachThen(() => takePhoto(false))} accessibilityRole="button"><Text style={s.pickName}>🖼️  {t('sharedChat.fromPhotos')}</Text></TouchableOpacity>
+            <TouchableOpacity style={s.pickRow} onPress={() => attachThen(pickPdf)} accessibilityRole="button"><Text style={s.pickName}>📄  {t('sharedChat.pickPdf')}</Text></TouchableOpacity>
+            <TouchableOpacity style={s.pickCancel} onPress={() => setAttachOpen(false)} accessibilityRole="button"><Text style={s.pickCancelText}>{t('sharedChat.cancel')}</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!viewing} transparent animationType="fade" onRequestClose={() => setViewing(null)}>
+        <View style={s.viewer}>
+          {viewing && <Image source={{ uri: viewing }} style={{ flex: 1 }} contentFit="contain" />}
+          <TouchableOpacity style={s.viewerClose} onPress={() => setViewing(null)} accessibilityRole="button" accessibilityLabel={t('sharedChat.close')}>
+            <XIcon size={22} color="#fff" strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
         <View style={s.pickOverlay}>
@@ -630,5 +727,18 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: '#d1d5db' },
+  attachBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2f7', alignItems: 'center', justifyContent: 'center' },
+  photo: { width: 220, height: 165, borderRadius: 12, backgroundColor: '#e5e7eb' },
+  pdfCard: { flexDirection: 'row', alignItems: 'center', gap: 10, width: 230, paddingVertical: 2 },
+  pdfThumb: { width: 46, height: 58, borderRadius: 6, backgroundColor: '#e5e7eb' },
+  pdfName: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  pdfSub: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#f9fafb', borderTopWidth: 1, borderTopColor: '#e5e7eb' },
+  pendingThumb: { width: 44, height: 44, borderRadius: 8, backgroundColor: '#e5e7eb' },
+  pendingPdf: { alignItems: 'center', justifyContent: 'center' },
+  pendingName: { fontSize: 13, fontWeight: '700', color: '#111827' },
+  pendingSub: { fontSize: 11, color: '#6b7280', marginTop: 1 },
+  viewer: { flex: 1, backgroundColor: '#000' },
+  viewerClose: { position: 'absolute', top: 54, right: 18, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
 
 });

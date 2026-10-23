@@ -6,6 +6,7 @@ import { audit } from '../utils/audit';
 import { pushChatMessage, pushDirectMessage } from '../utils/chatPush';
 import { hasMinRole } from '../middleware/auth';
 import { Role } from '@prisma/client';
+import { ATTACHMENTS_PER_DAY, cleanName, destroyAttachments, presentMessage, prepareAttachment, storeAttachment } from '../utils/chatAttachments';
 
 const MAX_MESSAGE = 2000;
 /**
@@ -54,7 +55,7 @@ export async function getMessages(req: AuthRequest, res: Response) {
       orderBy: { createdAt: 'asc' },
       take: 100,
     });
-    res.json({ success: true, data: messages });
+    res.json({ success: true, data: messages.map(presentMessage) });
   } else {
     // Initial load: last 50 messages — this is when the user is actually looking
     // at the room, so mark it read up to now
@@ -74,7 +75,7 @@ export async function getMessages(req: AuthRequest, res: Response) {
         create: { userId: user.id, storeId, lastReadAt: new Date() },
       }),
     ]);
-    res.json({ success: true, data: messages.reverse() });
+    res.json({ success: true, data: messages.reverse().map(presentMessage) });
   }
 }
 
@@ -145,10 +146,12 @@ export async function getUnreadCountByStore(req: AuthRequest, res: Response) {
 
 export async function sendMessage(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
-  const { text, toUserId } = req.body as { text: string; toUserId?: string };
+  const { text: rawText, toUserId } = req.body as { text?: string; toUserId?: string };
   const user = req.user!;
+  const file = (req as any).file as { buffer: Buffer; originalname?: string } | undefined;   // a photo or a PDF sent with it (multipart), 2026-10-24
+  const text = typeof rawText === 'string' ? rawText : '';
 
-  if (typeof text !== 'string' || !text.trim()) {
+  if (!text.trim() && !file) {
     res.status(400).json({ success: false, error: 'Message text is required' });
     return;
   }
@@ -175,21 +178,45 @@ export async function sendMessage(req: AuthRequest, res: Response) {
     }
   }
 
-  const message = await prisma.chatMessage.create({
-    data: {
-      storeId,
-      userId: user.id,
-      userName: user.name || user.phone,
-      userRole: user.role,
-      text: text.trim(),
-      ...(to ? { toUserId: to.id, toUserName: to.name || to.phone } : {}),
-    },
-  });
-  // The store's staff hear about it (at most once every few minutes per store), or just the one person it is for; a push problem never fails the message
-  if (to) pushDirectMessage(storeId, user.id, user.name || 'Someone', to.id, message.text).catch((e) => console.error('[chat-push]', e?.message ?? e));
-  else pushChatMessage(storeId, user.id, user.name || 'Someone', message.text).catch((e) => console.error('[chat-push]', e?.message ?? e));
+  // A photo or a PDF: checked by what it is, shrunk if a photo, stored privately, at most ATTACHMENTS_PER_DAY a person a day
+  let stored: { id: string; kind: 'IMAGE' | 'PDF'; name: string; bytes: number } | null = null;
+  if (file) {
+    const today = await prisma.chatMessage.count({ where: { userId: user.id, attachmentId: { not: null }, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
+    if (today >= ATTACHMENTS_PER_DAY) { res.status(429).json({ success: false, error: `You can send ${ATTACHMENTS_PER_DAY} photos or files a day. Try again tomorrow.` }); return; }
+    const prepared = await prepareAttachment(file.buffer);
+    if ('error' in prepared) { res.status(400).json({ success: false, error: prepared.error }); return; }
+    try {
+      stored = { id: await storeAttachment(prepared), kind: prepared.kind, name: cleanName(file.originalname, prepared.kind), bytes: prepared.data.length };
+    } catch (e: any) {
+      console.error('[chat] attachment upload failed:', e?.message ?? e);
+      res.status(502).json({ success: false, error: 'The file could not be saved. Try again in a moment.' });
+      return;
+    }
+  }
 
-  res.status(201).json({ success: true, data: message });
+  let message;
+  try {
+    message = await prisma.chatMessage.create({
+      data: {
+        storeId,
+        userId: user.id,
+        userName: user.name || user.phone,
+        userRole: user.role,
+        text: text.trim(),
+        ...(to ? { toUserId: to.id, toUserName: to.name || to.phone } : {}),
+        ...(stored ? { attachmentId: stored.id, attachmentKind: stored.kind, attachmentName: stored.name, attachmentBytes: stored.bytes } : {}),
+      },
+    });
+  } catch (e) {
+    if (stored) destroyAttachments([stored.id]).catch(() => {});   // the message did not save: do not leave its file behind
+    throw e;
+  }
+  // The store's staff hear about it (at most once every few minutes per store), or just the one person it is for; a push problem never fails the message
+  const preview = message.text || (stored?.kind === 'PDF' ? `📄 ${stored.name}` : '📷 Photo');
+  if (to) pushDirectMessage(storeId, user.id, user.name || 'Someone', to.id, preview).catch((e) => console.error('[chat-push]', e?.message ?? e));
+  else pushChatMessage(storeId, user.id, user.name || 'Someone', preview).catch((e) => console.error('[chat-push]', e?.message ?? e));
+
+  res.status(201).json({ success: true, data: presentMessage(message) });
 }
 
 // ─── GET /chat/:storeId/people ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -227,7 +254,9 @@ export async function clearChat(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
   if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
+  const files = (await prisma.chatMessage.findMany({ where: { storeId, attachmentId: { not: null } }, select: { attachmentId: true } })).map((m) => m.attachmentId as string);
   const result = await prisma.chatMessage.deleteMany({ where: { storeId } });
+  if (files.length) destroyAttachments(files).catch(() => {});   // their photos and PDFs go too
   // Nothing else remembers that a whole conversation was wiped, or by whom
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

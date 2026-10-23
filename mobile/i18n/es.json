@@ -1583,7 +1583,21 @@
     "closeSwitcherA11y": "Cerrar selector de tienda",
     "noMessagesYet": "Aún no hay mensajes - ¡saluda!",
     "inputPlaceholder": "Escribe un mensaje…",
-    "unreadInStoreA11y": "{{count}} sin leer"
+    "unreadInStoreA11y": "{{count}} sin leer",
+    "attach": "Agregar una foto o archivo",
+    "takePhoto": "Tomar una foto",
+    "fromPhotos": "Elegir una foto",
+    "pickPdf": "Elegir un PDF",
+    "photoLabel": "Foto",
+    "removeAttachment": "Quitar el archivo",
+    "cameraDenied": "Permite la cámara en Ajustes para tomar una foto.",
+    "attachFailed": "No se pudo obtener ese archivo. Inténtalo de nuevo.",
+    "pdfTooBig": "Ese PDF pasa de 5 MB. Envía uno más pequeño.",
+    "openFailed": "No se pudo abrir el archivo.",
+    "tapToOpen": "toca para abrir",
+    "openPhotoA11y": "Foto de {{name}}, toca para abrir",
+    "openPdfA11y": "PDF {{name}}, toca para abrir",
+    "close": "Cerrar"
   },
   "sharedEmployeeRequests": {
     "alertSentTitle": "Alerta Enviada",

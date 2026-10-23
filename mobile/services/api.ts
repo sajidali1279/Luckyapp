@@ -234,6 +234,14 @@ export const chatApi = {
   sendMessage: (storeId: string, text: string, toUserId?: string) =>
     api.post(`/chat/${storeId}/messages`, { text, ...(toUserId ? { toUserId } : {}) }),
   getPeople: (storeId: string) => api.get(`/chat/${storeId}/people`),
+  // a photo or a PDF, with or without a line of text (2026-10-24); uploadForm is fetch-based, as React Native needs for multipart
+  sendAttachment: (storeId: string, file: { uri: string; name: string; type: string }, text: string, toUserId?: string) => {
+    const fd = new FormData();
+    if (text) fd.append('text', text);
+    if (toUserId) fd.append('toUserId', toUserId);
+    (fd as any).append('file', { uri: file.uri, name: file.name, type: file.type });
+    return uploadForm(`/chat/${storeId}/messages`, fd);
+  },
   getUnreadCount: () => api.get('/chat/unread-count'),
   getUnreadByStore: () => api.get('/chat/unread-by-store'),   // { [storeId]: count }
 };

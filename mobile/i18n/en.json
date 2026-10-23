@@ -1583,7 +1583,21 @@
     "roleHq": "Lucky Stop HQ",
     "roleManager": "Store Manager",
     "roleStaff": "Staff",
-    "unreadInStoreA11y": "{{count}} unread"
+    "unreadInStoreA11y": "{{count}} unread",
+    "attach": "Add a photo or file",
+    "takePhoto": "Take a photo",
+    "fromPhotos": "Choose a photo",
+    "pickPdf": "Choose a PDF",
+    "photoLabel": "Photo",
+    "removeAttachment": "Remove the attachment",
+    "cameraDenied": "Allow the camera in Settings to take a photo.",
+    "attachFailed": "Could not get that file. Try again.",
+    "pdfTooBig": "That PDF is over 5 MB. Send a smaller one.",
+    "openFailed": "Could not open the file.",
+    "tapToOpen": "tap to open",
+    "openPhotoA11y": "Photo from {{name}}, tap to open",
+    "openPdfA11y": "PDF {{name}}, tap to open",
+    "close": "Close"
   },
   "sharedEmployeeRequests": {
     "genericErrorMessage": "Something went wrong. Please try again.",

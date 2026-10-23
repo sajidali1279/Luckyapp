@@ -549,7 +549,7 @@ router.get('/chat/unread-count', authenticate, getChatUnreadCount);             
 router.get('/chat/unread-by-store', authenticate, getChatUnreadCountByStore);                        // Per-store breakdown for multi-store sidebar
 router.get('/chat/:storeId/people',   authenticate, getChatPeople);                                    // Who a private message can go to (2026-10-23)
 router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
-router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
+router.post('/chat/:storeId/messages', authenticate, upload.single('file'), sendMessage);                                   // Send message
 router.delete('/chat/:storeId/messages', authenticate, requireRole(Role.SUPER_ADMIN), clearChat);    // Permanently clear a store's chat history (SuperAdmin+ only)
 
 // ─── Redemption Catalog ───────────────────────────────────────────────────────

@@ -96,7 +96,8 @@ function CheckInCard({ c }: { c: CheckIn }) {
       </View>
       <View style={s.dots}>
         {week.map((d) => {
-          const done = d <= (run % 7 === 0 && run > 0 ? 7 : run % 7);
+          const filled = c.doneToday && run > 0 && run % 7 === 0 ? 7 : run % 7;   // a finished week of 7 starts again empty the next day
+          const done = d <= filled;
           return <View key={d} style={s.dotCol}><View style={[s.dotSm, done && { backgroundColor: COLORS.success, borderColor: COLORS.success }]}>{d === 7 ? <Text style={[s.dotText, done && { color: '#fff' }]}>🎁</Text> : done ? <Text style={[s.dotText, { color: '#fff' }]}>✓</Text> : null}</View></View>;
         })}
       </View>

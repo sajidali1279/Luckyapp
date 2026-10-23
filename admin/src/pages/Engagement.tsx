@@ -137,7 +137,7 @@ export default function Engagement() {
       </div>
 
       <div style={{ display: 'grid', gap: 14, maxWidth: 940 }}>
-        <Feature id="streaks" emoji="🔥" title="Visit streaks" blurb="A bonus for visiting every week: 3 weeks in a row, 6, 12. Customers see their streak on Home, and a nudge warns them before it ends." on={c.streaks.enabled} onToggle={toggle('streaks')} busy={save.isPending} money
+        <Feature id="streaks" emoji="🔥" title="Visit streaks" blurb="A bonus for visiting every week: 3 weeks in a row, 6, 12. Customers see their streak on Home, and a nudge warns them before it ends. Weeks before you switch it on do not count, so nobody is paid for old history." on={c.streaks.enabled} onToggle={toggle('streaks')} busy={save.isPending} money
           open={!!open.streaks} setOpen={(v) => setOpen((o) => ({ ...o, streaks: v }))} summary={c.streaks.milestones.map((m) => `${m.weeks} weeks: ${m.pts} pts`).join(' · ')}>
           <StreaksEditor value={c.streaks} defaults={d.defaults.streaks} onSave={(v) => save.mutate({ streaks: v })} busy={save.isPending} />
         </Feature>
@@ -157,7 +157,7 @@ export default function Engagement() {
           <BadgesEditor value={c.badges} all={d.badges} onSave={(off) => save.mutate({ badges: { off } })} busy={save.isPending} />
         </Feature>
 
-        <Feature id="storeGoals" emoji="🏪" title="Store goals" blurb="'If Katy makes 200 sales this week, everyone who bought there gets 50 pts.' Customers see the store's progress. The reward is paid once, after the goal ends, only if it was reached." on={c.storeGoals.enabled} onToggle={toggle('storeGoals')} busy={save.isPending} money
+        <Feature id="storeGoals" emoji="🏪" title="Store goals" blurb="'If Katy makes 200 sales this week, everyone who bought there gets 50 pts.' Customers see the store's progress. The reward is paid once, after the goal ends, only if it was reached. Only sales of $2 or more count, and customers whose account is closed or restricted are not paid." on={c.storeGoals.enabled} onToggle={toggle('storeGoals')} busy={save.isPending} money
           open={!!open.storeGoals} setOpen={(v) => setOpen((o) => ({ ...o, storeGoals: v }))} summary={`${d.goals.filter((g) => g.isActive && !g.paidAt && new Date(g.endDate) > new Date()).length} running`}>
           <GoalsEditor goals={d.goals} stores={d.stores} />
         </Feature>
