@@ -1,5 +1,5 @@
 // What HQ has switched on in admin > Engagement (2026-10-23), and how: streaks, punch cards, daily check-in, badges, store goals, reorder,
-// gas price alerts, sharing and the smart nudges. Stored as one JSON row (AppConfig key ENGAGEMENT, no migration), read like the other HQ
+// gas price alerts, sharing, the rate-the-app prompt, the welcome series and the smart nudges. Stored as one JSON row (AppConfig key ENGAGEMENT, no migration), read like the other HQ
 // settings (utils/appSettings.ts). EVERYTHING IS OFF until HQ turns it on, and every number is clamped here, so a typo in the admin page
 // can never make a reward unlimited. Points are always whole points (100 pts = $1); only the engine converts to dollars.
 
@@ -10,10 +10,18 @@ export const ENGAGEMENT_LIMITS = {
   nudgeHour: { min: 0, max: 23 }, nudgesPerWeek: { min: 1, max: 7 }, nearRewardPts: { min: 10, max: 1000 },
   tierResetDays: { min: 3, max: 60 }, comebackDays: { min: 7, max: 180 }, shareMessage: 140,
   ratePurchases: { min: 1, max: 50 }, rateDays: { min: 0, max: 365 },
+  welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
 } as const;
 
 export interface Milestone { weeks: number; pts: number }
 export interface MysteryPrize { pts: number; weight: number }
+
+// The welcome series (2026-10-24): three steps, each with message choices; the server sends the first choice that fits the person
+// (utils/engagementWelcome.ts says when each one fits). HQ edits the day of each step and every text, in English and Spanish.
+export type WelcomeKey = 'qrBonus' | 'qr' | 'hotFood' | 'checkIn' | 'invite' | 'tier';
+export const WELCOME_KEYS: WelcomeKey[] = ['qrBonus', 'qr', 'hotFood', 'checkIn', 'invite', 'tier'];
+export interface WelcomeText { titleEn: string; bodyEn: string; titleEs: string; bodyEs: string }
+export interface WelcomeStep { day: number; enabled: boolean }
 export interface EngagementConfig {
   // since: the store day HQ switched streaks on (set by the server). Weeks before it do not count, so switching on never pays out old history.
   streaks: { enabled: boolean; minPurchase: number; milestones: Milestone[]; since: string | null };
@@ -26,6 +34,9 @@ export interface EngagementConfig {
   sharing: { enabled: boolean; message: string };
   // "Rate the app" (2026-10-24): the phone's own rating sheet, once per customer, after a good moment, once they have bought a few times
   ratePrompt: { enabled: boolean; minPurchases: number; minDays: number };
+  // since: the store day HQ switched it on (set by the server). Only people who sign up from that day on get the series, so switching it
+  // on never messages the customers who joined before.
+  welcome: { enabled: boolean; since: string | null; steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> };
   nudges: {
     enabled: boolean; quietFrom: number; quietTo: number; maxPerWeek: number;
     nearReward: { enabled: boolean; withinPts: number };
@@ -45,6 +56,18 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
   gasAlerts: { enabled: false },
   sharing: { enabled: false, message: 'I am on a streak with Lucky Stop Rewards. Get the free app:' },
   ratePrompt: { enabled: false, minPurchases: 3, minDays: 7 },
+  welcome: {
+    enabled: false, since: null,
+    steps: [{ day: 1, enabled: true }, { day: 3, enabled: true }, { day: 7, enabled: true }],
+    texts: {
+      qrBonus: { titleEn: 'Your welcome treats are waiting 🎁', bodyEn: 'Show the QR code in the app at the register. You earn points, and for your first days you also get one free item a day.', titleEs: 'Tus regalos de bienvenida te esperan 🎁', bodyEs: 'Muestra el código QR de la app en la caja. Ganas puntos y, en tus primeros días, también un producto gratis al día.' },
+      qr: { titleEn: 'Your Lucky Stop card is ready 🍀', bodyEn: 'Show the QR code in the app at the register and you earn points on every purchase.', titleEs: 'Tu tarjeta Lucky Stop está lista 🍀', bodyEs: 'Muestra el código QR de la app en la caja y ganas puntos en cada compra.' },
+      hotFood: { titleEn: 'Hungry? Order ahead 🍗', bodyEn: 'Order hot food in the app and pick it up at the counter, no waiting in line.', titleEs: '¿Tienes hambre? Pide antes 🍗', bodyEs: 'Pide comida caliente en la app y recógela en el mostrador, sin hacer fila.' },
+      checkIn: { titleEn: 'Free points every day 📅', bodyEn: 'Open the app once a day and tap Check in on Home for bonus points.', titleEs: 'Puntos gratis cada día 📅', bodyEs: 'Abre la app una vez al día y toca Registrarme en Inicio para ganar puntos extra.' },
+      invite: { titleEn: 'Share the luck 🎁', bodyEn: 'Invite a friend from the app. When they make their first purchase, you both get points.', titleEs: 'Comparte la suerte 🎁', bodyEs: 'Invita a un amigo desde la app. Cuando haga su primera compra, los dos ganan puntos.' },
+      tier: { titleEn: 'See what you unlock next ⭐', bodyEn: 'Your tier grows as you shop. Open Rewards to see your perks and how close the next level is.', titleEs: 'Mira lo que desbloqueas ⭐', bodyEs: 'Tu nivel sube con tus compras. Abre Recompensas para ver tus beneficios y cuánto te falta para el siguiente.' },
+    },
+  },
   nudges: {
     enabled: false, quietFrom: 21, quietTo: 8, maxPerWeek: 2,
     nearReward: { enabled: true, withinPts: 150 },
@@ -66,6 +89,12 @@ const num = (v: unknown, r: { min: number; max: number }, def: number) => {
   const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : NaN;
   return Number.isNaN(n) ? def : Math.min(r.max, Math.max(r.min, n));
 };
+/** A line of text: trimmed, spaces squeezed, cut to `max` characters (whole emoji, never half of one); empty keeps the default. */
+const text = (v: unknown, max: number, def: string) => {
+  const t = typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '';
+  return t ? Array.from(t).slice(0, max).join('') : def;
+};
+const dayKey = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 
 /** Everything that is stored goes through here: unknown keys dropped, numbers clamped, lists kept in order and within their size. */
 export function cleanEngagement(stored: unknown): EngagementConfig {
@@ -112,6 +141,20 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
   const off = Array.isArray(bd.off) ? [...new Set(bd.off.filter((k): k is string => typeof k === 'string' && /^[a-z0-9_]{1,40}$/.test(k)))].slice(0, 60) : [];
   const message = typeof sh.message === 'string' && sh.message.trim() ? sh.message.trim().slice(0, L.shareMessage) : d.sharing.message;
 
+  // welcome series: always three steps, in order and at least a day apart (step 1 on day 1 to 28, step 2 on 2 to 29, step 3 on 3 to 30)
+  const we = isObj(s.welcome) ? s.welcome : {};
+  const rawSteps = Array.isArray(we.steps) ? we.steps : [];
+  const steps: WelcomeStep[] = d.welcome.steps.map((def, i) => {
+    const r = isObj(rawSteps[i]) ? rawSteps[i] : {};
+    return { day: int(r.day, { min: L.welcomeDay.min + i, max: L.welcomeDay.max - (d.welcome.steps.length - 1 - i) }, def.day), enabled: bool(r.enabled, def.enabled) };
+  });
+  for (let i = 1; i < steps.length; i++) if (steps[i].day <= steps[i - 1].day) steps[i].day = steps[i - 1].day + 1;
+  const wt = isObj(we.texts) ? we.texts : {};
+  const texts = Object.fromEntries(WELCOME_KEYS.map((k) => {
+    const r = isObj(wt[k]) ? wt[k] : {}, def = d.welcome.texts[k];
+    return [k, { titleEn: text(r.titleEn, L.welcomeTitle, def.titleEn), bodyEn: text(r.bodyEn, L.welcomeBody, def.bodyEn), titleEs: text(r.titleEs, L.welcomeTitle, def.titleEs), bodyEs: text(r.bodyEs, L.welcomeBody, def.bodyEs) }];
+  })) as Record<WelcomeKey, WelcomeText>;
+
   return {
     streaks: { enabled: bool(st.enabled, false), minPurchase: num(st.minPurchase, L.streakMinPurchase, d.streaks.minPurchase), milestones, since: typeof st.since === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(st.since) ? st.since : null },
     punchCards: { enabled: bool(isObj(s.punchCards) ? s.punchCards.enabled : false, false) },
@@ -126,6 +169,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     gasAlerts: { enabled: bool(isObj(s.gasAlerts) ? s.gasAlerts.enabled : false, false) },
     sharing: { enabled: bool(sh.enabled, false), message },
     ratePrompt: { enabled: bool(rp.enabled, false), minPurchases: int(rp.minPurchases, L.ratePurchases, d.ratePrompt.minPurchases), minDays: int(rp.minDays, L.rateDays, d.ratePrompt.minDays) },
+    welcome: { enabled: bool(we.enabled, false), since: dayKey(we.since), steps, texts },
     nudges: {
       enabled: bool(nu.enabled, false), quietFrom: int(nu.quietFrom, L.nudgeHour, d.nudges.quietFrom), quietTo: int(nu.quietTo, L.nudgeHour, d.nudges.quietTo),
       maxPerWeek: int(nu.maxPerWeek, L.nudgesPerWeek, d.nudges.maxPerWeek),

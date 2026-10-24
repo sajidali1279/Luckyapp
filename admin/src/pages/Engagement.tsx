@@ -12,6 +12,9 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 
 type Milestone = { weeks: number; pts: number };
+type WelcomeKey = 'qrBonus' | 'qr' | 'hotFood' | 'checkIn' | 'invite' | 'tier';
+type WelcomeText = { titleEn: string; bodyEn: string; titleEs: string; bodyEs: string };
+type WelcomeStep = { day: number; enabled: boolean };
 type Prize = { pts: number; weight: number };
 interface Config {
   streaks: { enabled: boolean; minPurchase: number; milestones: Milestone[] };
@@ -23,6 +26,7 @@ interface Config {
   gasAlerts: { enabled: boolean };
   sharing: { enabled: boolean; message: string };
   ratePrompt: { enabled: boolean; minPurchases: number; minDays: number };
+  welcome: { enabled: boolean; since: string | null; steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> };
   nudges: {
     enabled: boolean; quietFrom: number; quietTo: number; maxPerWeek: number;
     nearReward: { enabled: boolean; withinPts: number }; streakRisk: { enabled: boolean };
@@ -35,7 +39,7 @@ interface Hq {
   config: Config; defaults: Config;
   badges: { key: string; emoji: string; name: string; desc: string }[];
   stores: { id: string; name: string }[];
-  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number };
+  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number; welcome: { sent: number; byStep: number[] } };
   goals: Goal[]; suggestions: Suggestion[];
 }
 
@@ -121,7 +125,7 @@ export default function Engagement() {
               <Card key={s.id} padding={16} style={{ borderLeft: `4px solid ${s.tone === 'tip' ? C.primary : C.border}` }}>
                 <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{s.title}</div>
                 <div style={{ fontSize: FONT.small, color: TEXT_MUTED, marginBottom: 8 }}>{s.detail}</div>
-                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {s.feature === 'nudges' ? 'smart nudges' : s.feature === 'storeGoals' ? 'store goals' : s.feature === 'checkIn' ? 'daily check-in' : s.feature === 'events' ? 'the event kit' : s.feature}</Button>
+                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {s.feature === 'nudges' ? 'smart nudges' : s.feature === 'storeGoals' ? 'store goals' : s.feature === 'checkIn' ? 'daily check-in' : s.feature === 'events' ? 'the event kit' : s.feature === 'welcome' ? 'the welcome series' : s.feature}</Button>
               </Card>
             ))}
           </div>
@@ -175,6 +179,11 @@ export default function Engagement() {
         <Feature id="ratePrompt" emoji="⭐" title="Rate the app" blurb="Asks a customer, once ever, to rate the app, with the phone's own rating sheet. It only comes right after a good moment (a reward redeemed or a check-in paid), never at launch, and only once they have bought a few times. Free, and the best way to get real reviews." on={c.ratePrompt.enabled} onToggle={toggle('ratePrompt')} busy={save.isPending}
           open={!!open.ratePrompt} setOpen={(v) => setOpen((o) => ({ ...o, ratePrompt: v }))} summary={`After ${c.ratePrompt.minPurchases} purchases and ${c.ratePrompt.minDays} days, asked ${R.ratePrompt} so far`}>
           <RateEditor value={c.ratePrompt} onSave={(v) => save.mutate({ ratePrompt: v })} busy={save.isPending} />
+        </Feature>
+
+        <Feature id="welcome" emoji="👋" title="Welcome series" blurb="Up to three friendly pushes in a new customer's first days: how to earn at the register (and their welcome treats), then order ahead or check in daily, then invite a friend or see their tier. Each one is skipped when they have already done it, and only people who join after you switch it on get it. Never in quiet hours." on={c.welcome.enabled} onToggle={toggle('welcome')} busy={save.isPending}
+          open={!!open.welcome} setOpen={(v) => setOpen((o) => ({ ...o, welcome: v }))} summary={`${c.welcome.steps.filter((s) => s.enabled).map((s) => `day ${s.day}`).join(', ') || 'No steps on'}${c.welcome.since ? `, for people who joined from ${day(`${c.welcome.since}T12:00:00`)}` : ''}. Sent in the last 30 days: ${R.welcome.sent}`}>
+          <WelcomeEditor value={c.welcome} defaults={d.defaults.welcome} onSave={(v) => save.mutate({ welcome: v })} busy={save.isPending} sent={R.welcome.byStep} />
         </Feature>
 
         <Feature id="nudges" emoji="🔔" title="Smart nudges" blurb="Polite, personal pushes: 'You are 120 pts from a free coffee', 'Keep your streak', 'We miss you'. Never during quiet hours, a few a week at most per person, and each kind only once for the same thing." on={c.nudges.enabled} onToggle={toggle('nudges')} busy={save.isPending}
@@ -289,6 +298,66 @@ function BadgesEditor({ value, all, onSave, busy }: { value: Config['badges']; a
         ))}
       </div>
       <div style={row}><Button variant="primary" disabled={!changed || busy} onClick={() => onSave(off)}>Save</Button></div>
+    </>
+  );
+}
+
+const WELCOME_STEP_INFO: { title: string; choices: { key: WelcomeKey; when: string }[] }[] = [
+  { title: 'Step 1: earning at the register', choices: [{ key: 'qrBonus', when: 'Sent while their welcome treats last and they have not bought yet' }, { key: 'qr', when: 'Otherwise, when they have not bought yet' }] },
+  { title: 'Step 2: something to try', choices: [{ key: 'hotFood', when: 'Sent while hot food ordering is on and they have never ordered' }, { key: 'checkIn', when: 'Otherwise, while the daily check-in is on, once they have bought and never checked in' }] },
+  { title: 'Step 3: bring a friend', choices: [{ key: 'invite', when: 'Sent while invites are on and they have not invited anyone' }, { key: 'tier', when: 'Otherwise: their tier and perks' }] },
+];
+const WELCOME_TITLE_MAX = 60, WELCOME_BODY_MAX = 200;
+
+function WelcomeEditor({ value, defaults, onSave, busy, sent }: { value: Config['welcome']; defaults: Config['welcome']; onSave: (v: { steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> }) => void; busy: boolean; sent: number[] }) {
+  const [days, setDays] = useState(value.steps.map((s) => String(s.day)));
+  const [on, setOn] = useState(value.steps.map((s) => s.enabled));
+  const [texts, setTexts] = useState(value.texts);
+  useEffect(() => { setDays(value.steps.map((s) => String(s.day))); setOn(value.steps.map((s) => s.enabled)); setTexts(value.texts); }, [JSON.stringify(value)]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const dn = days.map(num);
+  const daysBad = dn.some((n, i) => !Number.isInteger(n) || n < 1 + i || n > 28 + i) || dn.some((n, i) => i > 0 && n <= dn[i - 1]);
+  const textBad = (Object.values(texts) as WelcomeText[]).some((t) => !t.titleEn.trim() || !t.bodyEn.trim() || !t.titleEs.trim() || !t.bodyEs.trim() || t.titleEn.length > WELCOME_TITLE_MAX || t.titleEs.length > WELCOME_TITLE_MAX || t.bodyEn.length > WELCOME_BODY_MAX || t.bodyEs.length > WELCOME_BODY_MAX);
+  const next = { steps: dn.map((d, i) => ({ day: d, enabled: on[i] })), texts };
+  const changed = JSON.stringify(next) !== JSON.stringify({ steps: value.steps, texts: value.texts });
+  const setText = (k: WelcomeKey, field: keyof WelcomeText, v: string) => setTexts((t) => ({ ...t, [k]: { ...t[k], [field]: v } }));
+  return (
+    <>
+      {WELCOME_STEP_INFO.map((info, i) => (
+        <div key={info.title} style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, display: 'grid', gap: 10 }}>
+          <div style={{ ...row, alignItems: 'center' }}>
+            <Switch on={on[i]} onChange={(v) => setOn((o) => o.map((x, j) => (j === i ? v : x)))} label={`${info.title}: ${on[i] ? 'on' : 'off'}`} />
+            <div style={{ fontWeight: 700, color: C.text }}>{info.title}</div>
+            <Field label="Days after signing up" htmlFor={`wl-day${i}`} hint={`${1 + i} to ${28 + i}`}>
+              <input id={`wl-day${i}`} style={smallInput} inputMode="numeric" value={days[i]} onChange={(e) => setDays((d) => d.map((x, j) => (j === i ? whole(e.target.value) : x)))} />
+            </Field>
+            <span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>Sent in the last 30 days: {sent[i] ?? 0}</span>
+          </div>
+          {info.choices.map((ch) => (
+            <div key={ch.key} style={{ display: 'grid', gap: 6 }}>
+              <div style={{ fontSize: FONT.small, color: TEXT_MUTED }}>{ch.when}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8 }}>
+                {(['En', 'Es'] as const).map((lang) => (
+                  <div key={lang} style={{ display: 'grid', gap: 6 }}>
+                    <Field label={`Title (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`wl-${ch.key}-t${lang}`} hint={`${texts[ch.key][`title${lang}`].length} of ${WELCOME_TITLE_MAX}`}>
+                      <input id={`wl-${ch.key}-t${lang}`} style={INPUT} maxLength={WELCOME_TITLE_MAX} value={texts[ch.key][`title${lang}`]} onChange={(e) => setText(ch.key, `title${lang}`, e.target.value)} />
+                    </Field>
+                    <Field label={`Message (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`wl-${ch.key}-b${lang}`} hint={`${texts[ch.key][`body${lang}`].length} of ${WELCOME_BODY_MAX}`}>
+                      <textarea id={`wl-${ch.key}-b${lang}`} style={{ ...INPUT, minHeight: 64, resize: 'vertical' }} maxLength={WELCOME_BODY_MAX} value={texts[ch.key][`body${lang}`]} onChange={(e) => setText(ch.key, `body${lang}`, e.target.value)} />
+                    </Field>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+      <Notice>Each step goes out once, between 10 AM and 8 PM store time and never in the nudge quiet hours. A step whose day passed while nothing could be sent still goes out up to two days late. Customers can read them again in the app's Alerts.</Notice>
+      <div style={row}>
+        <Button variant="primary" disabled={daysBad || textBad || !changed || busy} onClick={() => onSave(next)}>Save</Button>
+        <Button variant="secondary" disabled={busy} onClick={() => { setDays(defaults.steps.map((s) => String(s.day))); setOn(defaults.steps.map((s) => s.enabled)); setTexts(defaults.texts); }}>Use the suggested texts</Button>
+        {daysBad && <span style={{ fontSize: FONT.small, color: C.danger }}>Each step needs a later day than the one before it.</span>}
+        {textBad && <span style={{ fontSize: FONT.small, color: C.danger }}>Every title and message needs both languages, within the length shown.</span>}
+      </div>
     </>
   );
 }

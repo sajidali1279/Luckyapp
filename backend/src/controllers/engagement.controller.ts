@@ -11,6 +11,7 @@ import { cleanEngagement, DEFAULT_ENGAGEMENT, ENGAGEMENT_LIMITS, publicEngagemen
 import { BADGES, badgesFor, checkInFor, doCheckIn, goalProgress, goalValue, goalsFor, streakFor } from '../utils/engagement';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { storeDateKey } from '../utils/storeTime';
+import { WELCOME_STEPS } from '../utils/engagementWelcome';
 
 const DAY = 86_400_000;
 const uuidOnly = (v: unknown): string | undefined => (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : undefined);
@@ -102,7 +103,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {
@@ -125,6 +126,8 @@ export async function putEngagement(req: AuthRequest, res: Response) {
   const next = cleanEngagement(merge(before, body));
   // the day streaks were switched on is the server's to set: weeks before it never count, so turning streaks on cannot pay out old history
   next.streaks.since = next.streaks.enabled ? (before.streaks.enabled && before.streaks.since ? before.streaks.since : storeDateKey(new Date())) : null;
+  // the same for the welcome series: only people who sign up from the day it is switched on get it
+  next.welcome.since = next.welcome.enabled ? (before.welcome.enabled && before.welcome.since ? before.welcome.since : storeDateKey(new Date())) : null;
   const changes = changesIn(before, next);
   if (changes.length === 0) { res.json({ success: true, data: next, changed: false }); return; }
   await prisma.appConfig.upsert({ where: { key: ENGAGEMENT_KEY }, create: { key: ENGAGEMENT_KEY, value: JSON.stringify(next) }, update: { value: JSON.stringify(next) } });
@@ -244,6 +247,11 @@ export async function suggestionsFor(cfg: EngagementConfig, now: Date = new Date
   // the next holiday
   const next = upcomingHolidays(now, 25)[0];
   if (next) out.push({ id: `holiday-${next.name}`, tone: 'info', feature: 'events', title: `${next.name} is ${next.inDays === 0 ? 'today' : `in ${next.inDays} day${next.inDays === 1 ? '' : 's'}`}`, detail: `Start a themed punch card for it with the event kit below, and think about a seasonal theme (Settings, App${next.name === 'Halloween' ? ': Halloween is ready' : ': only Halloween is drawn so far'}).` });
+  // a welcome series for the people who keep joining
+  if (!cfg.welcome.enabled) {
+    const joined = await prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers, createdAt: { gte: new Date(now.getTime() - 30 * DAY) } } });
+    if (joined > 0) out.push({ id: 'welcome', tone: 'tip', feature: 'welcome', title: `${joined} ${joined === 1 ? 'person' : 'people'} joined in the last 30 days`, detail: 'A welcome series sends up to three friendly pushes in their first week (how to earn at the register, order ahead or check in, invite a friend) and skips anything they have already done. It costs nothing, and only people who join after you switch it on get it.' });
+  }
   // badges are free
   if (!cfg.badges.enabled) out.push({ id: 'badges', tone: 'info', feature: 'badges', title: 'Badges cost nothing to run', detail: 'Nobody is paid for a badge. They give regulars goals between tier steps and something to share. Turn them on and switch off any you do not want.' });
   return out.slice(0, 8);
@@ -255,14 +263,16 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
   const now = new Date();
   const since = new Date(now.getTime() - 30 * DAY);
   const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK'];
-  const [events, goals, alerts, suggestions, stores] = await Promise.all([
+  const [events, goals, alerts, suggestions, stores, welcomeSteps] = await Promise.all([
     prisma.engagementEvent.groupBy({ by: ['kind'], where: { kind: { in: kinds }, createdAt: { gte: since } }, _count: { _all: true }, _sum: { points: true } }),
     prisma.storeGoal.findMany({ orderBy: { endDate: 'desc' }, take: 40 }),
     prisma.gasAlert.count(),
     suggestionsFor(cfg, now),
     prisma.store.findMany({ select: { id: true, name: true, isActive: true }, orderBy: { name: 'asc' } }),
+    prisma.engagementEvent.groupBy({ by: ['key'], where: { kind: 'WELCOME', createdAt: { gte: since } }, _count: { _all: true } }),
   ]);
   const names = new Map(stores.map((s) => [s.id, s.name]));
+  const welcomeBy = WELCOME_STEPS.map((_k, i) => welcomeSteps.find((w) => w.key === `step${i + 1}`)?._count._all ?? 0);
   const byKind = new Map(events.map((e) => [e.kind, e]));
   const count = (k: string) => byKind.get(k)?._count._all ?? 0;
   const paid = (k: string) => Math.round((byKind.get(k)?._sum.points ?? 0) * 100);
@@ -288,6 +298,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
       nudges: { nearReward: count('NUDGE_NEAR_REWARD'), streakRisk: count('NUDGE_STREAK_RISK'), tierReset: count('NUDGE_TIER_RESET'), comeback: count('NUDGE_COMEBACK') },
       gasAlerts: alerts,
       ratePrompt: count('RATE_PROMPT'),
+      welcome: { sent: welcomeBy.reduce((t, n) => t + n, 0), byStep: welcomeBy },
     },
     goals: goalRows, suggestions,
   } });
