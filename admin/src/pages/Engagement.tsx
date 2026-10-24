@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { engagementApi, challengesApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
+import { addDays, dayLabel, endOfStoreDay, startOfStoreDay } from '../lib/storeDates';
 import { Page, PageHeader, Card, Button, Badge, Notice, Field, StatTile, SectionTitle } from '../components/kit';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
@@ -27,12 +28,13 @@ interface Config {
   sharing: { enabled: boolean; message: string };
   ratePrompt: { enabled: boolean; minPurchases: number; minDays: number };
   welcome: { enabled: boolean; since: string | null; steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> };
+  weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
   tierUp: { enabled: boolean };
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
   nudges: {
     enabled: boolean; quietFrom: number; quietTo: number; maxPerWeek: number;
     nearReward: { enabled: boolean; withinPts: number }; streakRisk: { enabled: boolean };
-    tierReset: { enabled: boolean; daysBefore: number }; comeback: { enabled: boolean; quietDays: number };
+    tierReset: { enabled: boolean; daysBefore: number }; comeback: { enabled: boolean; quietDays: number }; weeklyChallenge: { enabled: boolean };
   };
 }
 interface Goal { id: string; title: string; metric: string; target: number; rewardPoints: number; startDate: string; endDate: string; isActive: boolean; paidAt: string | null; store: string | null; storeId: string | null; leading: { value: number; store: string } }
@@ -43,6 +45,11 @@ interface Hq {
   stores: { id: string; name: string }[];
   results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number; welcome: { sent: number; byStep: number[] }; tierUp: { reached: number; celebrated: number }; birthday: { greeted: number; paid: number; pts: number; spentThisMonth: number; withBirthday: number; customers: number } };
   goals: Goal[]; suggestions: Suggestion[];
+  weekly: {
+    thisWeek: string; weeks: string[]; thisWeekStats: { customers: number; earned: number; paid: number } | null;
+    schedule: { weekOf: string; challengeId: string; title: string | null; state: string }[];
+    candidates: { id: string; kind: string; title: string; rule: string; startDate: string; endDate: string; store: string | null; audience: string; repeats: boolean; announced: boolean }[];
+  };
 }
 
 const usd = (pts: number) => `$${(pts / 100).toFixed(2)}`;
@@ -186,6 +193,12 @@ export default function Engagement() {
         <Feature id="welcome" emoji="👋" title="Welcome series" blurb="Up to three friendly pushes in a new customer's first days: how to earn at the register (and their welcome treats), then order ahead or check in daily, then invite a friend or see their tier. Each one is skipped when they have already done it, and only people who join after you switch it on get it. Never in quiet hours." on={c.welcome.enabled} onToggle={toggle('welcome')} busy={save.isPending}
           open={!!open.welcome} setOpen={(v) => setOpen((o) => ({ ...o, welcome: v }))} summary={`${c.welcome.steps.filter((s) => s.enabled).map((s) => `day ${s.day}`).join(', ') || 'No steps on'}${c.welcome.since ? `, for people who joined from ${day(`${c.welcome.since}T12:00:00`)}` : ''}. Sent in the last 30 days: ${R.welcome.sent}`}>
           <WelcomeEditor value={c.welcome} defaults={d.defaults.welcome} onSave={(v) => save.mutate({ welcome: v })} busy={save.isPending} sent={R.welcome.byStep} />
+        </Feature>
+
+        <Feature id="weeklyChallenge" emoji="🏆" title="Challenge of the week" blurb="Feature one challenge each week (Monday to Sunday). It shows first in the app with a countdown to the end of the week, and a Monday morning push tells customers about it (a smart nudge: quiet hours and the weekly limit apply). Featuring pays nothing extra: the challenge pays its own reward." on={c.weeklyChallenge.enabled} onToggle={toggle('weeklyChallenge')} busy={save.isPending}
+          open={!!open.weeklyChallenge} setOpen={(v) => setOpen((o) => ({ ...o, weeklyChallenge: v }))}
+          summary={(() => { const now = d.weekly.schedule.find((e) => e.weekOf === d.weekly.thisWeek); const st = d.weekly.thisWeekStats; return now?.title ? `This week: ${now.title}${st ? `, ${st.customers} taking part, earned ${st.earned} times` : ''}` : 'Nothing is featured this week.'; })()}>
+          <WeeklyEditor value={c.weeklyChallenge} weekly={d.weekly} stores={d.stores} onSave={(schedule) => save.mutate({ weeklyChallenge: { schedule } })} busy={save.isPending} />
         </Feature>
 
         <Feature id="tierUp" emoji="🏆" title="Tier celebration" blurb="When a customer reaches a higher tier, the app shows a short celebration with the perks they unlocked and a button to Rewards, once per tier per half year, on whichever phone they use. The tier-up push always goes out, in their language, and opens Rewards. It costs nothing." on={c.tierUp.enabled} onToggle={toggle('tierUp')} busy={save.isPending} open={false} setOpen={() => {}}
@@ -432,6 +445,84 @@ function BirthdayEditor({ value, defaults, onSave, busy, results }: { value: Con
   );
 }
 
+const CHALLENGE_CATEGORIES: { key: string; label: string }[] = [
+  { key: '', label: 'Any purchase' }, { key: 'GROCERIES', label: 'Groceries' }, { key: 'FROZEN_FOODS', label: 'Frozen foods' }, { key: 'FRESH_FOODS', label: 'Fresh foods' },
+  { key: 'GAS', label: 'Gas' }, { key: 'DIESEL', label: 'Diesel' }, { key: 'HOT_FOODS', label: 'Hot food' }, { key: 'OTHER', label: 'Other' },
+];
+const STATE_NOTE: Record<string, string> = { OFF: 'switched off, so nothing shows that week', ENDED: 'has ended', MISSING: 'was not found', NOT_THAT_WEEK: 'does not run that week' };
+
+function WeeklyEditor({ value, weekly, stores, onSave, busy }: { value: Config['weeklyChallenge']; weekly: Hq['weekly']; stores: Hq['stores']; onSave: (schedule: { weekOf: string; challengeId: string }[]) => void; busy: boolean }) {
+  const qc = useQueryClient();
+  const initial = () => Object.fromEntries(weekly.weeks.map((w) => [w, value.schedule.find((e) => e.weekOf === w)?.challengeId ?? '']));
+  const [picks, setPicks] = useState<Record<string, string>>(initial);
+  useEffect(() => { setPicks(initial()); }, [JSON.stringify(value.schedule), weekly.thisWeek]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const runsDuring = (c: Hq['weekly']['candidates'][number], w: string) => new Date(c.startDate) <= endOfStoreDay(addDays(w, 6)) && new Date(c.endDate) > startOfStoreDay(w);
+  const schedule = weekly.weeks.filter((w) => picks[w]).map((w) => ({ weekOf: w, challengeId: picks[w] }));
+  const saved = value.schedule.filter((e) => weekly.weeks.includes(e.weekOf));
+  const changed = JSON.stringify(schedule) !== JSON.stringify(saved);
+  // making a new one for a week
+  const [form, setForm] = useState({ weekOf: weekly.weeks[1] ?? weekly.weeks[0], kind: 'SPEND', target: '20', rewardPts: '200', minPurchase: '2', category: '', storeId: '', title: '', titleEs: '', description: '', descriptionEs: '' });
+  const [making, setMaking] = useState(false);
+  const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const tNum = num(form.target), pNum = num(form.rewardPts);
+  const suggested = form.kind === 'SPEND' ? `Spend $${Number.isFinite(tNum) ? tNum : '?'} this week, get ${Number.isFinite(pNum) ? pNum : '?'} pts` : `Make ${Number.isFinite(tNum) ? tNum : '?'} purchases this week, get ${Number.isFinite(pNum) ? pNum : '?'} pts`;
+  const formBad = !(Number.isInteger(pNum) && pNum >= 1 && pNum <= 500) || (form.kind === 'SPEND' ? !(tNum >= 1 && tNum <= 500 && pNum / 100 < tNum) : !(Number.isInteger(tNum) && tNum >= 2 && tNum <= 12));
+  const make = async () => {
+    setMaking(true);
+    try {
+      await engagementApi.createWeekly({ ...form, target: tNum, rewardPts: pNum, minPurchase: num(form.minPurchase) || 0, category: form.category || null, storeId: form.storeId || null, title: form.title.trim() || suggested });
+      toast.success('Made and put on its week.');
+      qc.invalidateQueries({ queryKey: ['engagement-hq'] });
+    } catch (e) { toast.error(serverMessage(e, 'Could not make it.')); }
+    setMaking(false);
+  };
+  return (
+    <>
+      <div style={{ display: 'grid', gap: 8 }}>
+        {weekly.weeks.map((w) => {
+          const st = weekly.schedule.find((e) => e.weekOf === w);
+          const options = weekly.candidates.filter((c) => runsDuring(c, w) || c.id === picks[w]);
+          const chosen = weekly.candidates.find((c) => c.id === picks[w]);
+          return (
+            <div key={w} style={{ ...row, alignItems: 'center' }}>
+              <label htmlFor={`wk-${w}`} style={{ width: 150, fontSize: FONT.small, fontWeight: 700, color: C.text }}>Week of {dayLabel(w)}{w === weekly.thisWeek ? ' (this week)' : ''}</label>
+              <select id={`wk-${w}`} style={{ ...INPUT, flex: 1, minWidth: 220 }} value={picks[w] ?? ''} onChange={(e) => setPicks((p) => ({ ...p, [w]: e.target.value }))}>
+                <option value="">Nothing featured</option>
+                {options.map((c) => <option key={c.id} value={c.id}>{c.title}{c.store ? ` (${c.store})` : ''}</option>)}
+              </select>
+              {st && st.state !== 'OK' && st.challengeId === picks[w] && <span style={{ fontSize: FONT.small, color: C.danger }}>This challenge {STATE_NOTE[st.state] ?? st.state}.</span>}
+              {chosen?.announced && <span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>Already announced when it started.</span>}
+              {chosen && chosen.audience !== 'EVERYONE' && <span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>Only part of your customers can take part.</span>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={row}><Button variant="primary" disabled={!changed || busy} onClick={() => onSave(schedule)}>Save the weeks</Button></div>
+
+      <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, display: 'grid', gap: 10 }}>
+        <div style={{ fontWeight: 700, color: C.text }}>Make a challenge for a week</div>
+        <div style={row}>
+          <Field label="Week" htmlFor="wkn-week"><select id="wkn-week" style={{ ...INPUT, width: 190 }} value={form.weekOf} onChange={(e) => set('weekOf')(e.target.value)}>{weekly.weeks.map((w) => <option key={w} value={w}>Week of {dayLabel(w)}{w === weekly.thisWeek ? ' (this week)' : ''}</option>)}</select></Field>
+          <Field label="Kind" htmlFor="wkn-kind"><select id="wkn-kind" style={{ ...INPUT, width: 140 }} value={form.kind} onChange={(e) => set('kind')(e.target.value)}><option value="SPEND">Spend</option><option value="VISITS">Visits</option></select></Field>
+          <Field label={form.kind === 'SPEND' ? 'Spend ($)' : 'Purchases'} htmlFor="wkn-target" hint={form.kind === 'SPEND' ? '$1 to $500' : '2 to 12'}><input id="wkn-target" style={smallInput} inputMode="decimal" value={form.target} onChange={(e) => set('target')(e.target.value.replace(/[^0-9.]/g, '').slice(0, 6))} /></Field>
+          <Field label="Reward (pts)" htmlFor="wkn-pts" hint={Number.isFinite(pNum) ? `${usd(pNum)}, 1 to 500` : '1 to 500'}><input id="wkn-pts" style={smallInput} inputMode="numeric" value={form.rewardPts} onChange={(e) => set('rewardPts')(whole(e.target.value))} /></Field>
+          {form.kind === 'VISITS' && <Field label="Each at least ($)" htmlFor="wkn-min"><input id="wkn-min" style={smallInput} inputMode="decimal" value={form.minPurchase} onChange={(e) => set('minPurchase')(e.target.value.replace(/[^0-9.]/g, '').slice(0, 6))} /></Field>}
+          <Field label="On" htmlFor="wkn-cat"><select id="wkn-cat" style={{ ...INPUT, width: 150 }} value={form.category} onChange={(e) => set('category')(e.target.value)}>{CHALLENGE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select></Field>
+          <Field label="Where" htmlFor="wkn-store"><select id="wkn-store" style={{ ...INPUT, width: 170 }} value={form.storeId} onChange={(e) => set('storeId')(e.target.value)}><option value="">Every store</option>{stores.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}</select></Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8 }}>
+          <Field label="Title (English)" htmlFor="wkn-title" hint={`Blank: "${suggested}"`}><input id="wkn-title" style={INPUT} maxLength={100} value={form.title} onChange={(e) => set('title')(e.target.value)} /></Field>
+          <Field label="Title (Spanish)" htmlFor="wkn-titleEs"><input id="wkn-titleEs" style={INPUT} maxLength={100} value={form.titleEs} onChange={(e) => set('titleEs')(e.target.value)} /></Field>
+          <Field label="Description (English, optional)" htmlFor="wkn-desc"><input id="wkn-desc" style={INPUT} maxLength={500} value={form.description} onChange={(e) => set('description')(e.target.value)} /></Field>
+          <Field label="Description (Spanish, optional)" htmlFor="wkn-descEs"><input id="wkn-descEs" style={INPUT} maxLength={500} value={form.descriptionEs} onChange={(e) => set('descriptionEs')(e.target.value)} /></Field>
+        </div>
+        <Notice>It runs from that Monday (or now, if the week has started) to Sunday night, pays each customer once, and is not pushed at midnight: the Monday push announces it when the smart nudges are on.</Notice>
+        <div style={row}><Button variant="primary" disabled={formBad || making} onClick={make}>Make it and feature it</Button></div>
+      </div>
+    </>
+  );
+}
+
 function RateEditor({ value, onSave, busy }: { value: Config['ratePrompt']; onSave: (v: { minPurchases: number; minDays: number }) => void; busy: boolean }) {
   const [p, setP] = useState(String(value.minPurchases));
   const [d, setD] = useState(String(value.minDays));
@@ -487,6 +578,7 @@ function NudgesEditor({ value, onSave, busy, sent }: { value: Config['nudges']; 
       <Trigger label="We miss you" sent={sent.comeback} on={v.comeback.enabled} setOn={(on) => setV({ ...v, comeback: { ...v.comeback, enabled: on } })} blurb="'You have 640 pts waiting.' For customers with points who have not bought in a while. Once a month at most.">
         <Field label="quiet for (days)" htmlFor="nu-quiet"><input id="nu-quiet" style={smallInput} inputMode="numeric" value={v.comeback.quietDays} onChange={(e) => setV({ ...v, comeback: { ...v.comeback, quietDays: Number(whole(e.target.value)) } })} /></Field>
       </Trigger>
+      <Trigger label="This week's challenge" sent={sent.weeklyChallenge} on={v.weeklyChallenge.enabled} setOn={(on) => setV({ ...v, weeklyChallenge: { enabled: on } })} blurb="Mondays from 9 AM to 2 PM, once a week, to customers who can take part and have not finished it. Needs Challenge of the week on." />
       <div style={row}><Button variant="primary" disabled={!changed || busy} onClick={() => onSave(v)}>Save</Button>{changed && <Button variant="secondary" onClick={() => setV(value)}>Undo</Button>}</div>
     </>
   );

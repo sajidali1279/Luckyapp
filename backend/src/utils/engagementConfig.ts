@@ -11,6 +11,7 @@ export const ENGAGEMENT_LIMITS = {
   tierResetDays: { min: 3, max: 60 }, comebackDays: { min: 7, max: 180 }, shareMessage: 140,
   ratePurchases: { min: 1, max: 50 }, rateDays: { min: 0, max: 365 },
   welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
+  weeklySlots: 12,
   birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200,
 } as const;
 
@@ -39,6 +40,9 @@ export interface EngagementConfig {
   // since: the store day HQ switched it on (set by the server). Only people who sign up from that day on get the series, so switching it
   // on never messages the customers who joined before.
   welcome: { enabled: boolean; since: string | null; steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> };
+  // Challenge of the week (2026-10-24): one challenge per store week (weekOf is the Monday). Ids are checked against the real challenges
+  // when HQ saves (engagement.controller.ts), since this cleaner may not import anything.
+  weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
   // Tier celebration (2026-10-24): the app's one-time celebration when a customer reaches a higher tier (the tier-up push itself always goes out)
   tierUp: { enabled: boolean };
   // Birthday gift (2026-10-24): a greeting push on the day and, when bonusPts is more than 0, a bonus once a year for people who bought in
@@ -50,6 +54,7 @@ export interface EngagementConfig {
     streakRisk: { enabled: boolean };
     tierReset: { enabled: boolean; daysBefore: number };
     comeback: { enabled: boolean; quietDays: number };
+    weeklyChallenge: { enabled: boolean };
   };
 }
 
@@ -75,6 +80,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
       tier: { titleEn: 'See what you unlock next ⭐', bodyEn: 'Your tier grows as you shop. Open Rewards to see your perks and how close the next level is.', titleEs: 'Mira lo que desbloqueas ⭐', bodyEs: 'Tu nivel sube con tus compras. Abre Recompensas para ver tus beneficios y cuánto te falta para el siguiente.' },
     },
   },
+  weeklyChallenge: { enabled: false, schedule: [] },
   tierUp: { enabled: false },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
@@ -87,6 +93,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
     streakRisk: { enabled: true },
     tierReset: { enabled: true, daysBefore: 14 },
     comeback: { enabled: true, quietDays: 21 },
+    weeklyChallenge: { enabled: true },
   },
 };
 
@@ -123,6 +130,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
   const sr = isObj(nu.streakRisk) ? nu.streakRisk : {};
   const tr = isObj(nu.tierReset) ? nu.tierReset : {};
   const cb = isObj(nu.comeback) ? nu.comeback : {};
+  const wn = isObj(nu.weeklyChallenge) ? nu.weeklyChallenge : {};
 
   // milestones: increasing weeks, no repeats, at most 8; none given (or all bad) keeps the defaults
   let milestones: Milestone[] = [];
@@ -169,6 +177,16 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
   })) as Record<WelcomeKey, WelcomeText>;
 
   const bd2 = isObj(s.birthday) ? s.birthday : {};
+  // challenge of the week: real Mondays only, a uuid-shaped id, one per week (the last one given wins), oldest first, at most 12
+  const wk = isObj(s.weeklyChallenge) ? s.weeklyChallenge : {};
+  const isMonday = (k: string) => { const [y, m, dd] = k.split('-').map(Number); const t = new Date(Date.UTC(y, m - 1, dd)); return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === dd && t.getUTCDay() === 1; };
+  const byWeek = new Map<string, string>();
+  for (const e of Array.isArray(wk.schedule) ? wk.schedule : []) {
+    if (!isObj(e)) continue;
+    const w = dayKey(e.weekOf), id = typeof e.challengeId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(e.challengeId) ? e.challengeId.toLowerCase() : null;
+    if (w && id && isMonday(w)) byWeek.set(w, id);
+  }
+  const schedule = [...byWeek.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).slice(-L.weeklySlots).map(([weekOf, challengeId]) => ({ weekOf, challengeId }));
   const pushText = (v: unknown, def: PushText): PushText => {
     const r = isObj(v) ? v : {};
     return { titleEn: text(r.titleEn, L.pushTitle, def.titleEn), bodyEn: text(r.bodyEn, L.pushBody, def.bodyEn), titleEs: text(r.titleEs, L.pushTitle, def.titleEs), bodyEs: text(r.bodyEs, L.pushBody, def.bodyEs) };
@@ -189,6 +207,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     sharing: { enabled: bool(sh.enabled, false), message },
     ratePrompt: { enabled: bool(rp.enabled, false), minPurchases: int(rp.minPurchases, L.ratePurchases, d.ratePrompt.minPurchases), minDays: int(rp.minDays, L.rateDays, d.ratePrompt.minDays) },
     welcome: { enabled: bool(we.enabled, false), since: dayKey(we.since), steps, texts },
+    weeklyChallenge: { enabled: bool(wk.enabled, false), schedule },
     tierUp: { enabled: bool(isObj(s.tierUp) ? s.tierUp.enabled : false, false) },
     birthday: {
       enabled: bool(bd2.enabled, false), bonusPts: int(bd2.bonusPts, L.birthdayPts, d.birthday.bonusPts), needBoughtDays: int(bd2.needBoughtDays, L.birthdayBoughtDays, d.birthday.needBoughtDays),
@@ -201,6 +220,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
       streakRisk: { enabled: bool(sr.enabled, d.nudges.streakRisk.enabled) },
       tierReset: { enabled: bool(tr.enabled, d.nudges.tierReset.enabled), daysBefore: int(tr.daysBefore, L.tierResetDays, d.nudges.tierReset.daysBefore) },
       comeback: { enabled: bool(cb.enabled, d.nudges.comeback.enabled), quietDays: int(cb.quietDays, L.comebackDays, d.nudges.comeback.quietDays) },
+      weeklyChallenge: { enabled: bool(wn.enabled, d.nudges.weeklyChallenge.enabled) },
     },
   };
 }
@@ -219,5 +239,6 @@ export function publicEngagement(c: EngagementConfig) {
     ratePrompt: c.ratePrompt.enabled,
     birthday: c.birthday.enabled,
     tierUp: c.tierUp.enabled,
+    weeklyChallenge: c.weeklyChallenge.enabled,
   };
 }

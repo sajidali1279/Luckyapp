@@ -3429,5 +3429,15 @@
     "tierUpSub": "Esto es lo que desbloqueas:",
     "tierUpPerks": "Ver mis beneficios",
     "tierUpClose": "Cerrar"
+  },
+  "weeklyChallenge": {
+    "kicker": "Reto de la semana",
+    "leftDays_one": "Queda 1 día",
+    "leftDays_other": "Quedan {{count}} días",
+    "leftHours_one": "Queda 1 hora",
+    "leftHours_other": "Quedan {{count}} horas",
+    "leftMinutes_one": "Queda 1 minuto",
+    "leftMinutes_other": "Quedan {{count}} minutos",
+    "endsDay": "Termina el {{day}}"
   }
 }

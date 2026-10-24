@@ -8,13 +8,16 @@ import { audit } from '../utils/audit';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { applySettings, engagement, ENGAGEMENT_KEY } from '../utils/appSettings';
 import { cleanEngagement, DEFAULT_ENGAGEMENT, ENGAGEMENT_LIMITS, publicEngagement, type EngagementConfig } from '../utils/engagementConfig';
-import { BADGES, badgesFor, checkInFor, doCheckIn, goalProgress, goalValue, goalsFor, streakFor } from '../utils/engagement';
+import { BADGES, badgesFor, checkInFor, doCheckIn, goalProgress, goalValue, goalsFor, streakFor, weekStartKey } from '../utils/engagement';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { storeDateKey } from '../utils/storeTime';
 import { WELCOME_STEPS } from '../utils/engagementWelcome';
 import { birthdayFor, birthdaysOn } from '../utils/engagementBirthday';
 import { spentThisMonth } from '../utils/engagementBudget';
 import { raiseTierFor, TIER_LADDER } from '../utils/tier';
+import { checkSchedule, draftWeekly, weekWindow, WEEKLY_AHEAD_WEEKS } from '../utils/engagementWeekly';
+import { challengeRule, challengeStats } from '../utils/challenges';
+import { addStoreDays } from '../utils/storeTime';
 
 const DAY = 86_400_000;
 const uuidOnly = (v: unknown): string | undefined => (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : undefined);
@@ -127,7 +130,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {
@@ -142,6 +145,8 @@ function changesIn(before: EngagementConfig, after: EngagementConfig): string[] 
   return out;
 }
 
+const isObjBody = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
 /** PUT /settings/engagement (HQ): any part of the settings; what is sent is merged onto what is saved, then cleaned and clamped. */
 export async function putEngagement(req: AuthRequest, res: Response) {
   const body = req.body;
@@ -152,6 +157,12 @@ export async function putEngagement(req: AuthRequest, res: Response) {
   next.streaks.since = next.streaks.enabled ? (before.streaks.enabled && before.streaks.since ? before.streaks.since : storeDateKey(new Date())) : null;
   // the same for the welcome series: only people who sign up from the day it is switched on get it
   next.welcome.since = next.welcome.enabled ? (before.welcome.enabled && before.welcome.since ? before.welcome.since : storeDateKey(new Date())) : null;
+  // the challenge of the week's schedule is checked against the real challenges when HQ changes it
+  if (isObjBody(body.weeklyChallenge) && 'schedule' in body.weeklyChallenge) {
+    const chk = await checkSchedule(next.weeklyChallenge.schedule);
+    if (!chk.ok) { res.status(400).json({ success: false, error: chk.error }); return; }
+    next.weeklyChallenge.schedule = chk.schedule;
+  }
   const changes = changesIn(before, next);
   if (changes.length === 0) { res.json({ success: true, data: next, changed: false }); return; }
   await prisma.appConfig.upsert({ where: { key: ENGAGEMENT_KEY }, create: { key: ENGAGEMENT_KEY, value: JSON.stringify(next) }, update: { value: JSON.stringify(next) } });
@@ -201,6 +212,58 @@ export async function updateGoal(req: AuthRequest, res: Response) {
   const row = await prisma.storeGoal.update({ where: { id: g.id }, data });
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'STORE_GOAL_UPDATE', entity: 'store_goal', entityId: g.id, details: { title: g.title, ...data }, storeId: g.storeId });
   res.json({ success: true, data: row });
+}
+
+/**
+ * POST /engagement/weekly (HQ): makes the challenge of the week for one week (this week or the next seven) with the server's limits
+ * (utils/engagementWeekly.ts draftWeekly) and puts it on that week. It is marked announced, so it is never pushed at midnight when it
+ * starts: the Monday push announces it (with the nudges on).
+ */
+export async function createWeeklyChallenge(req: AuthRequest, res: Response) {
+  const stores = new Set((await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id));
+  const now = new Date();
+  const d = draftWeekly(req.body, stores, now);
+  if (typeof d === 'string') { res.status(400).json({ success: false, error: d }); return; }
+  const row = await prisma.challenge.create({
+    data: {
+      kind: d.kind, title: d.title, titleEs: d.titleEs, description: d.description, descriptionEs: d.descriptionEs, category: d.category, storeId: d.storeId,
+      target: d.target, minPurchase: d.minPurchase, reward: d.reward, repeats: false, audience: 'EVERYONE', startDate: d.startDate, endDate: d.endDate,
+      isActive: true, announcedAt: now, createdById: req.user!.id,
+    },
+  });
+  const before = engagement();
+  const next = cleanEngagement({ ...before, weeklyChallenge: { ...before.weeklyChallenge, schedule: [...before.weeklyChallenge.schedule.filter((e) => e.weekOf !== d.weekOf), { weekOf: d.weekOf, challengeId: row.id }] } });
+  await prisma.appConfig.upsert({ where: { key: ENGAGEMENT_KEY }, create: { key: ENGAGEMENT_KEY, value: JSON.stringify(next) }, update: { value: JSON.stringify(next) } });
+  applySettings({ engagement: next });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'CHALLENGE_CREATE', entity: 'challenge', entityId: row.id, details: { title: row.title, rule: challengeRule(row), weekOf: d.weekOf, challengeOfTheWeek: true }, storeId: d.storeId });
+  res.status(201).json({ success: true, data: { challenge: row, weekOf: d.weekOf } });
+}
+
+/** For the HQ card: the weeks that can be planned, what is on each, this week's numbers, and the challenges that could be picked. */
+async function weeklyHq(cfg: EngagementConfig, now: Date) {
+  const thisWeek = weekStartKey(now);
+  const weeks = Array.from({ length: WEEKLY_AHEAD_WEEKS }, (_, i) => addStoreDays(thisWeek, 7 * i));
+  const [candidates, picked] = await Promise.all([
+    prisma.challenge.findMany({
+      where: { kind: { in: ['SPEND', 'VISITS'] }, isActive: true, endDate: { gt: now } }, orderBy: { startDate: 'asc' }, take: 100,
+      select: { id: true, kind: true, title: true, target: true, reward: true, minPurchase: true, repeats: true, category: true, startDate: true, endDate: true, audience: true, announcedAt: true, store: { select: { name: true } } },
+    }),
+    cfg.weeklyChallenge.schedule.length ? prisma.challenge.findMany({ where: { id: { in: cfg.weeklyChallenge.schedule.map((e) => e.challengeId) } }, select: { id: true, title: true, isActive: true, startDate: true, endDate: true } }) : Promise.resolve([]),
+  ]);
+  const byId = new Map(picked.map((c) => [c.id, c]));
+  const current = cfg.weeklyChallenge.schedule.find((e) => e.weekOf === thisWeek) ?? null;
+  const stats = current ? (await challengeStats([current.challengeId])).get(current.challengeId) ?? null : null;
+  return {
+    thisWeek, weeks,
+    schedule: cfg.weeklyChallenge.schedule.filter((e) => e.weekOf >= thisWeek).map((e) => {
+      const c = byId.get(e.challengeId);
+      const w = weekWindow(e.weekOf);
+      const state = !c ? 'MISSING' : !c.isActive ? 'OFF' : c.endDate <= now ? 'ENDED' : c.endDate <= w.start || c.startDate > w.end ? 'NOT_THAT_WEEK' : 'OK';
+      return { ...e, title: c?.title ?? null, state };
+    }),
+    thisWeekStats: stats,
+    candidates: candidates.map((c) => ({ id: c.id, kind: c.kind, title: c.title, rule: challengeRule(c), startDate: c.startDate, endDate: c.endDate, store: c.store?.name ?? null, audience: c.audience, repeats: c.repeats, announced: !!c.announcedAt })),
+  };
 }
 
 // ─── suggestions and results ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -291,7 +354,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
   const cfg = engagement();
   const now = new Date();
   const since = new Date(now.getTime() - 30 * DAY);
-  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'TIER_UP', 'TIER_UP_SEEN', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK'];
+  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'TIER_UP', 'TIER_UP_SEEN', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK', 'NUDGE_WEEKLY_CHALLENGE'];
   const [events, goals, alerts, suggestions, stores, welcomeSteps, birthdaySpent, birthdayPaid, withBirthday, customers] = await Promise.all([
     prisma.engagementEvent.groupBy({ by: ['kind'], where: { kind: { in: kinds }, createdAt: { gte: since } }, _count: { _all: true }, _sum: { points: true } }),
     prisma.storeGoal.findMany({ orderBy: { endDate: 'desc' }, take: 40 }),
@@ -328,13 +391,13 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
       streaks: { awards: count('STREAK_AWARD'), pts: paid('STREAK_AWARD') },
       checkIn: { checkIns: count('CHECKIN'), pts: paid('CHECKIN') },
       goals: { awards: count('GOAL_AWARD'), pts: paid('GOAL_AWARD') },
-      nudges: { nearReward: count('NUDGE_NEAR_REWARD'), streakRisk: count('NUDGE_STREAK_RISK'), tierReset: count('NUDGE_TIER_RESET'), comeback: count('NUDGE_COMEBACK') },
+      nudges: { nearReward: count('NUDGE_NEAR_REWARD'), streakRisk: count('NUDGE_STREAK_RISK'), tierReset: count('NUDGE_TIER_RESET'), comeback: count('NUDGE_COMEBACK'), weeklyChallenge: count('NUDGE_WEEKLY_CHALLENGE') },
       gasAlerts: alerts,
       ratePrompt: count('RATE_PROMPT'),
       welcome: { sent: welcomeBy.reduce((t, n) => t + n, 0), byStep: welcomeBy },
       tierUp: { reached: count('TIER_UP'), celebrated: count('TIER_UP_SEEN') },
       birthday: { greeted: count('BIRTHDAY'), paid: birthdayPaid, pts: paid('BIRTHDAY'), spentThisMonth: birthdaySpent, withBirthday, customers },
     },
-    goals: goalRows, suggestions,
+    goals: goalRows, suggestions, weekly: await weeklyHq(cfg, now),
   } });
 }

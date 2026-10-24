@@ -52,8 +52,8 @@ async function sendPushToStoreByRole(storeId: string, title: string, body: strin
 }
 
 /** Send a push notification to all devices registered for a single user. */
-export async function sendPushToUser(userId: string, title: string, body: string, type = 'GENERAL', actionUrl?: string): Promise<void> {
-  saveNotification(userId, title, body, type, actionUrl); // always save to in-app inbox
+export async function sendPushToUser(userId: string, title: string, body: string, type = 'GENERAL', actionUrl?: string, expiresAt?: Date): Promise<void> {
+  saveNotification(userId, title, body, type, actionUrl, expiresAt); // always save to in-app inbox (expiresAt: it leaves the inbox then)
 
   try {
     const tokens = await prisma.pushToken.findMany({ where: { userId }, select: { token: true } });

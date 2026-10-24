@@ -3429,5 +3429,15 @@
     "tierUpSub": "Here is what you unlock:",
     "tierUpPerks": "See my perks",
     "tierUpClose": "Close"
+  },
+  "weeklyChallenge": {
+    "kicker": "Challenge of the week",
+    "leftDays_one": "1 day left",
+    "leftDays_other": "{{count}} days left",
+    "leftHours_one": "1 hour left",
+    "leftHours_other": "{{count}} hours left",
+    "leftMinutes_one": "1 minute left",
+    "leftMinutes_other": "{{count}} minutes left",
+    "endsDay": "Ends {{day}}"
   }
 }

@@ -13,6 +13,7 @@ import { computeStreak, dow, payFinishedGoals, purchaseWeeks, storeHour, weekSta
 import { getCurrentPeriod, raiseTierFor } from './tier';
 import { runWelcome } from './engagementWelcome';
 import { runBirthdays } from './engagementBirthday';
+import { runWeeklyChallengePush } from './engagementWeekly';
 
 const DAY = 86_400_000;
 const PER_RUN = 150;   // most nudges one run sends, so a bad setting cannot flood anyone
@@ -185,7 +186,7 @@ export async function checkGasAlerts(storeId: string, prices: { GAS?: number | n
   return sent;
 }
 
-let nudging = false, paying = false, welcoming = false, celebrating = false;   // a run that is still going when the next one is due makes the next one skip, not pile on
+let nudging = false, paying = false, welcoming = false, celebrating = false, announcingWeek = false;   // a run that is still going when the next one is due makes the next one skip, not pile on
 export function startEngagementCron() {
   cron.schedule('*/30 * * * *', () => {
     if (nudging) return;
@@ -207,5 +208,10 @@ export function startEngagementCron() {
     celebrating = true;
     runBirthdays().catch((e) => console.error('[engagement] birthdays failed:', e?.message ?? e)).finally(() => { celebrating = false; });
   });
-  console.log('[engagement] nudges, the welcome series and birthdays every 30 minutes, store goals every hour, only for what HQ has switched on');
+  cron.schedule('25,55 * * * *', () => {   // the challenge of the week push (Mondays, 9 AM to 2 PM store time)
+    if (announcingWeek) return;
+    announcingWeek = true;
+    runWeeklyChallengePush().catch((e) => console.error('[engagement] weekly challenge push failed:', e?.message ?? e)).finally(() => { announcingWeek = false; });
+  });
+  console.log('[engagement] nudges, the welcome series, birthdays and the weekly challenge every 30 minutes, store goals every hour, only for what HQ has switched on');
 }

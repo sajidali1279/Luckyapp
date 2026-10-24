@@ -110,7 +110,7 @@ import {
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
-import { getEngagementConfig, getMyEngagement, postRatePrompt, postTierUp, postCheckIn, putGasAlert, deleteGasAlert, getEngagementHq, putEngagement, createGoal, updateGoal } from '../controllers/engagement.controller';
+import { getEngagementConfig, getMyEngagement, postRatePrompt, postTierUp, createWeeklyChallenge, postCheckIn, putGasAlert, deleteGasAlert, getEngagementHq, putEngagement, createGoal, updateGoal } from '../controllers/engagement.controller';
 import { getSettings, putRules, putFeatures, putBusiness, putWelcome, putTheme, getAppTheme, putPointsExpiry, getPointsExpiryPreview, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
@@ -768,6 +768,7 @@ router.get('/engagement/hq',             authenticate, requireRole(Role.SUPER_AD
 router.put('/settings/engagement',       authenticate, requireRole(Role.SUPER_ADMIN),   putEngagement);
 router.post('/engagement/goals',         authenticate, requireRole(Role.SUPER_ADMIN),   createGoal);
 router.patch('/engagement/goals/:id',    authenticate, requireRole(Role.SUPER_ADMIN),   updateGoal);
+router.post('/engagement/weekly',        authenticate, requireRole(Role.SUPER_ADMIN),   createWeeklyChallenge);   // make and schedule the challenge of the week (2026-10-24)
 router.put('/settings/theme',           authenticate, requireRole(Role.SUPER_ADMIN),   putTheme);         // the seasonal app theme (2026-10-21)
 router.put('/settings/welcome',         authenticate, requireRole(Role.SUPER_ADMIN),   putWelcome);       // the joining bonus (2026-10-17)
 router.put('/settings/points-expiry',   authenticate, requireRole(Role.SUPER_ADMIN),   putPointsExpiry);  // points expiry (2026-10-17)

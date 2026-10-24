@@ -14,6 +14,8 @@ import { forCustomer } from './offerAudience';
 import { sendPushToUser } from './push';
 import { feature } from './appSettings';
 import { addLot } from './pointLots';
+import { thisWeekPick, weekWindow } from './engagementWeekly';
+import { storeDateKey } from './storeTime';
 
 type Db = Prisma.TransactionClient | PrismaClient;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -125,16 +127,25 @@ export async function challengesFor(customerId: string, storeId: string | null, 
   const mine = await forCustomer(running, customerId, now);
   if (mine.length === 0) return [];
   const progress = new Map((await prisma.challengeProgress.findMany({ where: { customerId, challengeId: { in: mine.map((c) => c.id) } } })).map((p) => [p.challengeId, p]));
-  return mine.map((c) => {
+  // Challenge of the week (2026-10-24): this week's pick, if it is in the customer's own list, comes first with the end of its week (a
+  // store-specific one only when the customer is at that store). endsOn on every row is the store date, so a phone in another timezone
+  // never reads a Sunday 11:59 PM end as "Monday".
+  const pick = thisWeekPick(now);
+  const week = pick ? weekWindow(pick.weekOf) : null;
+  const rows = mine.map((c) => {
     const p = progress.get(c.id);
     const done = !c.repeats && (p?.timesEarned ?? 0) >= 1;
+    const featured = !!pick && !!week && c.id === pick.challengeId && (!c.storeId || c.storeId === storeId);
+    const endsAt = featured ? (c.endDate < week!.end ? c.endDate : week!.end) : null;
     return {
       // a title that is just the old dollar sentence ("Spend $20.00, get $2.00 back") is shown in points, so older challenges need no re-posting
       id: c.id, kind: c.kind, title: c.title === legacyChallengeRule(c) ? challengeRule(c) : c.title, titleEs: c.titleEs, description: c.description, descriptionEs: c.descriptionEs,
       category: c.category, store: c.store?.name ?? null, target: c.target, minPurchase: c.minPurchase, reward: c.reward, repeats: c.repeats,
-      endDate: c.endDate, progress: done ? c.target : r2(p?.progress ?? 0), timesEarned: p?.timesEarned ?? 0, done,
+      endDate: c.endDate, endsOn: storeDateKey(c.endDate), progress: done ? c.target : r2(p?.progress ?? 0), timesEarned: p?.timesEarned ?? 0, done,
+      featured, ...(endsAt ? { endsAt, weekEndsOn: storeDateKey(endsAt) } : {}),
     };
   });
+  return [...rows.filter((r) => r.featured), ...rows.filter((r) => !r.featured)];
 }
 
 /** For HQ: per challenge, how many took part, how many times it was earned, and what it paid. */

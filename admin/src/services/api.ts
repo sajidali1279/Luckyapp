@@ -118,6 +118,7 @@ export const engagementApi = {
   save: (patch: object) => api.put('/settings/engagement', patch),
   createGoal: (data: object) => api.post('/engagement/goals', data),
   updateGoal: (id: string, data: object) => api.patch(`/engagement/goals/${id}`, data),
+  createWeekly: (data: object) => api.post('/engagement/weekly', data),   // make the challenge of the week and put it on its week
 };
 
 export const challengesApi = {
