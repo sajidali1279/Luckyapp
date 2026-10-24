@@ -12,6 +12,7 @@ import { excludeDeletedCustomers } from './accountDeletion';
 import { sendPushToUser } from './push';
 import { storeDateKey, storeHour } from './storeTime';
 import { payBonus } from './engagement';
+import { raiseTierFor } from './tier';
 import { ensureBudgetLock, takeFromBudget } from './engagementBudget';
 import type { PushText } from './engagementConfig';
 
@@ -82,7 +83,7 @@ export async function runBirthdays(now: Date = new Date()): Promise<{ greeted: n
     if (!result) continue;
     budget--;
     out.greeted++;
-    if (result.pts > 0) { out.paid++; out.pts += result.pts; }
+    if (result.pts > 0) { out.paid++; out.pts += result.pts; await raiseTierFor(p.id); }   // a gift adds period points too (never throws)
     const msg = fillBirthday(result.pts > 0 ? cfg.gift : cfg.greeting, p.language === 'es', p.name, result.pts);
     await sendPushToUser(p.id, msg.title, msg.body, 'OFFER', result.pts > 0 ? '/(customer)/history' : '/(customer)/home');
   }

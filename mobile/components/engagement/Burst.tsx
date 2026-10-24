@@ -7,7 +7,7 @@ import { useReduceMotion } from '../../utils/motion';
 
 const PIECES = ['🪙', '✨', '🪙', '⭐', '🪙', '✨', '🪙', '⭐', '🪙', '✨', '🪙', '⭐'];
 
-export default function Burst({ fire }: { fire: number }) {
+export default function Burst({ fire, pieces = PIECES }: { fire: number; pieces?: string[] }) {
   const reduce = useReduceMotion();
   const t = useRef(new Animated.Value(0)).current;
   const [on, setOn] = useState(false);
@@ -20,8 +20,8 @@ export default function Burst({ fire }: { fire: number }) {
   if (!on) return null;
   return (
     <View pointerEvents="none" style={s.wrap} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {PIECES.map((p, i) => {
-        const angle = (i / PIECES.length) * Math.PI * 2 + (i % 2 ? 0.25 : 0);
+      {pieces.map((p, i) => {
+        const angle = (i / pieces.length) * Math.PI * 2 + (i % 2 ? 0.25 : 0);
         const dist = 70 + (i % 3) * 22;
         return (
           <Animated.View key={i} style={{

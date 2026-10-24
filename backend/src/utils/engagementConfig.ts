@@ -39,6 +39,8 @@ export interface EngagementConfig {
   // since: the store day HQ switched it on (set by the server). Only people who sign up from that day on get the series, so switching it
   // on never messages the customers who joined before.
   welcome: { enabled: boolean; since: string | null; steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> };
+  // Tier celebration (2026-10-24): the app's one-time celebration when a customer reaches a higher tier (the tier-up push itself always goes out)
+  tierUp: { enabled: boolean };
   // Birthday gift (2026-10-24): a greeting push on the day and, when bonusPts is more than 0, a bonus once a year for people who bought in
   // the last needBoughtDays days (0: anyone who has ever bought), inside a hard monthly budget. {name} and {pts} in the texts are filled in.
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
@@ -73,6 +75,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
       tier: { titleEn: 'See what you unlock next ⭐', bodyEn: 'Your tier grows as you shop. Open Rewards to see your perks and how close the next level is.', titleEs: 'Mira lo que desbloqueas ⭐', bodyEs: 'Tu nivel sube con tus compras. Abre Recompensas para ver tus beneficios y cuánto te falta para el siguiente.' },
     },
   },
+  tierUp: { enabled: false },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
     gift: { titleEn: 'Happy birthday, {name}! 🎂', bodyEn: 'A little gift from Lucky Stop: {pts} points are in your account. Have a great day!', titleEs: '¡Feliz cumpleaños, {name}! 🎂', bodyEs: 'Un pequeño regalo de Lucky Stop: {pts} puntos ya están en tu cuenta. ¡Que tengas un gran día!' },
@@ -186,6 +189,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     sharing: { enabled: bool(sh.enabled, false), message },
     ratePrompt: { enabled: bool(rp.enabled, false), minPurchases: int(rp.minPurchases, L.ratePurchases, d.ratePrompt.minPurchases), minDays: int(rp.minDays, L.rateDays, d.ratePrompt.minDays) },
     welcome: { enabled: bool(we.enabled, false), since: dayKey(we.since), steps, texts },
+    tierUp: { enabled: bool(isObj(s.tierUp) ? s.tierUp.enabled : false, false) },
     birthday: {
       enabled: bool(bd2.enabled, false), bonusPts: int(bd2.bonusPts, L.birthdayPts, d.birthday.bonusPts), needBoughtDays: int(bd2.needBoughtDays, L.birthdayBoughtDays, d.birthday.needBoughtDays),
       monthlyBudgetPts: int(bd2.monthlyBudgetPts, L.birthdayBudget, d.birthday.monthlyBudgetPts), gift: pushText(bd2.gift, d.birthday.gift), greeting: pushText(bd2.greeting, d.birthday.greeting),
@@ -214,5 +218,6 @@ export function publicEngagement(c: EngagementConfig) {
     sharing: { enabled: c.sharing.enabled, message: c.sharing.message },
     ratePrompt: c.ratePrompt.enabled,
     birthday: c.birthday.enabled,
+    tierUp: c.tierUp.enabled,
   };
 }

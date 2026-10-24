@@ -14,6 +14,7 @@ import { storeDateKey } from '../utils/storeTime';
 import { WELCOME_STEPS } from '../utils/engagementWelcome';
 import { birthdayFor, birthdaysOn } from '../utils/engagementBirthday';
 import { spentThisMonth } from '../utils/engagementBudget';
+import { raiseTierFor, TIER_LADDER } from '../utils/tier';
 
 const DAY = 86_400_000;
 const uuidOnly = (v: unknown): string | undefined => (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : undefined);
@@ -48,6 +49,7 @@ export async function postCheckIn(req: AuthRequest, res: Response) {
   if (!isCustomerAccount(req.user)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
   const r = await doCheckIn(req.user!.id);
   if (!r.ok) { res.status(r.reason === 'ALREADY' ? 409 : 400).json({ success: false, code: r.reason, error: CHECKIN_WORDS[r.reason] }); return; }
+  if (r.pts > 0) await raiseTierFor(req.user!.id);   // a check-in adds period points too (never throws)
   res.json({ success: true, data: { pts: r.pts, streakDays: r.streakDays, mode: r.mode } });
 }
 
@@ -70,6 +72,25 @@ export async function postRatePrompt(req: AuthRequest, res: Response) {
   if (asked || !oldEnough || bought < cfg.minPurchases) { res.json({ success: true, data: { ask: false } }); return; }
   const made = await prisma.engagementEvent.createMany({ data: [{ customerId: id, kind: 'RATE_PROMPT', key: 'once' }], skipDuplicates: true });
   res.json({ success: true, data: { ask: made.count === 1 } });
+}
+
+/**
+ * POST /engagement/tier-up (2026-10-24): the app asks when the customer's tier changes. With HQ's Tier celebration on, the answer is yes
+ * once for a tier reached in the last three days (the TIER_UP_SEEN row is the guard, so a second phone or a reinstall does not celebrate
+ * again), and only while they still hold that tier.
+ */
+export async function postTierUp(req: AuthRequest, res: Response) {
+  if (!isCustomerAccount(req.user)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
+  if (!engagement().tierUp.enabled) { res.json({ success: true, data: { show: false } }); return; }
+  const id = req.user!.id;
+  const [ev, me] = await Promise.all([
+    prisma.engagementEvent.findFirst({ where: { customerId: id, kind: 'TIER_UP', createdAt: { gte: new Date(Date.now() - 3 * DAY) } }, orderBy: { createdAt: 'desc' }, select: { key: true } }),
+    prisma.user.findUnique({ where: { id }, select: { tier: true } }),
+  ]);
+  const tier = ev?.key.split(':')[1] as (typeof TIER_LADDER)[number] | undefined;
+  if (!ev || !tier || !me || TIER_LADDER.indexOf(me.tier) < TIER_LADDER.indexOf(tier)) { res.json({ success: true, data: { show: false } }); return; }
+  const made = await prisma.engagementEvent.createMany({ data: [{ customerId: id, kind: 'TIER_UP_SEEN', key: ev.key }], skipDuplicates: true });
+  res.json({ success: true, data: { show: made.count === 1, tier } });
 }
 
 // gas price alerts
@@ -106,7 +127,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {
@@ -270,7 +291,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
   const cfg = engagement();
   const now = new Date();
   const since = new Date(now.getTime() - 30 * DAY);
-  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK'];
+  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'TIER_UP', 'TIER_UP_SEEN', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK'];
   const [events, goals, alerts, suggestions, stores, welcomeSteps, birthdaySpent, birthdayPaid, withBirthday, customers] = await Promise.all([
     prisma.engagementEvent.groupBy({ by: ['kind'], where: { kind: { in: kinds }, createdAt: { gte: since } }, _count: { _all: true }, _sum: { points: true } }),
     prisma.storeGoal.findMany({ orderBy: { endDate: 'desc' }, take: 40 }),
@@ -311,6 +332,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
       gasAlerts: alerts,
       ratePrompt: count('RATE_PROMPT'),
       welcome: { sent: welcomeBy.reduce((t, n) => t + n, 0), byStep: welcomeBy },
+      tierUp: { reached: count('TIER_UP'), celebrated: count('TIER_UP_SEEN') },
       birthday: { greeted: count('BIRTHDAY'), paid: birthdayPaid, pts: paid('BIRTHDAY'), spentThisMonth: birthdaySpent, withBirthday, customers },
     },
     goals: goalRows, suggestions,

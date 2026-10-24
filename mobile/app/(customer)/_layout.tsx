@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
@@ -6,6 +7,7 @@ import { notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useEngagementFlags } from '../../hooks/useEngagement';
+import TierUpHost from '../../components/engagement/TierUpHost';
 import {
   HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
   BriefcaseIcon, ShoppingBagIcon, BellIcon, FlameIcon,
@@ -63,6 +65,7 @@ export default function CustomerLayout() {
   ];
 
   return (
+    <View style={{ flex: 1 }}>
     <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.primary}>
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
@@ -86,5 +89,8 @@ export default function CustomerLayout() {
         <Tabs.Screen name="gas-alerts" options={{ href: null }} />
       </Tabs>
     </DrawerShell>
+    {/* the one-time tier celebration, over every customer screen and the bottom bar (2026-10-24) */}
+    <TierUpHost />
+    </View>
   );
 }

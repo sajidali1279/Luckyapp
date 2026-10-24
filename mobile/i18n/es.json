@@ -3424,6 +3424,10 @@
     "bdayWish": "Todo el equipo de Lucky Stop te desea un gran día.",
     "bdayAddTitle": "Agrega tu cumpleaños",
     "bdayAddSub": "Recibe un saludo, y quizá un regalo, en tu día. Solo guardamos el mes y el día.",
-    "bdayLater": "Ahora no"
+    "bdayLater": "Ahora no",
+    "tierUpTitle": "¡Llegaste a {{tier}}!",
+    "tierUpSub": "Esto es lo que desbloqueas:",
+    "tierUpPerks": "Ver mis beneficios",
+    "tierUpClose": "Cerrar"
   }
 }

@@ -10,7 +10,7 @@ import { excludeDeletedCustomers } from './accountDeletion';
 import { sendPushToUser } from './push';
 import { addStoreDays, storeDateKey, storeDayStart } from './storeTime';
 import { computeStreak, dow, payFinishedGoals, purchaseWeeks, storeHour, weekStartKey } from './engagement';
-import { getCurrentPeriod } from './tier';
+import { getCurrentPeriod, raiseTierFor } from './tier';
 import { runWelcome } from './engagementWelcome';
 import { runBirthdays } from './engagementBirthday';
 
@@ -149,6 +149,7 @@ export async function runGoals(now: Date = new Date()) {
   if (r.winners.length) {
     const langs = new Map((await prisma.user.findMany({ where: { id: { in: [...new Set(r.winners.map((w) => w.customerId))] } }, select: { id: true, language: true } })).map((u) => [u.id, u.language]));
     for (const w of r.winners) {
+      await raiseTierFor(w.customerId);   // a goal reward adds period points too (never throws)
       const es = langs.get(w.customerId) === 'es';
       sendPushToUser(w.customerId, es ? '🎉 ¡Meta de la tienda cumplida!' : '🎉 Store goal reached!', es ? `${w.titleEs || w.title}: ${w.pts} pts agregados a tu saldo.` : `${w.title}: ${w.pts} pts added to your balance.`, 'OFFER', '/(customer)/home').catch(() => {});
     }

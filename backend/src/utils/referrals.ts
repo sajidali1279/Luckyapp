@@ -14,6 +14,7 @@ import { startOfStoreDate, storeDateKey } from './storeTime';
 import { sendPushToUser } from './push';
 import { rule } from './appSettings';
 import { addLot } from './pointLots';
+import { raiseTierFor } from './tier';
 
 type Db = Prisma.TransactionClient | PrismaClient;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -193,6 +194,7 @@ export async function pushReferralAwards(awards: ReferralAward[]): Promise<void>
       ? (es ? ['🎉 ¡Tu invitación funcionó!', `${a.otherName} hizo su primera compra. ${amt} agregados a tu saldo.`] : ['🎉 Your invite worked!', `${a.otherName} made their first purchase. ${amt} added to your balance.`])
       : (es ? ['🎁 Bono de bienvenida', `${amt} agregados a tu saldo por unirte con la invitación de ${a.otherName}.`] : ['🎁 Welcome bonus', `${amt} added to your balance for joining with ${a.otherName}'s invite.`]);
     sendPushToUser(a.customerId, title, body, 'OFFER', '/(customer)/invite-friends');
+    if (a.role === 'REFERRER') await raiseTierFor(a.customerId);   // the sharer's reward adds period points but is not their sale (never throws)
   }
 }
 

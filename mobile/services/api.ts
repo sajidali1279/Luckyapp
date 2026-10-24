@@ -180,6 +180,7 @@ export const engagementApi = {
   me: (storeId?: string) => api.get(`/engagement/me${storeId ? `?storeId=${storeId}` : ''}`),
   checkIn: () => api.post('/engagement/check-in'),
   ratePrompt: () => api.post('/engagement/rate-prompt'),   // { ask: true } at most once per customer
+  tierUp: () => api.post('/engagement/tier-up'),           // { show, tier }: the one-time tier celebration
   putGasAlert: (body: { storeId: string; fuel: 'GAS' | 'DIESEL'; maxPrice: number }) => api.put('/engagement/gas-alerts', body),
   deleteGasAlert: (id: string) => api.delete(`/engagement/gas-alerts/${id}`),
 };
