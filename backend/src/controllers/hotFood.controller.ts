@@ -5,6 +5,7 @@ import { AuthRequest } from '../types';
 import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreEmployees, sendPushToUser } from '../utils/push';
+import { hotFoodWords } from '../utils/hotFoodWords';
 import { hotFoodOrderUrl, customerHotFoodUrl } from '../utils/notificationRoutes';
 import { hotFoodState, opensSentence, HotFoodSchedules, HotFoodState } from '../utils/hotFoodHours';
 import { updateHoursSchema, dayProblem, dayWords, DAY_NAMES } from './storeHours.controller';
@@ -298,7 +299,7 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
 
   const order = await prisma.hotFoodOrder.findUnique({
     where: { id },
-    include: { store: { select: { id: true, name: true, address: true, city: true } } },
+    include: { store: { select: { id: true, name: true, address: true, city: true } }, customer: { select: { language: true } } },
   });
   if (!order) {
     res.status(404).json({ success: false, error: 'Order not found' });
@@ -351,27 +352,13 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
   if (next === 'COMPLETED' && order.paidWithPoints && !order.pointsReturnedAt) await recordPointsPickup(order, req.user!.id);
   const updated = await prisma.hotFoodOrder.findUnique({ where: { id }, include });
 
-  // The customer hears when it is accepted (with the time the store gave) and when it is declined (with the reason)
-  if (next === 'ACCEPTED') {
-    const mins = updateData.estimatedMinutes;
-    sendPushToUser(order.customerId, `Order #${order.orderNumber} accepted`,
-      `${order.store.name} is making it${mins ? `, ready in about ${mins} minute${mins === 1 ? '' : 's'}` : ''}.`, 'HOT_FOOD_ORDER', customerHotFoodUrl());
-  }
-  if (next === 'CANCELLED') {
-    sendPushToUser(order.customerId, `Order #${order.orderNumber} was declined`,
-      `${order.store.name} could not make your order${updateData.cancelReason ? `: ${updateData.cancelReason}${/[.!?]$/.test(updateData.cancelReason) ? '' : '.'}` : '.'} ${returned ? `Your ${pts(returned)} points are back.` : 'You were not charged.'}`, 'HOT_FOOD_ORDER', customerHotFoodUrl());
-  }
-
-  // Push to customer when their order is ready for pickup
-  if (next === 'READY') {
-    sendPushToUser(
-      order.customerId,
-      '✅ Your food is ready!',
-      `Order #${order.orderNumber} is ready. Head to the counter at ${order.store.name}${order.store.address ? `, ${order.store.address}${order.store.city ? `, ${order.store.city}` : ''}` : ''}.${order.paidWithPoints ? ' Paid with points: nothing to pay.' : ` Pay $${order.totalAmount.toFixed(2)} at the counter.`}`,
-      'HOT_FOOD_ORDER',
-      customerHotFoodUrl(),   // tapping it opens the orders (it opened nothing)
-    );
-  }
+  // The customer hears when it is accepted (with the time the store gave), when it is declined (with the reason) and when it is ready,
+  // in the language they use the app in (utils/hotFoodWords.ts); tapping any of them opens their orders
+  const es = order.customer?.language === 'es';
+  const tell = (m: { title: string; body: string }) => sendPushToUser(order.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
+  if (next === 'ACCEPTED') tell(hotFoodWords.accepted(es, order.orderNumber, order.store.name, updateData.estimatedMinutes));
+  if (next === 'CANCELLED') tell(hotFoodWords.declined(es, order.orderNumber, order.store.name, updateData.cancelReason, returned ? pts(returned) : 0));
+  if (next === 'READY') tell(hotFoodWords.ready(es, order.orderNumber, order.store, order.paidWithPoints, order.totalAmount));
 
   res.json({ success: true, data: updated, changed: true });
 }
