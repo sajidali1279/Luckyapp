@@ -15,12 +15,13 @@ export interface EngagementFlags {
   gasAlerts: boolean;
   sharing: { enabled: boolean; message: string };
   ratePrompt: boolean;
+  birthday: boolean;
 }
 export interface Streak { weeks: number; current: boolean; atRisk: boolean; endsOn: string | null; best: number; minPurchase: number; next: { weeks: number; pts: number } | null; milestones: { weeks: number; pts: number; reached: boolean; paid: boolean }[] }
 export interface CheckIn { available: boolean; reason: 'OFF' | 'ALREADY' | 'NO_VISIT' | 'CAP' | null; doneToday: boolean; streakDays: number; mode: 'FIXED' | 'MYSTERY'; todayPts: number | null; weekBonusPts: number; monthLeftPts: number }
 export interface BadgeRow { key: string; emoji: string; name: string; nameEs: string; desc: string; descEs: string; target: number; progress: number; earned: boolean }
 export interface Goal { id: string; title: string; titleEs: string | null; metric: string; target: number; rewardPts: number; endDate: string; store: string; progress: number; reached: boolean; joined: boolean }
-export interface Engagement { config: EngagementFlags; streak: Streak | null; checkIn: CheckIn | null; badges: { earned: number; total: number; badges: BadgeRow[] } | null; goals: Goal[] | null; gasAlerts: { id: string; storeId: string; fuel: 'GAS' | 'DIESEL'; maxPrice: number }[] | null }
+export interface Engagement { config: EngagementFlags; streak: Streak | null; checkIn: CheckIn | null; badges: { earned: number; total: number; badges: BadgeRow[] } | null; goals: Goal[] | null; gasAlerts: { id: string; storeId: string; fuel: 'GAS' | 'DIESEL'; maxPrice: number }[] | null; birthday?: { today: boolean; pts: number; name: string | null } | null }
 
 const isCustomer = () => useAuthStore.getState().user?.role === 'CUSTOMER';
 

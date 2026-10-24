@@ -12,6 +12,7 @@ import { addStoreDays, storeDateKey, storeDayStart } from './storeTime';
 import { computeStreak, dow, payFinishedGoals, purchaseWeeks, storeHour, weekStartKey } from './engagement';
 import { getCurrentPeriod } from './tier';
 import { runWelcome } from './engagementWelcome';
+import { runBirthdays } from './engagementBirthday';
 
 const DAY = 86_400_000;
 const PER_RUN = 150;   // most nudges one run sends, so a bad setting cannot flood anyone
@@ -183,7 +184,7 @@ export async function checkGasAlerts(storeId: string, prices: { GAS?: number | n
   return sent;
 }
 
-let nudging = false, paying = false, welcoming = false;   // a run that is still going when the next one is due makes the next one skip, not pile on
+let nudging = false, paying = false, welcoming = false, celebrating = false;   // a run that is still going when the next one is due makes the next one skip, not pile on
 export function startEngagementCron() {
   cron.schedule('*/30 * * * *', () => {
     if (nudging) return;
@@ -200,5 +201,10 @@ export function startEngagementCron() {
     welcoming = true;
     runWelcome().catch((e) => console.error('[engagement] welcome series failed:', e?.message ?? e)).finally(() => { welcoming = false; });
   });
-  console.log('[engagement] nudges and the welcome series every 30 minutes, store goals every hour, only for what HQ has switched on');
+  cron.schedule('10,40 * * * *', () => {   // birthday greetings and gifts (each person once a year, from 10 AM store time)
+    if (celebrating) return;
+    celebrating = true;
+    runBirthdays().catch((e) => console.error('[engagement] birthdays failed:', e?.message ?? e)).finally(() => { celebrating = false; });
+  });
+  console.log('[engagement] nudges, the welcome series and birthdays every 30 minutes, store goals every hour, only for what HQ has switched on');
 }

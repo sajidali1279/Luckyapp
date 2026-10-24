@@ -1,5 +1,5 @@
 import { useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   View,
   StyleSheet,
@@ -92,6 +92,14 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       setSavingBday(false);
     }
   }
+  // "Add your birthday" on Home (the birthday gift, 2026-10-24) opens the birthday picker straight away: /(customer)/profile?birthday=1
+  const { birthday: openBirthday } = useLocalSearchParams<{ birthday?: string }>();
+  useEffect(() => {
+    if (!isCustomer || openBirthday !== '1') return;
+    setBdayMonth(user?.birthMonth ?? 1); setBdayDay(user?.birthDay ?? 1); setShowBday(true);
+    router.setParams({ birthday: '' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openBirthday]);
   const [selectedLang, setSelectedLang] = useState<LanguageCode>(getLanguage());
 
   useEffect(() => {

@@ -19,10 +19,12 @@ const fee4 = (n: number) => Math.round(n * 10000) / 10000;   // the platform fee
 const DAY = 86_400_000;
 
 // ─── the hidden "system challenge" every bonus line is tied to ──────────────────────────────────────────────────────────────────────
-const SYSTEM: Record<'STREAK' | 'CHECKIN' | 'GOAL', { id: string; title: string }> = {
-  STREAK: { id: '00000000-0000-4000-8000-0000000000e1', title: 'Streak bonus' },
-  CHECKIN: { id: '00000000-0000-4000-8000-0000000000e2', title: 'Daily check-in' },
-  GOAL: { id: '00000000-0000-4000-8000-0000000000e3', title: 'Store goal' },
+// The ids are fixed so every copy of the server agrees; e5 to e7 are kept for the prize games (spin, scratch card, lucky number).
+const SYSTEM: Record<'STREAK' | 'CHECKIN' | 'GOAL' | 'BIRTHDAY', { id: string; title: string; titleEs: string }> = {
+  STREAK: { id: '00000000-0000-4000-8000-0000000000e1', title: 'Streak bonus', titleEs: 'Bono de racha' },
+  CHECKIN: { id: '00000000-0000-4000-8000-0000000000e2', title: 'Daily check-in', titleEs: 'Registro diario' },
+  GOAL: { id: '00000000-0000-4000-8000-0000000000e3', title: 'Store goal', titleEs: 'Meta de la tienda' },
+  BIRTHDAY: { id: '00000000-0000-4000-8000-0000000000e4', title: 'Birthday gift', titleEs: 'Regalo de cumpleaños' },
 };
 export const SYSTEM_CHALLENGE_IDS = Object.values(SYSTEM).map((s) => s.id);
 
@@ -30,8 +32,8 @@ async function systemChallengeId(db: Db, kind: keyof typeof SYSTEM): Promise<str
   const s = SYSTEM[kind];
   await db.challenge.upsert({
     where: { id: s.id },
-    create: { id: s.id, kind: 'SYSTEM', title: s.title, description: '', target: 0, reward: 0, startDate: new Date('2026-01-01T00:00:00Z'), endDate: new Date('2099-12-31T00:00:00Z'), isActive: false, createdById: 'system' },
-    update: {},
+    create: { id: s.id, kind: 'SYSTEM', title: s.title, titleEs: s.titleEs, description: '', target: 0, reward: 0, startDate: new Date('2026-01-01T00:00:00Z'), endDate: new Date('2099-12-31T00:00:00Z'), isActive: false, createdById: 'system' },
+    update: { title: s.title, titleEs: s.titleEs },   // History shows these names (in Spanish too), so rows made before the Spanish names get them
   });
   return s.id;
 }

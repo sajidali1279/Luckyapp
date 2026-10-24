@@ -3417,6 +3417,13 @@
     "progressOff": "Nothing to show yet.",
     "goalsTitle": "Store goals",
     "gasLink": "Alert me when it drops",
-    "gasLinkA11y": "Set a gas price alert"
+    "gasLinkA11y": "Set a gas price alert",
+    "bdayTitle": "Happy birthday, {{name}}! 🎂",
+    "bdayTitleNoName": "Happy birthday! 🎂",
+    "bdayPts": "{{pts}} points are in your account, a gift from Lucky Stop.",
+    "bdayWish": "Everyone at Lucky Stop wishes you a great day.",
+    "bdayAddTitle": "Add your birthday",
+    "bdayAddSub": "Get a greeting, and maybe a gift, on your day. We only keep the month and day.",
+    "bdayLater": "Not now"
   }
 }

@@ -3417,6 +3417,13 @@
     "progressOff": "Todavía no hay nada que mostrar.",
     "goalsTitle": "Metas de la tienda",
     "gasLink": "Avísame cuando baje",
-    "gasLinkA11y": "Crear una alerta de precio de gasolina"
+    "gasLinkA11y": "Crear una alerta de precio de gasolina",
+    "bdayTitle": "¡Feliz cumpleaños, {{name}}! 🎂",
+    "bdayTitleNoName": "¡Feliz cumpleaños! 🎂",
+    "bdayPts": "{{pts}} puntos ya están en tu cuenta, un regalo de Lucky Stop.",
+    "bdayWish": "Todo el equipo de Lucky Stop te desea un gran día.",
+    "bdayAddTitle": "Agrega tu cumpleaños",
+    "bdayAddSub": "Recibe un saludo, y quizá un regalo, en tu día. Solo guardamos el mes y el día.",
+    "bdayLater": "Ahora no"
   }
 }

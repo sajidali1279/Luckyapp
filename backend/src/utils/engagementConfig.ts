@@ -11,6 +11,7 @@ export const ENGAGEMENT_LIMITS = {
   tierResetDays: { min: 3, max: 60 }, comebackDays: { min: 7, max: 180 }, shareMessage: 140,
   ratePurchases: { min: 1, max: 50 }, rateDays: { min: 0, max: 365 },
   welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
+  birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200,
 } as const;
 
 export interface Milestone { weeks: number; pts: number }
@@ -20,7 +21,8 @@ export interface MysteryPrize { pts: number; weight: number }
 // (utils/engagementWelcome.ts says when each one fits). HQ edits the day of each step and every text, in English and Spanish.
 export type WelcomeKey = 'qrBonus' | 'qr' | 'hotFood' | 'checkIn' | 'invite' | 'tier';
 export const WELCOME_KEYS: WelcomeKey[] = ['qrBonus', 'qr', 'hotFood', 'checkIn', 'invite', 'tier'];
-export interface WelcomeText { titleEn: string; bodyEn: string; titleEs: string; bodyEs: string }
+export interface PushText { titleEn: string; bodyEn: string; titleEs: string; bodyEs: string }
+export type WelcomeText = PushText;
 export interface WelcomeStep { day: number; enabled: boolean }
 export interface EngagementConfig {
   // since: the store day HQ switched streaks on (set by the server). Weeks before it do not count, so switching on never pays out old history.
@@ -37,6 +39,9 @@ export interface EngagementConfig {
   // since: the store day HQ switched it on (set by the server). Only people who sign up from that day on get the series, so switching it
   // on never messages the customers who joined before.
   welcome: { enabled: boolean; since: string | null; steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> };
+  // Birthday gift (2026-10-24): a greeting push on the day and, when bonusPts is more than 0, a bonus once a year for people who bought in
+  // the last needBoughtDays days (0: anyone who has ever bought), inside a hard monthly budget. {name} and {pts} in the texts are filled in.
+  birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
   nudges: {
     enabled: boolean; quietFrom: number; quietTo: number; maxPerWeek: number;
     nearReward: { enabled: boolean; withinPts: number };
@@ -67,6 +72,11 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
       invite: { titleEn: 'Share the luck 🎁', bodyEn: 'Invite a friend from the app. When they make their first purchase, you both get points.', titleEs: 'Comparte la suerte 🎁', bodyEs: 'Invita a un amigo desde la app. Cuando haga su primera compra, los dos ganan puntos.' },
       tier: { titleEn: 'See what you unlock next ⭐', bodyEn: 'Your tier grows as you shop. Open Rewards to see your perks and how close the next level is.', titleEs: 'Mira lo que desbloqueas ⭐', bodyEs: 'Tu nivel sube con tus compras. Abre Recompensas para ver tus beneficios y cuánto te falta para el siguiente.' },
     },
+  },
+  birthday: {
+    enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
+    gift: { titleEn: 'Happy birthday, {name}! 🎂', bodyEn: 'A little gift from Lucky Stop: {pts} points are in your account. Have a great day!', titleEs: '¡Feliz cumpleaños, {name}! 🎂', bodyEs: 'Un pequeño regalo de Lucky Stop: {pts} puntos ya están en tu cuenta. ¡Que tengas un gran día!' },
+    greeting: { titleEn: 'Happy birthday, {name}! 🎂', bodyEn: 'Everyone at Lucky Stop wishes you a great day.', titleEs: '¡Feliz cumpleaños, {name}! 🎂', bodyEs: 'Todo el equipo de Lucky Stop te desea un gran día.' },
   },
   nudges: {
     enabled: false, quietFrom: 21, quietTo: 8, maxPerWeek: 2,
@@ -155,6 +165,12 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     return [k, { titleEn: text(r.titleEn, L.welcomeTitle, def.titleEn), bodyEn: text(r.bodyEn, L.welcomeBody, def.bodyEn), titleEs: text(r.titleEs, L.welcomeTitle, def.titleEs), bodyEs: text(r.bodyEs, L.welcomeBody, def.bodyEs) }];
   })) as Record<WelcomeKey, WelcomeText>;
 
+  const bd2 = isObj(s.birthday) ? s.birthday : {};
+  const pushText = (v: unknown, def: PushText): PushText => {
+    const r = isObj(v) ? v : {};
+    return { titleEn: text(r.titleEn, L.pushTitle, def.titleEn), bodyEn: text(r.bodyEn, L.pushBody, def.bodyEn), titleEs: text(r.titleEs, L.pushTitle, def.titleEs), bodyEs: text(r.bodyEs, L.pushBody, def.bodyEs) };
+  };
+
   return {
     streaks: { enabled: bool(st.enabled, false), minPurchase: num(st.minPurchase, L.streakMinPurchase, d.streaks.minPurchase), milestones, since: typeof st.since === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(st.since) ? st.since : null },
     punchCards: { enabled: bool(isObj(s.punchCards) ? s.punchCards.enabled : false, false) },
@@ -170,6 +186,10 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     sharing: { enabled: bool(sh.enabled, false), message },
     ratePrompt: { enabled: bool(rp.enabled, false), minPurchases: int(rp.minPurchases, L.ratePurchases, d.ratePrompt.minPurchases), minDays: int(rp.minDays, L.rateDays, d.ratePrompt.minDays) },
     welcome: { enabled: bool(we.enabled, false), since: dayKey(we.since), steps, texts },
+    birthday: {
+      enabled: bool(bd2.enabled, false), bonusPts: int(bd2.bonusPts, L.birthdayPts, d.birthday.bonusPts), needBoughtDays: int(bd2.needBoughtDays, L.birthdayBoughtDays, d.birthday.needBoughtDays),
+      monthlyBudgetPts: int(bd2.monthlyBudgetPts, L.birthdayBudget, d.birthday.monthlyBudgetPts), gift: pushText(bd2.gift, d.birthday.gift), greeting: pushText(bd2.greeting, d.birthday.greeting),
+    },
     nudges: {
       enabled: bool(nu.enabled, false), quietFrom: int(nu.quietFrom, L.nudgeHour, d.nudges.quietFrom), quietTo: int(nu.quietTo, L.nudgeHour, d.nudges.quietTo),
       maxPerWeek: int(nu.maxPerWeek, L.nudgesPerWeek, d.nudges.maxPerWeek),
@@ -193,5 +213,6 @@ export function publicEngagement(c: EngagementConfig) {
     gasAlerts: c.gasAlerts.enabled,
     sharing: { enabled: c.sharing.enabled, message: c.sharing.message },
     ratePrompt: c.ratePrompt.enabled,
+    birthday: c.birthday.enabled,
   };
 }

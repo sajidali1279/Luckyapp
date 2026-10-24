@@ -2,7 +2,7 @@
 // small cards, and one "My progress" row that opens the full picture (streak milestones, store goals, badges). Each shows only while HQ has it
 // switched on (admin > Engagement); with nothing on, this draws nothing at all. The full cards (StreakCard, GoalCard) are exported for the
 // My progress screen.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Share, Platform, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { haptic } from '../../utils/haptics';
 import { useEngagement, type CheckIn, type Goal, type Streak } from '../../hooks/useEngagement';
 import Burst from './Burst';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { askForRatingSoon } from '../../utils/ratePrompt';
 
 const APP_LINK = 'https://luckystop.cliffindus.com';
@@ -164,15 +165,65 @@ export function GoalCard({ g }: { g: Goal }) {
   );
 }
 
+// ─── birthday (2026-10-24) ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+function BirthdayCard({ pts, name }: { pts: number; name: string | null }) {
+  const { t } = useTranslation();
+  const [burst, setBurst] = useState(0);
+  useEffect(() => { const timer = setTimeout(() => setBurst(1), 400); return () => clearTimeout(timer); }, []);
+  const title = name ? t('engagement.bdayTitle', { name }) : t('engagement.bdayTitleNoName');
+  const line = pts > 0 ? t('engagement.bdayPts', { pts }) : t('engagement.bdayWish');
+  return (
+    <View style={[s.card, s.bday]} accessible accessibilityLabel={`${title} ${line}`}>
+      <View style={s.head}>
+        <Text style={s.flame}>🎂</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={s.title}>{title}</Text>
+          <Text style={s.sub}>{line}</Text>
+        </View>
+      </View>
+      <Burst fire={burst} />
+    </View>
+  );
+}
+
+// Shown while HQ has the birthday gift on and the customer has not given a birthday; "Not now" hides it for 30 days on this phone.
+const BDAY_PROMPT_KEY = 'birthdayPromptHiddenUntil';
+function BirthdayPrompt() {
+  const { t } = useTranslation();
+  const [hidden, setHidden] = useState(true);   // until this phone's choice is read
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(BDAY_PROMPT_KEY).then((v) => { if (alive) setHidden(!!v && Number(v) > Date.now()); }).catch(() => { if (alive) setHidden(false); });
+    return () => { alive = false; };
+  }, []);
+  if (hidden) return null;
+  const later = () => { haptic.tap(); setHidden(true); AsyncStorage.setItem(BDAY_PROMPT_KEY, String(Date.now() + 30 * 86_400_000)).catch(() => {}); };
+  return (
+    <View style={s.progressRow}>
+      <Text style={s.flame}>🎂</Text>
+      <TouchableOpacity style={{ flex: 1 }} onPress={() => { haptic.tap(); router.push({ pathname: '/(customer)/profile', params: { birthday: '1' } } as any); }} accessibilityRole="button" accessibilityLabel={`${t('engagement.bdayAddTitle')}. ${t('engagement.bdayAddSub')}`} activeOpacity={0.85}>
+        <Text style={s.title}>{t('engagement.bdayAddTitle')}</Text>
+        <Text style={s.sub}>{t('engagement.bdayAddSub')}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={later} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('engagement.bdayLater')}>
+        <Text style={s.link}>{t('engagement.bdayLater')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 // ─── Home ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 export default function EngagementHome({ storeId, enabled }: { storeId?: string; enabled: boolean }) {
   const { t } = useTranslation();
   const q = useEngagement(storeId, enabled);
+  const hasBirthday = useAuthStore((st) => !!st.user?.birthMonth);   // a primitive, so this never re-renders on other account changes
   const d = q.data;
   if (!d) return null;
   const goals = d.goals ?? [];
   const badges = d.badges;
-  if (!d.streak && !d.checkIn && goals.length === 0 && !badges) return null;
+  const bday = d.birthday?.today ? d.birthday : null;
+  const askBirthday = !!d.config.birthday && !hasBirthday;
+  if (!d.streak && !d.checkIn && goals.length === 0 && !badges && !bday && !askBirthday) return null;
   const both = !!d.streak && !!d.checkIn;
   const lead = goals.find((g) => !g.reached) ?? goals[0];
   const parts = [
@@ -181,6 +232,7 @@ export default function EngagementHome({ storeId, enabled }: { storeId?: string;
   ].filter(Boolean).join('  ·  ');
   return (
     <View style={s.wrap}>
+      {bday && <BirthdayCard pts={bday.pts} name={bday.name} />}
       {(d.streak || d.checkIn) && (
         <View style={s.pair}>
           {d.streak && <StreakMini streak={d.streak} full={!both} />}
@@ -197,6 +249,7 @@ export default function EngagementHome({ storeId, enabled }: { storeId?: string;
           <Text style={s.chev}>›</Text>
         </TouchableOpacity>
       )}
+      {askBirthday && <BirthdayPrompt />}
     </View>
   );
 }
@@ -209,6 +262,7 @@ const s = StyleSheet.create({
   mini: { flex: 1, backgroundColor: '#fff', borderRadius: 18, padding: 12, gap: 6, minHeight: 124, ...(shadow as object) },
   miniFull: { flex: undefined, alignSelf: 'stretch' },
   miniWarn: { borderWidth: 1.5, borderColor: '#FCD34D', backgroundColor: '#FFFBEB' },
+  bday: { backgroundColor: '#FFF7ED', borderWidth: 1.5, borderColor: '#FDBA74' },
   miniTop: { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
   miniFlame: { fontSize: 20 },
   miniBig: { fontSize: 30, fontWeight: '900', color: COLORS.text, lineHeight: 34 },

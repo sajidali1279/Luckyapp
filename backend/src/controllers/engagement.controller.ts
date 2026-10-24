@@ -12,6 +12,8 @@ import { BADGES, badgesFor, checkInFor, doCheckIn, goalProgress, goalValue, goal
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { storeDateKey } from '../utils/storeTime';
 import { WELCOME_STEPS } from '../utils/engagementWelcome';
+import { birthdayFor, birthdaysOn } from '../utils/engagementBirthday';
+import { spentThisMonth } from '../utils/engagementBudget';
 
 const DAY = 86_400_000;
 const uuidOnly = (v: unknown): string | undefined => (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : undefined);
@@ -28,11 +30,12 @@ export async function getMyEngagement(req: AuthRequest, res: Response) {
   if (!isCustomerAccount(req.user)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
   const id = req.user!.id;
   const cfg = engagement();
-  const [streak, checkIn, badges, goals, gasAlerts] = await Promise.all([
+  const [streak, checkIn, badges, goals, gasAlerts, birthday] = await Promise.all([
     streakFor(id), checkInFor(id), badgesFor(id), goalsFor(id, uuidOnly(req.query.storeId) ?? null),
     cfg.gasAlerts.enabled ? prisma.gasAlert.findMany({ where: { customerId: id }, select: { id: true, storeId: true, fuel: true, maxPrice: true } }) : Promise.resolve(null),
+    birthdayFor(id),
   ]);
-  res.json({ success: true, data: { config: publicEngagement(cfg), streak, checkIn, badges, goals, gasAlerts } });
+  res.json({ success: true, data: { config: publicEngagement(cfg), streak, checkIn, badges, goals, gasAlerts, birthday } });
 }
 
 const CHECKIN_WORDS: Record<string, string> = {
@@ -103,7 +106,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {
@@ -252,6 +255,11 @@ export async function suggestionsFor(cfg: EngagementConfig, now: Date = new Date
     const joined = await prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers, createdAt: { gte: new Date(now.getTime() - 30 * DAY) } } });
     if (joined > 0) out.push({ id: 'welcome', tone: 'tip', feature: 'welcome', title: `${joined} ${joined === 1 ? 'person' : 'people'} joined in the last 30 days`, detail: 'A welcome series sends up to three friendly pushes in their first week (how to earn at the register, order ahead or check in, invite a friend) and skips anything they have already done. It costs nothing, and only people who join after you switch it on get it.' });
   }
+  // birthdays this month
+  if (!cfg.birthday.enabled) {
+    const born = await prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers, birthMonth: birthdaysOn(now).month } });
+    if (born > 0) out.push({ id: 'birthday', tone: 'tip', feature: 'birthday', title: `${born} ${born === 1 ? 'customer has' : 'customers have'} a birthday this month`, detail: `A birthday greeting on the day, with an optional small gift (${cfg.birthday.bonusPts} pts suggested, only for people who bought lately), inside a monthly budget you set. Customers add their birthday in Profile.` });
+  }
   // badges are free
   if (!cfg.badges.enabled) out.push({ id: 'badges', tone: 'info', feature: 'badges', title: 'Badges cost nothing to run', detail: 'Nobody is paid for a badge. They give regulars goals between tier steps and something to share. Turn them on and switch off any you do not want.' });
   return out.slice(0, 8);
@@ -262,14 +270,18 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
   const cfg = engagement();
   const now = new Date();
   const since = new Date(now.getTime() - 30 * DAY);
-  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK'];
-  const [events, goals, alerts, suggestions, stores, welcomeSteps] = await Promise.all([
+  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK'];
+  const [events, goals, alerts, suggestions, stores, welcomeSteps, birthdaySpent, birthdayPaid, withBirthday, customers] = await Promise.all([
     prisma.engagementEvent.groupBy({ by: ['kind'], where: { kind: { in: kinds }, createdAt: { gte: since } }, _count: { _all: true }, _sum: { points: true } }),
     prisma.storeGoal.findMany({ orderBy: { endDate: 'desc' }, take: 40 }),
     prisma.gasAlert.count(),
     suggestionsFor(cfg, now),
     prisma.store.findMany({ select: { id: true, name: true, isActive: true }, orderBy: { name: 'asc' } }),
     prisma.engagementEvent.groupBy({ by: ['key'], where: { kind: 'WELCOME', createdAt: { gte: since } }, _count: { _all: true } }),
+    spentThisMonth(prisma, 'BIRTHDAY', now),
+    prisma.engagementEvent.count({ where: { kind: 'BIRTHDAY', points: { gt: 0 }, createdAt: { gte: since } } }),
+    prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers, birthMonth: { not: null } } }),
+    prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers } }),
   ]);
   const names = new Map(stores.map((s) => [s.id, s.name]));
   const welcomeBy = WELCOME_STEPS.map((_k, i) => welcomeSteps.find((w) => w.key === `step${i + 1}`)?._count._all ?? 0);
@@ -299,6 +311,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
       gasAlerts: alerts,
       ratePrompt: count('RATE_PROMPT'),
       welcome: { sent: welcomeBy.reduce((t, n) => t + n, 0), byStep: welcomeBy },
+      birthday: { greeted: count('BIRTHDAY'), paid: birthdayPaid, pts: paid('BIRTHDAY'), spentThisMonth: birthdaySpent, withBirthday, customers },
     },
     goals: goalRows, suggestions,
   } });

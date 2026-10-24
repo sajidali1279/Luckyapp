@@ -27,6 +27,7 @@ interface Config {
   sharing: { enabled: boolean; message: string };
   ratePrompt: { enabled: boolean; minPurchases: number; minDays: number };
   welcome: { enabled: boolean; since: string | null; steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> };
+  birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
   nudges: {
     enabled: boolean; quietFrom: number; quietTo: number; maxPerWeek: number;
     nearReward: { enabled: boolean; withinPts: number }; streakRisk: { enabled: boolean };
@@ -39,7 +40,7 @@ interface Hq {
   config: Config; defaults: Config;
   badges: { key: string; emoji: string; name: string; desc: string }[];
   stores: { id: string; name: string }[];
-  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number; welcome: { sent: number; byStep: number[] } };
+  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number; welcome: { sent: number; byStep: number[] }; birthday: { greeted: number; paid: number; pts: number; spentThisMonth: number; withBirthday: number; customers: number } };
   goals: Goal[]; suggestions: Suggestion[];
 }
 
@@ -125,7 +126,7 @@ export default function Engagement() {
               <Card key={s.id} padding={16} style={{ borderLeft: `4px solid ${s.tone === 'tip' ? C.primary : C.border}` }}>
                 <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{s.title}</div>
                 <div style={{ fontSize: FONT.small, color: TEXT_MUTED, marginBottom: 8 }}>{s.detail}</div>
-                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {s.feature === 'nudges' ? 'smart nudges' : s.feature === 'storeGoals' ? 'store goals' : s.feature === 'checkIn' ? 'daily check-in' : s.feature === 'events' ? 'the event kit' : s.feature === 'welcome' ? 'the welcome series' : s.feature}</Button>
+                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {s.feature === 'nudges' ? 'smart nudges' : s.feature === 'storeGoals' ? 'store goals' : s.feature === 'checkIn' ? 'daily check-in' : s.feature === 'events' ? 'the event kit' : s.feature === 'welcome' ? 'the welcome series' : s.feature === 'birthday' ? 'the birthday gift' : s.feature}</Button>
               </Card>
             ))}
           </div>
@@ -184,6 +185,11 @@ export default function Engagement() {
         <Feature id="welcome" emoji="👋" title="Welcome series" blurb="Up to three friendly pushes in a new customer's first days: how to earn at the register (and their welcome treats), then order ahead or check in daily, then invite a friend or see their tier. Each one is skipped when they have already done it, and only people who join after you switch it on get it. Never in quiet hours." on={c.welcome.enabled} onToggle={toggle('welcome')} busy={save.isPending}
           open={!!open.welcome} setOpen={(v) => setOpen((o) => ({ ...o, welcome: v }))} summary={`${c.welcome.steps.filter((s) => s.enabled).map((s) => `day ${s.day}`).join(', ') || 'No steps on'}${c.welcome.since ? `, for people who joined from ${day(`${c.welcome.since}T12:00:00`)}` : ''}. Sent in the last 30 days: ${R.welcome.sent}`}>
           <WelcomeEditor value={c.welcome} defaults={d.defaults.welcome} onSave={(v) => save.mutate({ welcome: v })} busy={save.isPending} sent={R.welcome.byStep} />
+        </Feature>
+
+        <Feature id="birthday" emoji="🎂" title="Birthday gift" blurb="A warm greeting push on a customer's birthday (after 10 AM, never in quiet hours) and, if you set one, a small points gift once a year for people who bought lately. The gift is paid at the store they last bought at, inside a monthly budget that is a hard cap. Customers add their birthday in Profile (month and day only), and the app reminds those who have not." on={c.birthday.enabled} onToggle={toggle('birthday')} busy={save.isPending} money={c.birthday.bonusPts > 0}
+          open={!!open.birthday} setOpen={(v) => setOpen((o) => ({ ...o, birthday: v }))} summary={`${c.birthday.bonusPts > 0 ? `${c.birthday.bonusPts} pts gift` : 'Greeting only'}, budget ${usd(c.birthday.monthlyBudgetPts)} a month (${usd(R.birthday.spentThisMonth)} used). ${R.birthday.withBirthday} of ${R.birthday.customers} customers gave a birthday.`}>
+          <BirthdayEditor value={c.birthday} defaults={d.defaults.birthday} onSave={(v) => save.mutate({ birthday: v })} busy={save.isPending} results={R.birthday} />
         </Feature>
 
         <Feature id="nudges" emoji="🔔" title="Smart nudges" blurb="Polite, personal pushes: 'You are 120 pts from a free coffee', 'Keep your streak', 'We miss you'. Never during quiet hours, a few a week at most per person, and each kind only once for the same thing." on={c.nudges.enabled} onToggle={toggle('nudges')} busy={save.isPending}
@@ -357,6 +363,66 @@ function WelcomeEditor({ value, defaults, onSave, busy, sent }: { value: Config[
         <Button variant="secondary" disabled={busy} onClick={() => { setDays(defaults.steps.map((s) => String(s.day))); setOn(defaults.steps.map((s) => s.enabled)); setTexts(defaults.texts); }}>Use the suggested texts</Button>
         {daysBad && <span style={{ fontSize: FONT.small, color: C.danger }}>Each step needs a later day than the one before it.</span>}
         {textBad && <span style={{ fontSize: FONT.small, color: C.danger }}>Every title and message needs both languages, within the length shown.</span>}
+      </div>
+    </>
+  );
+}
+
+type PushText = { titleEn: string; bodyEn: string; titleEs: string; bodyEs: string };
+const PUSH_TITLE_MAX = 60, PUSH_BODY_MAX = 200;
+
+/** Title and message in English and Spanish, side by side. */
+function PushTextFields({ id, value, onChange }: { id: string; value: PushText; onChange: (v: PushText) => void }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8 }}>
+      {(['En', 'Es'] as const).map((lang) => (
+        <div key={lang} style={{ display: 'grid', gap: 6 }}>
+          <Field label={`Title (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`${id}-t${lang}`} hint={`${value[`title${lang}`].length} of ${PUSH_TITLE_MAX}`}>
+            <input id={`${id}-t${lang}`} style={INPUT} maxLength={PUSH_TITLE_MAX} value={value[`title${lang}`]} onChange={(e) => onChange({ ...value, [`title${lang}`]: e.target.value })} />
+          </Field>
+          <Field label={`Message (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`${id}-b${lang}`} hint={`${value[`body${lang}`].length} of ${PUSH_BODY_MAX}`}>
+            <textarea id={`${id}-b${lang}`} style={{ ...INPUT, minHeight: 64, resize: 'vertical' }} maxLength={PUSH_BODY_MAX} value={value[`body${lang}`]} onChange={(e) => onChange({ ...value, [`body${lang}`]: e.target.value })} />
+          </Field>
+        </div>
+      ))}
+    </div>
+  );
+}
+const pushTextBad = (t: PushText) => !t.titleEn.trim() || !t.bodyEn.trim() || !t.titleEs.trim() || !t.bodyEs.trim() || t.titleEn.length > PUSH_TITLE_MAX || t.titleEs.length > PUSH_TITLE_MAX || t.bodyEn.length > PUSH_BODY_MAX || t.bodyEs.length > PUSH_BODY_MAX;
+
+function BirthdayEditor({ value, defaults, onSave, busy, results }: { value: Config['birthday']; defaults: Config['birthday']; onSave: (v: Omit<Config['birthday'], 'enabled'>) => void; busy: boolean; results: Hq['results']['birthday'] }) {
+  const [pts, setPts] = useState(String(value.bonusPts));
+  const [days, setDays] = useState(String(value.needBoughtDays));
+  const [budget, setBudget] = useState(String(value.monthlyBudgetPts));
+  const [gift, setGift] = useState(value.gift);
+  const [greeting, setGreeting] = useState(value.greeting);
+  useEffect(() => { setPts(String(value.bonusPts)); setDays(String(value.needBoughtDays)); setBudget(String(value.monthlyBudgetPts)); setGift(value.gift); setGreeting(value.greeting); }, [JSON.stringify(value)]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const p = num(pts), dd = num(days), b = num(budget);
+  const bad = !(Number.isInteger(p) && p >= 0 && p <= 500) || !(Number.isInteger(dd) && dd >= 0 && dd <= 365) || !(Number.isInteger(b) && b >= 0 && b <= 200000) || pushTextBad(gift) || pushTextBad(greeting);
+  const next = { bonusPts: p, needBoughtDays: dd, monthlyBudgetPts: b, gift, greeting };
+  const changed = JSON.stringify(next) !== JSON.stringify({ bonusPts: value.bonusPts, needBoughtDays: value.needBoughtDays, monthlyBudgetPts: value.monthlyBudgetPts, gift: value.gift, greeting: value.greeting });
+  return (
+    <>
+      <div style={row}>
+        <Field label="Gift (points, 0 for a greeting only)" htmlFor="bd-pts" hint={Number.isFinite(p) ? `${usd(p)} each, 0 to 500` : '0 to 500'}>
+          <input id="bd-pts" style={smallInput} inputMode="numeric" value={pts} onChange={(e) => setPts(whole(e.target.value))} />
+        </Field>
+        <Field label="Only if they bought in the last (days)" htmlFor="bd-days" hint="0 means anyone who has ever bought">
+          <input id="bd-days" style={smallInput} inputMode="numeric" value={days} onChange={(e) => setDays(whole(e.target.value))} />
+        </Field>
+        <Field label="Monthly budget (points, all gifts together)" htmlFor="bd-budget" hint={Number.isFinite(b) ? `${usd(b)} a month at most` : 'up to 200,000'}>
+          <input id="bd-budget" style={{ ...smallInput, width: 120 }} inputMode="numeric" value={budget} onChange={(e) => setBudget(e.target.value.replace(/\D/g, '').slice(0, 6))} />
+        </Field>
+      </div>
+      <div style={{ fontSize: FONT.small, color: TEXT_MUTED }}>Last 30 days: {results.greeted} greeted, {results.paid} gifts ({usd(results.pts)}). This month: {usd(results.spentThisMonth)} of {usd(value.monthlyBudgetPts)} used.</div>
+      <div style={{ fontWeight: 700, color: C.text }}>With a gift</div>
+      <PushTextFields id="bd-gift" value={gift} onChange={setGift} />
+      <div style={{ fontWeight: 700, color: C.text }}>Greeting only (no gift, or the budget is used up)</div>
+      <PushTextFields id="bd-greet" value={greeting} onChange={setGreeting} />
+      <Notice>{'{name}'} becomes their first name and {'{pts}'} the gift. When the month's budget is used up, people still get the greeting, never part of a gift.</Notice>
+      <div style={row}>
+        <Button variant="primary" disabled={bad || !changed || busy} onClick={() => onSave(next)}>Save</Button>
+        <Button variant="secondary" disabled={busy} onClick={() => { setGift(defaults.gift); setGreeting(defaults.greeting); }}>Use the suggested texts</Button>
       </div>
     </>
   );
