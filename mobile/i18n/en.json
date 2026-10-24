@@ -3415,6 +3415,8 @@
     "progressBadges": "{{earned}} of {{total}} badges",
     "progressGoal": "Goal: {{done}} of {{target}}",
     "progressOff": "Nothing to show yet.",
-    "goalsTitle": "Store goals"
+    "goalsTitle": "Store goals",
+    "gasLink": "Alert me when it drops",
+    "gasLinkA11y": "Set a gas price alert"
   }
 }

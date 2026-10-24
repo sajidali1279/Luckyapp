@@ -26,7 +26,7 @@ const isCustomer = () => useAuthStore.getState().user?.role === 'CUSTOMER';
 /** Just the switches. A server from before this feature (or no connection) is "everything off", so nothing shows. */
 export function useEngagementFlags(): EngagementFlags | null {
   const user = useAuthStore((s) => s.user);
-  const q = useQuery({ queryKey: ['engagement-flags'], queryFn: async () => (await engagementApi.config()).data.data as EngagementFlags, staleTime: 5 * 60_000, retry: 1, enabled: user?.role === 'CUSTOMER' });
+  const q = useQuery({ queryKey: ['engagement-flags'], queryFn: async () => (await engagementApi.config()).data.data as EngagementFlags, staleTime: 60_000, retry: 1, enabled: user?.role === 'CUSTOMER' });
   return q.data ?? null;
 }
 

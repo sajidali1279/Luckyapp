@@ -13,6 +13,7 @@ const TITLES: Record<string, string> = {
   '/promotions': 'Promotions',
   '/hot-food': 'Hot Food',
   '/missing-persons': 'Missing persons',
+  '/engagement': 'Engagement',
   '/chat': 'Chat',
   '/scheduling': 'Scheduling',
   '/staff': 'Staff',

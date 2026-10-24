@@ -3415,6 +3415,8 @@
     "progressBadges": "{{earned}} de {{total}} insignias",
     "progressGoal": "Meta: {{done}} de {{target}}",
     "progressOff": "Todavía no hay nada que mostrar.",
-    "goalsTitle": "Metas de la tienda"
+    "goalsTitle": "Metas de la tienda",
+    "gasLink": "Avísame cuando baje",
+    "gasLinkA11y": "Crear una alerta de precio de gasolina"
   }
 }

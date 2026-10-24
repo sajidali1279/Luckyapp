@@ -33,6 +33,7 @@ import { offerBonusText } from '../../utils/offerRate';
 import { spanishOffer } from '../../utils/offerText';
 import ChallengesSection from '../../components/ChallengesSection';
 import EngagementHome from '../../components/engagement/EngagementHome';
+import { useEngagementFlags } from '../../hooks/useEngagement';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
@@ -763,6 +764,7 @@ function CustomerHomeScreen() {
     refetchInterval: 60_000,
   });
   const allStores: any[] = gasPricesData?.data?.data ?? [];
+  const engFlags = useEngagementFlags();   // HQ's engagement switches (a price alert link shows under the gas prices while alerts are on)
 
   const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');
@@ -1374,6 +1376,11 @@ function CustomerHomeScreen() {
             <View ref={gasSectionRef} style={styles.section}>
               <View style={styles.sectionRow}>
                 <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label={t('customerHome.todaysGasPrices')} />
+                {engFlags?.gasAlerts && (
+                  <TouchableOpacity onPress={() => { haptic.tap(); router.push('/(customer)/gas-alerts' as any); }} accessibilityRole="button" accessibilityLabel={t('engagement.gasLinkA11y')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.primary }}>🔔 {t('engagement.gasLink')}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               {chainGasOffer && (
                 <PressScale
