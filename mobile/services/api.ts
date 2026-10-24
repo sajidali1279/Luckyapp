@@ -179,6 +179,7 @@ export const engagementApi = {
   config: () => api.get('/engagement/config'),
   me: (storeId?: string) => api.get(`/engagement/me${storeId ? `?storeId=${storeId}` : ''}`),
   checkIn: () => api.post('/engagement/check-in'),
+  ratePrompt: () => api.post('/engagement/rate-prompt'),   // { ask: true } at most once per customer
   putGasAlert: (body: { storeId: string; fuel: 'GAS' | 'DIESEL'; maxPrice: number }) => api.put('/engagement/gas-alerts', body),
   deleteGasAlert: (id: string) => api.delete(`/engagement/gas-alerts/${id}`),
 };

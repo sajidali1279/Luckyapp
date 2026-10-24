@@ -9,6 +9,7 @@ export const ENGAGEMENT_LIMITS = {
   mysteryEntries: 6, mysteryPts: { min: 0, max: 100 }, mysteryWeight: { min: 1, max: 100 },
   nudgeHour: { min: 0, max: 23 }, nudgesPerWeek: { min: 1, max: 7 }, nearRewardPts: { min: 10, max: 1000 },
   tierResetDays: { min: 3, max: 60 }, comebackDays: { min: 7, max: 180 }, shareMessage: 140,
+  ratePurchases: { min: 1, max: 50 }, rateDays: { min: 0, max: 365 },
 } as const;
 
 export interface Milestone { weeks: number; pts: number }
@@ -23,6 +24,8 @@ export interface EngagementConfig {
   reorder: { enabled: boolean };
   gasAlerts: { enabled: boolean };
   sharing: { enabled: boolean; message: string };
+  // "Rate the app" (2026-10-24): the phone's own rating sheet, once per customer, after a good moment, once they have bought a few times
+  ratePrompt: { enabled: boolean; minPurchases: number; minDays: number };
   nudges: {
     enabled: boolean; quietFrom: number; quietTo: number; maxPerWeek: number;
     nearReward: { enabled: boolean; withinPts: number };
@@ -41,6 +44,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
   reorder: { enabled: false },
   gasAlerts: { enabled: false },
   sharing: { enabled: false, message: 'I am on a streak with Lucky Stop Rewards. Get the free app:' },
+  ratePrompt: { enabled: false, minPurchases: 3, minDays: 7 },
   nudges: {
     enabled: false, quietFrom: 21, quietTo: 8, maxPerWeek: 2,
     nearReward: { enabled: true, withinPts: 150 },
@@ -71,6 +75,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
   const ci = isObj(s.checkIn) ? s.checkIn : {};
   const bd = isObj(s.badges) ? s.badges : {};
   const sh = isObj(s.sharing) ? s.sharing : {};
+  const rp = isObj(s.ratePrompt) ? s.ratePrompt : {};
   const nu = isObj(s.nudges) ? s.nudges : {};
   const nr = isObj(nu.nearReward) ? nu.nearReward : {};
   const sr = isObj(nu.streakRisk) ? nu.streakRisk : {};
@@ -120,6 +125,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     reorder: { enabled: bool(isObj(s.reorder) ? s.reorder.enabled : false, false) },
     gasAlerts: { enabled: bool(isObj(s.gasAlerts) ? s.gasAlerts.enabled : false, false) },
     sharing: { enabled: bool(sh.enabled, false), message },
+    ratePrompt: { enabled: bool(rp.enabled, false), minPurchases: int(rp.minPurchases, L.ratePurchases, d.ratePrompt.minPurchases), minDays: int(rp.minDays, L.rateDays, d.ratePrompt.minDays) },
     nudges: {
       enabled: bool(nu.enabled, false), quietFrom: int(nu.quietFrom, L.nudgeHour, d.nudges.quietFrom), quietTo: int(nu.quietTo, L.nudgeHour, d.nudges.quietTo),
       maxPerWeek: int(nu.maxPerWeek, L.nudgesPerWeek, d.nudges.maxPerWeek),
@@ -142,5 +148,6 @@ export function publicEngagement(c: EngagementConfig) {
     reorder: c.reorder.enabled,
     gasAlerts: c.gasAlerts.enabled,
     sharing: { enabled: c.sharing.enabled, message: c.sharing.message },
+    ratePrompt: c.ratePrompt.enabled,
   };
 }

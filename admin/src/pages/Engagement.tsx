@@ -22,6 +22,7 @@ interface Config {
   reorder: { enabled: boolean };
   gasAlerts: { enabled: boolean };
   sharing: { enabled: boolean; message: string };
+  ratePrompt: { enabled: boolean; minPurchases: number; minDays: number };
   nudges: {
     enabled: boolean; quietFrom: number; quietTo: number; maxPerWeek: number;
     nearReward: { enabled: boolean; withinPts: number }; streakRisk: { enabled: boolean };
@@ -34,7 +35,7 @@ interface Hq {
   config: Config; defaults: Config;
   badges: { key: string; emoji: string; name: string; desc: string }[];
   stores: { id: string; name: string }[];
-  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number };
+  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number };
   goals: Goal[]; suggestions: Suggestion[];
 }
 
@@ -171,6 +172,11 @@ export default function Engagement() {
           <SharingEditor value={c.sharing} onSave={(message) => save.mutate({ sharing: { message } })} busy={save.isPending} />
         </Feature>
 
+        <Feature id="ratePrompt" emoji="⭐" title="Rate the app" blurb="Asks a customer, once ever, to rate the app, with the phone's own rating sheet. It only comes right after a good moment (a reward redeemed or a check-in paid), never at launch, and only once they have bought a few times. Free, and the best way to get real reviews." on={c.ratePrompt.enabled} onToggle={toggle('ratePrompt')} busy={save.isPending}
+          open={!!open.ratePrompt} setOpen={(v) => setOpen((o) => ({ ...o, ratePrompt: v }))} summary={`After ${c.ratePrompt.minPurchases} purchases and ${c.ratePrompt.minDays} days, asked ${R.ratePrompt} so far`}>
+          <RateEditor value={c.ratePrompt} onSave={(v) => save.mutate({ ratePrompt: v })} busy={save.isPending} />
+        </Feature>
+
         <Feature id="nudges" emoji="🔔" title="Smart nudges" blurb="Polite, personal pushes: 'You are 120 pts from a free coffee', 'Keep your streak', 'We miss you'. Never during quiet hours, a few a week at most per person, and each kind only once for the same thing." on={c.nudges.enabled} onToggle={toggle('nudges')} busy={save.isPending}
           open={!!open.nudges} setOpen={(v) => setOpen((o) => ({ ...o, nudges: v }))} summary={`Quiet ${hourLabel(c.nudges.quietFrom)} to ${hourLabel(c.nudges.quietTo)}, at most ${c.nudges.maxPerWeek} a week per person`}>
           <NudgesEditor value={c.nudges} onSave={(v) => save.mutate({ nudges: v })} busy={save.isPending} sent={R.nudges} />
@@ -283,6 +289,25 @@ function BadgesEditor({ value, all, onSave, busy }: { value: Config['badges']; a
         ))}
       </div>
       <div style={row}><Button variant="primary" disabled={!changed || busy} onClick={() => onSave(off)}>Save</Button></div>
+    </>
+  );
+}
+
+function RateEditor({ value, onSave, busy }: { value: Config['ratePrompt']; onSave: (v: { minPurchases: number; minDays: number }) => void; busy: boolean }) {
+  const [p, setP] = useState(String(value.minPurchases));
+  const [d, setD] = useState(String(value.minDays));
+  useEffect(() => { setP(String(value.minPurchases)); setD(String(value.minDays)); }, [value.minPurchases, value.minDays]);
+  const pn = num(p), dn = num(d);
+  const bad = !(pn >= 1 && pn <= 50) || !(dn >= 0 && dn <= 365);
+  const changed = pn !== value.minPurchases || dn !== value.minDays;
+  return (
+    <>
+      <div style={row}>
+        <Field label="Only after this many purchases" htmlFor="rt-p" hint="1 to 50"><input id="rt-p" style={{ ...INPUT, width: 110 }} inputMode="numeric" value={p} onChange={(e) => setP(whole(e.target.value))} /></Field>
+        <Field label="and this many days with the app" htmlFor="rt-d" hint="0 to 365"><input id="rt-d" style={{ ...INPUT, width: 110 }} inputMode="numeric" value={d} onChange={(e) => setD(whole(e.target.value))} /></Field>
+      </div>
+      <Notice>Each customer is asked once, ever. The phone decides whether to show its rating sheet (Apple allows about three a year per phone). It only follows a good moment, so nobody is asked while they have a problem open.</Notice>
+      <div style={row}><Button variant="primary" disabled={bad || !changed || busy} onClick={() => onSave({ minPurchases: pn, minDays: dn })}>Save</Button></div>
     </>
   );
 }

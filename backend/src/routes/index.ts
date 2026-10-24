@@ -110,7 +110,7 @@ import {
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
-import { getEngagementConfig, getMyEngagement, postCheckIn, putGasAlert, deleteGasAlert, getEngagementHq, putEngagement, createGoal, updateGoal } from '../controllers/engagement.controller';
+import { getEngagementConfig, getMyEngagement, postRatePrompt, postCheckIn, putGasAlert, deleteGasAlert, getEngagementHq, putEngagement, createGoal, updateGoal } from '../controllers/engagement.controller';
 import { getSettings, putRules, putFeatures, putBusiness, putWelcome, putTheme, getAppTheme, putPointsExpiry, getPointsExpiryPreview, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
@@ -760,6 +760,7 @@ router.put('/settings/business',        authenticate, requireRole(Role.SUPER_ADM
 router.get('/engagement/config',        authenticate,                                   getEngagementConfig);
 router.get('/engagement/me',            authenticate,                                   getMyEngagement);   // streak, check-in, badges, goals (2026-10-23)
 router.post('/engagement/check-in',      authenticate,                                   postCheckIn);
+router.post('/engagement/rate-prompt',   authenticate,                                   postRatePrompt);   // yes once per customer, after a good moment (2026-10-24)
 router.put('/engagement/gas-alerts',     authenticate,                                   putGasAlert);
 router.delete('/engagement/gas-alerts/:id', authenticate,                                deleteGasAlert);
 router.get('/engagement/hq',             authenticate, requireRole(Role.SUPER_ADMIN),   getEngagementHq);   // HQ: switches, results, suggestions, goals

@@ -47,6 +47,27 @@ export async function postCheckIn(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { pts: r.pts, streakDays: r.streakDays, mode: r.mode } });
 }
 
+/**
+ * POST /engagement/rate-prompt (2026-10-24): the app asks this right after a good moment (a reward redeemed, a check-in paid). The answer is yes
+ * at most ONCE for a customer, ever (the row is the guard, so two phones or two taps cannot both be told yes), and only once HQ has the
+ * prompt on and the customer has bought enough times and has had the app long enough. The phone then shows its own rating sheet.
+ */
+export async function postRatePrompt(req: AuthRequest, res: Response) {
+  if (!isCustomerAccount(req.user)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
+  const cfg = engagement().ratePrompt;
+  if (!cfg.enabled) { res.json({ success: true, data: { ask: false } }); return; }
+  const id = req.user!.id;
+  const [u, bought, asked] = await Promise.all([
+    prisma.user.findUnique({ where: { id }, select: { createdAt: true } }),
+    prisma.pointsTransaction.count({ where: { customerId: id, status: TransactionStatus.APPROVED, challengeId: null, referralId: null, isTestData: false, purchaseAmount: { gt: 0 } } }),
+    prisma.engagementEvent.findFirst({ where: { customerId: id, kind: 'RATE_PROMPT' }, select: { id: true } }),
+  ]);
+  const oldEnough = !!u && Date.now() - u.createdAt.getTime() >= cfg.minDays * DAY;
+  if (asked || !oldEnough || bought < cfg.minPurchases) { res.json({ success: true, data: { ask: false } }); return; }
+  const made = await prisma.engagementEvent.createMany({ data: [{ customerId: id, kind: 'RATE_PROMPT', key: 'once' }], skipDuplicates: true });
+  res.json({ success: true, data: { ask: made.count === 1 } });
+}
+
 // gas price alerts
 const MAX_ALERTS = 6;
 export async function putGasAlert(req: AuthRequest, res: Response) {
@@ -81,7 +102,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {
@@ -233,7 +254,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
   const cfg = engagement();
   const now = new Date();
   const since = new Date(now.getTime() - 30 * DAY);
-  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK'];
+  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK'];
   const [events, goals, alerts, suggestions, stores] = await Promise.all([
     prisma.engagementEvent.groupBy({ by: ['kind'], where: { kind: { in: kinds }, createdAt: { gte: since } }, _count: { _all: true }, _sum: { points: true } }),
     prisma.storeGoal.findMany({ orderBy: { endDate: 'desc' }, take: 40 }),
@@ -266,6 +287,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
       goals: { awards: count('GOAL_AWARD'), pts: paid('GOAL_AWARD') },
       nudges: { nearReward: count('NUDGE_NEAR_REWARD'), streakRisk: count('NUDGE_STREAK_RISK'), tierReset: count('NUDGE_TIER_RESET'), comeback: count('NUDGE_COMEBACK') },
       gasAlerts: alerts,
+      ratePrompt: count('RATE_PROMPT'),
     },
     goals: goalRows, suggestions,
   } });

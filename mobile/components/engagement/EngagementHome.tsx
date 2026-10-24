@@ -15,6 +15,7 @@ import { useAuthStore } from '../../store/authStore';
 import { haptic } from '../../utils/haptics';
 import { useEngagement, type CheckIn, type Goal, type Streak } from '../../hooks/useEngagement';
 import Burst from './Burst';
+import { askForRatingSoon } from '../../utils/ratePrompt';
 
 const APP_LINK = 'https://luckystop.cliffindus.com';
 const FLAME = '#F97316';
@@ -101,6 +102,7 @@ function CheckInMini({ c, full }: { c: CheckIn; full: boolean }) {
     onSuccess: (r) => {
       haptic.success();
       setBurst((n) => n + 1);
+      askForRatingSoon();   // a bonus just paid is a good moment to ask (once ever, HQ's switch)
       Toast.show({ type: 'success', text1: r.pts > 0 ? t('engagement.checkedIn', { pts: r.pts }) : t('engagement.checkedInNone'), text2: t('engagement.dayN', { n: r.streakDays }) });
       qc.invalidateQueries({ queryKey: ['engagement'] });
       useAuthStore.getState().refreshAccount();

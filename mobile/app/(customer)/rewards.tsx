@@ -28,6 +28,7 @@ import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { haptic } from '../../utils/haptics';
 import ProgressRing from '../../components/ProgressRing';
+import { askForRatingSoon } from '../../utils/ratePrompt';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useAppSettings } from '../../hooks/useAppSettings';
 
@@ -412,6 +413,7 @@ export default function RewardsScreen() {
     onSuccess: (res) => {
       setSelectedItem(null);
       setSuccessData(res.data.data);
+      askForRatingSoon();   // a reward just redeemed is the best moment to ask (once ever, HQ's switch)
       qc.invalidateQueries({ queryKey: ['my-redemptions'] });
       qc.invalidateQueries({ queryKey: ['catalog'] });
     },
