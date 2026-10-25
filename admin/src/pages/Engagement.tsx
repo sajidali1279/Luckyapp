@@ -32,6 +32,7 @@ interface Config {
   flashDeals: { enabled: boolean; maxPerWeek: number };
   tierUp: { enabled: boolean };
   mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean };
+  games: { enabled: boolean; game: GameKind; prizes: { pts: number; weight: number }[]; monthlyBudgetPts: number; since: string | null; endsOn: string | null };
   friendsBoard: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH'; minMembers: number; maxRows: number };
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
   nudges: {
@@ -40,13 +41,15 @@ interface Config {
     tierReset: { enabled: boolean; daysBefore: number }; comeback: { enabled: boolean; quietDays: number }; weeklyChallenge: { enabled: boolean };
   };
 }
+type GameKind = 'SPIN' | 'SCRATCH' | 'LUCKY';
+const GAME_NAMES: Record<GameKind, string> = { SPIN: 'Spin the wheel', SCRATCH: 'Scratch card', LUCKY: 'Lucky number' };
 interface Goal { id: string; title: string; metric: string; target: number; rewardPoints: number; startDate: string; endDate: string; isActive: boolean; paidAt: string | null; store: string | null; storeId: string | null; leading: { value: number; store: string } }
 interface Suggestion { id: string; tone: 'tip' | 'info'; title: string; detail: string; feature: string }
 interface Hq {
   config: Config; defaults: Config;
   badges: { key: string; emoji: string; name: string; desc: string }[];
   stores: { id: string; name: string }[];
-  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number; welcome: { sent: number; byStep: number[] }; tierUp: { reached: number; celebrated: number }; friendsBoard: { joined: number }; birthday: { greeted: number; paid: number; pts: number; spentThisMonth: number; withBirthday: number; customers: number } };
+  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number; welcome: { sent: number; byStep: number[] }; tierUp: { reached: number; celebrated: number }; friendsBoard: { joined: number }; games: { plays: number; wins: number; pts: number; spentThisMonth: number }; birthday: { greeted: number; paid: number; pts: number; spentThisMonth: number; withBirthday: number; customers: number } };
   goals: Goal[]; suggestions: Suggestion[];
   weekly: {
     thisWeek: string; weeks: string[]; thisWeekStats: { customers: number; earned: number; paid: number } | null;
@@ -70,8 +73,8 @@ function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: (v: 
   );
 }
 
-function Feature({ id, emoji, title, blurb, on, onToggle, busy, money, open, setOpen, summary, children }: {
-  id: string; emoji: string; title: string; blurb: string; on: boolean; onToggle: (v: boolean) => void; busy: boolean; money?: boolean;
+function Feature({ id, emoji, title, blurb, on, onToggle, busy, money, confirmOn, open, setOpen, summary, children }: {
+  id: string; emoji: string; title: string; blurb: string; on: boolean; onToggle: (v: boolean) => void; busy: boolean; money?: boolean; confirmOn?: string;
   open: boolean; setOpen: (v: boolean) => void; summary?: string; children?: React.ReactNode;
 }) {
   return (
@@ -88,7 +91,7 @@ function Feature({ id, emoji, title, blurb, on, onToggle, busy, money, open, set
             <p style={{ margin: '4px 0 0', fontSize: FONT.small, color: TEXT_MUTED }}>{blurb}</p>
             {on && summary && <p style={{ margin: '6px 0 0', fontSize: FONT.small, color: C.text }}>{summary}</p>}
           </div>
-          <Switch on={on} onChange={(v) => { if (v && money && !window.confirm(`Turn on ${title}? It pays real points to customers, so check the numbers first.`)) return; onToggle(v); }} label={`${title}: ${on ? 'on' : 'off'}`} disabled={busy} />
+          <Switch on={on} onChange={(v) => { if (v && (money || confirmOn) && !window.confirm(confirmOn ?? `Turn on ${title}? It pays real points to customers, so check the numbers first.`)) return; onToggle(v); }} label={`${title}: ${on ? 'on' : 'off'}`} disabled={busy} />
         </div>
         {children && (
           <div style={{ marginTop: 10 }}>
@@ -222,6 +225,13 @@ export default function Engagement() {
           on={c.mascot.enabled} onToggle={toggle('mascot')} busy={save.isPending} open={!!open.mascot} setOpen={(v) => setOpen((o) => ({ ...o, mascot: v }))}
           summary={[c.mascot.homeCard && 'A tip on Home', c.mascot.emptyStates && 'empty screens', c.mascot.pushVoice && 'signs the automated pushes'].filter(Boolean).join(', ') || 'Nothing picked: open Settings'}>
           <MascotEditor value={c.mascot} onSave={(v) => save.mutate({ mascot: v })} busy={save.isPending} />
+        </Feature>
+
+        <Feature id="games" emoji="🎡" title="Prize game" blurb="Spin the wheel, a scratch card or a lucky number: one free play a day for every customer, with no purchase needed and the same odds for everyone. Prizes are points, drawn by the server, inside a hard monthly budget. The app shows the official rules." money
+          confirmOn="Turn on the prize game? It pays real points. Before you do, have a lawyer review the official rules the app shows (game promotions have their own rules in Texas)."
+          on={c.games.enabled} onToggle={toggle('games')} busy={save.isPending} open={!!open.games} setOpen={(v) => setOpen((o) => ({ ...o, games: v }))}
+          summary={`${GAME_NAMES[c.games.game]}${c.games.since ? ` since ${day(`${c.games.since}T12:00:00`)}` : ''}${c.games.endsOn ? `, until ${day(`${c.games.endsOn}T12:00:00`)}` : ''}. Last 30 days: ${R.games.plays} plays, ${R.games.wins} won, ${usd(R.games.pts)} paid. This month ${usd(R.games.spentThisMonth)} of ${usd(c.games.monthlyBudgetPts)}.`}>
+          <GamesEditor value={c.games} onSave={(v) => save.mutate({ games: v })} busy={save.isPending} />
         </Feature>
 
         <Feature id="birthday" emoji="🎂" title="Birthday gift" blurb="A warm greeting push on a customer's birthday (after 10 AM, never in quiet hours) and, if you set one, a small points gift once a year for people who bought lately. The gift is paid at the store they last bought at, inside a monthly budget that is a hard cap. Customers add their birthday in Profile (month and day only), and the app reminds those who have not." on={c.birthday.enabled} onToggle={toggle('birthday')} busy={save.isPending} money={c.birthday.bonusPts > 0}
@@ -631,6 +641,53 @@ function FlashEditor({ value, stores, onSave, busy }: { value: Config['flashDeal
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+function GamesEditor({ value, onSave, busy }: { value: Config['games']; onSave: (v: { game: GameKind; prizes: { pts: number; weight: number }[]; monthlyBudgetPts: number; endsOn: string | null }) => void; busy: boolean }) {
+  const load = () => value.prizes.map((p) => ({ pts: String(p.pts), weight: String(p.weight) }));
+  const [game, setGame] = useState<GameKind>(value.game);
+  const [rows, setRows] = useState(load);
+  const [budget, setBudget] = useState(String(value.monthlyBudgetPts));
+  const [endsOn, setEndsOn] = useState(value.endsOn ?? '');
+  useEffect(() => { setGame(value.game); setRows(load()); setBudget(String(value.monthlyBudgetPts)); setEndsOn(value.endsOn ?? ''); }, [JSON.stringify(value)]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const prizes = rows.map((r) => ({ pts: num(r.pts), weight: num(r.weight) }));
+  const rowBad = (p: { pts: number; weight: number }) => !(Number.isInteger(p.pts) && p.pts >= 0 && p.pts <= 500) || !(Number.isInteger(p.weight) && p.weight >= 1 && p.weight <= 10000);
+  const b = num(budget);
+  const total = prizes.reduce((t, p) => t + (rowBad(p) ? 0 : p.weight), 0);
+  const top = Math.max(0, ...prizes.map((p) => (rowBad(p) ? 0 : p.pts)));
+  const avg = total > 0 ? prizes.reduce((t, p) => t + (rowBad(p) ? 0 : p.pts * p.weight), 0) / total : 0;
+  const bad = rows.length < 2 || rows.length > 8 || prizes.some(rowBad) || !(Number.isInteger(b) && b >= 0 && b <= 200000);
+  const next = { game, prizes, monthlyBudgetPts: b, endsOn: endsOn || null };
+  const changed = JSON.stringify(next) !== JSON.stringify({ game: value.game, prizes: value.prizes, monthlyBudgetPts: value.monthlyBudgetPts, endsOn: value.endsOn });
+  const set = (i: number, k: 'pts' | 'weight', v: string) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [k]: whole(v) } : r)));
+  const pct = (w: number) => (total > 0 ? `${((w / total) * 100).toFixed(w / total < 0.01 ? 2 : 1)}%` : '...');
+  return (
+    <>
+      <div style={row}>
+        <Field label="The game" htmlFor="gm-game"><select id="gm-game" style={{ ...INPUT, width: 190 }} value={game} onChange={(e) => setGame(e.target.value as GameKind)}>{(Object.keys(GAME_NAMES) as GameKind[]).map((k) => <option key={k} value={k}>{GAME_NAMES[k]}</option>)}</select></Field>
+        <Field label="Monthly budget (pts)" htmlFor="gm-budget" hint={Number.isFinite(b) ? `${usd(b)} a month, a hard cap` : '0 to 200000'}><input id="gm-budget" style={smallInput} inputMode="numeric" value={budget} onChange={(e) => setBudget(whole(e.target.value))} /></Field>
+        <Field label="Last day (optional)" htmlFor="gm-end"><input id="gm-end" type="date" style={{ ...INPUT, width: 170 }} value={endsOn} onChange={(e) => setEndsOn(e.target.value)} /></Field>
+      </div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ fontWeight: 700, color: C.text }}>Prizes and their chances</div>
+        {rows.map((r, i) => (
+          <div key={i} style={{ ...row, alignItems: 'center' }}>
+            <input aria-label={`Prize ${i + 1} points`} id={`gm-pts-${i}`} style={{ ...INPUT, width: 90 }} inputMode="numeric" value={r.pts} onChange={(e) => set(i, 'pts', e.target.value)} />
+            <span style={{ fontSize: FONT.small, color: TEXT_MUTED, width: 64 }}>{num(r.pts) === 0 ? 'no prize' : 'pts'}</span>
+            <input aria-label={`Prize ${i + 1} weight`} id={`gm-w-${i}`} style={{ ...INPUT, width: 90 }} inputMode="numeric" value={r.weight} onChange={(e) => set(i, 'weight', e.target.value)} />
+            <span style={{ fontSize: FONT.small, color: TEXT_MUTED, width: 70 }} id={`gm-pct-${i}`}>{rowBad(prizes[i]) ? 'check it' : pct(prizes[i].weight)}</span>
+            <Button size="sm" variant="secondary" disabled={rows.length <= 2} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>Remove</Button>
+          </div>
+        ))}
+        <div style={row}><Button size="sm" variant="secondary" disabled={rows.length >= 8} onClick={() => setRows((rs) => [...rs, { pts: '0', weight: '100' }])}>Add a prize</Button>
+          <span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>Points 0 to 500 (0 means no prize this time). The weight is how likely: its share of all the weights.</span></div>
+      </div>
+      <div style={{ fontSize: FONT.small, color: C.text }} id="gm-cost">On average a play pays {avg.toFixed(2)} pts ({usd(avg)}), so every 1,000 plays cost about {usd(avg * 1000)}. Top prize {top} pts ({usd(top)}).</div>
+      {Number.isFinite(b) && b < top && <Notice tone="danger">The budget is smaller than the top prize, so the game would stay closed. Raise the budget or lower the top prize.</Notice>}
+      <Notice>No purchase is ever needed: every customer gets one free play a day with the same odds, whether they buy or not. The server draws the result when they play, and the game closes for the month as soon as what is left could not pay the top prize, so a won prize is always paid. The app shows the official rules with these numbers (Lucky Stop as the sponsor, the odds and prizes, the dates, and that Apple and Google are not sponsors). Have a lawyer review them before you switch it on.</Notice>
+      <div style={row}><Button variant="primary" disabled={bad || !changed || busy} onClick={() => onSave(next)}>Save</Button></div>
     </>
   );
 }

@@ -87,6 +87,7 @@ export default function CustomerLayout() {
         <Tabs.Screen name="invite-friends" />
         <Tabs.Screen name="progress" options={{ href: null }} />
         <Tabs.Screen name="gas-alerts" options={{ href: null }} />
+        <Tabs.Screen name="games" options={{ href: null }} />
       </Tabs>
     </DrawerShell>
     {/* the one-time tier celebration, over every customer screen and the bottom bar (2026-10-24) */}

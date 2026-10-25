@@ -35,6 +35,7 @@ import ChallengesSection from '../../components/ChallengesSection';
 import EngagementHome from '../../components/engagement/EngagementHome';
 import FlashDealBanner from '../../components/engagement/FlashDealBanner';
 import CuatroCard from '../../components/engagement/CuatroCard';
+import PrizeGameCard from '../../components/engagement/games/PrizeGameCard';
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
@@ -1523,6 +1524,7 @@ function CustomerHomeScreen() {
 
       {/* ── Challenges: the customer's own, with their progress ── */}
       <View ref={challengesSectionRef}>
+        <PrizeGameCard storeId={nearestStore?.id} />
         <EngagementHome storeId={nearestStore?.id} enabled={locationReady} />
         <ChallengesSection storeId={nearestStore?.id} enabled={locationReady} />
       </View>

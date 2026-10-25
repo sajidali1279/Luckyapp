@@ -21,6 +21,7 @@ export interface EngagementFlags {
   flashDeals: boolean;
   friendsBoard?: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH' };
   mascot?: { home: boolean; empty: boolean; name: string };   // Cuatro (2026-10-25): the Home tip card and the empty screens
+  games?: boolean;   // the prize game (2026-10-25)
 }
 export interface Streak { weeks: number; current: boolean; atRisk: boolean; endsOn: string | null; best: number; minPurchase: number; next: { weeks: number; pts: number } | null; milestones: { weeks: number; pts: number; reached: boolean; paid: boolean }[] }
 export interface CheckIn { available: boolean; reason: 'OFF' | 'ALREADY' | 'NO_VISIT' | 'CAP' | null; doneToday: boolean; streakDays: number; mode: 'FIXED' | 'MYSTERY'; todayPts: number | null; weekBonusPts: number; monthLeftPts: number }

@@ -19,12 +19,15 @@ const fee4 = (n: number) => Math.round(n * 10000) / 10000;   // the platform fee
 const DAY = 86_400_000;
 
 // ─── the hidden "system challenge" every bonus line is tied to ──────────────────────────────────────────────────────────────────────
-// The ids are fixed so every copy of the server agrees; e5 to e7 are kept for the prize games (spin, scratch card, lucky number).
-const SYSTEM: Record<'STREAK' | 'CHECKIN' | 'GOAL' | 'BIRTHDAY', { id: string; title: string; titleEs: string }> = {
+// The ids are fixed so every copy of the server agrees; e5 to e7 are the prize game's three games (2026-10-25).
+const SYSTEM: Record<'STREAK' | 'CHECKIN' | 'GOAL' | 'BIRTHDAY' | 'SPIN' | 'SCRATCH' | 'LUCKY', { id: string; title: string; titleEs: string }> = {
   STREAK: { id: '00000000-0000-4000-8000-0000000000e1', title: 'Streak bonus', titleEs: 'Bono de racha' },
   CHECKIN: { id: '00000000-0000-4000-8000-0000000000e2', title: 'Daily check-in', titleEs: 'Registro diario' },
   GOAL: { id: '00000000-0000-4000-8000-0000000000e3', title: 'Store goal', titleEs: 'Meta de la tienda' },
   BIRTHDAY: { id: '00000000-0000-4000-8000-0000000000e4', title: 'Birthday gift', titleEs: 'Regalo de cumpleaños' },
+  SPIN: { id: '00000000-0000-4000-8000-0000000000e5', title: 'Spin the wheel prize', titleEs: 'Premio de la ruleta' },
+  SCRATCH: { id: '00000000-0000-4000-8000-0000000000e6', title: 'Scratch card prize', titleEs: 'Premio de raspa y gana' },
+  LUCKY: { id: '00000000-0000-4000-8000-0000000000e7', title: 'Lucky number prize', titleEs: 'Premio del número de la suerte' },
 };
 export const SYSTEM_CHALLENGE_IDS = Object.values(SYSTEM).map((s) => s.id);
 

@@ -130,7 +130,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', flashDeals: 'Flash deals', friendsBoard: 'Friends leaderboard', mascot: 'Cuatro, the mascot', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', flashDeals: 'Flash deals', friendsBoard: 'Friends leaderboard', mascot: 'Cuatro, the mascot', games: 'Prize game', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {
@@ -157,6 +157,8 @@ export async function putEngagement(req: AuthRequest, res: Response) {
   next.streaks.since = next.streaks.enabled ? (before.streaks.enabled && before.streaks.since ? before.streaks.since : storeDateKey(new Date())) : null;
   // the same for the welcome series: only people who sign up from the day it is switched on get it
   next.welcome.since = next.welcome.enabled ? (before.welcome.enabled && before.welcome.since ? before.welcome.since : storeDateKey(new Date())) : null;
+  // and the prize game's start day, which its official rules show
+  next.games.since = next.games.enabled ? (before.games.enabled && before.games.since ? before.games.since : storeDateKey(new Date())) : null;
   // the challenge of the week's schedule is checked against the real challenges when HQ changes it
   if (isObjBody(body.weeklyChallenge) && 'schedule' in body.weeklyChallenge) {
     const chk = await checkSchedule(next.weeklyChallenge.schedule);
@@ -359,8 +361,8 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
   const cfg = engagement();
   const now = new Date();
   const since = new Date(now.getTime() - 30 * DAY);
-  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'TIER_UP', 'TIER_UP_SEEN', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK', 'NUDGE_WEEKLY_CHALLENGE', 'NUDGE_FLASH'];
-  const [events, goals, alerts, suggestions, stores, welcomeSteps, birthdaySpent, birthdayPaid, withBirthday, customers, friendsJoined] = await Promise.all([
+  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'TIER_UP', 'TIER_UP_SEEN', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK', 'NUDGE_WEEKLY_CHALLENGE', 'NUDGE_FLASH', 'GAME_PLAY'];
+  const [events, goals, alerts, suggestions, stores, welcomeSteps, birthdaySpent, birthdayPaid, withBirthday, customers, friendsJoined, gameSpent, gameWins] = await Promise.all([
     prisma.engagementEvent.groupBy({ by: ['kind'], where: { kind: { in: kinds }, createdAt: { gte: since } }, _count: { _all: true }, _sum: { points: true } }),
     prisma.storeGoal.findMany({ orderBy: { endDate: 'desc' }, take: 40 }),
     prisma.gasAlert.count(),
@@ -372,6 +374,8 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
     prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers, birthMonth: { not: null } } }),
     prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers } }),
     prisma.engagementEvent.count({ where: { kind: 'FRIENDS_JOINED' } }),
+    spentThisMonth(prisma, 'GAME_PLAY', now),
+    prisma.engagementEvent.count({ where: { kind: 'GAME_PLAY', points: { gt: 0 }, createdAt: { gte: since } } }),
   ]);
   const names = new Map(stores.map((s) => [s.id, s.name]));
   const welcomeBy = WELCOME_STEPS.map((_k, i) => welcomeSteps.find((w) => w.key === `step${i + 1}`)?._count._all ?? 0);
@@ -403,6 +407,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
       welcome: { sent: welcomeBy.reduce((t, n) => t + n, 0), byStep: welcomeBy },
       tierUp: { reached: count('TIER_UP'), celebrated: count('TIER_UP_SEEN') },
       friendsBoard: { joined: friendsJoined },
+      games: { plays: count('GAME_PLAY'), wins: gameWins, pts: paid('GAME_PLAY'), spentThisMonth: gameSpent },
       birthday: { greeted: count('BIRTHDAY'), paid: birthdayPaid, pts: paid('BIRTHDAY'), spentThisMonth: birthdaySpent, withBirthday, customers },
     },
     goals: goalRows, suggestions, weekly: await weeklyHq(cfg, now),

@@ -184,6 +184,8 @@ export const engagementApi = {
   friends: (when: 'this' | 'last') => api.get(`/engagement/friends?when=${when}`),   // the friends leaderboard (2026-10-24)
   friendsJoin: () => api.post('/engagement/friends/join'),
   friendsLeave: () => api.delete('/engagement/friends/join'),
+  game: () => api.get('/engagement/games'),   // the prize game (2026-10-25)
+  play: (body: { storeId?: string; pick?: number }) => api.post('/engagement/games/play', body),
   flashActive: (storeId?: string) => api.get(`/engagement/flash/active${storeId ? `?storeId=${storeId}` : ''}`),   // the flash deal running now, or null
   putGasAlert: (body: { storeId: string; fuel: 'GAS' | 'DIESEL'; maxPrice: number }) => api.put('/engagement/gas-alerts', body),
   deleteGasAlert: (id: string) => api.delete(`/engagement/gas-alerts/${id}`),

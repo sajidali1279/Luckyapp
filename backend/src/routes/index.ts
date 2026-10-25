@@ -112,6 +112,7 @@ import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSetting
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
 import { getActiveFlash, listFlash, createFlash, endFlash } from '../controllers/engagementFlash.controller';
 import { getFriendsBoard, joinFriendsBoard, leaveFriendsBoard } from '../controllers/engagementFriends.controller';
+import { getGame, postPlay } from '../controllers/engagementGames.controller';
 import { getEngagementConfig, getMyEngagement, postRatePrompt, postTierUp, createWeeklyChallenge, postCheckIn, putGasAlert, deleteGasAlert, getEngagementHq, putEngagement, createGoal, updateGoal } from '../controllers/engagement.controller';
 import { getSettings, putRules, putFeatures, putBusiness, putWelcome, putTheme, getAppTheme, putPointsExpiry, getPointsExpiryPreview, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
 import {
@@ -777,7 +778,9 @@ router.post('/engagement/flash',         authenticate, requireRole(Role.SUPER_AD
 router.post('/engagement/flash/:id/end', authenticate, requireRole(Role.SUPER_ADMIN),   endFlash);
 router.get('/engagement/friends',        authenticate,                                   getFriendsBoard);   // friends leaderboard (2026-10-24)
 router.post('/engagement/friends/join',  authenticate,                                   joinFriendsBoard);
-router.delete('/engagement/friends/join', authenticate,                                  leaveFriendsBoard);   // make and schedule the challenge of the week (2026-10-24)
+router.delete('/engagement/friends/join', authenticate,                                  leaveFriendsBoard);
+router.get('/engagement/games',          authenticate,                                   getGame);   // the prize game (2026-10-25)
+router.post('/engagement/games/play',    authenticate,                                   postPlay);   // make and schedule the challenge of the week (2026-10-24)
 router.put('/settings/theme',           authenticate, requireRole(Role.SUPER_ADMIN),   putTheme);         // the seasonal app theme (2026-10-21)
 router.put('/settings/welcome',         authenticate, requireRole(Role.SUPER_ADMIN),   putWelcome);       // the joining bonus (2026-10-17)
 router.put('/settings/points-expiry',   authenticate, requireRole(Role.SUPER_ADMIN),   putPointsExpiry);  // points expiry (2026-10-17)

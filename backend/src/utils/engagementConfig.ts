@@ -13,6 +13,7 @@ export const ENGAGEMENT_LIMITS = {
   welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
   weeklySlots: 12, flashPerWeek: { min: 1, max: 14 }, friendsMinMembers: { min: 3, max: 20 }, friendsMaxRows: { min: 5, max: 50 },
   birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200, mascotName: 20,
+  gamePrizes: { min: 2, max: 8 }, gamePts: { min: 0, max: 500 }, gameWeight: { min: 1, max: 10000 }, gameBudget: { min: 0, max: 200000 },
 } as const;
 
 export interface Milestone { weeks: number; pts: number }
@@ -25,6 +26,10 @@ export const WELCOME_KEYS: WelcomeKey[] = ['qrBonus', 'qr', 'hotFood', 'checkIn'
 export interface PushText { titleEn: string; bodyEn: string; titleEs: string; bodyEs: string }
 export type WelcomeText = PushText;
 export interface WelcomeStep { day: number; enabled: boolean }
+export type GameKind = 'SPIN' | 'SCRATCH' | 'LUCKY';
+export const GAME_KINDS: GameKind[] = ['SPIN', 'SCRATCH', 'LUCKY'];
+/** One prize of the game: pts (0 = no prize this time) and weight (how likely, out of the total of all the weights). */
+export interface GamePrize { pts: number; weight: number }
 export interface EngagementConfig {
   // since: the store day HQ switched streaks on (set by the server). Weeks before it do not count, so switching on never pays out old history.
   streaks: { enabled: boolean; minPurchase: number; milestones: Milestone[]; since: string | null };
@@ -52,6 +57,10 @@ export interface EngagementConfig {
   // Cuatro, the mascot (2026-10-25): a "Cuatro says" tip card on Home, Cuatro in the empty screens, and (pushVoice) the mascot's name in
   // front of the automated pushes ("Cuatro: 🎁 So close!", utils/mascot.ts). name: what the app calls it, so a new name needs no build.
   mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean };
+  // Prize game (2026-10-25): spin the wheel, a scratch card or a lucky number (utils/engagementGames.ts). One free play per customer per
+  // store day, no purchase needed, the same odds for everyone; prizes are points inside a hard monthly budget, and the game closes for the
+  // month once what is left could not pay the top prize. since: set by the server when HQ switches it on; endsOn: an optional last day.
+  games: { enabled: boolean; game: GameKind; prizes: GamePrize[]; monthlyBudgetPts: number; since: string | null; endsOn: string | null };
   // Birthday gift (2026-10-24): a greeting push on the day and, when bonusPts is more than 0, a bonus once a year for people who bought in
   // the last needBoughtDays days (0: anyone who has ever bought), inside a hard monthly budget. {name} and {pts} in the texts are filled in.
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
@@ -92,6 +101,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
   friendsBoard: { enabled: false, metric: 'VISITS', period: 'WEEK', minMembers: 3, maxRows: 15 },
   tierUp: { enabled: false },
   mascot: { enabled: false, name: 'Cuatro', homeCard: true, emptyStates: true, pushVoice: false },
+  games: { enabled: false, game: 'SPIN', prizes: [{ pts: 0, weight: 400 }, { pts: 2, weight: 300 }, { pts: 5, weight: 180 }, { pts: 10, weight: 90 }, { pts: 25, weight: 25 }, { pts: 100, weight: 5 }], monthlyBudgetPts: 20000, since: null, endsOn: null },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
     gift: { titleEn: 'Happy birthday, {name}! 🎂', bodyEn: 'A little gift from Lucky Stop: {pts} points are in your account. Have a great day!', titleEs: '¡Feliz cumpleaños, {name}! 🎂', bodyEs: 'Un pequeño regalo de Lucky Stop: {pts} puntos ya están en tu cuenta. ¡Que tengas un gran día!' },
@@ -230,6 +240,15 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
       return { enabled: bool(m.enabled, false), name: text(m.name, L.mascotName, d.mascot.name), homeCard: bool(m.homeCard, d.mascot.homeCard),
         emptyStates: bool(m.emptyStates, d.mascot.emptyStates), pushVoice: bool(m.pushVoice, d.mascot.pushVoice) };
     })(),
+    games: (() => {
+      const g = isObj(s.games) ? s.games : {};
+      const list = Array.isArray(g.prizes) ? g.prizes.filter(isObj).slice(0, L.gamePrizes.max).map((p) => ({ pts: int(p.pts, L.gamePts, 0), weight: int(p.weight, L.gameWeight, 1) })) : [];
+      return {
+        enabled: bool(g.enabled, false), game: GAME_KINDS.includes(g.game as GameKind) ? (g.game as GameKind) : d.games.game,
+        prizes: list.length >= L.gamePrizes.min ? list : d.games.prizes.map((p) => ({ ...p })),   // too few prizes: the default table
+        monthlyBudgetPts: int(g.monthlyBudgetPts, L.gameBudget, d.games.monthlyBudgetPts), since: dayKey(g.since), endsOn: dayKey(g.endsOn),
+      };
+    })(),
     birthday: {
       enabled: bool(bd2.enabled, false), bonusPts: int(bd2.bonusPts, L.birthdayPts, d.birthday.bonusPts), needBoughtDays: int(bd2.needBoughtDays, L.birthdayBoughtDays, d.birthday.needBoughtDays),
       monthlyBudgetPts: int(bd2.monthlyBudgetPts, L.birthdayBudget, d.birthday.monthlyBudgetPts), gift: pushText(bd2.gift, d.birthday.gift), greeting: pushText(bd2.greeting, d.birthday.greeting),
@@ -264,5 +283,6 @@ export function publicEngagement(c: EngagementConfig) {
     flashDeals: c.flashDeals.enabled,
     friendsBoard: { enabled: c.friendsBoard.enabled, metric: c.friendsBoard.metric, period: c.friendsBoard.period },
     mascot: { home: c.mascot.enabled && c.mascot.homeCard, empty: c.mascot.enabled && c.mascot.emptyStates, name: c.mascot.name },
+    games: c.games.enabled,   // the app asks GET /engagement/games for the rest (the odds, and whether this customer has played today)
   };
 }
