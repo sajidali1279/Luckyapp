@@ -6,7 +6,8 @@ import * as SecureStore from 'expo-secure-store';
 import { useQuery } from '@tanstack/react-query';
 import { appThemeApi } from '../services/api';
 
-export interface AppTheme { preset: 'NONE' | 'HALLOWEEN'; intro: boolean; background: boolean; today: string; until: string | null; settled?: boolean }
+export type ThemePreset = 'NONE' | 'HALLOWEEN' | 'THANKSGIVING' | 'CHRISTMAS' | 'GAME_DAY';
+export interface AppTheme { preset: ThemePreset; intro: boolean; background: boolean; today: string; until: string | null; settled?: boolean }
 export const NO_THEME: AppTheme = { preset: 'NONE', intro: false, background: false, today: '', until: null };
 const KEY = 'app_theme_last';
 

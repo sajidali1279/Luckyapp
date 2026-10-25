@@ -1,4 +1,5 @@
-// Settings > App > Seasonal theme (2026-10-21): HQ picks a theme for the phone app (only Halloween is drawn so far), the dates it runs, and
+// Settings > App > Seasonal theme (2026-10-21): HQ picks a theme for the phone app (Halloween; Thanksgiving, Christmas and Game day from
+// 2026-10-25), the dates it runs, and
 // whether its opening animation and its drifting background shapes are on. Phones pick it up the next time they ask (within a few
 // minutes) and it goes back to normal by itself the day after the end date, so a holiday never needs a new app build.
 import { useEffect, useState } from 'react';
@@ -10,12 +11,15 @@ import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { Button, Card, Badge, Field, Notice } from './kit';
 import { useSettings, LastChanged } from './SettingsCards';
 
-type Preset = 'NONE' | 'HALLOWEEN';
+type Preset = 'NONE' | 'HALLOWEEN' | 'THANKSGIVING' | 'CHRISTMAS' | 'GAME_DAY';
 interface Theme { preset: Preset; startsOn: string | null; endsOn: string | null; intro: boolean; background: boolean; presets: string[]; active: { preset: Preset; today: string; until: string | null } }
 
 const LOOKS: { value: Preset; emoji: string; name: string; says: string }[] = [
   { value: 'NONE', emoji: '🏪', name: 'Normal', says: 'The usual Lucky Stop look.' },
   { value: 'HALLOWEEN', emoji: '🎃', name: 'Halloween', says: "A laughing jack-o'-lantern opens its mouth and the dashboard pops out of it. Bats, ghosts and spiders drift behind the dashboards." },
+  { value: 'THANKSGIVING', emoji: '🦃', name: 'Thanksgiving', says: 'A turkey fans out its tail, gobbles, and the dashboard comes out of a burst of autumn colours. Falling leaves, an acorn, wheat, a pie and a pumpkin drift behind the dashboards.' },
+  { value: 'CHRISTMAS', emoji: '🎄', name: 'Christmas', says: 'A gift box drops into the snow, shakes, pops its lid, and the dashboard comes out of the light inside. Snowflakes, a star, a tree, an ornament, a candy cane and a gift drift behind the dashboards.' },
+  { value: 'GAME_DAY', emoji: '🏈', name: 'Game day', says: 'For Super Bowl weekend (the app never shows that name: it belongs to the NFL). A field goal sails through the posts, confetti flies and the dashboard pops out. Footballs, a helmet, goal posts and a trophy drift behind the dashboards.' },
 ];
 
 const day = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -100,7 +104,7 @@ export default function AppThemeSettings() {
           </label>
           <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer', color: C.text }}>
             <input type="checkbox" checked={background} onChange={(e) => setBackground(e.target.checked)} style={{ marginTop: 3 }} />
-            <span><strong>Creepy shapes behind the dashboards</strong><br /><span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>The small drifting shapes on the customer, employee and manager home screens.</span></span>
+            <span><strong>Shapes behind the dashboards</strong><br /><span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>The small drifting shapes on the customer, employee and manager home screens.</span></span>
           </label>
         </div>
       )}

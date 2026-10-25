@@ -47,7 +47,7 @@ import {
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
-import HalloweenHost from '../../components/halloween/HalloweenHost';
+import SeasonalHost from '../../components/seasonal/SeasonalHost';
 import ModalToastHost from '../../components/ModalToastHost';
 import { haptic } from '../../utils/haptics';
 import { useFullBrightness } from '../../hooks/useFullBrightness';
@@ -663,7 +663,7 @@ function cardDescription(desc?: string | null): string {
 
 // The seasonal opening (2026-10-21) plays over Home while HQ's Halloween theme is on; otherwise this is just the screen
 export default function CustomerHome() {
-  return <HalloweenHost><CustomerHomeScreen /></HalloweenHost>;
+  return <SeasonalHost><CustomerHomeScreen /></SeasonalHost>;
 }
 
 function CustomerHomeScreen() {

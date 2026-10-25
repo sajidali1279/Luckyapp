@@ -89,10 +89,11 @@ export const EXPIRY_KEY = 'POINTS_EXPIRY';
 export const THEME_KEY = 'APP_THEME';
 export const ENGAGEMENT_KEY = 'ENGAGEMENT';   // 2026-10-23: streaks, punch cards, check-in, badges, goals, nudges (utils/engagementConfig.ts)
 
-// The app's seasonal theme (2026-10-21, admin Settings > App): a preset HQ picks, between two dates or until HQ takes it off. Only
-// Halloween is drawn so far; a new preset is a new name here plus its art in the app. The phones ask GET /app/theme and show whatever it
-// says today, so a holiday never needs a new app build.
-export const THEME_PRESETS = ['HALLOWEEN'] as const;
+// The app's seasonal theme (2026-10-21, admin Settings > App): a preset HQ picks, between two dates or until HQ takes it off. Halloween
+// came first; Thanksgiving, Christmas and Game day (the big football weekend) on 2026-10-25. A new preset is a new name here plus its art
+// in the app (phones on an older build simply show the normal look for a name they do not know). The phones ask GET /app/theme and show
+// whatever it says today, so a holiday never needs a new app build.
+export const THEME_PRESETS = ['HALLOWEEN', 'THANKSGIVING', 'CHRISTMAS', 'GAME_DAY'] as const;
 export type ThemePreset = (typeof THEME_PRESETS)[number];
 /** startsOn / endsOn: store days ('YYYY-MM-DD', Central), either may be empty (no start = now, no end = until switched off).
  *  intro: the opening animation (once a day on a phone). background: the drifting creatures behind the dashboards. */

@@ -3481,5 +3481,8 @@
     "cancel": "Cancel",
     "loadError": "Could not load the friends leaderboard.",
     "tryAgain": "Something went wrong. Try again."
+  },
+  "seasonal": {
+    "skip": "Tap to skip"
   }
 }

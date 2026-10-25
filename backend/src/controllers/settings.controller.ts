@@ -122,7 +122,7 @@ export async function getAppTheme(_req: Request, res: Response) {
   res.json({ success: true, data: activeTheme() });
 }
 
-/** PUT /settings/theme (HQ) { preset: 'NONE' | 'HALLOWEEN', startsOn?, endsOn?, intro?, background? }: the app's seasonal theme. */
+/** PUT /settings/theme (HQ) { preset: 'NONE' | one of THEME_PRESETS, startsOn?, endsOn?, intro?, background? }: the app's seasonal theme. */
 export async function putTheme(req: AuthRequest, res: Response) {
   const b = (req.body ?? {}) as Record<string, unknown>;
   const before = themeSetting();
@@ -150,11 +150,12 @@ export async function putTheme(req: AuthRequest, res: Response) {
     background: b.background === undefined ? before.background : b.background,
   });
   const changes: string[] = [];
-  if (next.preset !== before.preset) changes.push(`Theme: ${before.preset === 'NONE' ? 'none' : before.preset.toLowerCase()} to ${next.preset === 'NONE' ? 'none' : next.preset.toLowerCase()}`);
+  const presetName = (p: string) => (p === 'NONE' ? 'none' : p.toLowerCase().replace('_', ' '));
+  if (next.preset !== before.preset) changes.push(`Theme: ${presetName(before.preset)} to ${presetName(next.preset)}`);
   if (next.startsOn !== before.startsOn) changes.push(`Starts: ${before.startsOn ?? 'now'} to ${next.startsOn ?? 'now'}`);
   if (next.endsOn !== before.endsOn) changes.push(`Ends: ${before.endsOn ?? 'when switched off'} to ${next.endsOn ?? 'when switched off'}`);
   if (next.intro !== before.intro) changes.push(`Opening animation: ${next.intro ? 'on' : 'off'}`);
-  if (next.background !== before.background) changes.push(`Background creatures: ${next.background ? 'on' : 'off'}`);
+  if (next.background !== before.background) changes.push(`Background shapes: ${next.background ? 'on' : 'off'}`);
   if (changes.length === 0) { res.json({ success: true, data: { ...next, presets: THEME_PRESETS, active: activeTheme(new Date(), next) }, changed: false }); return; }
   await save(THEME_KEY, next);
   applySettings({ theme: next });

@@ -3481,5 +3481,8 @@
     "cancel": "Cancelar",
     "loadError": "No se pudo cargar la tabla de amigos.",
     "tryAgain": "Algo salió mal. Inténtalo de nuevo."
+  },
+  "seasonal": {
+    "skip": "Toca para saltar"
   }
 }
