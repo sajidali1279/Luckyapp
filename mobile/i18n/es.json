@@ -3559,6 +3559,17 @@
     "cardReady_LUCKY": "¡Elige el número de la suerte de hoy!",
     "cardPlay": "Toca para jugar. No se necesita comprar.",
     "cardPlayedWon": "Hoy ganaste {{pts}} pts. Vuelve a jugar mañana.",
-    "cardPlayedLost": "Hoy no hubo premio. Vuelve a jugar mañana."
+    "cardPlayedLost": "Hoy no hubo premio. Vuelve a jugar mañana.",
+    "scratchHere": "Raspa aquí",
+    "scratchHint": "Raspa la tarjeta con el dedo.",
+    "reveal": "Descubrirla",
+    "underWon": "¡Es tuyo!",
+    "underLost": "Esta vez no hubo premio",
+    "pickNumber": "Elige tu número de la suerte",
+    "draw": "Sortear",
+    "drawing": "Sorteando...",
+    "luckyDrawn": "El número sorteado es {{n}}",
+    "luckyWon": "¡Salió tu número {{n}}!",
+    "luckyLost": "El número fue {{n}}."
   }
 }

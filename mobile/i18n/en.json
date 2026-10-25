@@ -3559,6 +3559,17 @@
     "cardReady_LUCKY": "Pick today's lucky number!",
     "cardPlay": "Tap to play. No purchase necessary.",
     "cardPlayedWon": "You won {{pts}} pts today. Play again tomorrow.",
-    "cardPlayedLost": "No prize today. Play again tomorrow."
+    "cardPlayedLost": "No prize today. Play again tomorrow.",
+    "scratchHere": "Scratch here",
+    "scratchHint": "Scratch the card with your finger.",
+    "reveal": "Reveal it",
+    "underWon": "Yours!",
+    "underLost": "No prize this time",
+    "pickNumber": "Pick your lucky number",
+    "draw": "Draw",
+    "drawing": "Drawing...",
+    "luckyDrawn": "The number drawn is {{n}}",
+    "luckyWon": "Your number {{n}} came up!",
+    "luckyLost": "The number was {{n}}."
   }
 }
