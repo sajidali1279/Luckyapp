@@ -8,6 +8,7 @@ import prisma from '../config/prisma';
 import { engagement } from './appSettings';
 import { excludeDeletedCustomers } from './accountDeletion';
 import { sendPushToUser } from './push';
+import { voiced } from './mascot';
 import { addStoreDays, storeDateKey, storeDayStart } from './storeTime';
 import { computeStreak, dow, payFinishedGoals, purchaseWeeks, storeHour, weekStartKey } from './engagement';
 import { getCurrentPeriod, raiseTierFor } from './tier';
@@ -40,7 +41,7 @@ async function nudge(who: Who, kind: string, key: string, en: [string, string], 
   const made = await prisma.engagementEvent.createMany({ data: [{ customerId: who.id, kind, key }], skipDuplicates: true });
   if (made.count === 0) return false;
   const [title, body] = who.language === 'es' ? es : en;
-  await sendPushToUser(who.id, title, body, 'OFFER', url);
+  await sendPushToUser(who.id, voiced(title), body, 'OFFER', url);
   return true;
 }
 

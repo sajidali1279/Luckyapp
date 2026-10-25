@@ -3484,5 +3484,28 @@
   },
   "seasonal": {
     "skip": "Toca para saltar"
+  },
+  "cuatro": {
+    "says": "{{name}} dice",
+    "morning": "¡Buenos días, {{name}}!",
+    "morningAnon": "¡Buenos días!",
+    "afternoon": "¡Buenas tardes, {{name}}!",
+    "afternoonAnon": "¡Buenas tardes!",
+    "evening": "¡Buenas noches, {{name}}!",
+    "eveningAnon": "¡Buenas noches!",
+    "redeem": "¡Te alcanzan los puntos para {{reward}}! Abre Recompensas para obtener tu código.",
+    "near": "Solo te faltan {{pts}} pts para {{reward}}. ¡Una parada más y lo logras!",
+    "qr": "Muestra tu código en la caja cada vez. Cada compra te da puntos.",
+    "hotFood": "¿Tienes hambre? Pide comida caliente en la app y recógela en el mostrador.",
+    "invite": "Invita a un amigo con tu código. Los dos ganan cuando compre.",
+    "tier": "Mientras más compras en este semestre, más alto tu nivel y más te devolvemos.",
+    "leaderboard": "¿Quieres ser el cliente número uno? Mira en qué lugar vas.",
+    "seeRewards": "Ver recompensas",
+    "showCode": "Mostrar mi código",
+    "orderNow": "Pedir ahora",
+    "inviteNow": "Invitar a un amigo",
+    "seeTier": "Ver mi nivel",
+    "seeLeaderboard": "Ver la clasificación",
+    "hide": "Ocultar hasta mañana"
   }
 }

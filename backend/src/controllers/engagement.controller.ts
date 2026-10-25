@@ -130,7 +130,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', flashDeals: 'Flash deals', friendsBoard: 'Friends leaderboard', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', flashDeals: 'Flash deals', friendsBoard: 'Friends leaderboard', mascot: 'Cuatro, the mascot', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {

@@ -11,6 +11,7 @@ import prisma from '../config/prisma';
 import { engagement, feature } from './appSettings';
 import { excludeDeletedCustomers } from './accountDeletion';
 import { sendPushToUser } from './push';
+import { voiced } from './mascot';
 import { membersInAudience } from './offerAudience';
 import { addStoreDays, endOfStoreDate, startOfStoreDate, storeDateKey, storeHour } from './storeTime';
 import { dow, weekStartKey } from './engagement';
@@ -143,7 +144,7 @@ export async function runWeeklyChallengePush(now: Date = new Date()): Promise<nu
     const name = (es && c.titleEs) || c.title;
     const title = es ? '🏆 El reto de la semana' : "🏆 This week's challenge";
     const body = es ? `${name}: gana ${pts} pts. Termina el ${WEEKDAYS.es[endDay]}.` : `${name}: earn ${pts} pts. Ends ${WEEKDAYS.en[endDay]}.`;
-    await sendPushToUser(p.id, title, body, 'OFFER', '/(customer)/home?scrollTo=challenges', until);   // the inbox line goes when the week ends
+    await sendPushToUser(p.id, voiced(title), body, 'OFFER', '/(customer)/home?scrollTo=challenges', until);   // the inbox line goes when the week ends
     sent++; budget--;
   }
   return sent;

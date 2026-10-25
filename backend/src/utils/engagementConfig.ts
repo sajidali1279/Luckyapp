@@ -12,7 +12,7 @@ export const ENGAGEMENT_LIMITS = {
   ratePurchases: { min: 1, max: 50 }, rateDays: { min: 0, max: 365 },
   welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
   weeklySlots: 12, flashPerWeek: { min: 1, max: 14 }, friendsMinMembers: { min: 3, max: 20 }, friendsMaxRows: { min: 5, max: 50 },
-  birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200,
+  birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200, mascotName: 20,
 } as const;
 
 export interface Milestone { weeks: number; pts: number }
@@ -49,6 +49,9 @@ export interface EngagementConfig {
   flashDeals: { enabled: boolean; maxPerWeek: number };
   // Tier celebration (2026-10-24): the app's one-time celebration when a customer reaches a higher tier (the tier-up push itself always goes out)
   tierUp: { enabled: boolean };
+  // Cuatro, the mascot (2026-10-25): a "Cuatro says" tip card on Home, Cuatro in the empty screens, and (pushVoice) the mascot's name in
+  // front of the automated pushes ("Cuatro: 🎁 So close!", utils/mascot.ts). name: what the app calls it, so a new name needs no build.
+  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean };
   // Birthday gift (2026-10-24): a greeting push on the day and, when bonusPts is more than 0, a bonus once a year for people who bought in
   // the last needBoughtDays days (0: anyone who has ever bought), inside a hard monthly budget. {name} and {pts} in the texts are filled in.
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
@@ -88,6 +91,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
   flashDeals: { enabled: false, maxPerWeek: 3 },
   friendsBoard: { enabled: false, metric: 'VISITS', period: 'WEEK', minMembers: 3, maxRows: 15 },
   tierUp: { enabled: false },
+  mascot: { enabled: false, name: 'Cuatro', homeCard: true, emptyStates: true, pushVoice: false },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
     gift: { titleEn: 'Happy birthday, {name}! 🎂', bodyEn: 'A little gift from Lucky Stop: {pts} points are in your account. Have a great day!', titleEs: '¡Feliz cumpleaños, {name}! 🎂', bodyEs: 'Un pequeño regalo de Lucky Stop: {pts} puntos ya están en tu cuenta. ¡Que tengas un gran día!' },
@@ -221,6 +225,11 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     })(),
     flashDeals: { enabled: bool(isObj(s.flashDeals) ? s.flashDeals.enabled : false, false), maxPerWeek: int(isObj(s.flashDeals) ? s.flashDeals.maxPerWeek : undefined, L.flashPerWeek, d.flashDeals.maxPerWeek) },
     tierUp: { enabled: bool(isObj(s.tierUp) ? s.tierUp.enabled : false, false) },
+    mascot: (() => {
+      const m = isObj(s.mascot) ? s.mascot : {};
+      return { enabled: bool(m.enabled, false), name: text(m.name, L.mascotName, d.mascot.name), homeCard: bool(m.homeCard, d.mascot.homeCard),
+        emptyStates: bool(m.emptyStates, d.mascot.emptyStates), pushVoice: bool(m.pushVoice, d.mascot.pushVoice) };
+    })(),
     birthday: {
       enabled: bool(bd2.enabled, false), bonusPts: int(bd2.bonusPts, L.birthdayPts, d.birthday.bonusPts), needBoughtDays: int(bd2.needBoughtDays, L.birthdayBoughtDays, d.birthday.needBoughtDays),
       monthlyBudgetPts: int(bd2.monthlyBudgetPts, L.birthdayBudget, d.birthday.monthlyBudgetPts), gift: pushText(bd2.gift, d.birthday.gift), greeting: pushText(bd2.greeting, d.birthday.greeting),
@@ -254,5 +263,6 @@ export function publicEngagement(c: EngagementConfig) {
     weeklyChallenge: c.weeklyChallenge.enabled,
     flashDeals: c.flashDeals.enabled,
     friendsBoard: { enabled: c.friendsBoard.enabled, metric: c.friendsBoard.metric, period: c.friendsBoard.period },
+    mascot: { home: c.mascot.enabled && c.mascot.homeCard, empty: c.mascot.enabled && c.mascot.emptyStates, name: c.mascot.name },
   };
 }

@@ -3484,5 +3484,28 @@
   },
   "seasonal": {
     "skip": "Tap to skip"
+  },
+  "cuatro": {
+    "says": "{{name}} says",
+    "morning": "Good morning, {{name}}!",
+    "morningAnon": "Good morning!",
+    "afternoon": "Good afternoon, {{name}}!",
+    "afternoonAnon": "Good afternoon!",
+    "evening": "Good evening, {{name}}!",
+    "eveningAnon": "Good evening!",
+    "redeem": "You have enough points for {{reward}}! Open Rewards to get your code.",
+    "near": "Only {{pts}} pts to {{reward}}. One more stop could do it!",
+    "qr": "Show your code at the register every time. Every purchase earns points.",
+    "hotFood": "Hungry? Order hot food in the app and pick it up at the counter.",
+    "invite": "Invite a friend with your code. You both earn when they buy.",
+    "tier": "The more you shop this half year, the higher your tier, and the more you earn back.",
+    "leaderboard": "Want to be the top regular? See where you rank.",
+    "seeRewards": "See rewards",
+    "showCode": "Show my code",
+    "orderNow": "Order now",
+    "inviteNow": "Invite a friend",
+    "seeTier": "See my tier",
+    "seeLeaderboard": "See the leaderboard",
+    "hide": "Hide until tomorrow"
   }
 }

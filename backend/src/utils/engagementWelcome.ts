@@ -14,6 +14,7 @@ import prisma from '../config/prisma';
 import { engagement, feature } from './appSettings';
 import { excludeDeletedCustomers } from './accountDeletion';
 import { sendPushToUser } from './push';
+import { voiced } from './mascot';
 import { startOfStoreDate, storeDateKey, storeDaysBetween, storeHour } from './storeTime';
 import { readReferralSettings } from './referrals';
 import { welcomeDay } from '../controllers/welcome-bonus.controller';
@@ -92,7 +93,7 @@ export async function runWelcome(now: Date = new Date()): Promise<{ sent: number
     if (made.count === 0) continue;   // another server copy sent it a moment ago
     const t = cfg.texts[pick.key];
     const es = p.language === 'es';
-    await sendPushToUser(p.id, es ? t.titleEs : t.titleEn, es ? t.bodyEs : t.bodyEn, 'OFFER', WELCOME_LINKS[pick.key]);
+    await sendPushToUser(p.id, voiced(es ? t.titleEs : t.titleEn), es ? t.bodyEs : t.bodyEn, 'OFFER', WELCOME_LINKS[pick.key]);
     out.sent++; out.byStep[pick.step]++; budget--;
   }
   return out;

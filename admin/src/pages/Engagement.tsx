@@ -31,6 +31,7 @@ interface Config {
   weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
   flashDeals: { enabled: boolean; maxPerWeek: number };
   tierUp: { enabled: boolean };
+  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean };
   friendsBoard: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH'; minMembers: number; maxRows: number };
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
   nudges: {
@@ -215,6 +216,12 @@ export default function Engagement() {
           onToggle={(v) => { if (v && !window.confirm('Turn on the friends leaderboard? It shows first names and last initials to friends, so update the privacy policy first.')) return; toggle('friendsBoard')(v); }} busy={save.isPending}
           open={!!open.friendsBoard} setOpen={(v) => setOpen((o) => ({ ...o, friendsBoard: v }))} summary={`${c.friendsBoard.metric === 'POINTS' ? 'Points from purchases' : 'Days with a purchase'}, ${c.friendsBoard.period === 'MONTH' ? 'by month' : 'by week'}, opens at ${c.friendsBoard.minMembers} joined. ${R.friendsBoard.joined} ${R.friendsBoard.joined === 1 ? 'customer has' : 'customers have'} joined.`}>
           <FriendsEditor value={c.friendsBoard} onSave={(v) => save.mutate({ friendsBoard: v })} busy={save.isPending} />
+        </Feature>
+
+        <Feature id="mascot" emoji="🍀" title={`${c.mascot.name}, the mascot`} blurb={`Lucky Stop's clover mascot in the app: a short tip of the day on customers' Home (a reward that is ready, one nearly there, or an everyday tip), ${c.mascot.name} in place of the plain icon on empty screens, and if you like, ${c.mascot.name}'s name in front of the automated pushes. It costs nothing.`}
+          on={c.mascot.enabled} onToggle={toggle('mascot')} busy={save.isPending} open={!!open.mascot} setOpen={(v) => setOpen((o) => ({ ...o, mascot: v }))}
+          summary={[c.mascot.homeCard && 'A tip on Home', c.mascot.emptyStates && 'empty screens', c.mascot.pushVoice && 'signs the automated pushes'].filter(Boolean).join(', ') || 'Nothing picked: open Settings'}>
+          <MascotEditor value={c.mascot} onSave={(v) => save.mutate({ mascot: v })} busy={save.isPending} />
         </Feature>
 
         <Feature id="birthday" emoji="🎂" title="Birthday gift" blurb="A warm greeting push on a customer's birthday (after 10 AM, never in quiet hours) and, if you set one, a small points gift once a year for people who bought lately. The gift is paid at the store they last bought at, inside a monthly budget that is a hard cap. Customers add their birthday in Profile (month and day only), and the app reminds those who have not." on={c.birthday.enabled} onToggle={toggle('birthday')} busy={save.isPending} money={c.birthday.bonusPts > 0}
@@ -624,6 +631,34 @@ function FlashEditor({ value, stores, onSave, busy }: { value: Config['flashDeal
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+function MascotEditor({ value, onSave, busy }: { value: Config['mascot']; onSave: (v: Omit<Config['mascot'], 'enabled'>) => void; busy: boolean }) {
+  const [name, setName] = useState(value.name);
+  const [home, setHome] = useState(value.homeCard);
+  const [empty, setEmpty] = useState(value.emptyStates);
+  const [voice, setVoice] = useState(value.pushVoice);
+  useEffect(() => { setName(value.name); setHome(value.homeCard); setEmpty(value.emptyStates); setVoice(value.pushVoice); }, [value.name, value.homeCard, value.emptyStates, value.pushVoice]);
+  const n = name.trim().replace(/\s+/g, ' ');
+  const who = n || 'Cuatro';
+  const changed = n !== value.name || home !== value.homeCard || empty !== value.emptyStates || voice !== value.pushVoice;
+  const box = (id: string, on: boolean, set: (v: boolean) => void, label: string, hint: string) => (
+    <label htmlFor={id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer', color: C.text }}>
+      <input id={id} type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} style={{ marginTop: 3 }} />
+      <span><strong>{label}</strong><br /><span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>{hint}</span></span>
+    </label>
+  );
+  return (
+    <>
+      <Field label="The mascot's name" htmlFor="ma-name" hint={`${Array.from(n).length} of 20. The app shows it everywhere, with no new app version.`}>
+        <input id="ma-name" style={{ ...INPUT, width: 220 }} maxLength={20} value={name} onChange={(e) => setName(e.target.value)} />
+      </Field>
+      {box('ma-home', home, setHome, 'A tip on Home', `"${who} says": a reward that is ready, one nearly there, or an everyday tip (show your code, order hot food, invite a friend, tiers, the leaderboard). A customer can hide it until the next day.`)}
+      {box('ma-empty', empty, setEmpty, 'Empty screens', `${who} in place of the plain icon when a customer's history, alerts, chat or ads are empty.`)}
+      {box('ma-voice', voice, setVoice, 'Signs the automated pushes', `The smart nudges, the welcome series, the birthday push and the challenge of the week start with "${who}: ". Pushes about a sale, an order or an alert the customer set up never do.`)}
+      <div style={row}><Button variant="primary" disabled={!n || !changed || busy} onClick={() => onSave({ name: n, homeCard: home, emptyStates: empty, pushVoice: voice })}>Save</Button></div>
     </>
   );
 }

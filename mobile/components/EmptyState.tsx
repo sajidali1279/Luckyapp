@@ -3,6 +3,8 @@ import { Text } from './ScaledText';
 import { ReactNode } from 'react';
 import { COLORS } from '../constants';
 import { InboxIcon } from './Icons';
+import Cuatro from './engagement/Cuatro';
+import { useEngagementFlags } from '../hooks/useEngagement';
 
 interface Props {
   icon?: ReactNode;
@@ -11,10 +13,12 @@ interface Props {
 }
 
 export default function EmptyState({ icon, title, subtitle }: Props) {
+  // Cuatro (2026-10-25) takes the icon's place while HQ has the mascot on; the switches are only fetched for customers, so staff never see it
+  const cuatro = !!useEngagementFlags()?.mascot?.empty;
   return (
     <View style={s.root}>
       <View style={s.iconWrap}>
-        {icon ?? <InboxIcon size={52} color="#C4CAD4" strokeWidth={1.25} />}
+        {cuatro ? <Cuatro pose="peek" size={110} /> : (icon ?? <InboxIcon size={52} color="#C4CAD4" strokeWidth={1.25} />)}
       </View>
       <Text style={s.title}>{title}</Text>
       {subtitle ? <Text style={s.subtitle}>{subtitle}</Text> : null}
