@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { audit } from '../utils/audit';
+
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { notifyNewApplication, notifyApplicationStatusChange } from '../utils/email';
@@ -121,11 +123,14 @@ export async function updateApplication(req: AuthRequest, res: Response) {
     return;
   }
 
+  const before = await prisma.jobApplication.findUnique({ where: { id }, select: { status: true, reviewNotes: true } });
   const app = await prisma.jobApplication.update({
     where: { id },
     data: { ...(parsed.data.status ? { status: parsed.data.status as any } : {}), ...(parsed.data.reviewNotes !== undefined ? { reviewNotes: parsed.data.reviewNotes } : {}) },
     include: { store: { select: { name: true, city: true } } },
   });
+
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'CAREERS_APPLICATION_UPDATED', entity: 'job_application', entityId: id, details: { applicant: app.name, position: app.position, ...(before && parsed.data.status && before.status !== parsed.data.status ? { status: { was: before.status, now: parsed.data.status } } : {}), ...(parsed.data.reviewNotes !== undefined && before?.reviewNotes !== parsed.data.reviewNotes ? { notesChanged: true } : {}) } });
 
   if (parsed.data.status && app.email) {
     notifyApplicationStatusChange({
@@ -143,6 +148,7 @@ export async function updateApplication(req: AuthRequest, res: Response) {
 
 export async function deleteApplication(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  await prisma.jobApplication.delete({ where: { id } });
+  const gone = await prisma.jobApplication.delete({ where: { id } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'CAREERS_APPLICATION_DELETED', entity: 'job_application', entityId: id, details: { applicant: gone.name, position: gone.position } });
   res.json({ success: true });
 }

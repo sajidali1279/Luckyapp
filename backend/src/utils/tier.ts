@@ -1,4 +1,5 @@
 import { Prisma, Tier } from '@prisma/client';
+import { rule, engagement } from './appSettings';
 import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
 import { storeDateKey } from './storeTime';
@@ -92,12 +93,12 @@ export async function rollCustomerPeriod(db: Prisma.TransactionClient | typeof p
   return moved.count > 0;
 }
 
-// Bonus points per gallon IN DOLLARS (e.g. 0.05 = 5 pts)
-export const GAS_BONUS_PER_GALLON: Record<string, number> = {
-  GOLD:     0.05,
-  DIAMOND:  0.07,
-  PLATINUM: 0.10,
-};
+// Bonus cashback per gallon IN DOLLARS (e.g. 0.05 = 5 pts) for a tier: HQ's cents (Settings > Rewards & offers > Tier perks, 2026-10-17).
+// It was fixed here: Gold 5, Diamond 7, Platinum 10 cents.
+export function gasBonusPerGallon(tier: string): number {
+  const cents = tier === 'GOLD' ? rule('gasBonusGoldCents') : tier === 'DIAMOND' ? rule('gasBonusDiamondCents') : tier === 'PLATINUM' ? rule('gasBonusPlatinumCents') : 0;
+  return Math.round(cents) / 100;
+}
 
 export const TIER_LABELS: Record<string, string> = {
   BRONZE:   '🥉 Bronze',
@@ -120,8 +121,21 @@ export function getTierBonusRate(
   return offer.bonusRate ?? 0;
 }
 
+const TIER_NAME: Record<string, string> = { BRONZE: 'Bronze', SILVER: 'Silver', GOLD: 'Gold', DIAMOND: 'Diamond', PLATINUM: 'Platinum' };   // as the app shows them, in both languages
+/** The tier-up push, in the customer's language (2026-10-24: it was English only and named the tier in capitals). */
+export function tierUpWords(tier: Tier, es: boolean): { title: string; body: string } {
+  const name = TIER_NAME[tier] ?? tier;
+  return es
+    ? { title: `🎉 ¡Subiste de nivel! Llegaste a ${name}`, body: `Tus beneficios ${name} ya están listos. Toca para verlos.` }
+    : { title: `🎉 Tier Up! You reached ${name}`, body: `Your ${name} perks are ready. Tap to see them.` };
+}
+
 // Moves a customer UP a tier after points are credited (and says so). A tier never goes down here: after the half-year step down a
 // customer keeps their lower tier while they earn their way back, instead of being dropped to what one small sale is worth.
+// The write only happens while the stored tier is still lower (2026-10-24): two sales approved at the same moment used to both write and
+// both push "Tier Up", and the slower one could put back the lower tier. Now only the call that really moves them up says so. The push
+// opens Rewards; with HQ's Tier celebration on, an engagement_events row lets the app show its one-time celebration (POST
+// /engagement/tier-up). The sale is already credited when this runs, so nothing after the write may throw.
 export async function updateCustomerTierIfNeeded(
   customerId: string,
   updatedPeriodPoints: number,
@@ -129,9 +143,33 @@ export async function updateCustomerTierIfNeeded(
 ): Promise<void> {
   const thresholds = await getStoredThresholds();
   const newTier = calculateTier(updatedPeriodPoints, thresholds);
-  if (rank(newTier) > rank(currentTier)) {
-    await prisma.user.update({ where: { id: customerId }, data: { tier: newTier } });
-    sendPushToUser(customerId, '🎉 Tier Up!', `You're now ${newTier} tier. Check your new benefits!`, 'GENERAL');
+  if (rank(newTier) <= rank(currentTier)) return;
+  const moved = await prisma.user.updateMany({ where: { id: customerId, tier: { in: TIER_LADDER.slice(0, rank(newTier)) } }, data: { tier: newTier } });
+  if (moved.count === 0) return;   // already at this tier or above: another approval got there first
+  try {
+    const u = await prisma.user.findUnique({ where: { id: customerId }, select: { language: true, tierPeriod: true } });
+    if (engagement().tierUp.enabled) {
+      await prisma.engagementEvent.createMany({ data: [{ customerId, kind: 'TIER_UP', key: `${u?.tierPeriod ?? getCurrentPeriod()}:${newTier}` }], skipDuplicates: true });
+    }
+    const w = tierUpWords(newTier, u?.language === 'es');
+    sendPushToUser(customerId, w.title, w.body, 'GENERAL', '/(customer)/rewards');
+  } catch (e: any) {
+    console.error('[tier] tier-up message failed:', e?.message ?? e);
+  }
+}
+
+/**
+ * Checks the tier again from what is stored now, after a bonus that is not a sale (a check-in, a store goal, a birthday gift, an invite
+ * reward): those add period points too, but used to wait for the customer's next sale to move them up. Never throws. A customer whose
+ * stored period is old is left alone: their next credit rolls the period first.
+ */
+export async function raiseTierFor(customerId: string): Promise<void> {
+  try {
+    const u = await prisma.user.findUnique({ where: { id: customerId }, select: { tier: true, tierPeriod: true, periodPoints: true } });
+    if (!u || u.tierPeriod !== getCurrentPeriod()) return;
+    await updateCustomerTierIfNeeded(customerId, u.periodPoints, u.tier);
+  } catch (e: any) {
+    console.error('[tier] re-check failed:', e?.message ?? e);
   }
 }
 

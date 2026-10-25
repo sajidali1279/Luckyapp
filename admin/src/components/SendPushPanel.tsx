@@ -8,6 +8,7 @@ import { failureMessage } from '../lib/apiError';
 import { storeDayTime } from '../lib/storeDates';
 import { useSingleFlight } from '../hooks/useSingleFlight';
 import Glyph from '../components/Glyph';
+import { useLimits } from './SettingsCards';
 
 type Target = 'ALL_CUSTOMERS' | 'STORE_CUSTOMERS' | 'ALL_STAFF' | 'STORE_STAFF';
 interface StoreLite { id: string; name: string; city?: string; isActive?: boolean }
@@ -22,7 +23,7 @@ const TITLE_MAX = 65;
 const BODY_MAX = 200;
 const TARGET_LABELS: Record<Target, string> = {
   ALL_CUSTOMERS: 'All customers (chain-wide)',
-  STORE_CUSTOMERS: 'Customers of one store (a purchase there in the last 6 months)',
+  STORE_CUSTOMERS: 'Customers of one store (a purchase there in the last {months} months)',
   ALL_STAFF: 'All staff (chain-wide)',
   STORE_STAFF: 'Staff at one store',
 };
@@ -51,6 +52,8 @@ function resultSentence(r: SendResult, words: string): string {
 }
 
 export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
+  const limits = useLimits();
+  const targetLabel = (t: Target) => TARGET_LABELS[t].replace('{months}', String(limits.audienceRecentMonths));   // HQ's months (Settings)
   const qc = useQueryClient();
   const [target, setTarget] = useState<Target>('ALL_CUSTOMERS');
   const [storeId, setStoreId] = useState('');
@@ -135,7 +138,7 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
       <div style={s.field}>
         <label style={s.label} htmlFor="push-target">Who gets this?</label>
         <select id="push-target" style={s.select} value={target} onChange={(e) => { setTarget(e.target.value as Target); setStoreId(''); setError(''); }}>
-          {(Object.keys(TARGET_LABELS) as Target[]).map((t) => <option key={t} value={t}>{TARGET_LABELS[t]}</option>)}
+          {(Object.keys(TARGET_LABELS) as Target[]).map((t) => <option key={t} value={t}>{targetLabel(t)}</option>)}
         </select>
       </div>
 

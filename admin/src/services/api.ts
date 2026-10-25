@@ -112,6 +112,18 @@ export const billingApi = {
 };
 
 /** Challenges: spend or visit targets that pay a reward (HQ). */
+// Engagement (2026-10-23): HQ's switches and numbers, results, suggestions and store goals
+export const engagementApi = {
+  hq: () => api.get('/engagement/hq'),
+  save: (patch: object) => api.put('/settings/engagement', patch),
+  createGoal: (data: object) => api.post('/engagement/goals', data),
+  updateGoal: (id: string, data: object) => api.patch(`/engagement/goals/${id}`, data),
+  createWeekly: (data: object) => api.post('/engagement/weekly', data),   // make the challenge of the week and put it on its week
+  flashList: () => api.get('/engagement/flash'),
+  createFlash: (data: object) => api.post('/engagement/flash', data),
+  endFlash: (id: string) => api.post(`/engagement/flash/${id}/end`),
+};
+
 export const challengesApi = {
   list: () => api.get('/challenges'),
   create: (data: object) => api.post('/challenges', data),
@@ -143,6 +155,7 @@ export const offersApi = {
   /** Label deals the app shows in Today's Deals, and hiding one (HQ). */
   getShelfDeals: () => api.get('/offers/shelf-deals'),
   setShelfDealHidden: (labelId: string, hidden: boolean) => api.patch(`/offers/shelf-deals/${labelId}`, { hidden }),
+  setShelfDealsHidden: (labelIds: string[], hidden: boolean) => api.post('/offers/shelf-deals/visibility', { labelIds, hidden }),   // many at once (2026-10-18)
 };
 
 /** Store managers' cashback promotion requests, which HQ approves (with any changes) or declines with a reason. */
@@ -156,6 +169,9 @@ export const bannersApi = {
   create: (formData: FormData) => api.post('/banners', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   delete: (bannerId: string) => api.delete(`/banners/${bannerId}`),
   getActive: () => api.get('/banners'),
+  // The Banners page (2026-10-16): every banner HQ can change, scheduled and ended ones too; and editing one (a new image optional)
+  getAll: () => api.get('/banners', { params: { all: 1 } }),
+  update: (bannerId: string, formData: FormData) => api.patch(`/banners/${bannerId}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
 export const labelsApi = {
@@ -258,8 +274,14 @@ export const customersApi = {
   deleteNote: (userId: string, noteId: string) => api.delete(`/users/customers/${userId}/notes/${noteId}`),
   unlock: (userId: string) => api.post(`/users/customers/${userId}/unlock`),
   history: (userId: string) => api.get(`/users/customers/${userId}/history`),
+  receiptCards: (userId: string) => api.get(`/users/customers/${userId}/receipt-cards`),
+  // A test notification to their phones with Google's or Apple's answer (2026-10-16); it waits up to about 20 seconds for it
+  testPush: (userId: string) => api.post(`/users/${userId}/test-push`, {}, { timeout: 60_000 }),
   goodwillCredit: (userId: string, amount: number, reason: string) =>
     api.post(`/users/customers/${userId}/goodwill-credit`, { amount, reason }),
+  // Points expiry (2026-10-17): what expires next / expired, and HQ giving expired points back
+  pointsExpiry: (userId: string) => api.get(`/points/expiry/customer/${userId}`),
+  undoPointsExpiry: (userId: string) => api.post(`/points/expiry/undo/${userId}`, {}),
   // Say which state you want: restricting twice, or a double click, cannot switch the account back on
   setActive: (userId: string, isActive: boolean, fraudNote?: string) =>
     api.patch(`/users/${userId}/toggle-active`, { isActive, ...(fraudNote ? { fraudNote } : {}) }),
@@ -288,6 +310,22 @@ export const disputesApi = {
   resolve: (id: string, data: { action: 'APPROVED' | 'REJECTED'; resolvedNote?: string; creditedAmt?: number }) =>
     api.patch(`/disputes/${id}/resolve`, data),
   getPendingCount: () => api.get('/disputes/pending-count'),
+};
+
+// Missing person posters (HQ, 2026-10-18)
+export const missingApi = {
+  list: () => api.get('/missing-persons'),
+  create: (fd: FormData) => api.post('/missing-persons', fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  update: (id: string, data: Record<string, unknown>) => api.patch(`/missing-persons/${id}`, data),
+  photo: (id: string, fd: FormData) => api.post(`/missing-persons/${id}/photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  confirm: (id: string) => api.post(`/missing-persons/${id}/confirm`, {}),
+  end: (id: string, status: 'FOUND' | 'RESOLVED' | 'REMOVED', note?: string) => api.post(`/missing-persons/${id}/end`, { status, note }),
+  alertPreview: (id: string) => api.get(`/missing-persons/${id}/alert-preview`),
+  alert: (id: string) => api.post(`/missing-persons/${id}/alert`, {}),
+  // customer requests: HQ checks the case with the agency, then posts it (the poster form, photo optional) or declines it with a reason
+  requests: () => api.get('/missing-persons/requests'),
+  approveRequest: (id: string, fd: FormData) => api.post(`/missing-persons/requests/${id}/approve`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  declineRequest: (id: string, reason: string) => api.post(`/missing-persons/requests/${id}/decline`, { reason }),
 };
 
 export const storesApi = {
@@ -388,8 +426,18 @@ export const chatApi = {
   getMyStores: () => api.get('/chat/my-stores'),
   getMessages: (storeId: string, after?: string) =>
     api.get(`/chat/${storeId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
-  sendMessage: (storeId: string, text: string) =>
-    api.post(`/chat/${storeId}/messages`, { text }),
+  // toUserId: a private message to one person at the store (2026-10-23); left out = to everyone
+  sendMessage: (storeId: string, text: string, toUserId?: string) =>
+    api.post(`/chat/${storeId}/messages`, { text, ...(toUserId ? { toUserId } : {}) }),
+  getPeople: (storeId: string) => api.get(`/chat/${storeId}/people`),
+  // a photo or a PDF, with or without text (2026-10-24)
+  sendAttachment: (storeId: string, file: File, text: string, toUserId?: string) => {
+    const fd = new FormData();
+    if (text) fd.append('text', text);
+    if (toUserId) fd.append('toUserId', toUserId);
+    fd.append('file', file);
+    return api.post(`/chat/${storeId}/messages`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
   getUnreadCount: () => api.get('/chat/unread-count'),
   getUnreadCountByStore: () => api.get('/chat/unread-by-store'),
   clearChat: (storeId: string) => api.delete(`/chat/${storeId}/messages`),
@@ -561,8 +609,8 @@ export const hotFoodApi = {
 
 // Hot food combos (HQ, 2026-10-12): an item with a drink the customer chooses, one price; featured ones lead the app's menu
 export type HotFoodComboInput = {
-  name: string; nameEs?: string | null; description?: string | null; catalogItemId: string; drinks: string[]; price: number;
-  regularPrice?: number | null; storeIds: string[]; fromTime?: string | null; toTime?: string | null; isFeatured: boolean; isActive: boolean;
+  name: string; nameEs?: string | null; description?: string | null; catalogItemId: string; itemQuantity: number; drinks: string[]; price: number;
+  regularPrice?: number | null; storeIds: string[]; fromTime?: string | null; toTime?: string | null; days?: number[]; isFeatured: boolean; isActive: boolean;
 };
 export const hotFoodCombosApi = {
   list: () => api.get('/hot-food/combos'),
@@ -577,14 +625,30 @@ export const settingsApi = {
   saveRules: (values: Record<string, number>) => api.put('/settings/rules', { values }),
   saveFeatures: (features: Record<string, boolean>) => api.put('/settings/features', { features }),
   saveBusiness: (data: { supportPhone: string; supportEmail: string; supportHours: string }) => api.put('/settings/business', data),
+  // The joining bonus (2026-10-17): on/off, days, items (an item without a key is new)
+  saveTheme: (data: { preset?: 'NONE' | 'HALLOWEEN' | 'THANKSGIVING' | 'CHRISTMAS' | 'GAME_DAY'; startsOn?: string | null; endsOn?: string | null; intro?: boolean; background?: boolean }) => api.put('/settings/theme', data),
+  saveWelcome: (data: {
+    enabled?: boolean; days?: number; items?: { key?: string; name: string; nameEs: string; emoji: string; active: boolean }[];
+    minSpend?: number; stores?: Record<string, { enabled: boolean; minSpend: number | null; items: string[] | null }>;
+  }) => api.put('/settings/welcome', data),
   history: (limit = 100) => api.get('/settings/history', { params: { limit } }),
+  // What any signed-in screen may read (the numbers HQ set that words on the page repeat)
+  app: () => api.get('/settings/app'),
+  savePointsExpiry: (data: { enabled?: boolean; days?: number; warnDays?: number }) => api.put('/settings/points-expiry', data),
+  pointsExpiryPreview: (days: number) => api.get('/settings/points-expiry/preview', { params: { days } }),
+};
+
+// Store menus grid (2026-10-20): which stores carry which item and what is in stock, read and changed for many at once
+export const hotFoodGridApi = {
+  get: () => api.get('/hot-food/menu-grid'),
+  apply: (changes: { itemId: string; storeId: string; carried?: boolean; available?: boolean }[]) => api.post('/hot-food/menu-grid', { changes }),
 };
 
 export const hotFoodCatalogApi = {
   getAll: () => api.get('/hot-food/catalog'),
   create: (formData: FormData) =>
     api.post('/hot-food/catalog', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  update: (id: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null }>) =>
+  update: (id: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null; category: string | null }>) =>
     api.patch(`/hot-food/catalog/${id}`, data),
   updateImage: (id: string, formData: FormData) =>
     api.patch(`/hot-food/catalog/${id}/image`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
@@ -600,6 +664,65 @@ export const welcomeBonusApi = {
   getStatus:       () => api.get('/welcome-bonus'),
   getForCustomer:  (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`),
   confirm:         (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
+};
+
+// Win-back gifts (2026-10-16, Customers > Win back): a few points with a push for customers who have not been back
+export type WinBackSend = { quietDays: number; storeId: string | null; title: string; titleEs?: string | null; message: string; messageEs?: string | null; amount: number; expectedCount: number };
+export const winBackApi = {
+  preview: (quietDays: number, storeId: string | null) => api.get('/winback/preview', { params: { quietDays, ...(storeId ? { storeId } : {}) } }),
+  list: () => api.get('/winback'),
+  send: (data: WinBackSend) => api.post('/winback', data, { timeout: 120_000 }),
+};
+
+export type GrantLine ={ category: string; amount: number; gasGallons?: number; gasPricePerGallon?: number };
+
+// HQ's Grant & Redeem page (2026-10-15): the cashier's scan screen on the admin site, for an employee with no phone who sends HQ photos of
+// the customer's QR and the receipt. The same server calls as the app; each one names the employee who served (servedById).
+export const counterApi = {
+  findCustomers: (q: string) => api.get('/points/hq/customers', { params: { q } }),
+  storeStaff: (storeId: string) => api.get(`/points/hq/staff/${storeId}`),
+  stores: () => api.get('/stores/gas-prices'),
+  customerInfo: (qrCode: string) => api.get(`/points/customer-info/${encodeURIComponent(qrCode)}`),
+  heldRewards: (qrCode: string) => api.get(`/catalog/pending/${encodeURIComponent(qrCode)}`),
+  welcomeGift: (qrCode: string, storeId?: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`, { params: { offer: 1, ...(storeId ? { storeId } : {}) } }),
+  rewards: () => api.get('/catalog'),
+  preview: (customerQrCode: string, storeId: string, lines: { category: string; amount: number; gasGallons?: number }[]) =>
+    api.post('/points/preview', { customerQrCode, storeId, lines }),
+  // One line of the sale; siblingIds = the lines of this sale already created, so this one is not taken for a duplicate
+  grant: (customerQrCode: string, storeId: string, servedById: string, line: GrantLine, siblingIds: string[]) =>
+    api.post('/points/grant', {
+      customerQrCode, storeId, servedById, siblingIds, purchaseAmount: line.amount, category: line.category,
+      ...(line.gasGallons ? { isGas: true, gasGallons: line.gasGallons, ...(line.gasPricePerGallon ? { gasPricePerGallon: line.gasPricePerGallon } : {}) } : {}),
+    }),
+  // file null = HQ enters the sale without a receipt photo (2026-10-20): the server credits it and the Activity Log says so
+  uploadReceipt: (transactionId: string, file: File | null) => {
+    if (!file) return api.post(`/points/grant/${transactionId}/receipt`, { noReceipt: true });
+    const fd = new FormData();
+    fd.append('receipt', file);
+    return api.post(`/points/grant/${transactionId}/receipt`, fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60_000 });
+  },
+  // Receipt auto-fill (2026-10-16): a smaller copy for the reader, the original photo's fingerprint for the "already used" checks
+  readReceipt: (image: Blob, customerQrCode: string, storeId: string, originalHash: string) => {
+    const fd = new FormData();
+    fd.append('image', image, 'receipt.jpg');
+    fd.append('customerQrCode', customerQrCode);
+    fd.append('storeId', storeId);
+    fd.append('originalHash', originalHash);
+    return api.post('/points/hq/receipt-read', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 75_000 });
+  },
+  linkReceipt: (readId: string, transactionIds: string[]) => api.post(`/points/hq/receipt-read/${readId}/link`, { transactionIds }),
+  redeem: (customerQrCode: string, storeId: string, servedById: string, amount: number) =>
+    api.post('/points/redeem', { customerQrCode, storeId, servedById, amount }),
+  tierBenefit: (customerQrCode: string, storeId: string, servedById: string) =>
+    api.post('/points/tier-benefit', { customerQrCode, storeId, servedById }),
+  catalogRedeem: (customerQrCode: string, storeId: string, servedById: string, catalogItemId: string) =>
+    api.post('/points/catalog-redeem', { customerQrCode, storeId, servedById, catalogItemId }),
+  confirmHeld: (redemptionId: string, storeId: string, servedById: string) =>
+    api.post(`/catalog/redeem/${redemptionId}/confirm`, { storeId, servedById }),
+  confirmWelcome: (claimCode: string, storeId: string, servedById: string) =>
+    api.post('/welcome-bonus/confirm', { claimCode, storeId, servedById }),
+  giveWelcome: (qrCode: string, rewardType: string, storeId: string, servedById: string) =>
+    api.post('/welcome-bonus/give', { qrCode, rewardType, storeId, servedById }),
 };
 
 export const dailyReportApi = {

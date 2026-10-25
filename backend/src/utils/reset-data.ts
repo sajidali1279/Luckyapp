@@ -41,6 +41,7 @@ async function reset() {
   const billing = await prisma.billingRecord.deleteMany();
   console.log(`  ✅ Deleted ${billing.count} billing records`);
 
+  await prisma.pointLot.deleteMany({ where: { user: { role: 'CUSTOMER' } } });
   const reset = await prisma.user.updateMany({
     where: { role: 'CUSTOMER' },
     data: { pointsBalance: 0 },

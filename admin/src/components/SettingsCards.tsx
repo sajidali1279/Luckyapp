@@ -9,14 +9,22 @@ import { storeDay, storeTime } from '../lib/storeDates';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { Button, Card, Badge, EmptyState, Field, Notice, Chip } from './kit';
 import ConfirmModal from './ConfirmModal';
+import { useUnsaved } from '../lib/unsaved';
 
-export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'staff';
-type Rule = { key: string; group: RuleGroup; label: string; help: string; unit: string; def: number; min: number; max: number; int: boolean; value: number };
+export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'perks' | 'care' | 'staff';
+type Rule = { key: string; group: RuleGroup; label: string; help: string; unit: string; def: number; min: number; max: number; int: boolean; value: number; section?: string };
 type Feature = { key: string; label: string; help: string; on: boolean };
 type HistoryRow = { id: string; area: string; action: string; by: string; at: string; summary: string; keys: string[] };
 
 export function useSettings() {
   return useQuery({ queryKey: ['settings'], queryFn: () => settingsApi.get(), staleTime: 30_000 });
+}
+/** The numbers HQ set that a page's words repeat (GET /settings/app, any signed-in user): today's defaults until it loads or on an older
+ *  server, so a sentence never shows an empty number. */
+export const LIMIT_DEFAULTS = { refillSilverPerPeriod: 7, refillDailyPerDay: 1, rewardHoldMinutes: 30, productRequestDays: 7, referralLateDays: 7, disputeMaxDays: 60, audienceRecentMonths: 6, goodwillCreditMax: 25, disputeCreditMax: 50 };
+export function useLimits(): typeof LIMIT_DEFAULTS {
+  const q = useQuery({ queryKey: ['settings-app'], queryFn: () => settingsApi.app(), staleTime: 5 * 60_000 });
+  return { ...LIMIT_DEFAULTS, ...(q.data?.data?.data?.limits ?? {}) };
 }
 export function useSettingsHistory() {
   return useQuery({ queryKey: ['settings-history'], queryFn: () => settingsApi.history(100), staleTime: 30_000 });
@@ -35,17 +43,22 @@ export function LastChanged({ actions, keys }: { actions: string[]; keys?: strin
   );
 }
 
-// "1 minute", "2 minutes"
-const fmt = (r: Rule, v: number) => (r.unit === '$' ? `$${v.toFixed(2)}` : `${v} ${v === 1 && r.unit.endsWith('s') ? r.unit.slice(0, -1) : r.unit}`);
+// "1 minute", "2 minutes", "$20,000", "$2.50"
+const money = (v: number) => `$${v.toLocaleString('en-US', { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })}`;
+export const fmtRule = (r: Pick<Rule, 'unit'>, v: number) => (r.unit === '$' ? money(v) : `${v.toLocaleString('en-US')} ${v === 1 && r.unit.endsWith('s') ? r.unit.slice(0, -1) : r.unit}`);
+const fmt = fmtRule;
 
-/** One group of rules: a field each, with its range and default, Save sends only what changed. */
+/** One group of rules: a field each, with its default and range, Save sends only what changed. A long group is split under headings
+ *  (the rule's section), a changed field is marked with what it was, and unsaved edits are reported to the page (lib/unsaved). */
 export function RulesCard({ group, title, intro }: { group: RuleGroup; title: string; intro?: string }) {
   const qc = useQueryClient();
   const q = useSettings();
   const rules: Rule[] = useMemo(() => (Array.isArray(q.data?.data?.data?.rules) ? q.data!.data.data.rules : []).filter((r: Rule) => r.group === group), [q.data, group]);
   const [form, setForm] = useState<Record<string, string>>({});
   useEffect(() => { setForm(Object.fromEntries(rules.map((r) => [r.key, String(r.value)]))); }, [rules]);
+  const edited = (r: Rule) => form[r.key] !== undefined && form[r.key].trim() !== String(r.value);
   const changed = rules.filter((r) => form[r.key] !== undefined && form[r.key].trim() !== '' && Number(form[r.key]) !== r.value);
+  useUnsaved(`rules-${group}`, rules.some(edited));
   const wrong = rules.find((r) => {
     const v = form[r.key];
     if (v === undefined) return false;
@@ -57,6 +70,35 @@ export function RulesCard({ group, title, intro }: { group: RuleGroup; title: st
     onSuccess: () => { toast.success('Saved. It applies within a minute everywhere.'); qc.invalidateQueries({ queryKey: ['settings'] }); qc.invalidateQueries({ queryKey: ['settings-history'] }); },
     onError: (e) => toast.error(serverMessage(e, 'Could not save.')),
   });
+  const sections = [...new Set(rules.map((r) => r.section ?? ''))];
+
+  const field = (r: Rule) => {
+    const id = `rule-${r.key}`;
+    const n = Number(form[r.key]);
+    const isEdited = edited(r);
+    const atDefault = n === r.def;
+    return (
+      <Field key={r.key} label={<span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>{r.label}
+          {!isEdited && r.value !== r.def && <Badge tone="info" title={`The default is ${fmt(r, r.def)}`}>Changed from default</Badge>}
+          {isEdited && <Badge tone="warning">Not saved · was {fmt(r, r.value)}</Badge>}</span>}
+        htmlFor={id}
+        hint={<>{r.help}<br /><span style={{ color: C.text2 }}>Default {fmt(r, r.def)} · allowed {fmt(r, r.min)} to {fmt(r, r.max)}</span></>}>
+        <div id={`${id}-row`} data-setting={r.key} style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 8 }}>
+          {r.unit === '$' && <span style={{ color: TEXT_MUTED }}>$</span>}
+          <input id={id} style={{ ...INPUT, maxWidth: 140, ...(isEdited ? { borderColor: C.warning ?? '#b45309', boxShadow: '0 0 0 2px #fde68a' } : {}) }}
+            inputMode={r.int ? 'numeric' : 'decimal'} value={form[r.key] ?? ''}
+            onChange={(e) => setForm((f) => ({ ...f, [r.key]: e.target.value.replace(/[^0-9.]/g, '') }))} />
+          {r.unit !== '$' && <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}>{r.unit}</span>}
+          {!atDefault && (
+            <button type="button" onClick={() => setForm((f) => ({ ...f, [r.key]: String(r.def) }))}
+              style={{ background: 'none', border: 'none', color: C.primary, fontSize: FONT.small, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+              Use the default ({fmt(r, r.def)})
+            </button>
+          )}
+        </div>
+      </Field>
+    );
+  };
 
   return (
     <Card padding={18}>
@@ -64,33 +106,22 @@ export function RulesCard({ group, title, intro }: { group: RuleGroup; title: st
       {intro && <p style={{ fontSize: FONT.small, color: TEXT_MUTED, margin: '0 0 12px', lineHeight: 1.5 }}>{intro}</p>}
       {q.isLoading ? <div style={{ color: TEXT_MUTED }}>Loading…</div> : q.isError ? <Notice tone="danger">Could not load the settings.</Notice> : (
         <>
-          <div style={{ display: 'grid', gap: 14 }}>
-            {rules.map((r) => {
-              const id = `rule-${r.key}`;
-              const isDefault = Number(form[r.key]) === r.def;
-              return (
-                <Field key={r.key} label={r.label} htmlFor={id} hint={`${r.help} From ${fmt(r, r.min)} to ${fmt(r, r.max)}${isDefault ? ' (the default).' : `; the default is ${fmt(r, r.def)}.`}`}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {r.unit === '$' && <span style={{ color: TEXT_MUTED }}>$</span>}
-                    <input id={id} style={{ ...INPUT, maxWidth: 140 }} inputMode={r.int ? 'numeric' : 'decimal'} value={form[r.key] ?? ''}
-                      onChange={(e) => setForm((f) => ({ ...f, [r.key]: e.target.value.replace(/[^0-9.]/g, '') }))} />
-                    {r.unit !== '$' && <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}>{r.unit}</span>}
-                    {!isDefault && (
-                      <button type="button" onClick={() => setForm((f) => ({ ...f, [r.key]: String(r.def) }))}
-                        style={{ background: 'none', border: 'none', color: C.primary, fontSize: FONT.small, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-                        Use the default
-                      </button>
-                    )}
-                  </div>
-                </Field>
-              );
-            })}
+          <div style={{ display: 'grid', gap: 18 }}>
+            {sections.map((sec) => (
+              <div key={sec || 'all'} style={{ display: 'grid', gap: 14 }}>
+                {sec && sections.length > 1 && (
+                  <div style={{ fontSize: FONT.caption, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: C.muted, borderBottom: `1px solid ${C.border}`, paddingBottom: 6 }}>{sec}</div>
+                )}
+                {rules.filter((r) => (r.section ?? '') === sec).map(field)}
+              </div>
+            ))}
           </div>
           {wrong && <div role="alert" style={{ fontSize: FONT.small, color: C.danger, marginTop: 10 }}>"{wrong.label}" must be {wrong.int ? 'a whole number ' : ''}from {fmt(wrong, wrong.min)} to {fmt(wrong, wrong.max)}.</div>}
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <Button variant="primary" disabled={changed.length === 0 || !!wrong || save.isPending} onClick={() => save.mutate()}>
               {save.isPending ? 'Saving…' : changed.length > 1 ? `Save ${changed.length} changes` : 'Save'}
             </Button>
+            {rules.some(edited) && <Button variant="secondary" disabled={save.isPending} onClick={() => setForm(Object.fromEntries(rules.map((r) => [r.key, String(r.value)])))}>Undo changes</Button>}
           </div>
           <LastChanged actions={['SETTINGS_RULES_UPDATE']} keys={rules.map((r) => r.key)} />
         </>
@@ -117,7 +148,7 @@ export function FeaturesCard() {
       {q.isLoading ? <div style={{ color: TEXT_MUTED }}>Loading…</div> : q.isError ? <Notice tone="danger">Could not load the switches.</Notice> : (
         <div style={{ display: 'grid', gap: 10 }}>
           {features.map((f) => (
-            <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, flexWrap: 'wrap' }}>
+            <div key={f.key} id={`feature-${f.key}-row`} data-setting={f.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: `1px solid ${C.border}`, borderRadius: 8, flexWrap: 'wrap' }}>
               <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <strong style={{ color: C.text }}>{f.label}</strong>
@@ -155,6 +186,7 @@ export function BusinessCard() {
   const [f, setF] = useState({ supportPhone: '', supportEmail: '', supportHours: '' });
   useEffect(() => { if (saved) setF(saved); }, [q.data]);   // eslint-disable-line react-hooks/exhaustive-deps
   const changed = !!saved && (f.supportPhone !== saved.supportPhone || f.supportEmail !== saved.supportEmail || f.supportHours !== saved.supportHours);
+  useUnsaved('business', changed);
   const save = useMutation({
     mutationFn: () => settingsApi.saveBusiness(f),
     onSuccess: () => { toast.success('Saved. The app shows it on its Help screen.'); qc.invalidateQueries({ queryKey: ['settings'] }); qc.invalidateQueries({ queryKey: ['settings-history'] }); },
@@ -162,7 +194,7 @@ export function BusinessCard() {
   });
   return (
     <Card padding={18}>
-      <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text, marginBottom: 4 }}>Contact details in the app</div>
+      <div id="business-row" data-setting="business" style={{ fontSize: FONT.section, fontWeight: 700, color: C.text, marginBottom: 4 }}>Contact details in the app</div>
       <p style={{ fontSize: FONT.small, color: TEXT_MUTED, margin: '0 0 12px' }}>Shown to customers on the app's Help screen, with a button to call or email. Leave a line empty to hide it.</p>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         <Field label="Support phone" htmlFor="b-phone"><input id="b-phone" style={INPUT} inputMode="tel" placeholder="(281) 555-0100" value={f.supportPhone} maxLength={30} onChange={(e) => setF((p) => ({ ...p, supportPhone: e.target.value }))} /></Field>
@@ -171,6 +203,7 @@ export function BusinessCard() {
       </div>
       <div style={{ marginTop: 14 }}>
         <Button variant="primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
+        {changed && <Button variant="secondary" style={{ marginLeft: 10 }} disabled={save.isPending} onClick={() => saved && setF(saved)}>Undo changes</Button>}
       </div>
       <LastChanged actions={['SETTINGS_BUSINESS_UPDATE']} />
     </Card>

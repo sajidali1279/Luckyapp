@@ -12,6 +12,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import HotFoodHoursModal, { hotFoodNowText, HotFoodNow } from '../components/HotFoodHoursModal';
 import HotFoodImportModal from '../components/HotFoodImportModal';
 import HotFoodCombosPanel from '../components/HotFoodCombosPanel';
+import HotFoodMenuGrid from '../components/HotFoodMenuGrid';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
@@ -20,7 +21,7 @@ import Glyph from '../components/Glyph';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MainView   = 'orders' | 'catalog' | 'combos' | 'availability';
+type MainView   = 'orders' | 'catalog' | 'menus' | 'combos' | 'availability';
 type OrderTab   = 'PENDING' | 'ACCEPTED' | 'READY' | 'ALL';
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -34,8 +35,11 @@ interface FoodOrder  {
 }
 interface CatalogItem {
   id: string; name: string; description?: string;
-  price: number; imageUrl?: string; estimatedMinutes?: number; storeCount: number;
+  price: number; imageUrl?: string; estimatedMinutes?: number; storeCount: number; category?: string | null;
 }
+
+// The suggested categories, in the order the app's menu shows them (backend utils/hotFoodCategories.ts); HQ can type its own
+export const HOT_FOOD_CATEGORIES = ['Chicken', 'Tenders', 'Wings', 'Seafood', 'Sandwiches', 'Family Meals', 'Sides', 'Breakfast', 'Snacks', 'Desserts', 'Drinks'];
 interface Store { id: string; name: string; city?: string; hotFoodEnabled?: boolean }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -188,6 +192,7 @@ function AddEditModal({ item, onClose, onSaved }: {
   const [desc,    setDesc]    = useState(item?.description ?? '');
   const [price,   setPrice]   = useState(item ? String(item.price) : '');
   const [estMins, setEstMins] = useState(item?.estimatedMinutes ? String(item.estimatedMinutes) : '');
+  const [category, setCategory] = useState(item?.category ?? '');
   const [imgFile, setImgFile] = useState<File | null>(null);
   const [imgPreview, setImgPreview] = useState<string | null>(item?.imageUrl ?? null);
   const [saving,  setSaving]  = useState(false);
@@ -213,7 +218,7 @@ function AddEditModal({ item, onClose, onSaved }: {
       const estimatedMinutes = estMins ? parseInt(estMins, 10) : null;
 
       if (item) {
-        await hotFoodCatalogApi.update(item.id, { name: finalName, description, price: parsedPrice, estimatedMinutes });
+        await hotFoodCatalogApi.update(item.id, { name: finalName, description, price: parsedPrice, estimatedMinutes, category: category.trim() || null });
         if (imgFile) {
           const fd = new FormData();
           fd.append('image', imgFile);
@@ -226,14 +231,15 @@ function AddEditModal({ item, onClose, onSaved }: {
         fd.append('price', String(parsedPrice));
         if (description) fd.append('description', description);
         if (estimatedMinutes) fd.append('estimatedMinutes', String(estimatedMinutes));
+        if (category.trim()) fd.append('category', category.trim());
         if (imgFile) fd.append('image', imgFile);
         await hotFoodCatalogApi.create(fd);
         toast.success('Item added to catalog');
       }
       onSaved();
       onClose();
-    } catch {
-      toast.error('Failed to save item');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Failed to save item'));
     } finally {
       setSaving(false);
     }
@@ -267,11 +273,16 @@ function AddEditModal({ item, onClose, onSaved }: {
           </div>
           <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
 
-          <label style={f.label}>Item Name *</label>
-          <input style={f.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Corn Dog" autoCapitalize="words" />
+          <label style={f.label} htmlFor="hf-name">Item Name *</label>
+          <input id="hf-name" style={f.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Corn Dog" autoCapitalize="words" />
 
-          <label style={f.label}>Description</label>
-          <textarea style={{ ...f.input, minHeight: 60, resize: 'vertical' }} value={desc}
+          <label style={f.label} htmlFor="hf-category">Category</label>
+          <input id="hf-category" style={f.input} list="hf-categories" value={category} maxLength={40} onChange={e => setCategory(e.target.value)} placeholder="e.g. Wings, Sides, Family Meals" />
+          <datalist id="hf-categories">{HOT_FOOD_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
+          <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: -6, marginBottom: 10 }}>The app's menu is grouped by it. Pick one or type your own.</div>
+
+          <label style={f.label} htmlFor="hf-desc">Description</label>
+          <textarea id="hf-desc" style={{ ...f.input, minHeight: 60, resize: 'vertical' }} value={desc}
             onChange={e => setDesc(e.target.value)} placeholder="Brief description (optional)" />
 
           <div style={{ display: 'flex', gap: 12 }}>
@@ -353,8 +364,8 @@ function AssignModal({ item, stores, onClose, onEdit }: {
       const n = localSelected.size;
       toast.success(`Assigned to ${n} store${n !== 1 ? 's' : ''}`);
       onClose();
-    } catch {
-      toast.error('Could not save store assignments');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Could not save store assignments'));
     } finally {
       setSaving(false);
     }
@@ -366,8 +377,8 @@ function AssignModal({ item, stores, onClose, onEdit }: {
       qc.invalidateQueries({ queryKey: ['hot-food-catalog'] });
       toast.success('Item removed from catalog');
       onClose();
-    } catch {
-      toast.error('Could not delete item');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Could not delete item'));
     }
   }
 
@@ -506,8 +517,8 @@ export default function HotFood() {
       qc.invalidateQueries({ queryKey: ['stores'] });
       qc.invalidateQueries({ queryKey: ['hot-food-stores-status'] });
       toast.success(store.hotFoodEnabled ? `Hot food disabled at ${store.name}` : `Hot food enabled at ${store.name}`);
-    } catch {
-      toast.error('Failed to update hot food setting');
+    } catch (e) {
+      toast.error(serverMessage(e, 'Failed to update hot food setting'));
     } finally {
       setTogglingHotFood(null);
     }
@@ -562,11 +573,15 @@ export default function HotFood() {
   });
   const catalogItems: CatalogItem[] = catalogData?.data?.data ?? [];
 
+  const [catFilter, setCatFilter] = useState('');
+  const catalogCategories = useMemo(() => {
+    const set = new Set(catalogItems.map((i) => i.category).filter(Boolean) as string[]);
+    return [...HOT_FOOD_CATEGORIES.filter((c) => set.has(c)), ...[...set].filter((c) => !HOT_FOOD_CATEGORIES.includes(c)).sort()];
+  }, [catalogItems]);
   const filteredCatalog = useMemo(() => {
-    if (!search.trim()) return catalogItems;
     const q = search.trim().toLowerCase();
-    return catalogItems.filter(i => i.name.toLowerCase().includes(q));
-  }, [catalogItems, search]);
+    return catalogItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!catFilter || (catFilter === '-' ? !i.category : i.category === catFilter)));
+  }, [catalogItems, search, catFilter]);
 
   const pendingCount = orderCounts.PENDING;
 
@@ -612,8 +627,9 @@ export default function HotFood() {
         tabs={[
           { value: 'orders', label: 'Orders', count: pendingCount > 0 ? pendingCount : undefined },
           { value: 'catalog', label: 'Catalog' },
+          { value: 'menus', label: 'Store menus' },
           { value: 'combos', label: 'Combos' },
-          { value: 'availability', label: 'Availability' },
+          { value: 'availability', label: 'Stores and hours' },
         ]}
       />
 
@@ -688,6 +704,16 @@ export default function HotFood() {
               Refresh
             </button>
           </div>
+          {catalogItems.length > 0 && (
+            <div role="group" aria-label="Category" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+              {[['', 'All'], ...catalogCategories.map((c) => [c, c]), ...(catalogItems.some((i) => !i.category) ? [['-', 'No category']] : [])].map(([v, label]) => (
+                <button key={v || 'all'} type="button" aria-pressed={catFilter === v} onClick={() => setCatFilter(v)}
+                  style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${catFilter === v ? '#1d3557' : '#d5dae1'}`, background: catFilter === v ? '#1d3557' : '#fff', color: catFilter === v ? '#fff' : '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  {label}{v !== '' && ` (${v === '-' ? catalogItems.filter((i) => !i.category).length : catalogItems.filter((i) => i.category === v).length})`}
+                </button>
+              ))}
+            </div>
+          )}
 
           {catalogError ? (
             <ErrorState onRetry={refetchCatalog} />
@@ -722,6 +748,9 @@ export default function HotFood() {
                       </div>
                     )}
                     <div style={pg.tileBody}>
+                      {item.category
+                        ? <div style={{ fontSize: 11, fontWeight: 700, color: '#3c6e8f', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}>{item.category}</div>
+                        : <div style={{ fontSize: 11, fontWeight: 600, color: '#8a5300', marginBottom: 2 }}>No category</div>}
                       <div style={pg.tileName}>{item.name}</div>
                       <div style={pg.tileBottom}>
                         <span style={pg.tilePrice}>${Number(item.price).toFixed(2)}</span>
@@ -742,6 +771,8 @@ export default function HotFood() {
       )}
 
       {/* ── Availability view ───────────────────────────────────────────── */}
+      {view === 'menus' && <HotFoodMenuGrid />}
+
       {view === 'combos' && <HotFoodCombosPanel catalog={catalogItems} stores={stores} />}
 
       {view === 'availability' && (

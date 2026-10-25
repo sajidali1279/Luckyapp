@@ -39,7 +39,7 @@ const LABELS: { key: keyof Footprint; one: string; many: string }[] = [
 /** How much each kind of record points at this staff member (a customer's history is handled by anonymizing, not counted here). */
 export async function staffFootprint(db: Db, userId: string): Promise<Footprint> {
   const [sales, credit, catalog, ratings, dailyReports, itemRequests, orderLists, orderItems, printJobs, notices, jobOpenings] = await Promise.all([
-    db.pointsTransaction.count({ where: { grantedById: userId } }),
+    db.pointsTransaction.count({ where: { OR: [{ grantedById: userId }, { servedById: userId }] } }),
     db.creditRedemption.count({ where: { processedBy: userId } }),
     db.catalogRedemption.count({ where: { processedById: userId } }),
     db.employeeRating.count({ where: { employeeId: userId } }),

@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  StatusBar,
   Modal,
   Alert,
   Platform,
@@ -31,6 +30,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ErrorState from '../../components/ErrorState';
 import TodayCheckInCard from '../../components/TodayCheckInCard';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 // This file indexes SHIFT_COLORS/SHIFT_LABELS/SHIFT_TIMES with untyped
 // strings from API responses, so all three are re-typed loosely here rather
@@ -185,7 +185,7 @@ export default function ScheduleScreen() {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
       <LargeTitleHeader

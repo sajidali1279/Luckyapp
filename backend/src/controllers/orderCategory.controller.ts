@@ -1,5 +1,7 @@
 import { Response } from 'express';
 import { z } from 'zod';
+import { audit } from '../utils/audit';
+
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 
@@ -110,11 +112,13 @@ export async function adminUpdateCategory(req: AuthRequest, res: Response) {
     where: { id },
     include: { approvedBy: { select: { id: true, name: true } } },
   });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'ORDER_CATEGORY_UPDATED', entity: 'order_category', entityId: id, details: { name: cat.name, changed: Object.keys(parsed.data), ...(newName && newName !== cat.name ? { renamedTo: newName } : {}), ...(parsed.data.status && parsed.data.status !== cat.status ? { status: { was: cat.status, now: parsed.data.status } } : {}) } });
   res.json({ success: true, data: updated });
 }
 
 export async function adminDeleteCategory(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  await prisma.orderCategory.delete({ where: { id } }).catch(() => {});
+  const gone = await prisma.orderCategory.delete({ where: { id } }).catch(() => null);
+  if (gone) audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'ORDER_CATEGORY_DELETED', entity: 'order_category', entityId: id, details: { name: gone.name } });
   res.json({ success: true });
 }

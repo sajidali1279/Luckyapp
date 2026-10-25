@@ -12,13 +12,18 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { showPhone } from '../lib/phoneText';
 import { storeDayLong, storeDayTime, storeToday } from '../lib/storeDates';
+import { useLimits } from '../components/SettingsCards';
 import { useSingleFlight } from '../hooks/useSingleFlight';
 import { PageHeader, HeaderStat, Button, Tabs } from '../components/kit';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
 import ReferralsPanel from '../components/ReferralsPanel';
+import WinBackPanel from '../components/WinBackPanel';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { readSetting, writeSetting } from './dashboard/shared';
 
 function fmt$(n: number) {
+  if (!Number.isFinite(Number(n))) n = 0;   // never $NaN
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -32,13 +37,12 @@ const GREEN_TEXT = '#17663a';
 const RED_TEXT = '#a51b28';
 const AMBER_TEXT = '#8a5300';
 
-const CREDIT_MAX = 50;
 /** The problem with an amount typed as a credit, or null when it is a good one (or still empty). Mirrors the server's rule. */
-function creditProblem(text: string): string | null {
+function creditProblem(text: string, max: number): string | null {
   const t = text.trim();
   if (t === '') return null;
-  if (!/^(\d{1,3}(\.\d{1,2})?|\.\d{1,2})$/.test(t) || !(Number(t) > 0)) return `Enter dollars and cents, from $0.01 to $${CREDIT_MAX}.`;
-  if (Number(t) > CREDIT_MAX) return `The most one report can credit is $${CREDIT_MAX}.`;
+  if (!/^(\d{1,3}(\.\d{1,2})?|\.\d{1,2})$/.test(t) || !(Number(t) > 0)) return `Enter dollars and cents, from $0.01 to $${max}.`;
+  if (Number(t) > max) return `The most one report can credit is $${max}.`;
   return null;
 }
 
@@ -60,8 +64,8 @@ export default function Customers() {
   const [deleteTyped, setDeleteTyped] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [fraudNote, setFraudNote] = useState('');
-  const [activeTab, setActiveTab] = useState<'customers' | 'disputes' | 'referrals'>(
-    searchParams.get('tab') === 'disputes' ? 'disputes' : searchParams.get('tab') === 'referrals' ? 'referrals' : 'customers'
+  const [activeTab, setActiveTab] = useState<'customers' | 'disputes' | 'referrals' | 'winback'>(
+    searchParams.get('tab') === 'disputes' ? 'disputes' : searchParams.get('tab') === 'referrals' ? 'referrals' : searchParams.get('tab') === 'winback' ? 'winback' : 'customers'
   );
   const highlightId = searchParams.get('highlightId');
   const [disputeStore, setDisputeStore] = useState('');
@@ -71,6 +75,8 @@ export default function Customers() {
   const [creditAmt, setCreditAmt] = useState('');
   const [resolveError, setResolveError] = useState('');
   const [exportingCustomers, setExportingCustomers] = useState(false);
+  // A compact list (the default, 1,800+ customers) or the cards; remembered in this browser (2026-10-12)
+  const [view, setView] = useState<'list' | 'cards'>(() => readSetting('customers-view', ['list', 'cards'] as const, 'list'));
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [filters, setFilters] = useState<CustomerFilters>({ sort: 'joined_desc' });
   const activeFilterCount = [filters.status, filters.hasBalance, filters.hasNote, filters.joinedWithin, filters.hideTest].filter(Boolean).length;
@@ -209,7 +215,8 @@ export default function Customers() {
     return () => clearTimeout(timer);
   }, [highlightId, disputes, customers]);
 
-  const creditIssue = creditProblem(creditAmt);
+  const limits = useLimits();   // HQ's credit limit (Settings), not a number fixed here
+  const creditIssue = creditProblem(creditAmt, limits.disputeCreditMax);
   const creditNumber = Number(creditAmt);
   const creditOk = creditAmt.trim() !== '' && creditIssue === null;
   const lastFour = deleteTarget ? deleteTarget.phone.replace(/\D/g, '').slice(-4) : '';
@@ -242,8 +249,10 @@ export default function Customers() {
           { value: 'customers', label: 'Customers' },
           { value: 'disputes', label: 'Disputes', count: pendingCount > 0 ? pendingCount : undefined },
           { value: 'referrals', label: 'Referrals' },
+          ...(isSuperAdmin ? [{ value: 'winback' as const, label: 'Win back' }] : []),
         ]}
       />
+      {activeTab === 'winback' && isSuperAdmin && <div role="tabpanel" aria-label="Win back" className="ui-soft-in"><WinBackPanel /></div>}
       {activeTab === 'referrals' && <div role="tabpanel" aria-label="Referrals"><ReferralsPanel /></div>}
       {/* ── Disputes tab ── */}
       {activeTab === 'disputes' && (
@@ -324,6 +333,14 @@ export default function Customers() {
           <option value="spend_desc">Highest spend</option>
           <option value="balance_desc">Highest balance</option>
         </select>
+        <div role="group" aria-label="Show customers as" style={{ display: 'flex', gap: 4 }}>
+          {(['list', 'cards'] as const).map((v) => (
+            <button key={v} type="button" aria-pressed={view === v} onClick={() => { setView(v); writeSetting('customers-view', v); }}
+              style={{ ...s.filterSelect, cursor: 'pointer', fontWeight: 600, background: view === v ? '#1d3557' : '#fff', color: view === v ? '#fff' : '#374151' }}>
+              {v === 'list' ? 'List' : 'Cards'}
+            </button>
+          ))}
+        </div>
         <button type="button" style={{ ...s.moreFiltersBtn, ...(activeFilterCount > 0 ? s.moreFiltersBtnActive : {}) }} aria-expanded={showMoreFilters} onClick={() => setShowMoreFilters((v) => !v)}>
           {showMoreFilters ? '▲' : '▼'} Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
         </button>
@@ -383,6 +400,54 @@ export default function Customers() {
         </div>
       ) : (
         <>
+          {view === 'list' ? (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', overflowX: 'auto', marginBottom: 16 }}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {['Customer', 'Balance', 'Sales', 'Spent', 'Joined', 'Actions'].map((h) => <TableHead key={h} style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4, color: '#5a6472' }}>{h === 'Actions' ? <span className="sr-only">Actions</span> : h}</TableHead>)}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customers.map((c: any) => {
+                    const displayName = c.name || showPhone(c.phone);
+                    const balance = Number(c.pointsBalance || 0);
+                    return (
+                      <TableRow key={c.id} className={c.id === highlightId ? 'ls-highlight-pulse' : undefined} style={c.isActive ? undefined : { background: '#fdf2f2' }}>
+                        <TableCell>
+                          <button type="button" onClick={() => navigate(`/customers/${c.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+                            aria-label={`Open ${displayName}'s profile`}>
+                            <div style={{ fontWeight: 600, color: '#111827' }}>{c.name || <span style={{ color: TEXT_MUTED, fontStyle: 'italic' }}>No name</span>}{c.isTest && <span style={s.testBadge}>TEST</span>}</div>
+                            <div style={{ fontSize: 13, color: TEXT_MUTED }}>{showPhone(c.phone)}</div>
+                          </button>
+                          {!c.isActive && <div style={{ fontSize: 12, color: '#a51b28', fontWeight: 600 }}>Restricted{c.fraudNote ? `: ${c.fraudNote}` : ''}</div>}
+                        </TableCell>
+                        <TableCell style={{ fontWeight: 700, color: balance > 0 ? GREEN_TEXT : TEXT_MUTED }}>{fmt$(balance)}</TableCell>
+                        <TableCell>{c.txCount ?? 0}</TableCell>
+                        <TableCell>{fmt$(c.totalSpent ?? 0)}</TableCell>
+                        <TableCell style={{ whiteSpace: 'nowrap' }}>{storeDayLong(c.createdAt)}</TableCell>
+                        <TableCell style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <button type="button" style={{ ...s.actionBtn, ...s.actionBtnView, width: 'auto', display: 'inline-block', padding: '6px 12px', margin: 0 }} onClick={() => navigate(`/customers/${c.id}`)}>View</button>
+                          <button type="button" style={{ background: 'none', border: 'none', color: c.isActive ? '#a51b28' : '#17663a', fontWeight: 600, fontSize: 13, cursor: 'pointer', marginLeft: 8 }}
+                            aria-label={`${c.isActive ? 'Restrict' : 'Restore'} ${displayName}'s account`} disabled={toggleMutation.isPending}
+                            onClick={() => { setRestrictTarget({ id: c.id, name: displayName, isActive: c.isActive }); setFraudNote(''); setRestrictError(''); }}>
+                            {c.isActive ? 'Restrict' : 'Restore'}
+                          </button>
+                          {isDevAdmin && (
+                            <button type="button" style={{ background: 'none', border: 'none', color: '#a51b28', fontWeight: 600, fontSize: 13, cursor: 'pointer', marginLeft: 8 }}
+                              aria-label={`Delete ${displayName}'s account`}
+                              onClick={() => { setDeleteTarget({ id: c.id, name: displayName, phone: c.phone }); setDeleteTyped(''); setDeleteError(''); }}>
+                              Delete
+                            </button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
           <div style={s.cardGrid}>
             {customers.map((c: any) => {
               const displayName = c.name || showPhone(c.phone);
@@ -462,6 +527,7 @@ export default function Customers() {
               );
             })}
           </div>
+          )}
 
           {/* Pagination */}
           <DataTablePagination
@@ -575,7 +641,7 @@ export default function Customers() {
           </div>
           <form style={s.modalForm} onSubmit={(e) => e.preventDefault()} noValidate>
             <div>
-              <label style={s.fieldLabel} htmlFor="dispute-credit">Credit to award, from $0.01 to ${CREDIT_MAX} (needed to approve)</label>
+              <label style={s.fieldLabel} htmlFor="dispute-credit">Credit to award, from $0.01 to ${limits.disputeCreditMax} (needed to approve)</label>
               <input
                 id="dispute-credit"
                 style={s.fieldInput}

@@ -25,6 +25,7 @@ import { usePullRefresh } from '../../hooks/usePullRefresh';
 import PulseHighlight from '../../components/PulseHighlight';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 const STATUS_CONFIG = {
   PENDING:  { labelKey: 'customerRequestProduct.statusPending',  color: COLORS.statusPendingText,  bg: COLORS.statusPendingBg,  border: COLORS.statusPendingBorder,  dot: COLORS.statusPendingDot },
@@ -68,6 +69,7 @@ interface ProductRequest {
 }
 
 export default function RequestProductScreen() {
+  const appLimits = useAppSettings().limits;   // HQ's days (Settings > Customer care)
   const { t } = useTranslation();
   const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
@@ -214,7 +216,7 @@ export default function RequestProductScreen() {
                 </View>
                 <Text style={styles.successTitle}>{t('customerRequestProduct.successTitle')}</Text>
                 <Text style={styles.successSub}>
-                  {t('customerRequestProduct.successSub')}
+                  {t('customerRequestProduct.successSub', { days: appLimits.productRequestDays })}
                 </Text>
                 <TouchableOpacity
                   style={styles.doneBtn}
@@ -294,7 +296,7 @@ export default function RequestProductScreen() {
 
                 <View style={styles.hintBox}>
                   <Text style={styles.hintText}>
-                    {t('customerRequestProduct.hintText')}
+                    {t('customerRequestProduct.hintText', { days: appLimits.productRequestDays })}
                   </Text>
                 </View>
 
@@ -314,41 +316,40 @@ export default function RequestProductScreen() {
             )}
           </SafeAreaView>
           </KeyboardSafe>
-        </Modal>
-
-        {/* Store Picker Modal */}
-        <Modal visible={showStorePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowStorePicker(false)}>
-          <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('customerRequestProduct.selectStoreModalTitle')}</Text>
-              <ModalCloseButton
-                onPress={() => setShowStorePicker(false)}
-                style={styles.modalCloseBtn}
-                label={t('customerRequestProduct.closeStorePickerA11y')}
-                color={COLORS.textMuted}
-              />
-            </View>
-            <ScrollView>
-              {stores.map((store) => (
-                <TouchableOpacity
-                  key={store.id}
-                  style={[styles.storeOption, selectedStore?.id === store.id && styles.storeOptionActive]}
-                  onPress={() => { setSelectedStore(store); setShowStorePicker(false); }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('customerRequestProduct.selectStoreOptionA11y', { name: store.name, city: store.city, state: store.state })}
-                >
-                  <View style={styles.storeOptionAvatar}>
-                    <Text style={styles.storeOptionInitial}>{store.name[0].toUpperCase()}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.storeOptionName}>{store.name}</Text>
-                    <Text style={styles.storeOptionCity}>{store.city}, {store.state}</Text>
-                  </View>
-                  {selectedStore?.id === store.id && <CheckCircleIcon size={20} color="#16a34a" strokeWidth={2.5} />}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </SafeAreaView>
+          {/* Store picker: INSIDE the form pop-up. On iPhone a second pop-up beside an open one never opens (2026-10-16: the store could not be picked) */}
+          <Modal visible={showStorePicker} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowStorePicker(false)}>
+            <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>{t('customerRequestProduct.selectStoreModalTitle')}</Text>
+                <ModalCloseButton
+                  onPress={() => setShowStorePicker(false)}
+                  style={styles.modalCloseBtn}
+                  label={t('customerRequestProduct.closeStorePickerA11y')}
+                  color={COLORS.textMuted}
+                />
+              </View>
+              <ScrollView>
+                {stores.map((store) => (
+                  <TouchableOpacity
+                    key={store.id}
+                    style={[styles.storeOption, selectedStore?.id === store.id && styles.storeOptionActive]}
+                    onPress={() => { setSelectedStore(store); setShowStorePicker(false); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('customerRequestProduct.selectStoreOptionA11y', { name: store.name, city: store.city, state: store.state })}
+                  >
+                    <View style={styles.storeOptionAvatar}>
+                      <Text style={styles.storeOptionInitial}>{store.name[0].toUpperCase()}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.storeOptionName}>{store.name}</Text>
+                      <Text style={styles.storeOptionCity}>{store.city}, {store.state}</Text>
+                    </View>
+                    {selectedStore?.id === store.id && <CheckCircleIcon size={20} color="#16a34a" strokeWidth={2.5} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </SafeAreaView>
+          </Modal>
         </Modal>
       </KeyboardSafe>
     </SafeAreaView>

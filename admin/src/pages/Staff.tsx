@@ -14,10 +14,12 @@ import { failureMessage } from '../lib/apiError';
 import { phoneDigits, typedPhone, showPhone } from '../lib/phoneText';
 import { storeDayLong } from '../lib/storeDates';
 import { useSingleFlight } from '../hooks/useSingleFlight';
-import { PageHeader, HeaderStat, Button, Chip } from '../components/kit';
+import { PageHeader, HeaderStat, Button, Chip, MenuButton } from '../components/kit';
 import { Plus, Search } from 'lucide-react';
 import { INPUT } from '../lib/theme';
 import Glyph from '../components/Glyph';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+import { readSetting, writeSetting } from './dashboard/shared';
 
 type Tab = 'list' | 'create';
 
@@ -67,6 +69,8 @@ export default function Staff() {
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>('list');
+  // A compact list (the default) or the cards; remembered in this browser (2026-10-12)
+  const [view, setView] = useState<'list' | 'cards'>(() => readSetting('staff-view', ['list', 'cards'] as const, 'list'));
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
 
   // Create form state
@@ -304,7 +308,10 @@ export default function Staff() {
         description="Staff accounts, their roles and the stores they work at."
         actions={
           <>
-            <Chip selected={tab === 'list'} onClick={() => setTab('list')}>Staff List</Chip>
+            {tab !== 'list' && <Chip selected={false} onClick={() => setTab('list')}>Back to staff</Chip>}
+            {tab === 'list' && (['list', 'cards'] as const).map((v) => (
+              <Chip key={v} selected={view === v} onClick={() => { setView(v); writeSetting('staff-view', v); }}>{v === 'list' ? 'List' : 'Cards'}</Chip>
+            ))}
             {isSuperAdmin && (
               <Button variant={tab === 'create' ? 'secondary' : 'primary'} aria-pressed={tab === 'create'} icon={<Plus />} onClick={() => setTab('create')}>
                 New Account
@@ -369,6 +376,52 @@ export default function Staff() {
                     </span>
                   </div>
 
+                  {view === 'list' ? (
+                    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', overflowX: 'auto' }}>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {['Name', 'Stores', 'Last signed in', 'Actions'].map((h) => <TableHead key={h} style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4, color: '#5a6472' }}>{h === 'Actions' ? <span className="sr-only">Actions</span> : h}</TableHead>)}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {group.map((member: any) => {
+                            const isMe = member.id === user?.id;
+                            const manageable = canManage(user?.role, member.role);
+                            const displayName = member.name || showPhone(member.phone);
+                            const chainWide = member.role === 'SUPER_ADMIN' || member.role === 'DEV_ADMIN' || member.allStoresAccess === true;
+                            const items = [
+                              ...(manageable && !isMe ? [{ label: 'Edit', onClick: () => openEdit(member) }] : []),
+                              ...(manageable && !isMe ? [{ label: 'Reset PIN', onClick: () => { setResetTarget({ id: member.id, name: displayName }); setNewPin(''); setNewPin2(''); setResetError(''); } }] : []),
+                              ...(manageable && ['EMPLOYEE', 'STORE_MANAGER'].includes(member.role) ? [{ label: 'Stores', onClick: () => openManageStores(member) }] : []),
+                              ...(manageable && !isMe ? [{ label: member.isActive ? 'Deactivate' : 'Reactivate', danger: member.isActive, disabled: toggleMutation.isPending,
+                                onClick: () => (member.isActive ? setDeactivateTarget({ id: member.id, name: displayName }) : runToggle({ userId: member.id, name: displayName, isActive: true })) }] : []),
+                              ...(isDevAdmin && !isMe ? [{ label: 'Delete', danger: true, onClick: () => { setDeleteError(''); setDeleteTarget({ id: member.id, name: displayName, role: member.role, isActive: member.isActive }); } }] : []),
+                            ];
+                            return (
+                              <TableRow key={member.id} style={member.isActive ? undefined : { background: '#f7f8fa' }}>
+                                <TableCell>
+                                  <div style={{ fontWeight: 600, color: '#111827' }}>{member.name || ' - '}{isMe && <span style={{ ...s.youBadge, marginLeft: 6 }}>You</span>}{!member.isActive && <span style={{ ...s.offBadge, marginLeft: 6 }}>Deactivated</span>}</div>
+                                  <div style={{ fontSize: 13, color: '#5a6472' }}>{showPhone(member.phone)}</div>
+                                </TableCell>
+                                <TableCell style={{ fontSize: 13, color: '#374151', maxWidth: 360, whiteSpace: 'normal' }}>
+                                  {member.storeRoles.length > 0
+                                    ? member.storeRoles.map((sr: any) => `${sr.store.name}${sr.store.isActive === false ? ' (closed)' : ''}`).join(', ') + (chainWide && member.role === 'STORE_MANAGER' ? ', and every store' : '')
+                                    : chainWide ? 'All stores' : <span style={{ color: '#8a5300', fontWeight: 600 }}>No store assigned</span>}
+                                </TableCell>
+                                <TableCell style={{ fontSize: 13, color: '#5a6472', whiteSpace: 'nowrap' }}>{member.lastSignInAt ? storeDayLong(member.lastSignInAt) : 'Never'}</TableCell>
+                                <TableCell style={{ textAlign: 'right' }}>
+                                  {items.length > 0
+                                    ? <MenuButton label="Actions" size="sm" ariaLabel={`Actions for ${displayName}`} items={items} />
+                                    : <span style={{ fontSize: 12, color: '#5a6472' }}>{isMe ? 'Your account' : 'Dev Admin only'}</span>}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
                   <div style={s.cardGrid}>
                     {group.map((member: any, i: number) => {
                       const avatarColor = getAvatarColor(member.name || member.phone, i);
@@ -468,6 +521,7 @@ export default function Staff() {
                       );
                     })}
                   </div>
+                  )}
                 </div>
               );
             })}

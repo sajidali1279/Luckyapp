@@ -9,10 +9,10 @@ import { announceOffer } from '../utils/offerAnnounce';
 import { hasMinRole } from '../middleware/auth';
 import { CASHBACK_RATE_CAP } from '../config/constants';
 import { refuse } from '../utils/refusal';
-import { startOfStoreDate } from '../utils/storeTime';
+import { startOfStoreDate, endOfStoreDate, isRealDateKey } from '../utils/storeTime';
 import { storeDateKey } from '../utils/storeTime';
 import { checkHours, offerPaysAt, hoursText } from '../utils/offerHours';
-import { shelfDealsForStore } from '../utils/shelfDeals';
+import { shelfDealsForStore, shelfDealsShownAt } from '../utils/shelfDeals';
 import { estimateOffer } from '../utils/offerEstimate';
 import { isRestrictedCategory } from '../utils/dealSuggest';
 import { AUDIENCES, forCustomer, audienceText } from '../utils/offerAudience';
@@ -391,6 +391,12 @@ export async function updateOffer(req: AuthRequest, res: Response) {
         if (before.title !== offer.title) changes.push(`renamed from "${before.title}"`);
         if (+before.startDate !== +offer.startDate) changes.push(`now starts ${storeDateKey(offer.startDate)}`);
         if (+before.endDate !== +offer.endDate) changes.push(offer.endDate.getTime() <= Date.now() + 60_000 ? 'ended early' : `now ends ${storeDateKey(offer.endDate)}`);
+        // What it pays (HQ, 2026-10-20): from now on; sales already made keep what they earned
+        const pays = (o: { bonusRate: number | null; tierBonusRates: unknown; gasBonusCentsPerGallon: number | null }) =>
+          o.gasBonusCentsPerGallon != null ? `${o.gasBonusCentsPerGallon} cents a gallon`
+          : o.tierBonusRates && Object.keys(o.tierBonusRates as object).length ? Object.entries(o.tierBonusRates as Record<string, number>).map(([t, v]) => `${t.toLowerCase()} ${+(v * 100).toFixed(2)}%`).join(', ')
+          : `${+(((o.bonusRate ?? 0)) * 100).toFixed(2)}%`;
+        if (pays(before) !== pays(offer)) changes.push(`bonus changed from ${pays(before)} to ${pays(offer)} for sales from now on`);
         if (hoursText(before) !== hoursText(offer)) changes.push(hoursText(offer) ? `happy hours ${hoursText(offer)}` : 'happy hours removed (all day)');
         if (audienceText(before) !== audienceText(offer)) changes.push(`now for ${audienceText(offer)}`);
         if ((before.budgetCap ?? null) !== (offer.budgetCap ?? null)) changes.push(offer.budgetCap != null ? `budget $${offer.budgetCap.toFixed(2)}${before.budgetReachedAt && !offer.budgetReachedAt ? ' (started again)' : ''}` : 'no budget');
@@ -500,7 +506,18 @@ const bannerSchema = z.object({
     .optional()),
   sortOrder: z.preprocess(blankToUndefined, z.coerce.number().int('The order must be a whole number.').min(0, 'The order must be between 0 and 999.').max(999, 'The order must be between 0 and 999.').optional()),
   storeId: z.preprocess(blankToUndefined, z.string().uuid('Choose a store from the list.').optional()),
+  // Shown from / until (2026-10-16): store days written YYYY-MM-DD; empty = from now / no end
+  startDate: z.preprocess(blankToUndefined, z.string().refine(isRealDateKey, 'Write the first day like 2026-11-01.').optional()),
+  endDate: z.preprocess(blankToUndefined, z.string().refine(isRealDateKey, 'Write the last day like 2026-11-30.').optional()),
 });
+
+/** The banner's dates as instants (the start of the first store day, the end of the last), or the sentence that refuses them. */
+function bannerWindow(startDate?: string, endDate?: string, endIsNew = true): { startAt: Date | null; endAt: Date | null } | { error: string } {
+  if (startDate && endDate && endDate < startDate) return { error: 'The last day is before the first day.' };
+  // Only a last day being set now (an ended banner keeps its own when only its words change)
+  if (endIsNew && endDate && endDate < storeDateKey()) return { error: 'The last day has already passed.' };
+  return { startAt: startDate ? startOfStoreDate(startDate) : null, endAt: endDate ? endOfStoreDate(endDate) : null };
+}
 
 export async function createBanner(req: AuthRequest, res: Response) {
   const parsed = bannerSchema.safeParse(req.body);
@@ -509,6 +526,8 @@ export async function createBanner(req: AuthRequest, res: Response) {
     return;
   }
   const { title, linkUrl, sortOrder } = parsed.data;
+  const win = bannerWindow(parsed.data.startDate, parsed.data.endDate);
+  if ('error' in win) { res.status(400).json({ success: false, error: win.error }); return; }
 
   // Store managers can target any of their assigned stores — prefer the
   // store picked in the UI, falling back to their first store if the
@@ -552,6 +571,8 @@ export async function createBanner(req: AuthRequest, res: Response) {
       storeId,
       linkUrl: linkUrl || null,
       sortOrder: sortOrder ?? 0,
+      startAt: win.startAt,
+      endAt: win.endAt,
     },
   });
 
@@ -571,6 +592,10 @@ export async function getActiveBanners(req: AuthRequest, res: Response) {
   // With none: HQ (web admin) sees every banner so a one-store banner can still be found and removed, and a store
   // manager sees the all-store banners plus their own stores'. Anyone else gets the all-store banners only.
   let where: Prisma.BannerWhereInput;
+  // The apps get only the banners inside their dates (2026-10-16). The admin's Banners page asks for all=1: scheduled and ended ones too.
+  const now = new Date();
+  const showing: Prisma.BannerWhereInput = { AND: [{ OR: [{ startAt: null }, { startAt: { lte: now } }] }, { OR: [{ endAt: null }, { endAt: { gt: now } }] }] };
+  const everything = req.query.all === '1' && hasMinRole(req.user!.role, Role.STORE_MANAGER);
   if (!storeId && hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
     where = { isActive: true };
   } else if (!storeId && req.user!.role === Role.STORE_MANAGER) {
@@ -580,11 +605,62 @@ export async function getActiveBanners(req: AuthRequest, res: Response) {
   }
 
   const banners = await prisma.banner.findMany({
-    where,
+    where: everything ? where : { AND: [where, showing] },
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
   });
 
   res.json({ success: true, data: banners });
+}
+
+const bannerEditSchema = bannerSchema.partial().extend({
+  // Sent as "" to clear: the store (every store), the link, a date
+  clear: z.preprocess((v) => (typeof v === 'string' ? v.split(',').filter(Boolean) : v), z.array(z.enum(['storeId', 'linkUrl', 'startDate', 'endDate'])).optional()),
+});
+
+/** PATCH /banners/:bannerId (multipart, a new image optional): its words, link, order, store (HQ), dates. A manager: their store's only. */
+export async function updateBanner(req: AuthRequest, res: Response) {
+  const parsed = bannerEditSchema.safeParse(req.body ?? {});
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const d = parsed.data;
+  const existing = await prisma.banner.findUnique({ where: { id: req.params.bannerId } });
+  if (!existing || !existing.isActive) { res.status(404).json({ success: false, error: 'That banner was removed.' }); return; }
+  const manager = req.user!.role === Role.STORE_MANAGER;
+  if (manager && !req.user!.storeIds?.includes(existing.storeId ?? '')) { res.status(403).json({ success: false, error: 'You can only change banners for your store' }); return; }
+  const clear = new Set(d.clear ?? []);
+  let storeId = existing.storeId;
+  if (d.storeId !== undefined || clear.has('storeId')) {
+    if (manager) { res.status(403).json({ success: false, error: 'HQ decides which stores a banner is for.' }); return; }
+    storeId = clear.has('storeId') ? null : d.storeId!;
+    if (storeId && !(await prisma.store.findUnique({ where: { id: storeId }, select: { id: true } }))) { res.status(400).json({ success: false, error: 'That store does not exist. Choose one from the list.' }); return; }
+  }
+  // The dates: the new one, cleared, or as they were
+  const dayOf = (at: Date | null) => (at ? storeDateKey(at) : undefined);
+  const startDate = clear.has('startDate') ? undefined : d.startDate ?? dayOf(existing.startAt);
+  const endDate = clear.has('endDate') ? undefined : d.endDate ?? dayOf(existing.endAt);
+  // The form sends the dates it shows: only a different day (or a cleared one) is a change
+  const startChanged = clear.has('startDate') || (d.startDate !== undefined && d.startDate !== dayOf(existing.startAt));
+  const endChanged = clear.has('endDate') || (d.endDate !== undefined && d.endDate !== dayOf(existing.endAt));
+  const datesChanged = startChanged || endChanged;
+  const win = datesChanged ? bannerWindow(startDate, endDate, endChanged) : { startAt: existing.startAt, endAt: existing.endAt };
+  if ('error' in win) { res.status(400).json({ success: false, error: win.error }); return; }
+  let imageUrl = existing.imageUrl;
+  if (req.file) {
+    if (!/^image\//.test(req.file.mimetype)) { res.status(400).json({ success: false, error: 'The banner must be an image.' }); return; }
+    imageUrl = (await new Promise<{ secure_url: string }>((resolve, reject) => {
+      cloudinary.uploader.upload_stream({ folder: 'luckystop/banners', resource_type: 'image' }, (err, r) => (err ? reject(err) : resolve(r as { secure_url: string }))).end(req.file!.buffer);
+    })).secure_url;
+  }
+  const banner = await prisma.banner.update({ where: { id: existing.id }, data: {
+    ...(d.title !== undefined ? { title: d.title } : {}),
+    ...(d.linkUrl !== undefined || clear.has('linkUrl') ? { linkUrl: clear.has('linkUrl') ? null : d.linkUrl ?? null } : {}),
+    ...(d.sortOrder !== undefined ? { sortOrder: d.sortOrder } : {}),
+    storeId, imageUrl, startAt: win.startAt, endAt: win.endAt,
+  } });
+  const what = [d.title !== undefined && d.title !== existing.title ? 'renamed' : null, req.file ? 'new image' : null, datesChanged ? 'dates' : null,
+    storeId !== existing.storeId ? 'stores' : null, d.linkUrl !== undefined || clear.has('linkUrl') ? 'link' : null].filter(Boolean).join(', ') || 'saved';
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'UPDATE_BANNER', entity: 'banner', entityId: banner.id,
+    details: { title: banner.title, summary: `Banner "${banner.title}" changed: ${what}` }, storeId: banner.storeId });
+  res.json({ success: true, data: banner });
 }
 
 export async function deleteBanner(req: AuthRequest, res: Response) {
@@ -652,10 +728,10 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
 
   const sales = await prisma.pointsTransaction.findMany({
     where: { offerId },
-    select: { status: true, purchaseAmount: true, pointsAwarded: true, offerCashback: true, customerId: true, storeId: true, store: { select: { name: true } } },
+    select: { status: true, receiptImageUrl: true, purchaseAmount: true, pointsAwarded: true, offerCashback: true, customerId: true, storeId: true, store: { select: { name: true } } },
   });
   const approved = sales.filter((s) => s.status === 'APPROVED');
-  const waiting = sales.filter((s) => s.status === 'PENDING' || s.status === 'FLAGGED').length;
+  const waiting = sales.filter((s) => s.status === 'FLAGGED' || (s.status === 'PENDING' && s.receiptImageUrl)).length;   // not a sale still waiting for its photo
   const byStore = new Map<string, { name: string; sales: number; extraCashback: number }>();
   for (const s of approved) {
     const row = byStore.get(s.storeId) ?? { name: s.store.name, sales: 0, extraCashback: 0 };
@@ -671,7 +747,7 @@ export async function getOfferResults(req: AuthRequest, res: Response) {
   // Customers whose first purchase ever was while it ran, with it
   const users = [...new Set(approved.map((s) => s.customerId))];
   const firsts = users.length ? await prisma.pointsTransaction.groupBy({
-    by: ['customerId'], where: { customerId: { in: users }, status: { not: 'REJECTED' }, challengeId: null, referralId: null }, _min: { createdAt: true },
+    by: ['customerId'], where: { customerId: { in: users }, status: { notIn: ['REJECTED', 'CANCELLED'] }, challengeId: null, referralId: null }, _min: { createdAt: true },
   }) : [];
   const firstTimers = firsts.filter((f) => f._min.createdAt && f._min.createdAt >= start).length;
 
@@ -818,18 +894,43 @@ export async function translateOffer(req: AuthRequest, res: Response) {
 
 /** GET /offers/shelf-deals (HQ): every label with a deal: how many stores carry it, and whether it is hidden from the app. */
 export async function listShelfDeals(_req: AuthRequest, res: Response) {
-  const labels = await prisma.label.findMany({
-    where: { dealText: { not: null } },
-    select: { id: true, productName: true, dealText: true, priceText: true, category: true, dealHiddenInApp: true, updatedAt: true, _count: { select: { storeLabels: true } } },
-    orderBy: { updatedAt: 'desc' },
-  });
+  const [labels, shown] = await Promise.all([
+    prisma.label.findMany({
+      where: { dealText: { not: null } },
+      select: { id: true, productName: true, dealText: true, priceText: true, category: true, dealHiddenInApp: true, updatedAt: true, _count: { select: { storeLabels: true } } },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    shelfDealsShownAt(),
+  ]);
   res.json({
     success: true,
     data: labels.filter((l) => l.dealText && l.dealText.trim()).map((l) => ({
       labelId: l.id, productName: l.productName, dealText: l.dealText, priceText: l.priceText, hidden: l.dealHiddenInApp, stores: l._count.storeLabels,
+      category: l.category, updatedAt: l.updatedAt,
       restricted: isRestrictedCategory(l.category),   // tobacco, vape or alcohol: never shown in the app
+      shownAt: shown.shownAt.get(l.id) ?? 0,           // active stores whose customers see it right now (2026-10-18)
     })),
+    // a store shows only its first `perStore` label deals: "showing" on the page means shownAt > 0, not "not hidden"
+    meta: { perStore: shown.perStore, stores: shown.stores },
   });
+}
+
+/** POST /offers/shelf-deals/visibility (HQ) { labelIds: string[], hidden: boolean }: hide or show many label deals at once. */
+export async function setShelfDealsHidden(req: AuthRequest, res: Response) {
+  const ids = Array.isArray(req.body?.labelIds) ? [...new Set((req.body.labelIds as unknown[]).filter((x): x is string => typeof x === 'string'))] : [];
+  if (typeof req.body?.hidden !== 'boolean') { res.status(400).json({ success: false, error: 'Say whether to hide them (true) or show them (false).' }); return; }
+  if (ids.length === 0 || ids.length > 2000) { res.status(400).json({ success: false, error: 'Choose from 1 to 2,000 deals.' }); return; }
+  const hidden = req.body.hidden as boolean;
+  const { count } = await prisma.label.updateMany({ where: { id: { in: ids }, dealText: { not: null }, dealHiddenInApp: !hidden }, data: { dealHiddenInApp: hidden } });
+  if (count > 0) {
+    audit({
+      actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
+      action: 'SHELF_DEAL_VISIBILITY', entity: 'label', entityId: null,
+      details: { summary: `${hidden ? 'Hid' : 'Showed'} ${count} shelf deal${count === 1 ? '' : 's'} ${hidden ? 'from' : 'in'} the app at once.`, labelIds: ids.slice(0, 200) },
+      storeId: null,
+    });
+  }
+  res.json({ success: true, data: { changed: count, hidden } });
 }
 
 /** PATCH /offers/shelf-deals/:labelId (HQ): { hidden: true|false }: hide a label's deal from the app's Today's Deals, or show it again. */

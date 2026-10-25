@@ -3,7 +3,6 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  StatusBar,
   FlatList,
   Dimensions,
   Modal,
@@ -33,6 +32,11 @@ import { useAuthStore } from '../../store/authStore';
 import { offerBonusText } from '../../utils/offerRate';
 import { spanishOffer } from '../../utils/offerText';
 import ChallengesSection from '../../components/ChallengesSection';
+import EngagementHome from '../../components/engagement/EngagementHome';
+import FlashDealBanner from '../../components/engagement/FlashDealBanner';
+import CuatroCard from '../../components/engagement/CuatroCard';
+import PrizeGameCard from '../../components/engagement/games/PrizeGameCard';
+import { useEngagementFlags } from '../../hooks/useEngagement';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
@@ -45,10 +49,16 @@ import {
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
+import SeasonalHost from '../../components/seasonal/SeasonalHost';
 import ModalToastHost from '../../components/ModalToastHost';
 import { haptic } from '../../utils/haptics';
-import * as Brightness from 'expo-brightness';
+import { useFullBrightness } from '../../hooks/useFullBrightness';
 import { sized } from '../../utils/imageUrl';
+import FocusStatusBar from '../../components/FocusStatusBar';
+import { tierBenefitLines } from '../../utils/tierLines';
+import { useAppSettings } from '../../hooks/useAppSettings';
+import { usePointsExpiry, expiryDate } from '../../hooks/usePointsExpiry';
+import MissingPersonsCard from '../../components/MissingPersonsCard';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -647,12 +657,25 @@ const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any
 });
 
 /* ─── Main screen ─────────────────────────────────────────── */
+/** A promotion's words for a small card: without the "Valid Oct 16 to Nov 15, 2026." (or "Valid this week.") sentence the admin adds at the end,
+ *  since the card shows the last day on its own line (the same pattern as the admin's stripValidity). */
+function cardDescription(desc?: string | null): string {
+  return (desc ?? '').replace(/\s*Valid (?:[A-Z][a-z]{2} \d{1,2}(?:, \d{4})? (?:to|–|-) [A-Z][a-z]{2} \d{1,2}, \d{4}|today|3 days|this week|2 weeks|this month)\.$/, '').trim();
+}
+
+// The seasonal opening (2026-10-21) plays over Home while HQ's Halloween theme is on; otherwise this is just the screen
 export default function CustomerHome() {
+  return <SeasonalHost><CustomerHomeScreen /></SeasonalHost>;
+}
+
+function CustomerHomeScreen() {
   const { t, i18n } = useTranslation();
   const dateLocale = i18n.language === 'es' ? 'es-US' : 'en-US';
   const qc = useQueryClient();
   const { user, token, setAuth } = useAuthStore();
-  const { tierConfig: TIER_CONFIG } = useLiveTierConfig();
+  const { tierConfig: TIER_CONFIG, liveRates } = useLiveTierConfig();
+  const { limits } = useAppSettings();
+  const expiry = usePointsExpiry();   // the next points to expire (only while HQ has expiry on)
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const sheetMaxHeight = windowHeight - insets.top - 24;
@@ -697,16 +720,7 @@ export default function CustomerHome() {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
 
   const [showQR, setShowQR] = useState(false);
-  useEffect(() => {
-    if (!showQR) return;
-    let before: number | null = null;
-    Brightness.getBrightnessAsync().then((b) => { before = b; return Brightness.setBrightnessAsync(1); }).catch(() => {});
-    return () => {
-      // Android: hand brightness back to the phone (auto brightness included); iPhone: put back the level it had
-      if (Platform.OS === 'android') Brightness.restoreSystemBrightnessAsync().catch(() => {});
-      else if (before != null) Brightness.setBrightnessAsync(before).catch(() => {});
-    };
-  }, [showQR]);
+  useFullBrightness(showQR);   // full brightness for the scanner while My QR is open, the phone's own brightness back after (hooks/useFullBrightness.ts)
 
   // Scroll-to-section support (triggered from notification taps)
   const scrollViewRef = useRef<ScrollView>(null);
@@ -735,34 +749,9 @@ export default function CustomerHome() {
 
   // Hot food order state
 
-  useFocusEffect(
-    useCallback(() => {
-      authApi.getMe().then(({ data }) => {
-        // Use getState() for a fresh reference — avoids stale closure overwriting
-        // fields (like avatarUrl) that were updated after this callback was created.
-        const { user: u, token: t, setAuth: sa } = useAuthStore.getState();
-        if (data?.data && u && t) {
-          sa({
-            ...u,
-            pointsBalance: data.data.pointsBalance,
-            tier: data.data.tier,
-            periodPoints: data.data.periodPoints,
-            tierPeriod: data.data.tierPeriod,
-            avatarUrl: data.data.avatarUrl ?? u.avatarUrl,
-            age21Confirmed: data.data.age21Confirmed,
-            age21Declined: data.data.age21Declined,
-            birthMonth: data.data.birthMonth ?? null,   // the birthday they gave (Profile), for birthday-month promotions
-            birthDay: data.data.birthDay ?? null,
-          }, data.data.token ?? t);   // a renewed session when the server sent one (GET /auth/me)
-        }
-      }).catch((err: any) => {
-        // Account no longer exists or was deactivated server-side — a locally
-        // cached session shouldn't keep showing the app as usable.
-        // (A refused session, 401, is signed out by the API layer for every screen.)
-        if (err.response?.status === 404) useAuthStore.getState().endSession();
-      });
-    }, [t])
-  );
+  // The balance, tier and the rest of the account each time Home comes into view (also on pull to refresh, the app coming back
+  // and a push arriving: store/authStore.ts refreshAccount, app/_layout.tsx)
+  useFocusEffect(useCallback(() => { useAuthStore.getState().refreshAccount(); }, []));
 
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
@@ -778,6 +767,7 @@ export default function CustomerHome() {
     refetchInterval: 60_000,
   });
   const allStores: any[] = gasPricesData?.data?.data ?? [];
+  const engFlags = useEngagementFlags();   // HQ's engagement switches (a price alert link shows under the gas prices while alerts are on)
 
   const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');
@@ -948,6 +938,7 @@ export default function CustomerHome() {
   }
 
   function onRefresh() {
+    useAuthStore.getState().refreshAccount();   // the balance too (points an employee just granted)
     refetchBanners();
     refetchOffers();
     refetchGasPrices();
@@ -955,6 +946,13 @@ export default function CustomerHome() {
     refetchCatalog();
     qc.invalidateQueries({ queryKey: ['welcome-bonus'] });
     qc.invalidateQueries({ queryKey: ['my-challenges'] });
+    // and the rest of Home (2026-10-17): the featured local ad, the receipt scan button, the invite card and the bell's count
+    qc.invalidateQueries({ queryKey: ['published-promotions'] });
+    qc.invalidateQueries({ queryKey: ['receipt-scan-access'] });
+    qc.invalidateQueries({ queryKey: ['my-referrals'] });
+    qc.invalidateQueries({ queryKey: ['unread-count'] });
+    qc.invalidateQueries({ queryKey: ['my-expiry'] });
+    qc.invalidateQueries({ queryKey: ['missing-active'] });
   }
 
   const tier = TIER_CONFIG[user?.tier || 'BRONZE'];
@@ -967,7 +965,7 @@ export default function CustomerHome() {
   return (
     <View style={styles.container}>
       <DashboardWatermark color={COLORS.primary} />
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* ── Fixed header ── */}
       <Animated.View style={{ opacity: fadeAnims[0], transform: [{ translateY: slideAnims[0] }] }}>
@@ -1051,6 +1049,9 @@ export default function CustomerHome() {
           <Text style={styles.balanceLabel}>{t('customerHome.pointsBalance')}</Text>
           <Text style={styles.balanceAmount}>{Math.round(Number(user?.pointsBalance || 0) * 100).toLocaleString()}</Text>
           <Text style={styles.balanceSubtext}>{t('customerHome.redeemablePoints')}</Text>
+          {expiry?.enabled && expiry.next && (
+            <Text style={styles.balanceExpiry}>{t('customerHome.pointsExpireOn', { points: expiry.next.points.toLocaleString(), date: expiryDate(expiry.next.date, i18n.language) })}</Text>
+          )}
           <TouchableOpacity
             style={styles.redeemButton}
             onPress={() => router.push('/(customer)/rewards')}
@@ -1132,8 +1133,12 @@ export default function CustomerHome() {
       </Animated.View>
 
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
+        <FlashDealBanner storeId={nearestStore?.id} enabled={locationReady} />
+        <CuatroCard userPts={userPts} rewards={catalogItems} firstName={user?.name?.trim().split(/\s+/)[0] || null}
+          hotFood={!!nearestStore && hotFoodOpen && hotFoodMenu.length > 0} onShowQr={() => setShowQR(true)} />
         <NotificationsOffBanner dismissible />
-        <WelcomeBonusCard />
+        <WelcomeBonusCard storeId={nearestStore?.id} storeName={nearestStore?.name} />
+        <MissingPersonsCard storeId={nearestStore?.id} />
       </Animated.View>
 
       {/* Order (2026-10-12): hot food, today's deals, promotions, gas, HQ banners, rewards, challenges, invite, local businesses */}
@@ -1175,7 +1180,9 @@ export default function CustomerHome() {
                       <View style={styles.hotFoodCardBody}>
                         <Text style={styles.hotFoodItemName} numberOfLines={2}>{name}</Text>
                         {isCombo
-                          ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{t('customerHome.comboWithDrink')}</Text>
+                          ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{(item.itemQuantity ?? 1) > 1
+                              ? t('hotFoodCombos.dealOf', { count: item.itemQuantity, item: item.item?.name ?? '' }) + (item.drinks?.length ? `, ${t('customerHome.comboWithDrink').toLowerCase()}` : '')
+                              : t('customerHome.comboWithDrink')}</Text>
                           : item.description ? <Text style={styles.hotFoodItemDesc} numberOfLines={1}>{item.description}</Text> : null}
                         <View style={styles.hotFoodPriceRow}>
                           <Text style={styles.hotFoodItemPrice}>${Number(item.price).toFixed(2)}</Text>
@@ -1330,7 +1337,10 @@ export default function CustomerHome() {
                               </Text>
                             </View>
                           )}
-                          <Text style={styles.offerDesc} numberOfLines={2}>{offer.description}</Text>
+                          {/* The words without the generated "Valid ... to ..." sentence (cut at two lines it read "Nov 1..." for Nov 15), and the
+                              last day on its own line from the offer's real end date (2026-10-16, seen on an iPhone 11) */}
+                          {cardDescription(offer.description) ? <Text style={styles.offerDesc} numberOfLines={2}>{cardDescription(offer.description)}</Text> : null}
+                          <Text style={styles.offerUntil} numberOfLines={1}>{t('customerHome.offerUntil', { date: new Date(offer.endDate).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' }) })}</Text>
                           <View style={[styles.offerBonusPill, { alignSelf: 'flex-start' }]}>
                             {offer.gasBonusCentsPerGallon != null
                               ? <GasPumpIcon size={10} color="#fff" strokeWidth={2.5} />
@@ -1372,6 +1382,11 @@ export default function CustomerHome() {
             <View ref={gasSectionRef} style={styles.section}>
               <View style={styles.sectionRow}>
                 <SectionTitle icon={<GasPumpIcon size={17} color={COLORS.text} />} label={t('customerHome.todaysGasPrices')} />
+                {engFlags?.gasAlerts && (
+                  <TouchableOpacity onPress={() => { haptic.tap(); router.push('/(customer)/gas-alerts' as any); }} accessibilityRole="button" accessibilityLabel={t('engagement.gasLinkA11y')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: COLORS.primary }}>🔔 {t('engagement.gasLink')}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               {chainGasOffer && (
                 <PressScale
@@ -1509,6 +1524,8 @@ export default function CustomerHome() {
 
       {/* ── Challenges: the customer's own, with their progress ── */}
       <View ref={challengesSectionRef}>
+        <PrizeGameCard storeId={nearestStore?.id} />
+        <EngagementHome storeId={nearestStore?.id} enabled={locationReady} />
         <ChallengesSection storeId={nearestStore?.id} enabled={locationReady} />
       </View>
 
@@ -1734,10 +1751,10 @@ export default function CustomerHome() {
                 )}
                 <View style={ti.divider} />
                 <View style={ti.benefitsWrap}>
-                  {cfg.benefits.map((b, idx) => (
+                  {tierBenefitLines(selectedTier, t, liveRates, limits).map((line, idx) => (
                     <View key={idx} style={ti.benefitRow}>
                       <View style={[ti.dot, { backgroundColor: cfg.color }]} />
-                      <Text style={ti.benefitText}>{t(`customerHome.benefit_${selectedTier}_${idx}`, { defaultValue: b })}</Text>
+                      <Text style={ti.benefitText}>{line}</Text>
                     </View>
                   ))}
                 </View>
@@ -2116,6 +2133,7 @@ const styles = StyleSheet.create({
   balanceLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
   balanceAmount: { fontSize: 54, fontWeight: '900', color: '#fff', marginVertical: 6, letterSpacing: -1.5 },
   balanceSubtext: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600' },
+  balanceExpiry: { color: '#FCD34D', fontSize: 12, fontWeight: '700', marginTop: 4 },
   redeemButton: {
     backgroundColor: COLORS.accent, borderRadius: 14,
     paddingHorizontal: 28, paddingVertical: 12, marginTop: 18,
@@ -2273,6 +2291,7 @@ const styles = StyleSheet.create({
   offerContent: { flex: 1, padding: 12, gap: 2 },
   offerTitle: { fontWeight: '700', fontSize: 14, color: COLORS.text },
   offerDesc: { color: COLORS.textMuted, fontSize: 12, marginTop: 3, lineHeight: 17 },
+  offerUntil: { color: COLORS.textMuted, fontSize: 11.5, fontWeight: '700', marginTop: 1 },
   offerBonusPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: COLORS.primary, borderRadius: 8,

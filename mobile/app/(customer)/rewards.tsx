@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -27,7 +27,10 @@ import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import ModalToastHost from '../../components/ModalToastHost';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { haptic } from '../../utils/haptics';
-import { useLocalSearchParams } from 'expo-router';
+import ProgressRing from '../../components/ProgressRing';
+import { askForRatingSoon } from '../../utils/ratePrompt';
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 
 
@@ -80,7 +83,9 @@ function getCatCfg(
 
 // ─── Countdown hook ────────────────────────────────────────────────────────────
 function useCountdown(expiresAt: string | null) {
-  const [remaining, setRemaining] = useState(0);
+  // Starts from the real time left, not 0: a 0 for the first moment read as "expired", so the code sheet flashed the expired screen (and the
+  // banner vanished) each time it opened, before the first tick put the time in
+  const [remaining, setRemaining] = useState(() => (expiresAt ? Math.max(0, new Date(expiresAt).getTime() - Date.now()) : 0));
   useEffect(() => {
     if (!expiresAt) return;
     const tick = () => setRemaining(Math.max(0, new Date(expiresAt).getTime() - Date.now()));
@@ -230,6 +235,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
   item: any; pts: number; onConfirm: () => void; onClose: () => void; loading: boolean;
 }) {
   const { t } = useTranslation();
+  const { limits } = useAppSettings();   // HQ's numbers in these words (Settings, 2026-10-17)
   const catCfg = getCatCfg(item.category, t);
   const remaining = pts - item.pointsCost;
   return (
@@ -257,7 +263,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
           <View style={md.warningBox}>
             <ClockIcon size={20} color="#F4A226" strokeWidth={2} />
             <Text style={md.warningText}>
-              {t('customerRewards.warningPart1')} <Text style={{ fontWeight: '800' }}>{t('customerRewards.warningMinutes')}</Text> {t('customerRewards.warningPart2')}
+              {t('customerRewards.warningPart1')} <Text style={{ fontWeight: '800' }}>{t('customerRewards.warningMinutes', { minutes: limits.rewardHoldMinutes })}</Text> {t('customerRewards.warningPart2')}
             </Text>
           </View>
           <TouchableOpacity
@@ -287,6 +293,7 @@ function RedeemModal({ item, pts, onConfirm, onClose, loading }: {
 
 // ─── Success modal ─────────────────────────────────────────────────────────────
 function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
+  const { limits } = useAppSettings();   // HQ's numbers in these words (Settings, 2026-10-17)
   const { t } = useTranslation();
   const { mins, secs, expired } = useCountdown(data.expiresAt);
   const urgency = mins < 5;
@@ -299,7 +306,7 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
               <Text style={{ fontSize: 40 }}>⏰</Text>
             </View>
             <Text style={[md.itemTitle, { marginTop: 12, color: '#E63946' }]}>{t('customerRewards.expiredTitle')}</Text>
-            <Text style={md.itemDesc}>{t('customerRewards.expiredDesc')}</Text>
+            <Text style={md.itemDesc}>{t('customerRewards.expiredDesc', { minutes: limits.rewardHoldMinutes })}</Text>
             <View style={suc.refundCard}>
               <Text style={suc.refundIcon}>✅</Text>
               <View>
@@ -359,9 +366,12 @@ function SuccessModal({ data, onClose }: { data: any; onClose: () => void }) {
 
 // ─── Main screen ───────────────────────────────────────────────────────────────
 export default function RewardsScreen() {
+  const { limits } = useAppSettings();   // HQ's numbers in these words (Settings, 2026-10-17)
   const { t } = useTranslation();
   const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
+  // The balance as it is now each time Rewards comes into view: what a reward costs is checked against it
+  useFocusEffect(useCallback(() => { useAuthStore.getState().refreshAccount(); }, []));
   const qc = useQueryClient();
   const highlightedId = useHighlightParam();
   const { tierConfig, liveRates } = useLiveTierConfig();
@@ -403,6 +413,7 @@ export default function RewardsScreen() {
     onSuccess: (res) => {
       setSelectedItem(null);
       setSuccessData(res.data.data);
+      askForRatingSoon();   // a reward just redeemed is the best moment to ask (once ever, HQ's switch)
       qc.invalidateQueries({ queryKey: ['my-redemptions'] });
       qc.invalidateQueries({ queryKey: ['catalog'] });
     },
@@ -480,7 +491,10 @@ export default function RewardsScreen() {
         numColumns={2}
         columnWrapperStyle={r.row}
         contentContainerStyle={r.body}
-        onRefresh={refetch}
+        onRefresh={() => {   // the balance too (2026-10-16), and the tier benefit and redemptions (2026-10-17)
+          refetch(); useAuthStore.getState().refreshAccount();
+          qc.invalidateQueries({ queryKey: ['my-benefit-status'] }); qc.invalidateQueries({ queryKey: ['my-redemptions'] });
+        }}
         refreshing={isRefetching}
         showsVerticalScrollIndicator={false}
         onScroll={largeTitle.onScroll}
@@ -523,7 +537,7 @@ export default function RewardsScreen() {
                   return (
                     <View key={b.key} style={r.benefitRow}>
                       <Text style={[r.benefitDot, { color: tierCfg.color }]}>●</Text>
-                      <Text style={r.benefitText}>{b.needsGasCents ? t(b.textKey, { cents: liveGasBonusCents ?? GAS_BONUS_FALLBACK[tier] }) : t(b.textKey)}</Text>
+                      <Text style={r.benefitText}>{b.needsGasCents ? t(b.textKey, { cents: liveGasBonusCents ?? GAS_BONUS_FALLBACK[tier] }) : t(b.textKey, { count: b.key === 'silverRefills' ? limits.refillSilverPerPeriod : limits.refillDailyPerDay })}</Text>
                       {isDaily && benefitStatus && (
                         <View style={[r.benefitStatusPill, { backgroundColor: available ? '#E8F5E9' : '#FFF3E0' }]}>
                           <Text style={[r.benefitStatusText, { color: available ? COLORS.success : '#F4A226' }]}>
@@ -543,6 +557,20 @@ export default function RewardsScreen() {
                 <ActiveRedemptionBanner redemption={rd} onCancel={() => handleCancelRedemption(rd)} />
               </PulseHighlight>
             ))}
+
+            {/* ── Next reward as a ring (2026-10-24) ── */}
+            {!catalogLoading && (nextItem || readyItems.length > 0) && (
+              <View style={r.ringCard} accessible accessibilityLabel={nextItem ? t('customerRewards.ringA11y', { points: (nextItem.pointsCost - pts).toLocaleString(), title: nextItem.title }) : t('customerRewards.ringReadyA11y', { count: readyItems.length })}>
+                <ProgressRing size={88} stroke={10} progress={nextItem ? pts / Math.max(1, nextItem.pointsCost) : 1} color={nextItem ? COLORS.primary : COLORS.success}>
+                  {nextItem ? <Text style={r.ringPct} maxFontSizeMultiplier={1.15}>{Math.min(99, Math.floor((pts / Math.max(1, nextItem.pointsCost)) * 100))}%</Text> : <Text style={{ fontSize: 28 }}>🎁</Text>}
+                </ProgressRing>
+                <View style={{ flex: 1 }}>
+                  <Text style={r.ringTitle}>{nextItem ? t('customerRewards.ringTitle', { points: (nextItem.pointsCost - pts).toLocaleString() }) : t('customerRewards.ringAllReady')}</Text>
+                  <Text style={r.ringSub} numberOfLines={2}>{nextItem ? `${nextItem.emoji || '🎁'} ${nextItem.title}` : t('customerRewards.ringReadySub', { count: readyItems.length })}</Text>
+                  {nextItem && readyItems.length > 0 && <Text style={r.ringReady}>{t('customerRewards.ringAlsoReady', { count: readyItems.length })}</Text>}
+                </View>
+              </View>
+            )}
 
             {/* ── Redeem Rewards header + category filter ── */}
             <View style={r.redeemHeader}>
@@ -705,6 +733,11 @@ const pb = StyleSheet.create({
 });
 
 const r = StyleSheet.create({
+  ringCard: { flexDirection: 'row', alignItems: 'center', gap: 16, marginHorizontal: 16, marginBottom: 14, padding: 14, borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEF1F5' },
+  ringPct: { fontSize: 20, fontWeight: '900', color: COLORS.text },
+  ringTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+  ringSub: { fontSize: 13, color: COLORS.textMuted, marginTop: 2 },
+  ringReady: { fontSize: 12, fontWeight: '800', color: COLORS.success, marginTop: 4 },
   root: { flex: 1, backgroundColor: COLORS.background },
   headerBg: { backgroundColor: COLORS.secondary },
   headerInner: {

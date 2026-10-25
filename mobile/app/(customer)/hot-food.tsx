@@ -35,19 +35,22 @@ import { sized } from '../../utils/imageUrl';
 import { byDistance, choosePickup, closerStore, locationQuality, loadSavedPickup, savePickup, addressLine, openDirections, milesText, FAR_MILES, type Here, type PickupStore } from '../../utils/pickupStore';
 import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } from '../../components/HotFoodPickup';
 import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../components/HotFoodCombos';
+import { useEngagementFlags } from '../../hooks/useEngagement';
+import OrderSteps from '../../components/OrderSteps';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MenuItem {
   id: string;
   name: string;
+  category?: string | null;   // the menu's section (HQ sets it in admin Hot Food > Catalog)
   description?: string;
   price: number;
   estimatedMinutes?: number;
   imageUrl?: string;
 }
 
-interface CartItem extends MenuItem { qty: number; comboId?: string; drink?: string }   // a combo line: its drink too
+interface CartItem extends MenuItem { qty: number; comboId?: string; drink?: string }   // a combo line: its drink too ('' for a deal with no drink)
 
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -228,7 +231,7 @@ function useEtaCountdown(order: FoodOrder): string | null {
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
-function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel?: (order: FoodOrder) => void; cancelling?: boolean }) {
+function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrder; onCancel?: (order: FoodOrder) => void; cancelling?: boolean; onReorder?: (order: FoodOrder) => void }) {
   const { t } = useTranslation();
   const cfg = STATUS[order.status];
   const etaLabel = useEtaCountdown(order);
@@ -263,6 +266,7 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
         </View>
       </View>
 
+      {order.status !== 'CANCELLED' && order.status !== 'COMPLETED' && <OrderSteps status={order.status} />}
       <Text style={oc.detail}>{t(cfg.detailKey)}</Text>
       {order.paidWithPoints && order.pointsAmount ? (
         <Text style={oc.points}>
@@ -275,6 +279,7 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
         <Text style={oc.cancelReason}>
           {order.cancelledBy === 'AUTO'
             ? t('customerHotFood.cancelledAuto')
+            : order.cancelledBy === 'NO_SHOW' ? t('customerHotFood.cancelledNoShow')
             : order.cancelReason ? t('customerHotFood.declinedReason', { reason: order.cancelReason }) : t('customerHotFood.declinedNoReason')}
         </Text>
       )}
@@ -287,6 +292,18 @@ function OrderCard({ order, onCancel, cancelling }: { order: FoodOrder; onCancel
           accessibilityLabel={t('customerHotFood.cancelOrderA11y', { number: order.orderNumber })}
         >
           <Text style={oc.cancelBtnText}>{cancelling ? t('customerHotFood.cancelling') : t('customerHotFood.cancelOrder')}</Text>
+        </TouchableOpacity>
+      )}
+
+      {onReorder && (order.status === 'COMPLETED' || order.status === 'CANCELLED') && order.items.length > 0 && (
+        <TouchableOpacity
+          style={oc.reorderBtn}
+          onPress={() => onReorder(order)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={t('customerHotFood.reorderA11y', { number: order.orderNumber })}
+        >
+          <Text style={oc.reorderText}>↻  {t('customerHotFood.reorder')}</Text>
         </TouchableOpacity>
       )}
 
@@ -368,10 +385,11 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
     }).catch(() => {});
   }, [updateBalance]);
 
+  const placingRef = useRef(false);   // set on the first tap: isPending only blocks the next render, so a fast double tap sent two orders
   const placeMutation = useMutation({
     mutationFn: () => hotFoodApi.placeOrder({
       storeId: store.id,
-      items: cart.map(i => (i.comboId && i.drink ? { comboId: i.comboId, drink: i.drink, quantity: i.qty } : { menuItemId: i.id, quantity: i.qty })),
+      items: cart.map(i => (i.comboId ? { comboId: i.comboId, ...(i.drink ? { drink: i.drink } : {}), quantity: i.qty } : { menuItemId: i.id, quantity: i.qty })),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(payWithPoints ? { payWithPoints: true } : {}),
       expectedTotal: Math.round(total * 100) / 100,
@@ -408,6 +426,11 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
       Toast.show({ type: 'error', text1: d?.error || t('customerHotFood.placeOrderError') });
     },
   });
+  const placeOnce = () => {
+    if (placingRef.current) return;
+    placingRef.current = true;
+    placeMutation.mutate(undefined, { onSettled: () => { placingRef.current = false; } });
+  };
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
@@ -490,11 +513,11 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
                 if (store.distance != null && store.distance > FAR_MILES) {
                   Alert.alert(t('customerHotFood.farTitle'), t('customerHotFood.farBody', { store: store.name, distance: milesText(store.distance) }), [
                     { text: t('customerHotFood.farCancel'), style: 'cancel' },
-                    { text: t('customerHotFood.farConfirm'), onPress: () => placeMutation.mutate() },
+                    { text: t('customerHotFood.farConfirm'), onPress: placeOnce },
                   ]);
                   return;
                 }
-                placeMutation.mutate();
+                placeOnce();
               }}
               disabled={placeMutation.isPending || !!closedText}
               activeOpacity={0.85}
@@ -645,15 +668,33 @@ export default function CustomerHotFoodScreen() {
   const combos: Combo[] = Array.isArray(menuData?.data?.combos) ? menuData.data.combos : [];
   const comboWords = useComboWords();
   const [search, setSearch] = useState('');
+  // The menu in sections (2026-10-13): the server's category order, then "More" for items with none; while searching, a plain list
+  const categoryOrder: string[] = Array.isArray(menuData?.data?.categories) ? menuData.data.categories : [];
+  const listRef = useRef<FlatList<any>>(null);
   const shownItems = search.trim()
     ? menuItems.filter((m) => `${m.name} ${m.description ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
     : menuItems;
+  const sectionsShown: string[] = (() => {
+    const has = new Set(menuItems.map((m) => m.category).filter(Boolean) as string[]);
+    const ordered = [...categoryOrder.filter((c) => has.has(c)), ...[...has].filter((c) => !categoryOrder.includes(c))];
+    return menuItems.some((m) => !m.category) && ordered.length > 0 ? [...ordered, ''] : ordered;   // '' is "More", the items with none
+  })();
+  const menuRows: any[] = search.trim() || sectionsShown.length === 0
+    ? shownItems.map((item) => ({ kind: 'item', item }))
+    : sectionsShown.flatMap((c) => {
+        const inIt = shownItems.filter((m) => (c === '' ? !m.category : m.category === c));
+        return inIt.length ? [{ kind: 'header', title: c }, ...inIt.map((item) => ({ kind: 'item', item }))] : [];
+      });
+  const catLabel = (c: string) => (c === '' ? t('hotFoodCat.More') : t(`hotFoodCat.${c}`, { defaultValue: c }));
   useEffect(() => {
     if (!menuData) return;
     setCart((prev) => {
       if (prev.length === 0) return prev;
       const byId = new Map<string, { price: number; name: string }>(menuItems.map((m) => [m.id, m]));
-      for (const c of combos) for (const d of c.drinks) byId.set(comboCartId(c.id, d), { price: c.price, name: `${comboWords.name(c)} + ${comboWords.drink(d)}` });
+      for (const c of combos) {
+        for (const d of c.drinks) byId.set(comboCartId(c.id, d), { price: c.price, name: `${comboWords.name(c)} + ${comboWords.drink(d)}` });
+        if (c.drinks.length === 0) byId.set(comboCartId(c.id, ''), { price: c.price, name: comboWords.name(c) });   // a deal with no drink
+      }
       const gone = prev.filter((c) => !byId.has(c.id));
       const next = prev.filter((c) => byId.has(c.id)).map((c) => ({ ...c, price: byId.get(c.id)!.price, name: byId.get(c.id)!.name }));
       const repriced = prev.some((c) => byId.has(c.id) && byId.get(c.id)!.price !== c.price);
@@ -698,6 +739,15 @@ export default function CustomerHotFoodScreen() {
   }
   const orders: FoodOrder[] = ordersData?.data?.data || [];
   const activeOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'ACCEPTED' || o.status === 'READY');
+  // "Your usual" (2026-10-23, HQ switch in admin > Engagement): what this customer has ordered most from this menu, one tap to add.
+  // Worked out here from their own finished orders, so a name that is no longer on this store's menu simply does not show.
+  const engFlags = useEngagementFlags();
+  const usual: MenuItem[] = (() => {
+    if (!engFlags?.reorder) return [];
+    const count = new Map<string, number>();
+    for (const o of orders) if (o.status === 'COMPLETED') for (const it of o.items) count.set(it.name, (count.get(it.name) ?? 0) + it.quantity);
+    return menuItems.filter((m) => (count.get(m.name) ?? 0) >= 2).sort((a, b) => (count.get(b.name) ?? 0) - (count.get(a.name) ?? 0)).slice(0, 4);
+  })();
   const pastOrders = orders.filter(o => o.status === 'COMPLETED' || o.status === 'CANCELLED');
 
   // Cart helpers
@@ -719,9 +769,9 @@ export default function CustomerHotFoodScreen() {
     setCart(prev => {
       const existing = prev.find(c => c.id === id);
       if (existing) return prev.map(c => c.id === id ? { ...c, qty: Math.min(MAX_PER_ITEM, c.qty + 1) } : c);
-      return [...prev, { id, name: `${comboWords.name(combo)} + ${comboWords.drink(drink)}`, price: combo.price, imageUrl: combo.item.imageUrl ?? undefined, qty: 1, comboId: combo.id, drink }];
+      return [...prev, { id, name: drink ? `${comboWords.name(combo)} + ${comboWords.drink(drink)}` : comboWords.name(combo), price: combo.price, imageUrl: combo.item.imageUrl ?? undefined, qty: 1, comboId: combo.id, drink }];
     });
-    Toast.show({ type: 'success', text1: t('hotFoodCombos.added', { name: comboWords.name(combo), drink: comboWords.drink(drink) }) });
+    Toast.show({ type: 'success', text1: drink ? t('hotFoodCombos.added', { name: comboWords.name(combo), drink: comboWords.drink(drink) }) : t('hotFoodCombos.addedDeal', { name: comboWords.name(combo) }) });
   }
   const comboCount = useCallback((comboId: string) => cart.filter(c => c.comboId === comboId).reduce((n, c) => n + c.qty, 0), [cart]);
 
@@ -737,6 +787,26 @@ export default function CustomerHotFoodScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addParam, menuData]);
   useEffect(() => { if (openCombo) setTab('menu'); }, [openCombo]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // "Order again" on a past order (2026-10-24, HQ switch "Order your usual"): what is still on this store's menu goes in the cart, the rest is named
+  function reorder(order: FoodOrder) {
+    const byName = new Map(menuItems.map((m) => [m.name.trim().toLowerCase(), m]));
+    const missing: string[] = [];
+    let next = cart;
+    let added = 0;
+    for (const it of order.items) {
+      const m = byName.get(it.name.trim().toLowerCase());
+      if (!m) { missing.push(it.name); continue; }
+      added++;
+      next = next.some((c) => c.id === m.id)
+        ? next.map((c) => (c.id === m.id ? { ...c, qty: Math.min(MAX_PER_ITEM, c.qty + it.quantity) } : c))
+        : [...next, { ...m, qty: Math.min(MAX_PER_ITEM, it.quantity) }];
+    }
+    if (added === 0) { Toast.show({ type: 'info', text1: t('customerHotFood.reorderNone', { store: store?.name ?? '' }) }); return; }
+    setCart(next);
+    setTab('menu');
+    Toast.show({ type: 'success', text1: t('customerHotFood.reorderAdded', { count: added }), ...(missing.length ? { text2: t('customerHotFood.reorderMissing', { items: missing.join(', ') }) } : {}) });
+  }
 
   const removeFromCart = useCallback((item: MenuItem) => {
     setCart(prev => {
@@ -851,9 +921,28 @@ export default function CustomerHotFoodScreen() {
           ) : (
             <FadeSlideIn style={{ flex: 1 }}>
               <FlatList
-                data={shownItems}
+                ref={listRef}
+                data={menuRows}
+                onScrollToIndexFailed={(info) => {
+                  listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true });
+                  setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, animated: true, viewOffset: 4 }), 250);
+                }}
                 ListHeaderComponent={
                   <View>
+                    {!search.trim() && !closed && usual.length > 0 && (
+                      <View style={s.usual}>
+                        <Text style={s.usualTitle}>{t('engagement.yourUsual')}</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                          {usual.map((m) => (
+                            <TouchableOpacity key={m.id} style={s.usualChip} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('customerHotFood.addToCartA11y', { name: m.name })}
+                              onPress={() => { addToCart(m); Toast.show({ type: 'success', text1: t('customerHotFood.addedFromHome', { name: m.name }) }); }}>
+                              <Text style={s.usualName} numberOfLines={1}>{m.name}</Text>
+                              <Text style={s.usualPrice}>+ ${m.price.toFixed(2)}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
                     {!search.trim() && (
                       <ComboStrip
                         combos={combos} closed={closed} countOf={comboCount} onAdd={addCombo}
@@ -863,6 +952,16 @@ export default function CustomerHotFoodScreen() {
                           router.setParams({ combo: '' });
                         }}
                       />
+                    )}
+                    {!search.trim() && sectionsShown.length > 1 && (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catChips}>
+                        {sectionsShown.map((c) => (
+                          <TouchableOpacity key={c || '-more'} style={s.catChip} accessibilityRole="button"
+                            onPress={() => { const i = menuRows.findIndex((r: any) => r.kind === 'header' && r.title === c); if (i >= 0) listRef.current?.scrollToIndex({ index: i, animated: true, viewOffset: 4 }); }}>
+                            <Text style={s.catChipText}>{catLabel(c)}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
                     )}
                     {menuItems.length > 8 ? (
                       <TextInput
@@ -880,19 +979,21 @@ export default function CustomerHotFoodScreen() {
                 }
                 ListEmptyComponent={search.trim() ? <Text style={s.searchEmpty}>{t('customerHotFood.searchNothing', { text: search.trim() })}</Text> : null}
                 keyboardShouldPersistTaps="handled"
-                keyExtractor={item => item.id}
+                keyExtractor={(row: any) => (row.kind === 'header' ? `h:${row.title}` : row.item.id)}
                 contentContainerStyle={s.menuList}
                 onScroll={largeTitle.onScroll}
                 scrollEventThrottle={largeTitle.scrollEventThrottle}
                 refreshControl={
                   <RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />
                 }
-                renderItem={({ item }) => (
+                renderItem={({ item: row }: { item: any }) => row.kind === 'header' ? (
+                  <Text style={s.catHeader} accessibilityRole="header">{catLabel(row.title)}</Text>
+                ) : (
                   <MenuCard
-                    item={item}
-                    qty={getQty(item.id)}
-                    onAdd={() => addToCart(item)}
-                    onRemove={() => removeFromCart(item)}
+                    item={row.item}
+                    qty={getQty(row.item.id)}
+                    onAdd={() => addToCart(row.item)}
+                    onRemove={() => removeFromCart(row.item)}
                     closed={closed}
                   />
                 )}
@@ -967,7 +1068,7 @@ export default function CustomerHotFoodScreen() {
                 {index === activeOrders.length && pastOrders.length > 0 && (
                   <Text style={[s.sectionLabel, { marginTop: 20 }]}>{t('customerHotFood.pastOrdersSection')}</Text>
                 )}
-                <OrderCard order={item} onCancel={askCancel} cancelling={cancelMutation.isPending && cancelMutation.variables === item.id} />
+                <OrderCard order={item} onCancel={askCancel} cancelling={cancelMutation.isPending && cancelMutation.variables === item.id} onReorder={engFlags?.reorder ? reorder : undefined} />
               </>
             )}
           />
@@ -1002,6 +1103,11 @@ export default function CustomerHotFoodScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
+  usual: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 6, gap: 6 },
+  usualTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+  usualChip: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#E2E8F0', maxWidth: 190 },
+  usualName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
+  usualPrice: { fontSize: 12, fontWeight: '700', color: COLORS.primary, marginTop: 2 },
   root: { flex: 1, backgroundColor: COLORS.background },
 
   // Header
@@ -1051,6 +1157,10 @@ const s = StyleSheet.create({
 
   // Menu
   menuList: { padding: 12, paddingBottom: 32 },
+  catChips: { gap: 8, paddingBottom: 10, paddingRight: 4 },
+  catChip: { borderRadius: 999, borderWidth: 1, borderColor: '#E6E8EB', backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8 },
+  catChipText: { fontSize: 14, fontWeight: '700', color: COLORS.secondary },
+  catHeader: { fontSize: 18, fontWeight: '900', color: COLORS.text, marginTop: 14, marginBottom: 8, marginLeft: 2 },
   search: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#E6E8EB', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: COLORS.text, marginBottom: 10 },
   searchEmpty: { textAlign: 'center', color: COLORS.textMuted, fontSize: 14, marginTop: 24 },
 
@@ -1144,6 +1254,8 @@ const mc = StyleSheet.create({
 
 // ─── Order card styles ────────────────────────────────────────────────────────
 const oc = StyleSheet.create({
+  reorderBtn: { alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: COLORS.primary },
+  reorderText: { fontSize: 13.5, fontWeight: '800', color: '#fff' },
   storeAddr: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
   dirBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 8, borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F8FAFC' },
   dirBtnText: { fontSize: 12.5, fontWeight: '800', color: COLORS.secondary },

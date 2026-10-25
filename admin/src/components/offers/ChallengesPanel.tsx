@@ -18,13 +18,15 @@ import { AudienceLimitsField, NO_AUDIENCE, audiencePayload, audienceProblem, aud
 
 const CATS = [['', 'Any purchase'], ['GROCERIES', 'Groceries'], ['FROZEN_FOODS', 'Frozen'], ['FRESH_FOODS', 'Fresh'], ['GAS', 'Gas'], ['DIESEL', 'Diesel'], ['HOT_FOODS', 'Hot Foods'], ['OTHER', 'Other']] as const;
 const usd = (n: number) => `$${n.toFixed(2)}`;
+// Customers read the reward in points (100 pts = $1), so the rule in words does too; HQ still types it in dollars
+const pts = (dollars: number) => `${Math.round(dollars * 100).toLocaleString('en-US')} pts`;
 const ord = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 10 > 3 || [11, 12, 13].includes(n % 100) ? 0 : n % 10]}`;
 const catWords = (c: string) => (c ? ` on ${CATS.find(([v]) => v === c)?.[1].toLowerCase() ?? c.toLowerCase()}` : '');
 
 /** The rule in words, as the server writes it. */
 export function ruleText(kind: string, target: number, reward: number, minPurchase: number | null, category: string, repeats: boolean): string {
-  if (kind === 'SPEND') return `Spend ${usd(target)}${catWords(category)}, get ${usd(reward)} back`;
-  return `${repeats ? 'Every' : 'The'} ${ord(target)} purchase${catWords(category)}${minPurchase ? ` of ${usd(minPurchase)} or more` : ''} earns ${usd(reward)}`;
+  if (kind === 'SPEND') return `Spend ${usd(target)}${catWords(category)}, get ${pts(reward)} back`;
+  return `${repeats ? 'Every' : 'The'} ${ord(target)} purchase${catWords(category)}${minPurchase ? ` of ${usd(minPurchase)} or more` : ''} earns ${pts(reward)}`;
 }
 
 export default function ChallengesPanel() {
@@ -57,7 +59,7 @@ export default function ChallengesPanel() {
       </div>
       {creating && <NewChallenge onDone={() => { setCreating(false); refresh(); }} />}
       {isLoading ? <CardSkeleton count={2} /> : rows.length === 0 && !creating ? (
-        <EmptyState icon={<Trophy size={22} />} title="No challenges yet" description='Try "Spend $30 on groceries this week, get $3 back".' />
+        <EmptyState icon={<Trophy size={22} />} title="No challenges yet" description='Try "Spend $30 on groceries this week, get 300 pts back".' />
       ) : (
         [['Live now', live], ['Scheduled', later], ['Past', done]].map(([label, list]) => (list as any[]).length > 0 && (
           <div key={label as string}>
@@ -131,7 +133,7 @@ function NewChallenge({ onDone }: { onDone: () => void }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           <Field label={kind === 'SPEND' ? 'Spend ($)' : 'Purchases'} htmlFor="ch-target"><input id="ch-target" className="ui-input" style={INPUT} inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9.]/g, ''))} /></Field>
-          <Field label="Reward ($)" htmlFor="ch-reward"><input id="ch-reward" className="ui-input" style={INPUT} inputMode="decimal" value={reward} onChange={(e) => setReward(e.target.value.replace(/[^0-9.]/g, ''))} /></Field>
+          <Field label="Reward ($)" htmlFor="ch-reward" hint={r > 0 ? `Customers see ${pts(r)}` : 'In dollars. Customers see points (100 pts = $1).'}><input id="ch-reward" className="ui-input" style={INPUT} inputMode="decimal" value={reward} onChange={(e) => setReward(e.target.value.replace(/[^0-9.]/g, ''))} /></Field>
           {kind === 'VISITS' && <Field label="Each at least ($, optional)" htmlFor="ch-min"><input id="ch-min" className="ui-input" style={INPUT} inputMode="decimal" value={minPurchase} placeholder="Any amount" onChange={(e) => setMinPurchase(e.target.value.replace(/[^0-9.]/g, ''))} /></Field>}
           <Field label="Category" htmlFor="ch-cat"><select id="ch-cat" className="ui-input" style={INPUT} value={category} onChange={(e) => setCategory(e.target.value)}>{CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
           <Field label="Where" htmlFor="ch-store"><select id="ch-store" className="ui-input" style={INPUT} value={storeId} onChange={(e) => setStoreId(e.target.value)}><option value="">All stores</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>

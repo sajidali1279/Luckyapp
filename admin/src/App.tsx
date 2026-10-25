@@ -49,10 +49,13 @@ const Labels                 = lazy(() => import('./pages/Labels'));
 const InventoryAnalytics     = lazy(() => import('./pages/InventoryAnalytics'));
 const Documents              = lazy(() => import('./pages/Documents'));
 const HotFood                = lazy(() => import('./pages/HotFood'));
+const MissingPersons         = lazy(() => import('./pages/MissingPersons'));
+const Engagement             = lazy(() => import('./pages/Engagement'));
 const ComingSoon             = lazy(() => import('./pages/ComingSoon'));
 const EmployeePortal         = lazy(() => import('./pages/EmployeePortal'));
 const DailyReports           = lazy(() => import('./pages/DailyReports'));
 const DailyTasks             = lazy(() => import('./pages/DailyTasks'));
+const GrantRedeem            = lazy(() => import('./pages/GrantRedeem'));
 
 // A 4xx (a refused form, an unauthorized or not-found request) will not succeed by asking again, so it is
 // not retried; a network error, a timeout, or a real 5xx gets up to 2 more tries. A query that sets its own
@@ -161,10 +164,13 @@ export default function App() {
               <Route element={<SuperAdminOnly />}>
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/hot-food" element={<HotFood />} />
+                <Route path="/missing-persons" element={<MissingPersons />} />
+                <Route path="/engagement" element={<Engagement />} />
                 <Route path="/hot-food/menu" element={<ComingSoon feature="Hot Food Menu Management" />} />
                 <Route path="/hot-food/orders" element={<ComingSoon feature="Hot Food Order Board" />} />
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/customers/:id" element={<CustomerProfile />} />
+              <Route path="/grant-redeem" element={<GrantRedeem />} />
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/rates" element={<Rates />} />

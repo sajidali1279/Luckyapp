@@ -13,6 +13,30 @@ async function fetchWithAuth(path: string, options: RequestInit = {}) {
 
 const api = axios.create({ baseURL: API_URL });
 
+/** A signed-in request was refused (401): the session expired, the PIN was reset or the account was closed. Sign out properly so the app
+ *  goes to the sign-in screen. The auth store imports this file, so it is required here, not imported. Shared by axios and the uploads. */
+async function endSessionOn401() {
+  await SecureStore.deleteItemAsync('jwt_token');
+  const { useAuthStore } = require('../store/authStore');
+  if (useAuthStore.getState().user) await useAuthStore.getState().endSession();
+}
+
+/** A photo or form upload (fetch, not axios: React Native needs it for multipart). It answers like an axios call: `{ data }`, or a thrown
+ *  `{ response: { data, status } }`. A page that is not JSON (a 502 while the server restarts, a proxy's 413) is turned into a plain
+ *  message instead of a SyntaxError, a 401 signs out like every other call, and a connection that hangs gives up after `timeoutMs`
+ *  (a network failure or the timeout is thrown as it is, with no `response`, as axios does). */
+async function uploadForm(path: string, body: FormData, timeoutMs = 90_000) {
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), timeoutMs);
+  try {
+    const res = await fetchWithAuth(path, { method: 'POST', body: body as any, signal: stop.signal });
+    const json = await res.json().catch(() => null);
+    if (res.status === 401 && !path.startsWith('/auth/login')) await endSessionOn401();
+    if (!res.ok) throw { response: { data: json ?? { success: false, error: 'The server did not answer properly. Please try again in a moment.' }, status: res.status } };
+    return { data: json ?? {} };
+  } finally { clearTimeout(timer); }
+}
+
 // Attach JWT to every request automatically
 api.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('jwt_token');
@@ -83,20 +107,38 @@ export const authApi = {
   deleteAccount: (pin: string) => api.delete('/auth/account', { data: { pin } }),
 };
 
+// Missing person posters (2026-10-18)
+export const missingApi = {
+  active: (storeId?: string) => api.get('/missing-persons/active', { params: storeId ? { storeId } : {} }),
+  get: (id: string) => api.get(`/missing-persons/${id}/public`),
+  report: (id: string, reason: string) => api.post(`/missing-persons/${id}/report`, { reason }),
+  // a customer asks HQ to post someone (police case number required); HQ checks it with the agency first
+  mine: () => api.get('/missing-persons/requests/mine'),
+  request: async (fields: Record<string, string>, photo: { uri: string; type: string }) => {
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+    (fd as any).append('photo', { uri: photo.uri, name: photo.type === 'image/png' ? 'photo.png' : 'photo.jpg', type: photo.type });
+    return uploadForm('/missing-persons/requests', fd);
+  },
+};
+
 export const pointsApi = {
   getMyHistory: (page = 1) =>
     api.get(`/points/my-history?page=${page}`),
   getMyBenefitStatus: () => api.get('/points/my-benefit-status'),
-  initiateGrant: (data: { customerQrCode: string; storeId: string; purchaseAmount: number; category?: string; notes?: string; isGas?: boolean; gasGallons?: number; gasPricePerGallon?: number }) =>
+  getMyExpiry: () => api.get('/points/my-expiry'),   // points expiry (2026-10-17)
+  // addToSaleId instead of the QR: a receipt the customer left behind, added to their sale from the Recent tab (2026-10-18)
+  initiateGrant: (data: { customerQrCode?: string; addToSaleId?: string; storeId: string; purchaseAmount: number; category?: string; notes?: string; isGas?: boolean; gasGallons?: number; gasPricePerGallon?: number; siblingIds?: string[] }) =>
     api.post('/points/grant', data),
   /** What a grant of these lines would pay (the server's own math, promotions included); nothing is saved */
   previewGrant: (data: { customerQrCode: string; storeId: string; lines: { category: string; amount: number; gasGallons?: number }[] }) =>
     api.post('/points/preview', data),
+  /** Cancel after Grant, before the receipt photo (2026-10-18): the server cancels these lines if they are still waiting for a photo */
+  cancelGrant: (ids: string[]) => api.post('/points/grant/cancel', { ids }),
+  /** The cashier's own sales and redemptions today (Recent tab) */
+  getCashierRecent: () => api.get('/points/cashier/recent'),
   uploadReceipt: async (transactionId: string, receiptFile: FormData) => {
-    const res = await fetchWithAuth(`/points/grant/${transactionId}/receipt`, { method: 'POST', body: receiptFile as any });
-    const json = await res.json();
-    if (!res.ok) throw { response: { data: json, status: res.status } };
-    return { data: json };
+    return uploadForm(`/points/grant/${transactionId}/receipt`, receiptFile);
   },
   redeemCredits: (data: { customerQrCode: string; storeId: string; amount: number }) =>
     api.post('/points/redeem', data),
@@ -133,6 +175,22 @@ export const receiptApi = {
 };
 
 /** Challenges: the customer's own, with their progress (spend or visit targets that pay a reward). */
+export const engagementApi = {
+  config: () => api.get('/engagement/config'),
+  me: (storeId?: string) => api.get(`/engagement/me${storeId ? `?storeId=${storeId}` : ''}`),
+  checkIn: () => api.post('/engagement/check-in'),
+  ratePrompt: () => api.post('/engagement/rate-prompt'),   // { ask: true } at most once per customer
+  tierUp: () => api.post('/engagement/tier-up'),           // { show, tier }: the one-time tier celebration
+  friends: (when: 'this' | 'last') => api.get(`/engagement/friends?when=${when}`),   // the friends leaderboard (2026-10-24)
+  friendsJoin: () => api.post('/engagement/friends/join'),
+  friendsLeave: () => api.delete('/engagement/friends/join'),
+  game: () => api.get('/engagement/games'),   // the prize game (2026-10-25)
+  play: (body: { storeId?: string; pick?: number }) => api.post('/engagement/games/play', body),
+  flashActive: (storeId?: string) => api.get(`/engagement/flash/active${storeId ? `?storeId=${storeId}` : ''}`),   // the flash deal running now, or null
+  putGasAlert: (body: { storeId: string; fuel: 'GAS' | 'DIESEL'; maxPrice: number }) => api.put('/engagement/gas-alerts', body),
+  deleteGasAlert: (id: string) => api.delete(`/engagement/gas-alerts/${id}`),
+};
+
 export const challengesApi = {
   mine: (storeId?: string) => api.get(`/challenges/mine${storeId ? `?storeId=${storeId}` : ''}`),
 };
@@ -147,10 +205,7 @@ export const offersApi = {
   estimate:    (data: object) => api.post('/offers/estimate', data),
   deleteBanner:(bannerId: string) => api.delete(`/banners/${bannerId}`),
   createBanner: async (formData: FormData) => {
-    const res = await fetchWithAuth('/banners', { method: 'POST', body: formData as any });
-    const json = await res.json();
-    if (!res.ok) throw { response: { data: json, status: res.status } };
-    return { data: json };
+    return uploadForm('/banners', formData);
   },
 };
 
@@ -183,8 +238,18 @@ export const chatApi = {
   getMyStores: () => api.get('/chat/my-stores'),
   getMessages: (storeId: string, after?: string) =>
     api.get(`/chat/${storeId}/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
-  sendMessage: (storeId: string, text: string) =>
-    api.post(`/chat/${storeId}/messages`, { text }),
+  // toUserId: a private message to one person at the store (2026-10-23); left out = to everyone
+  sendMessage: (storeId: string, text: string, toUserId?: string) =>
+    api.post(`/chat/${storeId}/messages`, { text, ...(toUserId ? { toUserId } : {}) }),
+  getPeople: (storeId: string) => api.get(`/chat/${storeId}/people`),
+  // a photo or a PDF, with or without a line of text (2026-10-24); uploadForm is fetch-based, as React Native needs for multipart
+  sendAttachment: (storeId: string, file: { uri: string; name: string; type: string }, text: string, toUserId?: string) => {
+    const fd = new FormData();
+    if (text) fd.append('text', text);
+    if (toUserId) fd.append('toUserId', toUserId);
+    (fd as any).append('file', { uri: file.uri, name: file.name, type: file.type });
+    return uploadForm(`/chat/${storeId}/messages`, fd);
+  },
   getUnreadCount: () => api.get('/chat/unread-count'),
   getUnreadByStore: () => api.get('/chat/unread-by-store'),   // { [storeId]: count }
 };
@@ -243,10 +308,11 @@ export const storesApi = {
 };
 
 export const welcomeBonusApi = {
-  getStatus: () => api.get('/welcome-bonus'),
+  // storeId: the store the customer is at (nearest), for that store's items and spend rule
+  getStatus: (storeId?: string) => api.get('/welcome-bonus', { params: storeId ? { storeId } : undefined }),
   claim: (rewardType: string) => api.post('/welcome-bonus/claim', { rewardType }),
   // offer=1: also answers for a new customer who has not chosen today's item, so the cashier can give it (give below)
-  getForCustomer: (qrCode: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`, { params: { offer: 1 } }),
+  getForCustomer: (qrCode: string, storeId?: string) => api.get(`/welcome-bonus/customer/${encodeURIComponent(qrCode)}`, { params: { offer: 1, ...(storeId ? { storeId } : {}) } }),
   confirm: (claimCode: string, storeId?: string) => api.post('/welcome-bonus/confirm', { claimCode, storeId }),
   give: (qrCode: string, rewardType: string, storeId?: string) => api.post('/welcome-bonus/give', { qrCode, rewardType, storeId }),
 };
@@ -301,10 +367,7 @@ export const promotionsApi = {
       const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
       const mimeMap: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
       (fd as any).append('image', { uri: data.imageUri, name: filename, type: mimeMap[ext] ?? 'image/jpeg' });
-      const res = await fetchWithAuth('/promotions/request', { method: 'POST', body: fd as any });
-      const json = await res.json();
-      if (!res.ok) throw { response: { data: json, status: res.status } };
-      return { data: json };
+      return uploadForm('/promotions/request', fd);
     }
     return api.post('/promotions/request', {
       requesterName: data.requesterName,
@@ -452,6 +515,11 @@ export const managerApi = {
 
 // Where staff are working (2026-10-11): the check-in when the app opens during a shift, and the "Where staff are" calendar
 // What HQ set in admin Settings that the app needs (2026-10-12): features on or off, contact details, a few limits
+// The seasonal theme HQ set (no sign-in needed): which preset is on today (2026-10-21)
+export const appThemeApi = {
+  get: () => api.get('/app/theme'),
+};
+
 export const settingsAppApi = {
   get: () => api.get('/settings/app'),
 };
@@ -469,22 +537,16 @@ export const receiptScanApi = {
   send: async (uri: string) => {
     const form = new FormData();
     form.append('image', { uri, name: 'receipt.jpg', type: 'image/jpeg' } as any);
-    const stop = new AbortController();
-    const timer = setTimeout(() => stop.abort(), 90_000);   // reading a receipt can take half a minute
-    try {
-      const res = await fetchWithAuth('/receipt-scan', { method: 'POST', body: form as any, signal: stop.signal });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw { response: { data: json, status: res.status } };
-      return { data: json };
-    } finally { clearTimeout(timer); }
+    return uploadForm('/receipt-scan', form, 90_000);   // reading a receipt can take half a minute
   },
 };
 
 export const hotFoodApi = {
-  getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`),
+  // deals=1: this app knows deals with no drink ("2 corn dogs for $3.50", 2026-10-16); older apps are not sent them
+  getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`, { params: { deals: 1 } }),
   // Employee management view — legacy + catalog items merged with availability + source
   getStoreAllItems: (storeId: string) => api.get(`/hot-food/store/${storeId}/all-items`),
-  placeOrder:     (data: { storeId: string; items: ({ menuItemId: string; quantity: number } | { comboId: string; drink: string; quantity: number })[]; note?: string; payWithPoints?: boolean; expectedTotal?: number }) =>
+  placeOrder:     (data: { storeId: string; items: ({ menuItemId: string; quantity: number } | { comboId: string; drink?: string; quantity: number })[]; note?: string; payWithPoints?: boolean; expectedTotal?: number }) =>
     api.post('/hot-food/orders', data),
   getMyOrders:    () => api.get('/hot-food/orders/mine'),
   // Where a customer can pick up: every store taking hot food, with address, location and open now (2026-10-11)

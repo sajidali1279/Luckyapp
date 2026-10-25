@@ -46,5 +46,20 @@ export async function pushChatMessage(storeId: string, senderId: string, senderN
   return phones;
 }
 
+const lastDirect = new Map<string, number>();
+export const DIRECT_PUSH_GAP_MS = 30_000;
+
+/** A private message: only the person it is for is pushed (at most once every 30 seconds per sender and person, so a burst of lines is one buzz). */
+export async function pushDirectMessage(storeId: string, senderId: string, senderName: string, toUserId: string, text: string, now = Date.now()): Promise<number> {
+  const key = `${senderId}>${toUserId}`;
+  if ((lastDirect.get(key) ?? 0) > now - DIRECT_PUSH_GAP_MS) return 0;
+  lastDirect.set(key, now);
+  const to = await prisma.user.findUnique({ where: { id: toUserId }, select: { isActive: true, role: true, pushTokens: { select: { token: true } } } });
+  if (!to || !to.isActive || to.pushTokens.length === 0) return 0;
+  const body = text.length > 120 ? `${text.slice(0, 117).trimEnd()}...` : text;
+  await sendExpoBatch(to.pushTokens.map((t) => t.token), { title: `${senderName} (private)`, body, actionUrl: chatUrl(to.role) });
+  return to.pushTokens.length;
+}
+
 /** For tests: forget when each store last pushed. */
-export function resetChatPushClock() { lastPush.clear(); }
+export function resetChatPushClock() { lastPush.clear(); lastDirect.clear(); }

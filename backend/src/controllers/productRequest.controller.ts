@@ -7,6 +7,7 @@ import { productRequestUrlManager, productRequestUrlCustomer } from '../utils/no
 import { hasMinRole } from '../middleware/auth';
 import { Role, OrderItemSource } from '@prisma/client';
 import { generateListName } from './orderList.controller';
+import { rule } from '../utils/appSettings';
 
 const DECLINE_MESSAGE =
   'Product supply unavailable with current set of vendors but request is identified, validated, stored for future references.';
@@ -49,7 +50,7 @@ export async function submitProductRequest(req: AuthRequest, res: Response) {
   }
 
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
+  expiresAt.setDate(expiresAt.getDate() + rule('productRequestDays'));   // HQ's days (Settings > Customer care); it was a fixed 7
 
   const request = await prisma.productRequest.create({
     data: {

@@ -5,6 +5,7 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import { Role, TransactionStatus } from '@prisma/client';
+import { AWAITING_DECISION } from '../utils/unfinishedSales';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { audit } from '../utils/audit';
@@ -12,6 +13,8 @@ import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { getNextTierProgress, getStoredThresholds } from '../utils/tier';
 import { shortName } from '../utils/referrals';
 import { isTestPhone } from '../utils/testAccounts';
+import { customerReceiptCards } from '../utils/receiptCards';
+import { sendTestPush, explainPushCode } from '../utils/pushSend';
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const DAY = 86_400_000;
@@ -19,6 +22,13 @@ const SALE_ONLY = { challengeId: null, referralId: null };
 
 async function findCustomer(id: string) {
   return prisma.user.findFirst({ where: { id, role: Role.CUSTOMER, ...excludeDeletedCustomers } });
+}
+
+/** GET /users/customers/:userId/receipt-cards: the cards on the customer's scanned receipts (HQ only; customers never see this). */
+export async function getCustomerReceiptCards(req: AuthRequest, res: Response) {
+  const c = await findCustomer(req.params.userId);
+  if (!c) { res.status(404).json({ success: false, error: 'That customer no longer exists.' }); return; }
+  res.json({ success: true, data: await customerReceiptCards(c.id) });
 }
 
 /** GET /users/customers/:userId/profile */
@@ -30,8 +40,8 @@ export async function getCustomerProfile(req: AuthRequest, res: Response) {
   const [sales, last30, pending, flagged, firstLast, earned, credits, catalog, byStore, disputes, hotFood, tokens, thresholds, invitedBy, invited, notes] = await Promise.all([
     prisma.pointsTransaction.aggregate({ where: { customerId: id, status: TransactionStatus.APPROVED, ...SALE_ONLY }, _count: { _all: true }, _sum: { purchaseAmount: true } }),
     prisma.pointsTransaction.count({ where: { customerId: id, status: TransactionStatus.APPROVED, ...SALE_ONLY, createdAt: { gte: since30 } } }),
-    prisma.pointsTransaction.count({ where: { customerId: id, status: TransactionStatus.PENDING, ...SALE_ONLY } }),
-    prisma.pointsTransaction.count({ where: { customerId: id, status: TransactionStatus.FLAGGED, ...SALE_ONLY } }),
+    prisma.pointsTransaction.count({ where: { customerId: id, ...AWAITING_DECISION, status: TransactionStatus.PENDING, ...SALE_ONLY } }),
+    prisma.pointsTransaction.count({ where: { customerId: id, ...AWAITING_DECISION, status: TransactionStatus.FLAGGED, ...SALE_ONLY } }),
     prisma.pointsTransaction.aggregate({ where: { customerId: id, status: TransactionStatus.APPROVED, ...SALE_ONLY }, _min: { createdAt: true }, _max: { createdAt: true } }),
     prisma.pointsTransaction.aggregate({ where: { customerId: id, status: TransactionStatus.APPROVED }, _sum: { pointsAwarded: true, gasBonusPoints: true } }),
     prisma.creditRedemption.aggregate({ where: { customerId: id }, _sum: { amount: true }, _count: { _all: true } }),
@@ -97,7 +107,7 @@ export async function getCustomerActivity(req: AuthRequest, res: Response) {
     want('sales') ? prisma.pointsTransaction.findMany({
       where: { customerId: id, ...SALE_ONLY }, orderBy: { createdAt: 'desc' }, take,
       select: { id: true, createdAt: true, purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true, status: true, category: true, receiptImageUrl: true, voidReason: true, fraudFlags: true,
-        store: { select: { name: true } }, grantedBy: { select: { name: true } }, offer: { select: { title: true } } },
+        store: { select: { name: true } }, grantedBy: { select: { name: true } }, servedBy: { select: { name: true } }, offer: { select: { title: true } } },
     }) : [],
     want('rewards') ? prisma.pointsTransaction.findMany({
       where: { customerId: id, OR: [{ challengeId: { not: null } }, { referralId: { not: null } }] }, orderBy: { createdAt: 'desc' }, take,
@@ -113,7 +123,8 @@ export async function getCustomerActivity(req: AuthRequest, res: Response) {
   const items: Item[] = [
     ...sales.map((t): Item => ({
       kind: 'sales', id: t.id, at: t.createdAt, title: `Purchase${t.category ? `, ${String(t.category).replace(/_/g, ' ').toLowerCase()}` : ''}`,
-      amount: t.purchaseAmount, points: r2(t.pointsAwarded + t.gasBonusPoints), status: t.status, store: t.store?.name ?? null, by: t.grantedBy?.name ?? null,
+      amount: t.purchaseAmount, points: r2(t.pointsAwarded + t.gasBonusPoints), status: t.status, store: t.store?.name ?? null,
+      by: t.servedBy ? `${t.servedBy.name ?? 'Employee'} (entered by ${t.grantedBy?.name ?? 'HQ'})` : t.grantedBy?.name ?? null,
       detail: [t.offer?.title ? `Promotion: ${t.offer.title}` : null, t.voidReason ? `Voided: ${t.voidReason}` : null, t.fraudFlags ? 'Flagged for review' : null].filter(Boolean).join(' · ') || null,
       receiptImageUrl: t.receiptImageUrl,
     })),
@@ -175,4 +186,33 @@ export async function getCustomerHistory(req: AuthRequest, res: Response) {
     try { summary = r.details ? JSON.parse(r.details).summary ?? null : null; } catch { /* keep null */ }
     return { id: r.id, at: r.createdAt, who: r.actorName, role: r.actorRole, action: r.action, summary, store: r.storeName };
   }) });
+}
+
+/**
+ * POST /users/:userId/test-push (HQ, 2026-10-16): a test notification to this person's phones now, with what the push service and Google
+ * or Apple said about each one, in words. For "customers get no notifications": it tells a missing push key apart from a phone setting.
+ */
+export async function testUserPush(req: AuthRequest, res: Response) {
+  const user = await prisma.user.findUnique({ where: { id: req.params.userId }, select: { id: true, name: true, role: true, language: true } });
+  if (!user) { res.status(404).json({ success: false, error: 'That account does not exist.' }); return; }
+  const phones = await prisma.pushToken.findMany({ where: { userId: user.id }, select: { token: true, platform: true, appVersion: true, lastSeenAt: true }, orderBy: { lastSeenAt: 'desc' }, take: 10 });
+  if (phones.length === 0) {
+    res.json({ success: true, data: { phones: [], summary: 'No phone is registered for notifications on this account. On the phone: allow notifications for Lucky Stop in the phone\'s settings, then open the app signed in to this account.' } });
+    return;
+  }
+  const es = user.language === 'es';
+  const results = await sendTestPush(phones.map((p) => p.token), {
+    title: es ? '🔔 Prueba de Lucky Stop' : '🔔 Test from Lucky Stop',
+    body: es ? 'Si ves esto, las notificaciones funcionan en este teléfono.' : 'If you can see this, notifications work on this phone.',
+  });
+  const byToken = new Map(results.map((r) => [r.token, r]));
+  const out = phones.map((p) => {
+    const r = byToken.get(p.token);
+    const code = !r ? 'WAITING' : r.delivery === 'delivered' ? null : r.delivery === 'waiting' ? 'WAITING' : r.code;
+    return { platform: p.platform, appVersion: p.appVersion, lastSeenAt: p.lastSeenAt, ok: r?.delivery === 'delivered', code, explain: explainPushCode(code, p.platform), detail: r?.message ?? null };
+  });
+  const good = out.filter((o) => o.ok).length;
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'TEST_PUSH', entity: 'user', entityId: user.id,
+    details: { summary: `Test notification to ${user.name ?? 'an account'}: ${good} of ${out.length} phone(s) delivered${out.some((o) => o.code && o.code !== 'WAITING') ? `; ${[...new Set(out.filter((o) => o.code && o.code !== 'WAITING').map((o) => o.code))].join(', ')}` : ''}` } });
+  res.json({ success: true, data: { phones: out, summary: good === out.length ? 'Delivered to every phone.' : good ? `Delivered to ${good} of ${out.length} phones.` : 'Not delivered. See why for each phone.' } });
 }

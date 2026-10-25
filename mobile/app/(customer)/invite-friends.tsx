@@ -15,6 +15,7 @@ import { COLORS } from '../../constants';
 import { haptic } from '../../utils/haptics';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import { pendingInvite } from '../invite';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 // Refer a friend (2026-10-09): the customer's code to share, the deal, the friends they invited, who invited them, and (in the first
 // days, before a purchase) a box to add a friend's code. The paying is on the server (utils/referrals.ts) when a purchase is approved.
@@ -22,6 +23,7 @@ const INVITE_LINK = (code: string) => `https://luckystop.cliffindus.com/invite?c
 const money = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
 
 export default function InviteFriendsScreen() {
+  const appLimits = useAppSettings().limits;   // HQ's days (Settings > Rewards & offers)
   const { t, i18n } = useTranslation();
   const largeTitle = useLargeTitleScroll();
   const qc = useQueryClient();
@@ -127,7 +129,7 @@ export default function InviteFriendsScreen() {
           {d.canAddCode && (
             <View style={st.card}>
               <Text style={st.cardTitle}>{t('invite.addCodeTitle')}</Text>
-              <Text style={st.cardBody}>{t('invite.addCodeBody')}</Text>
+              <Text style={st.cardBody}>{t('invite.addCodeBody', { days: appLimits.referralLateDays })}</Text>
               <View style={st.addRow}>
                 <TextInput style={st.input} placeholder={t('invite.addCodePlaceholder')} placeholderTextColor={COLORS.textMuted} value={code}
                   onChangeText={(v) => setCode(v.toUpperCase())} autoCapitalize="characters" autoCorrect={false} maxLength={10} returnKeyType="done" onSubmitEditing={addCode} />

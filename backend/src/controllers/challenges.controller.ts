@@ -9,7 +9,7 @@ import { AuthRequest } from '../types';
 import { audit } from '../utils/audit';
 import { refuse } from '../utils/refusal';
 import { AUDIENCES, audienceText, membersInAudience } from '../utils/offerAudience';
-import { challengesFor, challengeStats } from '../utils/challenges';
+import { challengesFor, challengeStats, challengeRule } from '../utils/challenges';
 import { resolveAudience } from '../utils/audience';
 import { saveNotificationMany } from '../utils/push';
 import { sendExpoBatch } from '../utils/pushSend';
@@ -49,13 +49,8 @@ const challengeSchema = z.object({
   audienceDays: d.audience === 'LAPSED' || d.audience === 'NEW' ? d.audienceDays : undefined,
 }));
 
-/** "Spend $30 on groceries, get $3 back" / "Every 5th purchase of $2 or more earns $1" (English, for HQ and the Activity Log). */
-export function challengeRule(c: { kind: string; target: number; reward: number; minPurchase: number | null; category: string | null; repeats: boolean }): string {
-  const cat = c.category ? ` on ${c.category.replace(/_/g, ' ').toLowerCase()}` : '';
-  if (c.kind === 'SPEND') return `Spend ${money(c.target)}${cat}, get ${money(c.reward)} back`;
-  const min = c.minPurchase ? ` of ${money(c.minPurchase)} or more` : '';
-  return `${c.repeats ? 'Every' : 'The'} ${c.target}${['th', 'st', 'nd', 'rd'][c.target % 10 > 3 || [11, 12, 13].includes(c.target % 100) ? 0 : c.target % 10]} purchase${cat}${min} earns ${money(c.reward)}`;
-}
+// The rule in words lives in utils/challenges.ts (the reward is shown in points, 2026-10-20)
+export { challengeRule };
 
 /** Tells the challenge's audience it has started, once (announcedAt is claimed first), in each person's language. */
 export async function announceChallenge(c: { id: string; title: string; titleEs: string | null; storeId: string | null; endDate: Date; audience: string; audienceTier: string | null; audienceDays: number | null }): Promise<number> {
@@ -111,7 +106,8 @@ export async function createChallenge(req: AuthRequest, res: Response) {
 
 // GET /challenges (HQ): every challenge, newest first, with who took part, how often it was earned and what it paid
 export async function listChallenges(_req: AuthRequest, res: Response) {
-  const rows = await prisma.challenge.findMany({ orderBy: { startDate: 'desc' }, take: 100, include: { store: { select: { name: true } } } });
+  // Win-back gifts are kept as challenges too (utils/winBack.ts) but are not challenges: they have their own list
+  const rows = await prisma.challenge.findMany({ where: { kind: { notIn: ['WINBACK', 'SYSTEM'] } }, orderBy: { startDate: 'desc' }, take: 100, include: { store: { select: { name: true } } } });
   const stats = await challengeStats(rows.map((r) => r.id));
   const now = Date.now();
   res.json({
@@ -138,6 +134,8 @@ export async function updateChallenge(req: AuthRequest, res: Response) {
   if (!parsed.success) { refuse(res, parsed.error); return; }
   const before = await prisma.challenge.findUnique({ where: { id: req.params.id } });
   if (!before) { res.status(404).json({ success: false, error: 'That challenge does not exist.' }); return; }
+  // A win-back gift must never run: switched on, its target of 0 would pay every purchase
+  if (before.kind === 'WINBACK') { res.status(400).json({ success: false, error: 'That is a win-back gift, not a challenge. It cannot be changed here.' }); return; }
   const d = parsed.data;
   if (d.endDate && new Date(d.endDate).getTime() < before.startDate.getTime()) { res.status(400).json({ success: false, error: 'The last day is before the first day.' }); return; }
   const c = await prisma.challenge.update({ where: { id: before.id }, data: { ...d, ...(d.endDate ? { endDate: new Date(d.endDate) } : {}) } });

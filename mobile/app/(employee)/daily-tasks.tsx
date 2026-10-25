@@ -20,6 +20,7 @@ import { usePullRefresh } from '../../hooks/usePullRefresh';
 import { ListChecksIcon, ChevronDownIcon, ChevronUpIcon, CheckCircleIcon, CircleIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
 import { useCurrentStoreId } from '../../utils/geo';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 type Shift = 'OPENING' | 'MIDDLE' | 'CLOSING';
 
@@ -117,6 +118,7 @@ export default function DailyTasksScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <FocusStatusBar barStyle="dark-content" />
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.iconWrap}>

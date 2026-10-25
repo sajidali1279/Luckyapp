@@ -5,6 +5,7 @@ import { AuthRequest } from '../types';
 import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreEmployees, sendPushToUser } from '../utils/push';
+import { hotFoodWords } from '../utils/hotFoodWords';
 import { hotFoodOrderUrl, customerHotFoodUrl } from '../utils/notificationRoutes';
 import { hotFoodState, opensSentence, HotFoodSchedules, HotFoodState } from '../utils/hotFoodHours';
 import { updateHoursSchema, dayProblem, dayWords, DAY_NAMES } from './storeHours.controller';
@@ -13,6 +14,7 @@ import { audit } from '../utils/audit';
 import { tellStoreAboutOrder } from '../utils/hotFoodRouting';
 import { placeWithPoints, returnOrderPoints, recordPointsPickup, pts } from '../utils/hotFoodPoints';
 import { combosAt, comboLineName, DRINKS } from '../utils/hotFoodCombos';
+import { cleanCategory, orderCategories } from '../utils/hotFoodCategories';
 import { rule, feature } from '../utils/appSettings';
 
 /** Open hot food orders (pending, being made, ready) one customer can have at once, across stores (2026-10-11) */
@@ -142,7 +144,7 @@ export async function createItem(req: AuthRequest, res: Response) {
     data: {
       name: checked.data.name,
       description: checked.data.description ?? null,
-      category: typeof category === 'string' ? category.trim().slice(0, 40) || null : null,
+      category: cleanCategory(category),
       price: checked.data.price,
       storeId,
       estimatedMinutes: checked.data.estimatedMinutes ?? null,
@@ -178,7 +180,7 @@ export async function updateItem(req: AuthRequest, res: Response) {
   const checked = itemFields(req.body, { creating: false, priceMin: 0 });
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
   const data: any = { ...checked.data };
-  if (category !== undefined) data.category = typeof category === 'string' ? category.trim().slice(0, 40) || null : null;
+  if (category !== undefined) data.category = cleanCategory(category);
   if (isAvailable !== undefined) data.isAvailable = isAvailable === true || isAvailable === 'true';
 
   // Image file uploaded — replace via Cloudinary
@@ -297,7 +299,7 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
 
   const order = await prisma.hotFoodOrder.findUnique({
     where: { id },
-    include: { store: { select: { id: true, name: true, address: true, city: true } } },
+    include: { store: { select: { id: true, name: true, address: true, city: true } }, customer: { select: { language: true } } },
   });
   if (!order) {
     res.status(404).json({ success: false, error: 'Order not found' });
@@ -350,27 +352,13 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
   if (next === 'COMPLETED' && order.paidWithPoints && !order.pointsReturnedAt) await recordPointsPickup(order, req.user!.id);
   const updated = await prisma.hotFoodOrder.findUnique({ where: { id }, include });
 
-  // The customer hears when it is accepted (with the time the store gave) and when it is declined (with the reason)
-  if (next === 'ACCEPTED') {
-    const mins = updateData.estimatedMinutes;
-    sendPushToUser(order.customerId, `Order #${order.orderNumber} accepted`,
-      `${order.store.name} is making it${mins ? `, ready in about ${mins} minute${mins === 1 ? '' : 's'}` : ''}.`, 'HOT_FOOD_ORDER', customerHotFoodUrl());
-  }
-  if (next === 'CANCELLED') {
-    sendPushToUser(order.customerId, `Order #${order.orderNumber} was declined`,
-      `${order.store.name} could not make your order${updateData.cancelReason ? `: ${updateData.cancelReason}${/[.!?]$/.test(updateData.cancelReason) ? '' : '.'}` : '.'} ${returned ? `Your ${pts(returned)} points are back.` : 'You were not charged.'}`, 'HOT_FOOD_ORDER', customerHotFoodUrl());
-  }
-
-  // Push to customer when their order is ready for pickup
-  if (next === 'READY') {
-    sendPushToUser(
-      order.customerId,
-      '✅ Your food is ready!',
-      `Order #${order.orderNumber} is ready. Head to the counter at ${order.store.name}${order.store.address ? `, ${order.store.address}${order.store.city ? `, ${order.store.city}` : ''}` : ''}.${order.paidWithPoints ? ' Paid with points: nothing to pay.' : ` Pay $${order.totalAmount.toFixed(2)} at the counter.`}`,
-      'HOT_FOOD_ORDER',
-      customerHotFoodUrl(),   // tapping it opens the orders (it opened nothing)
-    );
-  }
+  // The customer hears when it is accepted (with the time the store gave), when it is declined (with the reason) and when it is ready,
+  // in the language they use the app in (utils/hotFoodWords.ts); tapping any of them opens their orders
+  const es = order.customer?.language === 'es';
+  const tell = (m: { title: string; body: string }) => sendPushToUser(order.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
+  if (next === 'ACCEPTED') tell(hotFoodWords.accepted(es, order.orderNumber, order.store.name, updateData.estimatedMinutes));
+  if (next === 'CANCELLED') tell(hotFoodWords.declined(es, order.orderNumber, order.store.name, updateData.cancelReason, returned ? pts(returned) : 0));
+  if (next === 'READY') tell(hotFoodWords.ready(es, order.orderNumber, order.store, order.paidWithPoints, order.totalAmount));
 
   res.json({ success: true, data: updated, changed: true });
 }
@@ -411,7 +399,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
 
   const menuItems = await prisma.hotFoodMenuItem.findMany({
     where: { isAvailable: true, OR: [{ storeId }, { storeId: null }] },
-    select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
+    select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true },
     orderBy: { name: 'asc' },
   });
 
@@ -420,7 +408,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     where: { storeId, isAvailable: true },
     select: {
       catalogItem: {
-        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
+        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true },
       },
     },
   });
@@ -430,13 +418,15 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
 
   const all = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name));
-  // Combos on at this store now, featured first (utils/hotFoodCombos.ts)
-  const combos = (await combosAt(storeId)).map((c) => ({
+  // Combos on at this store now, featured first (utils/hotFoodCombos.ts). Deals with no drink only for an app that knows them (?deals=1).
+  const combos = (await combosAt(storeId, new Date(), req.query?.deals === '1')).map((c) => ({
     id: c.id, name: c.name, nameEs: c.nameEs, description: c.description, price: c.price, regularPrice: c.regularPrice,
-    drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime,
+    itemQuantity: c.itemQuantity, drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime, days: c.days,
     item: { id: c.catalogItem.id, name: c.catalogItem.name, imageUrl: c.catalogItem.imageUrl }, estimatedMinutes: c.catalogItem.estimatedMinutes,
   }));
-  res.json({ success: true, data: all, hours, combos, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
+  // The menu's sections, in order (utils/hotFoodCategories.ts); an item with none is under "More" in the app
+  const categories = orderCategories(all.map((i) => (i as { category?: string | null }).category ?? null));
+  res.json({ success: true, data: all, hours, combos, categories, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
 }
 
 // GET /hot-food/store/:storeId/all-items — all items with availability (employee management view)
@@ -530,13 +520,14 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   // Each line: an item id and a whole number from 1 to MAX_QTY_PER_ITEM (the same item on two lines counts together)
   const qtyById = new Map<string, number>();
   for (const line of items) {
-    // A combo line is "combo:<id>:<drink>" (the same combo with two drinks is two lines)
+    // A combo line is "combo:<id>:<drink>" (the same combo with two drinks is two lines); a deal with no drink is "combo:<id>:"
     const isCombo = typeof line?.comboId === 'string' && !!line.comboId;
-    if (isCombo && (typeof line.drink !== 'string' || !DRINKS[line.drink])) {
+    const drink = isCombo && line.drink != null && line.drink !== '' ? line.drink : '';
+    if (isCombo && drink && (typeof drink !== 'string' || !DRINKS[drink])) {
       res.status(400).json({ success: false, error: 'Choose the drink for the combo.' });
       return;
     }
-    const itemId = isCombo ? `combo:${line.comboId}:${line.drink}` : line?.menuItemId;
+    const itemId = isCombo ? `combo:${line.comboId}:${drink}` : line?.menuItemId;
     const qty = Number(line?.quantity ?? 1);
     if (typeof itemId !== 'string' || !itemId) {
       res.status(400).json({ success: false, error: 'Each item needs its menu id.' });
@@ -593,17 +584,21 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   }
 
   const orderLines: { menuItemId?: string; catalogItemId?: string; comboId?: string; drink?: string; name: string; price: number; quantity: number }[] = [];
-  // Combos: on at this store now (the item on, the store chosen, within hours), with a drink the combo allows
+  // Combos: on at this store now (the item on, the store chosen, within hours), with a drink the combo allows (none for a deal with no drink)
   if (comboKeys.length > 0) {
-    const here = new Map((await combosAt(storeId)).map((c) => [c.id, c]));
+    const here = new Map((await combosAt(storeId, new Date(), true)).map((c) => [c.id, c]));
     for (const key of comboKeys) {
       const [, comboId, drink] = key.split(':');
       const combo = here.get(comboId);
-      if (!combo || !combo.drinks.includes(drink)) {
+      if (combo && combo.drinks.length > 0 && drink === '') {
+        res.status(400).json({ success: false, error: 'Choose the drink for the combo.' });
+        return;
+      }
+      if (!combo || (combo.drinks.length > 0 ? !combo.drinks.includes(drink) : drink !== '')) {
         res.status(400).json({ success: false, code: 'COMBO_UNAVAILABLE', error: 'A combo in your order is not available right now. Refresh the menu and try again.' });
         return;
       }
-      orderLines.push({ comboId, drink, name: comboLineName(combo.name, drink), price: combo.price, quantity: qtyById.get(key)! });
+      orderLines.push({ comboId, drink: drink || undefined, name: comboLineName(combo.name, drink || null, combo.itemQuantity, combo.catalogItem.name), price: combo.price, quantity: qtyById.get(key)! });
     }
   }
   for (const [itemId, qty] of qtyById) {
@@ -628,7 +623,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   const expected = Number(req.body?.expectedTotal);
   if (req.body?.expectedTotal != null && Number.isFinite(expected) && Math.abs(expected - totalAmount) > 0.005) {
     res.status(409).json({ success: false, code: 'PRICES_CHANGED', total: totalAmount,
-      prices: orderLines.map((l) => ({ id: l.comboId ? `combo:${l.comboId}:${l.drink}` : l.menuItemId ?? l.catalogItemId, price: l.price })),
+      prices: orderLines.map((l) => ({ id: l.comboId ? `combo:${l.comboId}:${l.drink ?? ''}` : l.menuItemId ?? l.catalogItemId, price: l.price })),
       error: `A price changed since you opened the menu. The order is now $${totalAmount.toFixed(2)}. Check it and order again.` });
     return;
   }
@@ -797,10 +792,12 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
       description: checked.data.description ?? null,
       price: checked.data.price,
       estimatedMinutes: checked.data.estimatedMinutes ?? null,
+      category: cleanCategory(req.body.category),
       imageUrl: imageUrl ?? null,
     },
     include: { _count: { select: { stores: true } } },
   });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_CREATED', entity: 'hot_food_item', entityId: item.id, details: { name: item.name, price: item.price } });
   res.status(201).json({ success: true, data: { ...item, storeCount: item._count.stores } });
 }
 
@@ -813,12 +810,16 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   const checked = itemFields(req.body, { creating: false, priceMin: 0.01 });
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
   const data: any = checked.data;
+  if (req.body.category !== undefined) data.category = cleanCategory(req.body.category);
 
   const item = await prisma.hotFoodCatalogItem.update({
     where: { id },
     data,
     include: { _count: { select: { stores: true } } },
   });
+  const changes: Record<string, { was: unknown; now: unknown }> = {};
+  for (const k of Object.keys(data)) { const was = (existing as any)[k], now = (item as any)[k]; if (was !== now) changes[k] = { was, now }; }
+  if (Object.keys(changes).length) audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATED', entity: 'hot_food_item', entityId: id, details: { name: item.name, changes } });
   res.json({ success: true, data: { ...item, storeCount: item._count.stores } });
 }
 
@@ -835,6 +836,7 @@ export async function updateCatalogItemImage(req: AuthRequest, res: Response) {
     data: { imageUrl },
     include: { _count: { select: { stores: true } } },
   });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATED', entity: 'hot_food_item', entityId: id, details: { name: item.name, changes: { photo: { was: existing.imageUrl ? 'a photo' : 'none', now: 'a new photo' } } } });
   res.json({ success: true, data: { ...item, storeCount: item._count.stores } });
 }
 
@@ -844,6 +846,7 @@ export async function deleteCatalogItem(req: AuthRequest, res: Response) {
   const existing = await prisma.hotFoodCatalogItem.findUnique({ where: { id } });
   if (!existing) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
   await prisma.hotFoodCatalogItem.delete({ where: { id } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_DELETED', entity: 'hot_food_item', entityId: id, details: { name: existing.name, price: existing.price } });
   res.json({ success: true });
 }
 
@@ -863,8 +866,8 @@ export async function assignCatalogItemToStore(req: AuthRequest, res: Response) 
   const { storeId } = req.body;
   if (!storeId || typeof storeId !== 'string') { res.status(400).json({ success: false, error: 'storeId is required' }); return; }
   const [item, store] = await Promise.all([
-    prisma.hotFoodCatalogItem.findUnique({ where: { id }, select: { id: true } }),
-    prisma.store.findUnique({ where: { id: storeId }, select: { id: true } }),
+    prisma.hotFoodCatalogItem.findUnique({ where: { id }, select: { id: true, name: true } }),
+    prisma.store.findUnique({ where: { id: storeId }, select: { id: true, name: true } }),
   ]);
   if (!item || !store) { res.status(404).json({ success: false, error: !item ? 'That item does not exist.' : 'That store does not exist.' }); return; }
 
@@ -873,15 +876,23 @@ export async function assignCatalogItemToStore(req: AuthRequest, res: Response) 
     create: { catalogItemId: id, storeId },
     update: {},
   });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_STORE_ADDED', entity: 'hot_food_item', entityId: id, details: { name: item.name }, storeId: store.id, storeName: store.name });
   res.status(201).json({ success: true });
 }
 
 // DELETE /hot-food/catalog/:id/stores/:storeId
 export async function removeCatalogItemFromStore(req: AuthRequest, res: Response) {
   const { id, storeId } = req.params;
-  await prisma.hotFoodCatalogStore.deleteMany({
+  const removed = await prisma.hotFoodCatalogStore.deleteMany({
     where: { catalogItemId: id, storeId },
   });
+  if (removed.count > 0) {
+    const [item, store] = await Promise.all([
+      prisma.hotFoodCatalogItem.findUnique({ where: { id }, select: { name: true } }),
+      prisma.store.findUnique({ where: { id: storeId }, select: { name: true } }),
+    ]);
+    audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_STORE_REMOVED', entity: 'hot_food_item', entityId: id, details: { name: item?.name }, storeId, storeName: store?.name });
+  }
   res.json({ success: true });
 }
 

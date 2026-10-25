@@ -390,6 +390,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                   placeholder="0.000"
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={6}
                 />
               </View>
@@ -402,6 +403,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                   placeholder="0.000"
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={6}
                 />
               </View>
@@ -419,6 +421,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                   placeholder={t('employeeDailyReport.regularGasPlaceholder')}
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={8}
                 />
               </View>
@@ -431,6 +434,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                   placeholder={t('employeeDailyReport.midGradeGasPlaceholder')}
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={8}
                 />
               </View>
@@ -445,6 +449,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                   placeholder={t('employeeDailyReport.premiumGasPlaceholder')}
                   placeholderTextColor="#94A3B8"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={8}
                 />
               </View>
@@ -457,6 +462,7 @@ function FormSheet({ visible, stores, defaultStoreId, onClose, onSubmitted }: Fo
                   placeholder={t('employeeDailyReport.cigsCountPlaceholder')}
                   placeholderTextColor="#94A3B8"
                   keyboardType="number-pad"
+                  returnKeyType="done"
                   maxLength={6}
                 />
               </View>

@@ -3,7 +3,7 @@ import { Text } from '../../components/ScaledText';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { FlatList as FlatListType } from 'react-native';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,10 @@ import PulseHighlight from '../../components/PulseHighlight';
 import DisputeTransactionModal from '../../components/DisputeTransactionModal';
 import { format } from 'date-fns';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import RefreshControl from '../../components/AppRefreshControl';
+import { useAuthStore } from '../../store/authStore';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
+import { usePointsExpiry, expiryDate } from '../../hooks/usePointsExpiry';
 
 const CATEGORY_ICONS: Record<string, string> = {
   GAS: '⛽', DIESEL: '🚛', HOT_FOODS: '🌮', GROCERIES: '🛒',
@@ -28,7 +32,7 @@ export default function HistoryScreen() {
   const [selected, setSelected] = useState<any>(null);
   const [disputeTarget, setDisputeTarget] = useState<any>(null);
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch } = useInfiniteQuery({
     queryKey: ['my-history'],
     queryFn: ({ pageParam = 1 }) => pointsApi.getMyHistory(pageParam),
     getNextPageParam: (lastPage, allPages) => {
@@ -39,6 +43,18 @@ export default function HistoryScreen() {
   });
 
   const transactions = data?.pages.flatMap((p) => p.data.data.transactions) || [];
+
+  // Up to date (2026-10-17): the list only loaded once, so a sale an employee just granted, or a pending sale turning approved, did
+  // not show until the app was restarted. Re-read when the tab is opened and on pull down (the balance too); app/_layout.tsx also
+  // refreshes it when the app comes back to the front and when a notification arrives.
+  const firstFocus = useRef(true);
+  useFocusEffect(useCallback(() => {
+    if (firstFocus.current) { firstFocus.current = false; return; }   // the first visit has just loaded it
+    refetch();
+  }, [refetch]));
+  const qc = useQueryClient();
+  const expiry = usePointsExpiry();
+  const { refreshing, onRefresh } = usePullRefresh([() => refetch(), () => useAuthStore.getState().refreshAccount(), () => qc.invalidateQueries({ queryKey: ['my-expiry'] })]);
 
   // A dispute/points push can target a transaction older than whatever page(s)
   // of this paginated history are already loaded. `searchId` stays set for as
@@ -109,6 +125,23 @@ export default function HistoryScreen() {
           onScroll={largeTitle.onScroll}
           scrollEventThrottle={largeTitle.scrollEventThrottle}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={expiry && ((expiry.enabled && expiry.upcoming.length > 0) || expiry.expired.length > 0) ? (
+            <View style={s.expiryBox}>
+              {expiry.enabled && expiry.upcoming.length > 0 && (
+                <>
+                  <Text style={s.expiryTitle}>{t('customerHistory.expiringTitle')}</Text>
+                  {expiry.upcoming.slice(0, 3).map((u) => (
+                    <Text key={u.date} style={s.expiryLine}>{t('customerHistory.expiringLine', { points: u.points.toLocaleString(), date: expiryDate(u.date, i18n.language) })}</Text>
+                  ))}
+                  <Text style={s.expiryNote}>{t('customerHistory.expiryNote', { days: expiry.days })}</Text>
+                </>
+              )}
+              {expiry.expired.slice(0, 5).map((e) => (
+                <Text key={`x${e.date}`} style={[s.expiryLine, s.expiredLine]}>{t('customerHistory.expiredLine', { points: e.points.toLocaleString(), date: expiryDate(e.date, i18n.language) })}</Text>
+              ))}
+            </View>
+          ) : null}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           onScrollToIndexFailed={(info) => {
             setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);
           }}
@@ -124,8 +157,9 @@ export default function HistoryScreen() {
           }
           renderItem={({ item }) => {
             // A challenge's reward is its own line: no purchase, so it says what it is (and is not a purchase to report)
-            const icon = item.challengeId ? '🏆' : CATEGORY_ICONS[item.category] || '🏪';
-            const catLabel = item.challengeId ? t('customerHistory.challengeReward') : item.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory');
+            const isGift = item.challenge?.kind === 'WINBACK';   // a win-back gift from HQ (2026-10-16), kept as a reward line too
+            const icon = isGift ? '🎁' : item.challengeId ? '🏆' : CATEGORY_ICONS[item.category] || '🏪';
+            const catLabel = isGift ? t('customerHistory.giftReward') : item.challengeId ? t('customerHistory.challengeReward') : item.category?.replace(/_/g, ' ') || t('customerHistory.otherCategory');
             const storeName = item.store?.name || t('customerHistory.defaultStoreName');
             return (
               <PulseHighlight active={item.id === pulseId}>
@@ -148,9 +182,11 @@ export default function HistoryScreen() {
                   </View>
                   <View style={s.cardRight}>
                     {item.status === 'APPROVED' ? (
-                      <Text style={s.points}>{t('customerHistory.pointsValue', { points: Math.round(Number(item.pointsAwarded) * 100).toLocaleString() })}</Text>
-                    ) : item.status === 'PENDING' ? (
-                      <Text style={[s.points, { color: '#F4A261', fontSize: 12 }]}>{t('customerHistory.statusPending')}</Text>
+                      <Text style={s.points}>{t('customerHistory.pointsValue', { points: Math.round((Number(item.pointsAwarded) + Number(item.gasBonusPoints || 0)) * 100).toLocaleString() })}</Text>
+                    ) : item.status === 'PENDING' || item.status === 'FLAGGED' ? (
+                      <Text style={[s.points, { color: '#B45309', fontSize: 12 }]}>{t('customerHistory.statusUnderReview')}</Text>
+                    ) : item.status === 'VOIDED' ? (
+                      <Text style={[s.points, { color: '#6B7280', fontSize: 12 }]}>{t('customerHistory.statusVoided')}</Text>
                     ) : (
                       <Text style={[s.points, { color: '#E63946', fontSize: 12 }]}>{t('customerHistory.statusRejected')}</Text>
                     )}
@@ -170,7 +206,7 @@ export default function HistoryScreen() {
           <View style={d.overlay}>
             <View style={d.sheet}>
               <View style={d.iconBg}>
-                <Text style={d.icon}>{selected.challengeId ? '🏆' : CATEGORY_ICONS[selected.category] || '🏪'}</Text>
+                <Text style={d.icon}>{selected.challenge?.kind === 'WINBACK' ? '🎁' : selected.challengeId ? '🏆' : CATEGORY_ICONS[selected.category] || '🏪'}</Text>
               </View>
               <Text style={d.storeName}>{selected.store?.name || t('customerHistory.defaultStoreName')}</Text>
               <Text style={d.date}>{format(new Date(selected.createdAt), 'EEEE, MMM d yyyy · h:mm a')}</Text>
@@ -179,7 +215,7 @@ export default function HistoryScreen() {
 
               {selected.challengeId ? (
                 <View style={d.row}>
-                  <Text style={d.rowLabel}>{t('customerHistory.detailChallenge')}</Text>
+                  <Text style={d.rowLabel}>{selected.challenge?.kind === 'WINBACK' ? t('customerHistory.detailGift') : t('customerHistory.detailChallenge')}</Text>
                   <Text style={d.rowValue}>{(i18n.language === 'es' && selected.challenge?.titleEs) || selected.challenge?.title || t('customerHistory.challengeReward')}</Text>
                 </View>
               ) : (
@@ -194,17 +230,27 @@ export default function HistoryScreen() {
                   </View>
                 </>
               )}
-              <View style={d.row}>
-                <Text style={d.rowLabel}>{t('customerHistory.detailPointsEarned')}</Text>
-                <Text style={[d.rowValue, { color: COLORS.success, fontWeight: '900' }]}>
-                  {t('customerHistory.pointsValue', { points: Math.round(Number(selected.pointsAwarded) * 100).toLocaleString() })}
-                </Text>
-              </View>
-              {selected.gasBonusAwarded > 0 && (
+              {/* Points earned only for a sale that was credited; a held, voided or rejected one says what happened instead (2026-10-18) */}
+              {selected.status === 'APPROVED' ? (
+                <View style={d.row}>
+                  <Text style={d.rowLabel}>{t('customerHistory.detailPointsEarned')}</Text>
+                  <Text style={[d.rowValue, { color: COLORS.success, fontWeight: '900' }]}>
+                    {t('customerHistory.pointsValue', { points: Math.round(Number(selected.pointsAwarded) * 100).toLocaleString() })}
+                  </Text>
+                </View>
+              ) : (
+                <View style={d.row}>
+                  <Text style={d.rowLabel}>{t('customerHistory.detailStatus')}</Text>
+                  <Text style={[d.rowValue, { color: selected.status === 'REJECTED' ? '#E63946' : selected.status === 'VOIDED' ? '#6B7280' : '#B45309', fontWeight: '700', flexShrink: 1, textAlign: 'right' }]}>
+                    {selected.status === 'REJECTED' ? t('customerHistory.rejectedNote') : selected.status === 'VOIDED' ? t('customerHistory.voidedNote') : t('customerHistory.underReviewNote')}
+                  </Text>
+                </View>
+              )}
+              {selected.status === 'APPROVED' && Number(selected.gasBonusPoints) > 0 && (
                 <View style={d.row}>
                   <Text style={d.rowLabel}>{t('customerHistory.detailGasBonus')}</Text>
                   <Text style={[d.rowValue, { color: '#F4A226', fontWeight: '800' }]}>
-                    {t('customerHistory.pointsValue', { points: Math.round(Number(selected.gasBonusAwarded) * 100) })}
+                    {t('customerHistory.pointsValue', { points: Math.round(Number(selected.gasBonusPoints) * 100) })}
                   </Text>
                 </View>
               )}
@@ -251,6 +297,11 @@ export default function HistoryScreen() {
 }
 
 const s = StyleSheet.create({
+  expiryBox: { marginHorizontal: 16, marginTop: 12, marginBottom: 4, padding: 14, borderRadius: 14, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A' },
+  expiryTitle: { fontSize: 14, fontWeight: '800', color: '#92400E', marginBottom: 4 },
+  expiryLine: { fontSize: 13, fontWeight: '600', color: '#78350F', marginTop: 2 },
+  expiredLine: { color: '#9CA3AF' },
+  expiryNote: { fontSize: 12, color: '#92400E', marginTop: 6 },
   root: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
   loadingText: { color: COLORS.textMuted, fontSize: 14 },

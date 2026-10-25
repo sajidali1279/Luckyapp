@@ -3,6 +3,7 @@
 // count as a redemption at that store when it is picked up. Balances are dollars of credit; 100 points = $1.
 import prisma from '../config/prisma';
 import { lockCustomer } from './moneyGuards';
+import { useLots, restoreLots } from './pointLots';
 
 export const pts = (dollars: number) => Math.round(dollars * 100);
 
@@ -14,6 +15,7 @@ export async function placeWithPoints<T>(customerId: string, total: number, crea
     if (pts(pointsBalance) < pts(total)) return { short: true as const, balance: pointsBalance };
     await tx.user.update({ where: { id: customerId }, data: { pointsBalance: { decrement: total } } });
     const order = await create(tx);
+    await useLots(tx, customerId, total, 'HOT_FOOD', (order as any)?.id ?? null);   // oldest points first (utils/pointLots.ts)
     return { order, balance: pointsBalance - total };
   });
 }
@@ -27,6 +29,7 @@ export async function returnOrderPoints(orderId: string, now: Date = new Date())
     const claimed = await tx.hotFoodOrder.updateMany({ where: { id: orderId, pointsReturnedAt: null }, data: { pointsReturnedAt: now } });
     if (claimed.count === 0) return 0;
     await tx.user.update({ where: { id: o.customerId }, data: { pointsBalance: { increment: amount } } });
+    await restoreLots(tx, o.customerId, 'HOT_FOOD', orderId, amount, now);   // back into the batches they came from
     return amount;
   });
 }

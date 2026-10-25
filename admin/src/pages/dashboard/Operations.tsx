@@ -17,7 +17,7 @@ import { TEXT_MUTED, PRIMARY } from '../../lib/theme';
 import {
   s, fmt$, fmtDay, axisMoney, storeColor, storeBadge, badgeInk, MEDALS, agoLabel, since, whenLabel, daysUntil, activate, parseFlags,
   FRAUD_FLAG_LABELS, SkeletonBox, SkeletonCards, PanelError, StatCard, SectionHeader, Segmented, Sparkline, Delta,
-  readSetting, writeSetting,
+  readSetting, writeSetting, Foldable,
 } from './shared';
 import {
   usePlatform, useCompare, useTrend, useStoreHealth, useOffers, useBanners, useCustomers, useStaff, useStores,
@@ -553,8 +553,10 @@ export default function OperationsView() {
         </div>
       </div>
 
-      {/* ── Platform overview ── */}
+      {/* ── Platform overview: one line unless opened (2026-10-16, a shorter Dashboard) ── */}
       <div className="dash-fade-in" style={{ animationDelay: '90ms' }}>
+        <Foldable storageKey="dash-platform" title="Platform overview" defaultOpen={false}
+          summary={`${count(storesQ, (storesQ.data?.data?.data || []).length)} stores · ${count(customersQ, customersQ.data?.data?.data?.total || 0)} customers · ${count(offersQ, activeOffersList.length)} offers live${disputesPendingCount ? ` · ${formatInteger(disputesPendingCount)} disputes` : ''}${totalStaleLabels ? ` · ${formatInteger(totalStaleLabels)} labels to print` : ''}`}>
         <SectionHeader title="Platform Overview" />
         <div style={s.statsGrid}>
           <StatCard icon="🏪" label="Active Stores" value={count(storesQ, (storesQ.data?.data?.data || []).length)} to="/stores" />
@@ -567,6 +569,7 @@ export default function OperationsView() {
           <StatCard icon="🏷️" label="Labels Needing Print" value={count(labelQ, totalStaleLabels)}
             valueColor={totalStaleLabels > 0 ? '#8a5300' : undefined} to="/labels?tab=health" />
         </div>
+        </Foldable>
       </div>
     </>
   );

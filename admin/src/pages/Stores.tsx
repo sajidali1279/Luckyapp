@@ -760,7 +760,7 @@ export default function Stores() {
                 </div>
                 {hasCoords && (
                   <div style={s.detailRow}>
-                    <span style={s.detailLabel}>Coordinates</span>
+                    <span style={s.detailLabel}>Location</span>
                     <span style={s.coordText}>{store.latitude!.toFixed(5)}, {store.longitude!.toFixed(5)}</span>
                   </div>
                 )}
@@ -1317,7 +1317,8 @@ const s: Record<string, React.CSSProperties> = {
 
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 18 },
   card: { background: '#fff', borderRadius: 12, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 0 },
-  cardInactive: { opacity: 0.72, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  // A closed store is grey with a dashed edge, not faded: fading the card faded its More menu too, so Reactivate looked switched off (2026-10-16)
+  cardInactive: { background: '#f7f8fa', boxShadow: 'none', outline: '1px dashed #c4cad4', outlineOffset: -1 },
   inactiveBanner: { background: '#fdf2f2', border: '1px solid #f3cdd1', color: '#a51b28', fontSize: 13, fontWeight: 700, borderRadius: 9, padding: '7px 11px', marginBottom: 12, textAlign: 'center' },
 
   cardTop: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },

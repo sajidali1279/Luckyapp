@@ -7,8 +7,7 @@ import {
   Dimensions,
   FlatList,
   Animated,
-  StatusBar,
-} from 'react-native';
+  } from 'react-native';
 import { Text } from '../../components/ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,6 +19,7 @@ import { TERMS_OF_SERVICE } from '../../constants/termsOfService';
 import LegalDocModal from '../../components/LegalDocModal';
 import LanguageSwitch from '../../components/LanguageSwitch';
 import { useTranslation } from 'react-i18next';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 const { width } = Dimensions.get('window');
 
@@ -204,7 +204,7 @@ export default function WelcomeScreen() {
   if (step === 'terms') {
     return (
       <View style={[ts.root, { backgroundColor: '#f8f9fa' }]}>
-        <StatusBar barStyle="dark-content" />
+        <FocusStatusBar barStyle="dark-content" />
         <SafeAreaView style={ts.safeArea}>
           <View style={ts.termsHeader}>
             <Text style={ts.termsIcon}>📋</Text>
@@ -320,7 +320,7 @@ export default function WelcomeScreen() {
 
   return (
     <View style={[ss.root, { backgroundColor: slide.bg }]}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       <FlatList
         ref={flatListRef}

@@ -16,7 +16,7 @@ export default function Index() {
   useEffect(() => {
     if (isLoading) return;
     router.replace(getRoleHomeRoute(user));
-  }, [user, isLoading]);
+  }, [user?.id, user?.role, isLoading]);   // not the object: a balance refresh makes a new one
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>

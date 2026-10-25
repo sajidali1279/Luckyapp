@@ -36,6 +36,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { showActionSheet } from '../../utils/actionSheet';
 import { sized } from '../../utils/imageUrl';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -329,6 +330,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               placeholder={t('employeeHotFood.pricePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="decimal-pad"
+              returnKeyType="done"
               maxLength={8}
             />
 
@@ -341,6 +343,7 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
               placeholder={t('employeeHotFood.estimatedTimePlaceholder')}
               placeholderTextColor={COLORS.textMuted}
               keyboardType="number-pad"
+              returnKeyType="done"
               maxLength={3}
             />
 
@@ -787,6 +790,7 @@ export default function HotFoodOrders() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      <FocusStatusBar barStyle="dark-content" />
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerLeft}>

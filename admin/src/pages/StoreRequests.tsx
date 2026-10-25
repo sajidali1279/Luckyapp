@@ -11,6 +11,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import Glyph from '../components/Glyph';
+import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
 const TYPE_LABELS: Record<string, string> = {
   LOW_STOCK: 'Low Stock Alert',
@@ -177,6 +178,14 @@ export default function StoreRequests() {
     queryFn: () => chatApi.getMyStores(),
   });
   const stores: { id: string; name: string; city: string }[] = storesData?.data?.data || [];
+  // HQ opens on the store it looked at last, or on All Stores, instead of an empty "Select a store"
+  useEffect(() => {
+    if (isStoreManager || selectedStoreId || stores.length === 0) return;
+    const last = recallStore('requests');
+    setSelectedStoreId(last && (last === ALL_STORES_ID || stores.some((st) => st.id === last)) ? last : ALL_STORES_ID);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stores.length, isStoreManager]);
+  useEffect(() => { rememberStore('requests', selectedStoreId); }, [selectedStoreId]);
 
   // A Store Manager with exactly one assigned store never needs to pick —
   // auto-select it. A Store Manager with multiple stores (a supported case,

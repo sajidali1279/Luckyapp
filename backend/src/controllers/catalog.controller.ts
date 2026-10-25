@@ -13,8 +13,10 @@ import { lockCustomer, settlePendingRedemption } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { usableStoreIds } from '../utils/storeAccess';
 import { pointsForPrice } from '../utils/rewardPoints';
+import { resolveServedBy, servedByDetails } from '../utils/servedBy';
+import { rule } from '../utils/appSettings';
+import { useLots } from '../utils/pointLots';
 
-const HOLD_MINUTES = 30;
 
 function generateCode(): string {
   return crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
@@ -217,7 +219,8 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
 
   const costInDollars = item.pointsCost / 100;
 
-  const expiresAt = new Date(Date.now() + HOLD_MINUTES * 60 * 1000);
+  const holdMinutes = rule('rewardHoldMinutes');   // HQ's time (Settings, 2026-10-17); it was a fixed 30
+  const expiresAt = new Date(Date.now() + holdMinutes * 60 * 1000);
   let code = generateCode();
   // Ensure code is unique
   while (await prisma.catalogRedemption.findFirst({ where: { redemptionCode: code } })) {
@@ -257,6 +260,7 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
       },
       include: { catalogItem: true },
     });
+    await useLots(tx, customer.id, costInDollars, 'CATALOG', created.id);   // oldest points first (utils/pointLots.ts)
     return { ok: true as const, redemption: created, balance: fresh.pointsBalance - costInDollars };
   });
   if (!outcome.ok) {
@@ -272,7 +276,7 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
       redemptionCode: code,
       item: { title: item.title, emoji: item.emoji, pointsCost: item.pointsCost },
       expiresAt: expiresAt.toISOString(),
-      expiresInMinutes: HOLD_MINUTES,
+      expiresInMinutes: holdMinutes,
       remainingPts: Math.round(outcome.balance * 100),
     },
   });
@@ -350,6 +354,9 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
     if (!all?.allStoresAccess) { res.status(403).json({ success: false, error: 'You can only hand out rewards at a store you work at.' }); return; }
   }
 
+  const served = await resolveServedBy(req.user!, req.body.servedById, storeId);   // HQ's Grant & Redeem page
+  if (!served.ok) { res.status(served.status).json({ success: false, error: served.error }); return; }
+
   const redemption = await prisma.catalogRedemption.findUnique({
     where: { id },
     include: { catalogItem: true, customer: true },
@@ -382,7 +389,7 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'CATALOG_CONFIRM', entity: 'catalog_redemption', entityId: id,
-    details: { item: redemption.catalogItem.title, customer: redemption.customer.name },
+    details: { item: redemption.catalogItem.title, customer: redemption.customer.name, ...servedByDetails(served.servedBy) },
     storeId,
   });
 

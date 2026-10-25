@@ -7,10 +7,12 @@
 import { Role } from '@prisma/client';
 import prisma from '../config/prisma';
 import { excludeDeletedCustomers } from './accountDeletion';
+import { rule } from './appSettings';
 
 export type BroadcastTarget = 'ALL_CUSTOMERS' | 'STORE_CUSTOMERS' | 'ALL_STAFF' | 'STORE_STAFF';
 export const BROADCAST_TARGETS: BroadcastTarget[] = ['ALL_CUSTOMERS', 'STORE_CUSTOMERS', 'ALL_STAFF', 'STORE_STAFF'];
-export const CUSTOMER_RECENCY_MONTHS = 6;
+/** HQ's months (Settings > Rewards & offers, 2026-10-17); it was a fixed 6 */
+export const customerRecencyMonths = () => rule('audienceRecentMonths');
 
 export interface AudienceMember { id: string; tokens: string[]; language?: string | null }
 
@@ -23,7 +25,7 @@ export async function resolveAudience(target: BroadcastTarget, storeId?: string,
   }
   if (target === 'STORE_CUSTOMERS') {
     const since = new Date(now);
-    since.setMonth(since.getMonth() - CUSTOMER_RECENCY_MONTHS);
+    since.setMonth(since.getMonth() - customerRecencyMonths());
     const rows = await prisma.pointsTransaction.findMany({
       where: { storeId, status: 'APPROVED', createdAt: { gte: since } },
       select: { customerId: true },

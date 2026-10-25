@@ -1,12 +1,13 @@
 // Hot food combos for HQ (2026-10-12, admin Hot Food > Combos): list them with how many were ordered, make one, change it, switch it on
-// or off, take it off the featured strip, or delete it. The rules are in utils/hotFoodCombos.ts.
+// or off, take it off the featured strip, or delete it. The rules are in utils/hotFoodCombos.ts. Since 2026-10-16 a combo can hold
+// more than one of the item and can have no drink: a multi-buy deal ("2 corn dogs for $3.50").
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { refuse } from '../utils/refusal';
 import { audit } from '../utils/audit';
-import { DRINK_CODES, comboSavingLimit } from '../utils/hotFoodCombos';
+import { DRINK_CODES, comboSavingLimit, daysText } from '../utils/hotFoodCombos';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -17,12 +18,17 @@ const comboSchema = z.object({
   nameEs: z.string().trim().max(80, 'Keep the Spanish name under 80 characters.').nullish(),
   description: z.string().trim().max(200, 'Keep the description under 200 characters.').nullish(),
   catalogItemId: z.string().min(1, 'Choose the hot food item.'),
-  drinks: z.array(z.enum(DRINK_CODES as [string, ...string[]], { message: 'Choose drinks from the list.' })).min(1, 'Choose at least one drink.'),
+  // How many of the item (2026-10-16): 2 for "2 corn dogs for $3.50". An older admin page sends none: 1, as before.
+  itemQuantity: z.number({ message: 'Give how many of the item.' }).int('Give a whole number of items.').min(1, 'At least 1 of the item.').max(10, 'At most 10 of the item in one deal.').default(1),
+  // None = no drink (only with 2 or more of the item, checked below)
+  drinks: z.array(z.enum(DRINK_CODES as [string, ...string[]], { message: 'Choose drinks from the list.' })),
   price: z.number({ message: 'Give the combo price.' }).positive('The combo price must be more than $0.').max(500, 'The combo price can be at most $500.'),
   regularPrice: z.number().positive().max(600).nullish(),
   storeIds: z.array(z.string().min(1).max(64)).max(100).default([]),
   fromTime: z.string().regex(HHMM, 'Give the start time as HH:MM.').nullish(),
   toTime: z.string().regex(HHMM, 'Give the end time as HH:MM.').nullish(),
+  // Days of the week (2026-10-16): 0 = Sunday .. 6 = Saturday; none (or all seven) = every day. An older admin page sends none.
+  days: z.array(z.number().int().min(0, 'Pick days from the list.').max(6, 'Pick days from the list.')).max(14, 'Pick days from the list.').default([]),   // repeats are dropped below
   isFeatured: z.boolean().default(true),
   isActive: z.boolean().default(true),
 });
@@ -32,6 +38,7 @@ const switchSchema = z.object({ isActive: z.boolean().optional(), isFeatured: z.
 async function problem(d: z.infer<typeof comboSchema>): Promise<string | null> {
   if (!!d.fromTime !== !!d.toTime) return 'Give both the start and the end time, or neither.';
   if (d.fromTime && d.fromTime === d.toTime) return 'The start and end time are the same.';
+  if (d.drinks.length === 0 && d.itemQuantity < 2) return 'Choose at least one drink, or make it 2 or more of the item (like 2 for $3.50).';
   const item = await prisma.hotFoodCatalogItem.findUnique({ where: { id: d.catalogItemId }, select: { name: true, price: true } });
   if (!item) return 'That hot food item is not in the catalog any more.';
   if (cents(d.price) < item.price) return `The combo (${money(d.price)}) costs less than ${item.name} alone (${money(item.price)}).`;
@@ -49,9 +56,10 @@ async function problem(d: z.infer<typeof comboSchema>): Promise<string | null> {
 }
 
 const clean = (d: z.infer<typeof comboSchema>) => ({
-  name: d.name, nameEs: d.nameEs || null, description: d.description || null, catalogItemId: d.catalogItemId,
+  name: d.name, nameEs: d.nameEs || null, description: d.description || null, catalogItemId: d.catalogItemId, itemQuantity: d.itemQuantity,
   drinks: [...new Set(d.drinks)], price: cents(d.price), regularPrice: d.regularPrice != null ? cents(d.regularPrice) : null,
   storeIds: [...new Set(d.storeIds)], fromTime: d.fromTime || null, toTime: d.toTime || null, isFeatured: d.isFeatured, isActive: d.isActive,
+  days: (() => { const s = [...new Set(d.days)].sort((a, b) => a - b); return s.length === 7 ? [] : s; })(),
 });
 
 /** GET /hot-food/combos: every combo, with its item and how many were ordered in the last 30 days. */
@@ -73,7 +81,7 @@ export async function createCombo(req: AuthRequest, res: Response) {
   if (why) { res.status(400).json({ success: false, error: why }); return; }
   const combo = await prisma.hotFoodCombo.create({ data: clean(parsed.data) });
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_COMBO_CREATE', entity: 'hot_food_combo', entityId: combo.id,
-    details: { summary: `Hot food combo "${combo.name}" ${money(combo.price)}${combo.isFeatured ? ', featured' : ''}` }, storeId: null });
+    details: { summary: `Hot food combo "${combo.name}" ${money(combo.price)}${daysText(combo.days) ? `, ${daysText(combo.days)} only` : ''}${combo.isFeatured ? ', featured' : ''}` }, storeId: null });
   res.status(201).json({ success: true, data: combo });
 }
 

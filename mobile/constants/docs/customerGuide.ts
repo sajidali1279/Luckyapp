@@ -181,7 +181,7 @@ Think of points as in-store credits:
 - Points are earned on every qualifying purchase.
 - Points can be redeemed for free products or applied as a discount on future purchases.
 
-**Points never expire** as long as you make at least one qualifying purchase every 36 months.
+**Points do not expire right now.** If that changes, you will be told at least 90 days before, and the app will show when your points expire (your oldest points are always used first).
 
 ---
 
@@ -252,10 +252,10 @@ Open the menu and tap **Invite friends**, or tap the **Invite friends** card on 
 
 - Tap **Share invite** to send your code and a link by text, WhatsApp or any app, or tap **Copy** to copy just the code.
 - Your friend downloads Lucky Stop and enters your code in **Invite code** when they create their account.
-- When they make their first purchase of $10 or more within 30 days, **you both get $5** in credits. You get a notification when it happens.
-- You can earn for up to 10 friends a month. The screen shows each friend you invited and whether you were paid.
+- When they make a qualifying first purchase in time, **you both get credits**. The Invite friends screen shows today's amounts, the minimum purchase and the time limit, and you get a notification when it happens.
+- There is a monthly limit on how many friends you can earn for (shown on the screen). The screen shows each friend you invited and whether you were paid.
 
-**Were you invited but forgot the code?** Open Invite friends within 7 days of joining, before your first purchase, and add it under **Were you invited?**
+**Were you invited but forgot the code?** Open Invite friends soon after joining, before your first purchase, and add it under **Were you invited?** (the screen says how many days you have).
 
 *The amounts and rules shown in the app are always the current ones.*
 

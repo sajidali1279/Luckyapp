@@ -59,7 +59,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   // staleness risk to guard against there.
   const dbUser = await prisma.user.findUnique({
     where: { id: payload.id },
-    select: { isActive: true, sessionsValidAfter: true, storeRoles: { select: { storeId: true } } },
+    select: { isActive: true, role: true, sessionsValidAfter: true, storeRoles: { select: { storeId: true } } },
   });
   if (!dbUser || !dbUser.isActive) {
     res.status(401).json({ success: false, error: 'Account no longer active. Please sign in again.' });
@@ -73,7 +73,8 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     return;
   }
 
-  req.user = { ...payload, storeIds: dbUser.storeRoles.map((r) => r.storeId) };
+  // The role as it is NOW, not the one signed into the token: a demoted manager's old token must not keep manager rights for its 7 days
+  req.user = { ...payload, role: dbUser.role, storeIds: dbUser.storeRoles.map((r) => r.storeId) };
   next();
 }
 

@@ -16,8 +16,10 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAuthStore } from '../store/authStore';
+import { useLimits } from '../components/SettingsCards';
+import CustomerPointsExpiry from '../components/CustomerPointsExpiry';
 
-type Tab = 'overview' | 'activity' | 'referrals' | 'notes' | 'devices' | 'history';
+type Tab = 'overview' | 'activity' | 'referrals' | 'notes' | 'devices' | 'cards' | 'history';
 const fmt$ = (n: number | null | undefined) => (n == null ? '-' : `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const KIND_LABEL: Record<string, string> = { all: 'Everything', sales: 'Purchases', rewards: 'Rewards', redemptions: 'Redemptions', disputes: 'Reports', hotfood: 'Hot food', credits: 'Credits' };
@@ -81,14 +83,15 @@ export default function CustomerProfile() {
       <Tabs ariaLabel="Customer profile" value={tab} onChange={setTab} tabs={[
         { value: 'overview', label: 'Overview' }, { value: 'activity', label: 'Activity' }, { value: 'referrals', label: 'Referrals' },
         { value: 'notes', label: 'Notes', count: d.notes || undefined }, { value: 'devices', label: 'Devices', count: d.devices.length || undefined },
-        { value: 'history', label: 'Account history' },
+        { value: 'cards', label: 'Receipt cards' }, { value: 'history', label: 'Account history' },
       ]} />
 
       {tab === 'overview' && <Overview id={id} d={d} onChanged={refresh} />}
       {tab === 'activity' && <Activity id={id} />}
       {tab === 'referrals' && <Referrals d={d} />}
       {tab === 'notes' && <Notes id={id} meId={me?.id} isDev={me?.role === 'DEV_ADMIN'} onChanged={refresh} />}
-      {tab === 'devices' && <Devices devices={d.devices} />}
+      {tab === 'devices' && <Devices devices={d.devices} userId={id} />}
+      {tab === 'cards' && <ReceiptCards id={id} />}
       {tab === 'history' && <History id={id} />}
     </Page>
   );
@@ -97,6 +100,7 @@ export default function CustomerProfile() {
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => void }) {
+  const limits = useLimits();   // HQ's numbers that these words repeat (Settings, 2026-10-17)
   const c = d.customer, s = d.stats, t = d.tier;
   const [unlocking, setUnlocking] = useState(false);
   const [restrictOpen, setRestrictOpen] = useState(false);
@@ -112,7 +116,7 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
     onError: (e) => { toast.error(serverMessage(e, 'Could not change the account.')); setRestrictOpen(false); },
   });
   const amount = Number(gAmt);
-  const gOk = gAmt.trim() !== '' && amount > 0 && amount <= 25 && /^\d+(\.\d{1,2})?$/.test(gAmt.trim()) && gReason.trim().length > 0;
+  const gOk = gAmt.trim() !== '' && amount > 0 && amount <= limits.goodwillCreditMax && /^\d+(\.\d{1,2})?$/.test(gAmt.trim()) && gReason.trim().length > 0;
   const goodwill = useMutation({
     mutationFn: () => customersApi.goodwillCredit(id, amount, gReason.trim()),
     onSuccess: () => { toast.success(`${fmt$(amount)} added. They were told by push notification.`); setGAmt(''); setGReason(''); onChanged(); },
@@ -167,14 +171,15 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
         </Card>
         <Card>
           <SectionTitle>Goodwill credit</SectionTitle>
-          <p style={{ margin: '-4px 0 10px', color: C.muted, fontSize: FONT.small }}>For something that is not a missing-points report: an apology, a one-off gesture. Up to $25, with a reason they are shown.</p>
+          <p style={{ margin: '-4px 0 10px', color: C.muted, fontSize: FONT.small }}>For something that is not a missing-points report: an apology, a one-off gesture. Up to ${limits.goodwillCreditMax}, with a reason they are shown.</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input style={{ ...INPUT, width: 100 }} inputMode="decimal" placeholder="$0.00" aria-label="Credit in dollars" value={gAmt} maxLength={5} onChange={(e) => setGAmt(e.target.value.replace(/[^0-9.]/g, ''))} />
             <input style={{ ...INPUT, flex: '1 1 160px', width: 'auto' }} placeholder="Reason (required)" aria-label="Reason" value={gReason} maxLength={300} onChange={(e) => setGReason(e.target.value)} />
-            <Button variant="primary" disabled={!gOk || goodwill.isPending} onClick={() => goodwill.mutate()}>{goodwill.isPending ? 'Adding…' : 'Add credit'}</Button>
+            <Button variant="primary" disabled={!gOk || goodwill.isPending} onClick={() => { if (window.confirm(`Give this customer a $${amount.toFixed(2)} credit?\n\nReason: ${gReason.trim()}`)) goodwill.mutate(); }}>{goodwill.isPending ? 'Adding…' : 'Add credit'}</Button>
           </div>
-          {gAmt.trim() !== '' && amount > 25 && <div role="alert" style={{ color: C.danger, fontSize: FONT.small, marginTop: 6 }}>At most $25. For a larger amount tied to a purchase, use a missing-points report.</div>}
+          {gAmt.trim() !== '' && amount > limits.goodwillCreditMax && <div role="alert" style={{ color: C.danger, fontSize: FONT.small, marginTop: 6 }}>At most ${limits.goodwillCreditMax}. For a larger amount tied to a purchase, use a missing-points report.</div>}
         </Card>
+        <CustomerPointsExpiry id={id} onChanged={onChanged} />
         <Card>
           <SectionTitle>Account status</SectionTitle>
           <p style={{ margin: '-4px 0 12px', color: C.muted, fontSize: FONT.small }}>{c.isActive ? 'Restricting stops them earning and redeeming, and signs them out. You can restore it later.' : 'Restoring lets them earn and redeem again.'}</p>
@@ -298,10 +303,33 @@ function Notes({ id, meId, isDev, onChanged }: { id: string; meId?: string; isDe
   );
 }
 
-function Devices({ devices }: { devices: any[] }) {
+type TestPhone = { platform: string; appVersion: string | null; ok: boolean; code: string | null; explain: string; detail: string | null };
+
+function Devices({ devices, userId }: { devices: any[]; userId: string }) {
+  // A test notification with what the push service and Google or Apple said (2026-10-16: "customers get no notifications")
+  const [test, setTest] = useState<{ summary: string; phones: TestPhone[] } | null>(null);
+  const send = useMutation({
+    mutationFn: () => customersApi.testPush(userId).then((r) => r.data.data as { summary: string; phones: TestPhone[] }),
+    onSuccess: (data) => setTest(data),
+    onError: (e) => toast.error(serverMessage(e, 'The test could not be sent.')),
+  });
   return (
     <Card>
-      <SectionTitle>Phones</SectionTitle>
+      <SectionTitle action={<Button size="sm" onClick={() => send.mutate()} disabled={send.isPending}>{send.isPending ? 'Sending, waiting for the answer…' : 'Send a test notification'}</Button>}>Phones</SectionTitle>
+      {send.isPending && <div className="ui-working" style={{ marginBottom: 12 }} aria-label="Waiting for Google or Apple to answer" />}
+      {test && !send.isPending && (
+        <div className="ui-soft-in" style={{ marginBottom: 14 }}>
+          <Notice tone={test.phones.length && test.phones.every((p) => p.ok) ? 'success' : 'warning'}>
+            <strong>{test.summary}</strong>
+            {test.phones.map((p, i) => (
+              <div key={i} style={{ marginTop: 6 }}>
+                {p.platform === 'ios' ? 'iPhone' : p.platform === 'android' ? 'Android' : p.platform}{p.appVersion ? ` (app ${p.appVersion})` : ''}: {p.explain}
+                {p.detail && <div style={{ fontSize: FONT.caption, color: C.muted }}>{p.detail}</div>}
+              </div>
+            ))}
+          </Notice>
+        </div>
+      )}
       <p style={{ margin: '-4px 0 12px', color: C.muted, fontSize: FONT.small }}>Each phone that has notifications on. None listed means they will not get pushes: they need to allow notifications for Lucky Stop in the phone's settings, then open the app.</p>
       {devices.length === 0 ? <Notice tone="warning">No phone with notifications on.</Notice> : (
         <Table>
@@ -319,6 +347,65 @@ function Devices({ devices }: { devices: any[] }) {
         </Table>
       )}
     </Card>
+  );
+}
+
+// The cards on the customer's scanned receipts (2026-10-13, backend utils/receiptCards.ts). HQ only: customers never see this. Only the
+// brand and the last 4 digits are kept. A new card, another account's card, many cards and cash are held for a manager.
+function ReceiptCards({ id }: { id: string }) {
+  const q = useQuery({ queryKey: ['customer-receipt-cards', id], queryFn: () => customersApi.receiptCards(id) });
+  const v: any = q.data?.data?.data;
+  if (q.isError) return <Card><ErrorState onRetry={q.refetch} /></Card>;
+  if (q.isLoading || !v) return <CardSkeleton count={2} />;
+  const many = v.cardsLast30Days > v.maxCards30Days;
+  const shared = v.cards.filter((c: any) => c.otherAccounts.length > 0);
+  return (
+    <>
+      <Card style={{ marginBottom: 16 }}>
+        <SectionTitle>Receipt scans</SectionTitle>
+        <p style={{ margin: '-4px 0 12px', color: C.muted, fontSize: FONT.small }}>
+          The cards their scanned receipts were paid with, so receipts picked up off the floor stand out. Only the card brand and the last 4 digits are kept, and customers never see this page.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: many || shared.length ? 12 : 0 }}>
+          {([['Scans', String(v.scans.total), false], ['Approved', String(v.scans.approved), false], ['Waiting', String(v.scans.held), false],
+            ['Rejected', String(v.scans.rejected), v.scans.rejected > 0], ['Cards, last 30 days', `${v.cardsLast30Days} of ${v.maxCards30Days}`, many]] as [string, string, boolean][]).map(([label, value, bad]) => (
+            <div key={label} style={{ border: `1px solid ${bad ? C.danger : C.border}`, borderRadius: 10, padding: '8px 14px', minWidth: 96 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: bad ? C.danger : C.text, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+              <div style={{ fontSize: FONT.caption, color: C.muted }}>{label}</div>
+            </div>
+          ))}
+        </div>
+        {many && <Notice tone="danger" style={{ marginBottom: shared.length ? 8 : 0 }}>{v.cardsLast30Days} different cards in 30 days, more than the {v.maxCards30Days} allowed: every scan with a new card waits for a manager. Many cards can mean receipts picked up off the floor.</Notice>}
+        {shared.length > 0 && <Notice tone="warning">{shared.length === 1 ? 'One of their cards is' : `${shared.length} of their cards are`} also on another customer's receipts. It can be family sharing a card; check before approving.</Notice>}
+      </Card>
+      <Card>
+        <SectionTitle>Cards</SectionTitle>
+        {v.cards.length === 0 ? <EmptyState title="No card on their scanned receipts yet" /> : (
+          <Table>
+            <TableHeader><TableRow>
+              {['Card', 'First seen', 'Last seen', 'Approved', 'Waiting', 'Rejected', 'Also on'].map((h, i) => <TableHead key={h} style={{ ...th, ...(i >= 3 && i <= 5 ? num : {}) }}>{h}</TableHead>)}
+            </TableRow></TableHeader>
+            <TableBody>
+              {v.cards.map((c: any) => (
+                <TableRow key={`${c.brand}-${c.last4}`}>
+                  <TableCell style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{c.brand ? statusText(c.brand) : 'Card'} ending {c.last4}</TableCell>
+                  <TableCell>{storeDayLong(c.firstSeen)}</TableCell>
+                  <TableCell>{storeDayLong(c.lastSeen)}</TableCell>
+                  <TableCell style={num}>{c.approved}</TableCell>
+                  <TableCell style={num}>{c.held}</TableCell>
+                  <TableCell style={{ ...num, color: c.rejected ? C.danger : undefined }}>{c.rejected}</TableCell>
+                  <TableCell>{c.otherAccounts.length === 0 ? <span style={{ color: C.muted }}>No one else</span>
+                    : c.otherAccounts.map((a: any, i: number) => <span key={a.id}>{i > 0 ? ', ' : ''}<Link to={`/customers/${a.id}`} style={{ color: PRIMARY, fontWeight: 600 }}>{a.name || 'Customer'}</Link></span>)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <p style={{ margin: '12px 0 0', color: C.muted, fontSize: FONT.small }}>
+          Paid in cash or no card on the receipt: {v.noCard.approved} approved, {v.noCard.held} waiting, {v.noCard.rejected} rejected. The limits are in Settings &gt; Receipt scanning.
+        </p>
+      </Card>
+    </>
   );
 }
 

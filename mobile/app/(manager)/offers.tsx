@@ -418,6 +418,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
                 style={s.input} value={form.bonusRate} onChangeText={v => setField('bonusRate', v)}
                 placeholder={t('managerOffers.bonusPlaceholder')} placeholderTextColor={COLORS.textMuted}
                 keyboardType="decimal-pad"
+                returnKeyType="done"
               />
             ) : (
               <>
@@ -485,7 +486,7 @@ function OfferFormModal({ title, visible, form, setField, onClose, onSubmit, isP
               <TextInput
                 style={[s.input, { flex: 1, marginBottom: 0 }]}
                 value={form.durationDays} onChangeText={v => setField('durationDays', v)}
-                keyboardType="number-pad" placeholder={t('managerOffers.daysPlaceholder')}
+                keyboardType="number-pad" returnKeyType="done" placeholder={t('managerOffers.daysPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
               />
             </View>

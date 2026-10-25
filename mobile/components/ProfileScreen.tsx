@@ -1,11 +1,10 @@
-import { useState, useEffect, ReactNode, useCallback } from 'react';
-import { router } from 'expo-router';
+import { useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  StatusBar,
   ActivityIndicator,
   Switch,
   Modal,
@@ -40,6 +39,7 @@ import ModalToastHost from './ModalToastHost';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { haptic } from '../utils/haptics';
 import { roleName } from '../utils/roleName';
+import FocusStatusBar from './FocusStatusBar';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -92,6 +92,14 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       setSavingBday(false);
     }
   }
+  // "Add your birthday" on Home (the birthday gift, 2026-10-24) opens the birthday picker straight away: /(customer)/profile?birthday=1
+  const { birthday: openBirthday } = useLocalSearchParams<{ birthday?: string }>();
+  useEffect(() => {
+    if (!isCustomer || openBirthday !== '1') return;
+    setBdayMonth(user?.birthMonth ?? 1); setBdayDay(user?.birthDay ?? 1); setShowBday(true);
+    router.setParams({ birthday: '' });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openBirthday]);
   const [selectedLang, setSelectedLang] = useState<LanguageCode>(getLanguage());
 
   useEffect(() => {
@@ -107,6 +115,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
+  // Change PIN: 4 digits moves on to the next box (on iPhone the confirm box sat under the keypad, 2026-10-16)
+  const newPinRef = useRef<TextInput>(null);
+  const confirmPinRef = useRef<TextInput>(null);
   const [email, setEmail] = useState((user as any)?.email || '');
   const [loading, setLoading] = useState(false);
 
@@ -170,8 +181,9 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
       // Refresh user from server to get the real avatarUrl regardless of response shape
       const meRes = await authApi.getMe();
       const fresh = meRes.data?.data;
-      if (fresh && user && token) {
-        setAuth({ ...user, avatarUrl: fresh.avatarUrl }, token);
+      const cur = useAuthStore.getState();   // as it is now: a balance refresh may have landed while the photo was uploading
+      if (fresh && cur.user && cur.token) {
+        cur.setAuth({ ...cur.user, avatarUrl: fresh.avatarUrl }, cur.token);
       }
       Toast.show({ type: 'success', text1: t('profile.photoUpdatedToast') });
     } catch (err: any) {
@@ -214,7 +226,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     setAvatarUploading(true);
     try {
       await authApi.removeAvatar();
-      if (user && token) setAuth({ ...user, avatarUrl: undefined }, token);
+      { const cur = useAuthStore.getState(); if (cur.user && cur.token) cur.setAuth({ ...cur.user, avatarUrl: undefined }, cur.token); }
       Toast.show({ type: 'success', text1: t('profile.photoRemovedToast') });
     } catch (err: any) {
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('profile.photoRemoveFailedToast') });
@@ -239,7 +251,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
     setLoading(true);
     try {
       await authApi.updateProfile(name.trim());
-      if (user && token) setAuth({ ...user, name: name.trim() }, token);
+      { const cur = useAuthStore.getState(); if (cur.user && cur.token) cur.setAuth({ ...cur.user, name: name.trim() }, cur.token); }
       Toast.show({ type: 'success', text1: t('profile.nameUpdatedToast') });
       setPanel(null);
     } catch (err: any) {
@@ -294,7 +306,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
 
   return (
     <View style={s.root}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* ── Header ── */}
       <SafeAreaView style={[s.headerBg, { backgroundColor: headerBg }]}>
@@ -416,19 +428,23 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
           <View style={s.panelCard}>
             <Text style={s.panelLabel}>{t('profile.currentPin')}</Text>
             <TextInput
-              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
-              value={currentPin} onChangeText={setCurrentPin}
+              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" returnKeyType="next" maxLength={4}
+              value={currentPin} onChangeText={(v) => { setCurrentPin(v); if (v.length === 4) newPinRef.current?.focus(); }}
+              onSubmitEditing={() => newPinRef.current?.focus()} submitBehavior="submit"
               placeholder="••••" placeholderTextColor={COLORS.textMuted} autoFocus
             />
             <Text style={s.panelLabel}>{t('profile.newPin')}</Text>
             <TextInput
-              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
-              value={newPin} onChangeText={setNewPin}
+              ref={newPinRef}
+              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" returnKeyType="next" maxLength={4}
+              value={newPin} onChangeText={(v) => { setNewPin(v); if (v.length === 4) confirmPinRef.current?.focus(); }}
+              onSubmitEditing={() => confirmPinRef.current?.focus()} submitBehavior="submit"
               placeholder="••••" placeholderTextColor={COLORS.textMuted}
             />
             <Text style={s.panelLabel}>{t('profile.confirmNewPin')}</Text>
             <TextInput
-              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" maxLength={4}
+              ref={confirmPinRef}
+              style={[s.panelInput, s.pinInput]} secureTextEntry keyboardType="number-pad" returnKeyType="done" maxLength={4}
               value={confirmPin} onChangeText={setConfirmPin}
               placeholder="••••" placeholderTextColor={COLORS.textMuted}
             />
@@ -844,7 +860,7 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
                 style={[s.panelInput, s.pinInput, s.deletePinInput, !!deleteError && { borderColor: '#dc2626' }]}
                 value={deletePin}
                 onChangeText={(v) => { setDeletePin(v.replace(/\D/g, '').slice(0, 4)); if (deleteError) setDeleteError(''); }}
-                secureTextEntry keyboardType="number-pad" maxLength={4}
+                secureTextEntry keyboardType="number-pad" returnKeyType="done" maxLength={4}
                 placeholder="••••" placeholderTextColor={COLORS.textMuted}
                 accessibilityLabel={t('deleteModal.pinLabel')}
                 editable={!deletingAccount}

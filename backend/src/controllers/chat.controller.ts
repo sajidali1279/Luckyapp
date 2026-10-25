@@ -3,9 +3,21 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { canUseStore as canAccessStore, usableStoreIds } from '../utils/storeAccess';
 import { audit } from '../utils/audit';
-import { pushChatMessage } from '../utils/chatPush';
+import { pushChatMessage, pushDirectMessage } from '../utils/chatPush';
+import { hasMinRole } from '../middleware/auth';
+import { Role } from '@prisma/client';
+import { ATTACHMENTS_PER_DAY, cleanName, destroyAttachments, presentMessage, prepareAttachment, storeAttachment } from '../utils/chatAttachments';
 
 const MAX_MESSAGE = 2000;
+/**
+ * Private messages (2026-10-23): a message with a toUserId in the store's thread is read only by who wrote it, who it is for, and HQ
+ * (Super Admin and above, who see the whole thread so a private line can never hide a problem). Everyone else never receives it, from
+ * any of the routes below. Messages with no toUserId are the shared thread, as before.
+ */
+const canSeeAllPrivate = (role: string) => hasMinRole(role as Role, Role.SUPER_ADMIN);
+const visibleTo = (user: { id: string; role: string }) => (canSeeAllPrivate(user.role) ? {} : { OR: [{ toUserId: null }, { toUserId: user.id }, { userId: user.id }] });
+/** What counts as unread for someone: the shared thread and what was sent to them (HQ is not told about other people's private lines). */
+const unreadVisible = (user: { id: string }) => ({ OR: [{ toUserId: null }, { toUserId: user.id }] });
 const asDate = (v?: string) => { const d = v ? new Date(v) : null; return d && !isNaN(d.getTime()) ? d : null; };
 
 // ─── GET /chat/my-stores ──────────────────────────────────────────────────────
@@ -39,11 +51,11 @@ export async function getMessages(req: AuthRequest, res: Response) {
   if (afterDate) {
     // Polling mode: only messages newer than `after` timestamp
     const messages = await prisma.chatMessage.findMany({
-      where: { storeId, createdAt: { gt: afterDate } },
+      where: { storeId, createdAt: { gt: afterDate }, ...visibleTo(user) },
       orderBy: { createdAt: 'asc' },
       take: 100,
     });
-    res.json({ success: true, data: messages });
+    res.json({ success: true, data: messages.map(presentMessage) });
   } else {
     // Initial load: last 50 messages — this is when the user is actually looking
     // at the room, so mark it read up to now
@@ -52,6 +64,7 @@ export async function getMessages(req: AuthRequest, res: Response) {
         where: {
           storeId,
           ...(beforeDate ? { createdAt: { lt: beforeDate } } : {}),
+          ...visibleTo(user),
         },
         orderBy: { createdAt: 'desc' },
         take: 50,
@@ -62,7 +75,7 @@ export async function getMessages(req: AuthRequest, res: Response) {
         create: { userId: user.id, storeId, lastReadAt: new Date() },
       }),
     ]);
-    res.json({ success: true, data: messages.reverse() });
+    res.json({ success: true, data: messages.reverse().map(presentMessage) });
   }
 }
 
@@ -87,10 +100,10 @@ export async function getUnreadCount(req: AuthRequest, res: Response) {
   const count = await prisma.chatMessage.count({
     where: {
       userId: { not: user.id },
-      OR: storeIds.map((storeId) => ({
-        storeId,
-        createdAt: { gt: readMap.get(storeId) ?? new Date(0) },
-      })),
+      AND: [
+        { OR: storeIds.map((storeId) => ({ storeId, createdAt: { gt: readMap.get(storeId) ?? new Date(0) } })) },
+        unreadVisible(user),
+      ],
     },
   });
 
@@ -121,7 +134,7 @@ export async function getUnreadCountByStore(req: AuthRequest, res: Response) {
 
   const counts = await Promise.all(storeIds.map(async (storeId) => {
     const count = await prisma.chatMessage.count({
-      where: { storeId, userId: { not: user.id }, createdAt: { gt: readMap.get(storeId) ?? new Date(0) } },
+      where: { storeId, userId: { not: user.id }, createdAt: { gt: readMap.get(storeId) ?? new Date(0) }, ...unreadVisible(user) },
     });
     return [storeId, count] as const;
   }));
@@ -133,10 +146,12 @@ export async function getUnreadCountByStore(req: AuthRequest, res: Response) {
 
 export async function sendMessage(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
-  const { text } = req.body as { text: string };
+  const { text: rawText, toUserId } = req.body as { text?: string; toUserId?: string };
   const user = req.user!;
+  const file = (req as any).file as { buffer: Buffer; originalname?: string } | undefined;   // a photo or a PDF sent with it (multipart), 2026-10-24
+  const text = typeof rawText === 'string' ? rawText : '';
 
-  if (typeof text !== 'string' || !text.trim()) {
+  if (!text.trim() && !file) {
     res.status(400).json({ success: false, error: 'Message text is required' });
     return;
   }
@@ -150,19 +165,82 @@ export async function sendMessage(req: AuthRequest, res: Response) {
     return;
   }
 
-  const message = await prisma.chatMessage.create({
-    data: {
-      storeId,
-      userId: user.id,
-      userName: user.name || user.phone,
-      userRole: user.role,
-      text: text.trim(),
-    },
-  });
-  // The store's staff hear about it (at most once every few minutes per store); a push problem never fails the message
-  pushChatMessage(storeId, user.id, user.name || 'Someone', message.text).catch((e) => console.error('[chat-push]', e?.message ?? e));
+  // A private message: to one person who works at this store (or an all-stores manager), never to yourself or a customer
+  type Recipient = { id: string; name: string | null; phone: string; role: Role; isActive: boolean };
+  let to = null as Recipient | null;
+  if (toUserId !== undefined && toUserId !== null && toUserId !== '') {
+    if (typeof toUserId !== 'string') { res.status(400).json({ success: false, error: 'Choose who the message is for.' }); return; }
+    if (toUserId === user.id) { res.status(400).json({ success: false, error: 'You cannot send a private message to yourself.' }); return; }
+    to = await prisma.user.findUnique({ where: { id: toUserId }, select: { id: true, name: true, phone: true, role: true, isActive: true } }) as typeof to;
+    if (!to || !(to as any).isActive || to.role === Role.CUSTOMER || !(await canAccessStore(to.id, to.role, storeId))) {
+      res.status(400).json({ success: false, error: 'That person does not work at this store, so a private message cannot go to them here.' });
+      return;
+    }
+  }
 
-  res.status(201).json({ success: true, data: message });
+  // A photo or a PDF: checked by what it is, shrunk if a photo, stored privately, at most ATTACHMENTS_PER_DAY a person a day
+  let stored: { id: string; kind: 'IMAGE' | 'PDF'; name: string; bytes: number } | null = null;
+  if (file) {
+    const today = await prisma.chatMessage.count({ where: { userId: user.id, attachmentId: { not: null }, createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } });
+    if (today >= ATTACHMENTS_PER_DAY) { res.status(429).json({ success: false, error: `You can send ${ATTACHMENTS_PER_DAY} photos or files a day. Try again tomorrow.` }); return; }
+    const prepared = await prepareAttachment(file.buffer);
+    if ('error' in prepared) { res.status(400).json({ success: false, error: prepared.error }); return; }
+    try {
+      stored = { id: await storeAttachment(prepared), kind: prepared.kind, name: cleanName(file.originalname, prepared.kind), bytes: prepared.data.length };
+    } catch (e: any) {
+      console.error('[chat] attachment upload failed:', e?.message ?? e);
+      res.status(502).json({ success: false, error: 'The file could not be saved. Try again in a moment.' });
+      return;
+    }
+  }
+
+  let message;
+  try {
+    message = await prisma.chatMessage.create({
+      data: {
+        storeId,
+        userId: user.id,
+        userName: user.name || user.phone,
+        userRole: user.role,
+        text: text.trim(),
+        ...(to ? { toUserId: to.id, toUserName: to.name || to.phone } : {}),
+        ...(stored ? { attachmentId: stored.id, attachmentKind: stored.kind, attachmentName: stored.name, attachmentBytes: stored.bytes } : {}),
+      },
+    });
+  } catch (e) {
+    if (stored) destroyAttachments([stored.id]).catch(() => {});   // the message did not save: do not leave its file behind
+    throw e;
+  }
+  // The store's staff hear about it (at most once every few minutes per store), or just the one person it is for; a push problem never fails the message
+  const preview = message.text || (stored?.kind === 'PDF' ? `📄 ${stored.name}` : '📷 Photo');
+  if (to) pushDirectMessage(storeId, user.id, user.name || 'Someone', to.id, preview).catch((e) => console.error('[chat-push]', e?.message ?? e));
+  else pushChatMessage(storeId, user.id, user.name || 'Someone', preview).catch((e) => console.error('[chat-push]', e?.message ?? e));
+
+  res.status(201).json({ success: true, data: presentMessage(message) });
+}
+
+// ─── GET /chat/:storeId/people ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// Who a private message can go to at this store (2026-10-23): its active employees and managers, and managers over every store; not you.
+
+export async function getChatPeople(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const user = req.user!;
+  if (!(await canAccessStore(user.id, user.role, storeId))) {
+    res.status(403).json({ success: false, error: 'No access to this store chat' });
+    return;
+  }
+  const people = await prisma.user.findMany({
+    where: {
+      isActive: true, id: { not: user.id },
+      OR: [
+        { role: { in: [Role.EMPLOYEE, Role.STORE_MANAGER] }, storeRoles: { some: { storeId } } },
+        { role: Role.STORE_MANAGER, allStoresAccess: true },
+      ],
+    },
+    select: { id: true, name: true, phone: true, role: true },
+    orderBy: { name: 'asc' },
+  });
+  res.json({ success: true, data: people.map((p) => ({ id: p.id, name: p.name || (p.role === Role.STORE_MANAGER ? 'Manager' : 'Employee'), role: p.role })) });
 }
 
 // ─── DELETE /chat/:storeId/messages ───────────────────────────────────────────
@@ -176,7 +254,9 @@ export async function clearChat(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
   if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
+  const files = (await prisma.chatMessage.findMany({ where: { storeId, attachmentId: { not: null } }, select: { attachmentId: true } })).map((m) => m.attachmentId as string);
   const result = await prisma.chatMessage.deleteMany({ where: { storeId } });
+  if (files.length) destroyAttachments(files).catch(() => {});   // their photos and PDFs go too
   // Nothing else remembers that a whole conversation was wiped, or by whom
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,

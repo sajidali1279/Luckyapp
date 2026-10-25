@@ -5,7 +5,7 @@ import { AuthRequest } from '../types';
 import { BillingType, ProductCategory, Role, Tier } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES, MAX_STORE_FEE_RATE } from '../config/constants';
-import { TIER_THRESHOLDS, GAS_BONUS_PER_GALLON } from '../utils/tier';
+import { TIER_THRESHOLDS, gasBonusPerGallon } from '../utils/tier';
 import { TIER_ORDER as RATE_TIER_ORDER, RateState, TierChange, CategoryChange, applyChanges, refusalFor, tierName, categoryName, pct } from '../utils/rateRules';
 import { sendPushToUser, sendPushToStoreEmployees, saveNotificationMany } from '../utils/push';
 import { gasPriceUrlEmployee, gasPriceUrlCustomer, adminDisputeUrl, adminAlertUrl, adminProductRequestUrl, adminStockRequestUrl } from '../utils/notificationRoutes';
@@ -22,8 +22,14 @@ import { GAS_PRICE_MIN, GAS_PRICE_MAX, storePhone, inUnitedStates, COORDINATES_M
 import { resolveAudience } from '../utils/audience';
 import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
 import { withSharedReads } from './adminNotificationReads.controller';
+import { rule } from '../utils/appSettings';
+import { addLot } from '../utils/pointLots';
+import { checkGasAlerts } from '../utils/engagement-cron';
 
 // STORE_MANAGER+ — single store info (for scheduling page)
+/** PUMP_OUT_OF_ORDER as "Pump out of order" (a store alert with no note showed the code) */
+const alertWords = (t: string) => { const w = String(t ?? '').replace(/_/g, ' ').toLowerCase(); return w.charAt(0).toUpperCase() + w.slice(1); };
+
 export async function getStoreById(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const store = await prisma.store.findUnique({
@@ -45,7 +51,6 @@ export async function getStoreById(req: AuthRequest, res: Response) {
 // than silently vanishing with no UI path back to reactivating it.
 // A price is old more than READINESS_FRESH_DAYS after it was last saved - the same "how stale" question
 // the price-reminder cron (utils/price-reminder-cron.ts) asks, so the card and the reminder always agree.
-const READINESS_FRESH_DAYS = 3;
 
 // The AppConfig key billing-cron.ts writes on every tick (a heartbeat) and getBillingHeartbeat reads back.
 // A plain key/value row, not a new column - billing-cron.ts imports this from here (not the other way
@@ -77,7 +82,7 @@ export async function getStores(_req: AuthRequest, res: Response) {
   const soldSet = new Set(soldStores.map((r) => r.storeId));
 
   const now = Date.now();
-  const fresh = (at: Date | null) => !!at && now - at.getTime() < READINESS_FRESH_DAYS * 24 * 60 * 60 * 1000;
+  const fresh = (at: Date | null) => !!at && now - at.getTime() < rule('priceStaleDays') * 24 * 60 * 60 * 1000;   // the same days as the reminder (Settings > Staff)
 
   const withTodayHours = stores.map(({ storeHours, storeHolidays, ...store }) => {
     const readiness = {
@@ -701,7 +706,7 @@ function tierRow(tier: string, t: RateState['tiers'][string]) {
     cashbackRate: t.cashbackRate,
     gasCentsPerGallon: t.gasCentsPerGallon,
     pointsThreshold: t.thresholdPoints ?? 0,
-    gasBonusCentsPerGallon: Math.round((GAS_BONUS_PER_GALLON[tier] ?? 0) * 100),
+    gasBonusCentsPerGallon: Math.round(gasBonusPerGallon(tier) * 100),
   };
 }
 
@@ -1231,7 +1236,8 @@ export async function seedTestTransactions(_req: AuthRequest, res: Response) {
   await prisma.pointsTransaction.createMany({ data: txRows });
 
   for (const [id, balance] of Object.entries(balanceMap)) {
-    await prisma.user.update({ where: { id }, data: { pointsBalance: { increment: parseFloat(balance.toFixed(2)) } } });
+    const after = await prisma.user.update({ where: { id }, data: { pointsBalance: { increment: parseFloat(balance.toFixed(2)) } } });
+    await addLot(prisma, id, parseFloat(balance.toFixed(2)), 'TEST', null, after.pointsBalance);
   }
 
   res.json({
@@ -1712,7 +1718,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       type: 'REQUEST',
       category: 'requests',
       title: `Store Alert - ${r.submitterName || 'Employee'}`,
-      message: `${r.notes || r.type} at ${r.store.name}`,
+      message: `${r.notes || alertWords(r.type)} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
       severity: r.priority === 'HIGH' ? 'error' : 'info',
@@ -1971,7 +1977,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       type: 'REQUEST',
       category: 'requests',
       title: `Store Alert - ${r.submitterName || 'Employee'}`,
-      message: `${r.notes || r.type} at ${r.store.name}`,
+      message: `${r.notes || alertWords(r.type)} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
       severity: r.priority === 'HIGH' ? 'error' : 'info',
@@ -2422,6 +2428,11 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
   });
 
   const priceText = parts.join(' · ');
+
+  // Customers who asked to hear when the price fell to what they set (admin > Engagement, gas price alerts): fire and forget
+  // only a price that went DOWN can meet someone's alert (a rise from $2.50 to $2.60 must not say the price dropped)
+  const fell = (now: number | null, was: number | null) => now != null && was != null && now < was ? now : null;
+  checkGasAlerts(storeId, { GAS: 'gasPricePerGallon' in updateData ? fell(store.gasPricePerGallon, before.gasPricePerGallon) : null, DIESEL: 'dieselPricePerGallon' in updateData ? fell(store.dieselPricePerGallon, before.dieselPricePerGallon) : null }).catch((e) => console.error('[gas-alerts]', e?.message ?? e));
 
   // Push + in-app → employees only (they update pump displays; managers don't need push)
   sendPushToStoreEmployees(

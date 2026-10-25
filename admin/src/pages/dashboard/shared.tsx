@@ -1,3 +1,4 @@
+import React from 'react';
 import Glyph from '../../components/Glyph';
 import { useNavigate } from 'react-router-dom';
 import ErrorState from '../../components/ErrorState';
@@ -105,6 +106,15 @@ export const FRAUD_FLAG_LABELS: Record<string, string> = {
   NO_TIME:           'No time on the photo',
   SPOT_CHECK:        'A clean scan picked at random for a check',
   RECEIPT_SCANNED:   'The customer scanned a receipt here in the last 3 hours: maybe the same purchase',
+  NEW_CARD:          'The first receipt with this card on this account (noted only)',
+  ONE_TIME_CARDS:    'A new card, and this customer keeps showing cards seen only once: receipts picked up?',
+  CARD_OTHER_ACCOUNT:'This card is on another customer\'s receipts (family, or a receipt picked up?)',
+  MANY_CARDS:        'Many different cards on this customer\'s receipts in 30 days',
+  SEQUENCE_ODD:      'Its TRAN#, Stan or Invoice # does not fit the store\'s other receipts: edited, or misread?',
+  PREPAY_LEFT_OUT:   'Prepaid gas on the receipt was not counted (what was pumped is not on it)',
+  MERCHANT_COPY:     'The store\'s merchant copy, not the customer copy',
+  NO_CARD:           'Paid in cash, or no card on the receipt',
+  PAST_REJECTED:     'One of this customer\'s scans was rejected recently',
 };
 
 export function readSetting<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
@@ -116,6 +126,33 @@ export function readSetting<T extends string>(key: string, allowed: readonly T[]
 }
 export function writeSetting(key: string, value: string) {
   try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }
+}
+
+/**
+ * A Dashboard section that can be folded to one line (2026-10-16: the page had grown long). Folded, it shows its title and a short
+ * summary with Show; open, its content with a quiet Hide. The choice is remembered in this browser; `defaultOpen` is used until then.
+ */
+export function Foldable({ storageKey, title, summary, defaultOpen, children }: {
+  storageKey: string; title: string; summary?: React.ReactNode; defaultOpen: boolean; children: React.ReactNode;
+}) {
+  const [open, setOpen] = React.useState<boolean>(() => readSetting(storageKey, ['open', 'folded'] as const, defaultOpen ? 'open' : 'folded') === 'open');
+  const flip = () => { setOpen((o) => { writeSetting(storageKey, o ? 'folded' : 'open'); return !o; }); };
+  if (!open) {
+    return (
+      <div className="ui-soft-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '10px 14px', marginBottom: 16,
+        background: '#fff', border: '1px solid #e4e7ec', borderRadius: 12 }}>
+        <div style={{ minWidth: 0, fontSize: 14, color: '#374151' }}><strong style={{ color: '#111827' }}>{title}</strong>{summary ? <span style={{ color: TEXT_MUTED }}> · {summary}</span> : null}</div>
+        <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={flip} aria-expanded={false}>Show</button>
+      </div>
+    );
+  }
+  return (
+    <div className="ui-soft-in" style={{ position: 'relative' }}>
+      <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={flip} aria-expanded={true} aria-label={`Hide ${title}`}
+        style={{ position: 'absolute', top: 0, right: 0, zIndex: 1 }}>Hide</button>
+      {children}
+    </div>
+  );
 }
 
 // ── Loading and failure states, one per panel ────────────────────────────────

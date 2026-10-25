@@ -36,6 +36,7 @@ import ModalToastHost from './ModalToastHost';
 import KeyboardSafe from './KeyboardSafe';
 import LabelPaperModal, { paperSummary, StorePrinter } from './LabelPaperModal';
 import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue, perSheet, LetterLayout, LETTER_DEFAULTS } from '../utils/labelSheet';
+import FocusStatusBar from './FocusStatusBar';
 
 interface Label {
   id: string;
@@ -128,6 +129,7 @@ function QtyStepper({ value, onChange }: { value: number; onChange: (n: number) 
         }}
         onBlur={() => setDraft(null)}
         keyboardType="number-pad"
+        returnKeyType="done"
         selectTextOnFocus
         maxLength={3}
         accessibilityLabel={t('sharedLabels.copiesA11y')}
@@ -956,6 +958,7 @@ export default function LabelsScreen() {
 
   return (
     <SafeAreaView style={s.fill} edges={['top']}>
+      <FocusStatusBar barStyle="dark-content" />
       <BarcodeScannerModal
         visible={showScanner}
         hideQuantity
@@ -1028,6 +1031,7 @@ export default function LabelsScreen() {
                   placeholder="3.99"
                   placeholderTextColor="#B0B8C4"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={7}
                 />
               </View>
@@ -1176,6 +1180,7 @@ export default function LabelsScreen() {
                   placeholder={sheetCurrentPrice ?? '0.00'}
                   placeholderTextColor="#B0B8C4"
                   keyboardType="decimal-pad"
+                  returnKeyType="done"
                   maxLength={7}
                   autoFocus
                 />

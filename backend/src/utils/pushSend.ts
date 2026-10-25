@@ -101,7 +101,68 @@ export async function sendExpoBatch(
     } catch { /* taking dead phones off file is housekeeping: it must not turn a sent message into an error */ }
   }
   if (Object.keys(receiptIds).length > 0) scheduleReceiptCheck(receiptIds, message.title);
+  // One line in the server log for every send, at once (2026-10-16): a refusal at this first step was never written anywhere
+  if (outcome.attempted > 0) {
+    console.log(`[push] "${message.title}": ${outcome.attempted} phone${outcome.attempted === 1 ? '' : 's'}, ${outcome.accepted} accepted by Expo, ${outcome.failed} refused${outcome.removed ? `, ${outcome.removed} dead removed` : ''}${outcome.reasons.length ? ` (${outcome.reasons.join('; ')})` : ''}`);
+  }
   return outcome;
+}
+
+// ── A test to one person's phones, with the answers (2026-10-16, admin customer profile "Send a test notification") ─────────────────
+
+export interface TestResult { token: string; expo: 'accepted' | 'refused'; delivery: 'delivered' | 'refused' | 'waiting'; code: string | null; message: string | null }
+
+/** What a push error code means, in words HQ can act on. */
+export function explainPushCode(code: string | null, platform?: string | null): string {
+  const store = platform === 'ios' ? 'Apple' : platform === 'android' ? 'Google' : 'Google or Apple';
+  switch (code) {
+    case null: return `Delivered to ${store}. If the phone shows nothing, notifications for Lucky Stop are off in the phone's settings (or a battery saver holds them).`;
+    case 'InvalidCredentials': return platform === 'ios'
+      ? 'Apple refused it: the Apple push key (APNs) is not set up on Expo for this app. expo.dev > the project > Credentials > iOS > Push key.'
+      : 'Google refused it: the Firebase key (FCM V1 service account) is not set up on Expo for this app. expo.dev > the project > Credentials > Android > FCM V1. No new app build is needed.';
+    case 'MismatchSenderId': return 'Google refused it: the Firebase key on Expo is from a different Firebase project than the one the app was built with (google-services.json).';
+    case 'DeviceNotRegistered': return 'This phone no longer has the app, or turned notifications off: it was taken off the list.';
+    case 'MessageTooBig': return 'The message was too long.';
+    case 'MessageRateExceeded': return 'Too many messages to this phone at once. Try again in a minute.';
+    case 'WAITING': return `Expo took it but ${store} has not answered yet. Try again in a minute.`;
+    default: return `Refused: ${code}.`;
+  }
+}
+
+/** Sends one message to these phones now and waits (about 20 seconds at most) for what Google or Apple said about each. */
+export async function sendTestPush(tokens: string[], message: { title: string; body: string }, waits = [2000, 3000, 4000, 5000, 6000]): Promise<TestResult[]> {
+  const unique = [...new Set(tokens)];
+  if (unique.length === 0) return [];
+  const sent = await post(unique, message);
+  if (!sent.ok) return unique.map((token) => ({ token, expo: 'refused' as const, delivery: 'refused' as const, code: 'EXPO_UNREACHABLE', message: sent.reason }));
+  const out: TestResult[] = unique.map((token, i) => {
+    const t = sent.tickets?.[i];
+    if (t?.status === 'error') return { token, expo: 'refused', delivery: 'refused', code: t.details?.error ?? 'Refused', message: t.message ?? null };
+    return { token, expo: 'accepted', delivery: 'waiting', code: null, message: null };
+  });
+  const idOf = new Map<string, number>();
+  out.forEach((r, i) => { const id = sent.tickets?.[i]?.id; if (r.expo === 'accepted' && id) idOf.set(id, i); });
+  for (const ms of waits) {
+    if (![...idOf.keys()].length) break;
+    await sleep(ms);
+    try {
+      const res = await fetch(EXPO_RECEIPTS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ ids: [...idOf.keys()] }) });
+      if (res.ok === false) continue;
+      const json = (await res.json()) as { data?: Record<string, Ticket> };
+      for (const [id, i] of [...idOf.entries()]) {
+        const r = json?.data?.[id];
+        if (!r) continue;
+        out[i] = r.status === 'error'
+          ? { ...out[i], delivery: 'refused', code: r.details?.error ?? 'Refused', message: r.message ?? null }
+          : { ...out[i], delivery: 'delivered' };
+        idOf.delete(id);
+      }
+    } catch { /* tried again on the next wait */ }
+  }
+  const dead = out.filter((r) => r.code === 'DeviceNotRegistered').map((r) => r.token);
+  if (dead.length) { try { await prisma.pushToken.deleteMany({ where: { token: { in: dead } } }); } catch { /* housekeeping */ } }
+  console.log(`[push-test] ${out.length} phone(s): ${out.map((r) => r.delivery === 'delivered' ? 'delivered' : r.code ?? r.delivery).join(', ')}`);
+  return out;
 }
 
 // An "ok" ticket only means Expo took the message. Whether Apple or Google then took it is in the receipt, a few minutes later. Before, receipts

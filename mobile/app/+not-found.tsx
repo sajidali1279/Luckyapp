@@ -14,7 +14,7 @@ export default function NotFound() {
 
   useEffect(() => {
     router.replace(getRoleHomeRoute(user));
-  }, [user]);
+  }, [user?.id, user?.role]);   // not the object: a balance refresh makes a new one
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>

@@ -1,5 +1,7 @@
 import { Response } from 'express';
 import { z } from 'zod';
+import { audit } from '../utils/audit';
+
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { broadcastToCustomers } from '../utils/push';
@@ -51,6 +53,8 @@ export async function createOpening(req: AuthRequest, res: Response) {
     include: { store: { select: { name: true, city: true } } },
   });
 
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'CAREERS_OPENING_CREATED', entity: 'job_opening', entityId: opening.id, details: { title: opening.title, live: opening.isActive } });
+
   if (opening.isActive) {
     broadcastToCustomers(
       '🧑‍💼 New Job Opening!',
@@ -81,6 +85,8 @@ export async function updateOpening(req: AuthRequest, res: Response) {
     include: { store: { select: { name: true, city: true } } },
   });
 
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'CAREERS_OPENING_UPDATED', entity: 'job_opening', entityId: id, details: { title: opening.title, changed: Object.keys(parsed.data), ...(existing && existing.isActive !== opening.isActive ? { live: opening.isActive } : {}) } });
+
   if (existing && existing.isActive === false && opening.isActive === true) {
     broadcastToCustomers(
       '🧑‍💼 New Job Opening!',
@@ -97,6 +103,7 @@ export async function updateOpening(req: AuthRequest, res: Response) {
 // DELETE /careers/openings/:id
 export async function deleteOpening(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  await prisma.jobOpening.delete({ where: { id } });
+  const gone = await prisma.jobOpening.delete({ where: { id } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'CAREERS_OPENING_DELETED', entity: 'job_opening', entityId: id, details: { title: gone.title } });
   res.json({ success: true });
 }

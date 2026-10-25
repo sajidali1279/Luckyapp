@@ -5,8 +5,7 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
-  StatusBar,
-} from 'react-native';
+  } from 'react-native';
 import { Text } from '../components/ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +13,9 @@ import { router } from 'expo-router';
 import { useAuthStore, UserRole } from '../store/authStore';
 import { COLORS } from '../constants';
 import { useTranslation } from 'react-i18next';
+import FocusStatusBar from '../components/FocusStatusBar';
+import { useAppSettings } from '../hooks/useAppSettings';
+import { getRoleHomeRoute } from '../utils/roleHome';
 
 const { width } = Dimensions.get('window');
 
@@ -32,7 +34,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
       {
         emoji: '🎁',
         title: 'Redeem from the Catalog',
-        subtitle: 'Browse the Catalog tab to see available rewards. Tap Redeem, get a 6-char code, and show it to the cashier within 30 minutes.',
+        subtitle: 'Browse the Catalog tab to see available rewards. Tap Redeem, get a 6-char code, and show it to the cashier within {{minutes}} minutes.',
       },
       {
         emoji: '👑',
@@ -128,6 +130,7 @@ const TOURS: Record<UserRole, { color: string; roleLabel: string; slides: Slide[
 };
 
 export default function RoleTourScreen() {
+  const appLimits = useAppSettings().limits;   // HQ's reward code time (Settings)
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const role = user?.role ?? 'CUSTOMER';
@@ -147,18 +150,12 @@ export default function RoleTourScreen() {
 
   async function handleFinish() {
     await AsyncStorage.setItem(`tour_seen_${role}`, 'true');
-    if (role === 'STORE_MANAGER') {
-      router.replace('/(manager)/home');
-    } else if (['EMPLOYEE', 'DEV_ADMIN', 'SUPER_ADMIN'].includes(role)) {
-      router.replace('/(employee)/home');
-    } else {
-      router.replace('/(customer)/home');
-    }
+    router.replace(getRoleHomeRoute(user));   // the same split as the rest of the app (HQ roles went to the employee home from here)
   }
 
   return (
     <View style={[s.root, { backgroundColor: tour.color }]}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
 
       {/* Role badge */}
       <SafeAreaView edges={['top']} style={s.topSafe}>
@@ -188,7 +185,7 @@ export default function RoleTourScreen() {
               <Text style={s.emoji}>{item.emoji}</Text>
             </View>
             <Text style={s.slideTitle}>{t(`roleTour.${tourKey}${index + 1}Title`, { defaultValue: item.title })}</Text>
-            <Text style={s.slideSub}>{t(`roleTour.${tourKey}${index + 1}Sub`, { defaultValue: item.subtitle })}</Text>
+            <Text style={s.slideSub}>{t(`roleTour.${tourKey}${index + 1}Sub`, { defaultValue: item.subtitle, minutes: appLimits.rewardHoldMinutes })}</Text>
           </View>
         )}
       />

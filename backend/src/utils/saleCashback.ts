@@ -7,7 +7,7 @@ import { offerPaysAt } from './offerHours';
 import { forCustomer } from './offerAudience';
 import { promotionRoom } from './offerBudget';
 import { CASHBACK_RATE_CAP, CASHBACK_RATE_WARN, DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { GAS_BONUS_PER_GALLON, effectiveTier } from './tier';
+import { gasBonusPerGallon, effectiveTier } from './tier';
 import { pickOffer, percentBonus, isCentsPerGallon } from './offerPick';
 
 export async function computeSaleCashback({ customer, storeId, purchaseAmount, category, gasGallons, now }: {
@@ -132,7 +132,7 @@ export async function computeSaleCashback({ customer, storeId, purchaseAmount, c
   // computed on cashbackIssued alone, so a Gold+ customer's gas bonus was credited to them at the store's full
   // cost with no platform fee collected on that portion at all (docs/confidential/admin-audit/04-transactions.md
   // finding #10; no live exposure yet, since no real customer had reached Gold when this was found).
-  const gasBonusRate = (isGasCategory && effectiveGallons) ? (GAS_BONUS_PER_GALLON[customerTier] ?? 0) : 0;
+  const gasBonusRate = (isGasCategory && effectiveGallons) ? gasBonusPerGallon(customerTier) : 0;
   const gasBonusPoints = parseFloat(((effectiveGallons ?? 0) * gasBonusRate).toFixed(2));
 
   const devCutRate = store?.transactionFeeRate ?? DEFAULT_DEV_CUT_RATE;

@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Platform,
   ScrollView,
-  StatusBar,
   Animated,
   Keyboard,
 } from 'react-native';
@@ -29,6 +28,7 @@ import { phoneAuthErrorText } from '../../utils/phoneAuthError';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { referralsApi } from '../../services/api';
 import { PENDING_INVITE_KEY, pendingInvite } from '../invite';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 type Screen = 'quick' | 'login' | 'register' | 'verify-phone';
 
@@ -323,7 +323,7 @@ export default function LoginScreen() {
     const bioType = Platform.OS === 'ios' ? t('auth.bioTypeIos') : t('auth.bioTypeAndroid');
     return (
       <View style={styles.bioOfferRoot}>
-        <StatusBar barStyle="dark-content" />
+        <FocusStatusBar barStyle="dark-content" />
         <View style={styles.bioOfferCard}>
           <View style={styles.bioIconRing}>
             <ShieldIcon size={38} color={COLORS.primary} strokeWidth={1.75} />
@@ -348,7 +348,7 @@ export default function LoginScreen() {
       : '';
     return (
       <KeyboardSafe style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+        <FocusStatusBar barStyle="dark-content" />
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scrollQuick} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
@@ -429,7 +429,7 @@ export default function LoginScreen() {
       : phone;
     return (
       <KeyboardSafe style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+        <FocusStatusBar barStyle="dark-content" />
         <SafeAreaView style={styles.safeTop} />
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
@@ -497,7 +497,7 @@ keyboardType="number-pad"
   // ── Full login / register ──
   return (
     <KeyboardSafe style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <FocusStatusBar barStyle="dark-content" />
       <SafeAreaView style={styles.safeTop} />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>

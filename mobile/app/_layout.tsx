@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '../store/authStore';
 import { registerPushToken } from '../utils/pushRegistration';
 import AppLoader from '../components/AppLoader';
+import { queryClient } from '../services/queryClient';
 import ErrorBoundary from '../components/ErrorBoundary';
 import UpdatePrompt from '../components/UpdatePrompt';
 import { loadSavedLanguage } from '../i18n';
@@ -18,7 +19,6 @@ import { loadSavedLanguage } from '../i18n';
 // Hold the splash until we're ready
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const queryClient = new QueryClient();
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -89,7 +89,9 @@ export default function RootLayout() {
     }
 
     navigate();
-  }, [user, isLoading]);
+    // Who is signed in (and as what), not the user object: refreshAccount hands back a NEW object each time it reads the balance, and
+    // depending on the object sent a customer back to Home a second or two after opening Rewards (2026-10-21)
+  }, [user?.id, user?.role, isLoading]);
 
   useEffect(() => {
     if (user) {
@@ -111,6 +113,27 @@ export default function RootLayout() {
     const sub = AppState.addEventListener('change', (s) => { if (s === 'active') check(); });
     return () => sub.remove();
   }, [user?.id]);
+
+  // A customer's balance as it is now (2026-10-16): points an employee granted only showed after the app was closed and opened again.
+  // Re-read when the app comes back to the front (at most every 15 seconds) and as soon as a notification arrives while it is open
+  // ("Points credited", a redemption, a hot food order paid with points).
+  const lastAccountRead = useRef(0);
+  useEffect(() => {
+    if (!user?.id || user.role !== 'CUSTOMER') return;
+    const read = (force = false) => {
+      if (!force && Date.now() - lastAccountRead.current < 15_000) return;
+      lastAccountRead.current = Date.now();
+      useAuthStore.getState().refreshAccount();
+      // and the lists that change with it (2026-10-17): History, redemptions, the tier benefit, the bell, welcome week, challenges,
+      // receipt scans. Only these: reloading every screen's data could wipe a half-filled form.
+      for (const key of ['my-history', 'my-redemptions', 'my-benefit-status', 'unread-count', 'welcome-bonus', 'my-challenges', 'receipt-scan-mine', 'my-expiry', 'engagement', 'engagement-flags', 'flash-deal', 'friends-board', 'prize-game']) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    };
+    const app = AppState.addEventListener('change', (s) => { if (s === 'active') read(); });
+    const push = Notifications.addNotificationReceivedListener(() => read(true));
+    return () => { app.remove(); push.remove(); };
+  }, [user?.id, user?.role]);
 
   // Catch OS-level notification taps while the app is foregrounded or
   // backgrounded (process still alive). The cold-start case (app was fully

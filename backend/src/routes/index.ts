@@ -8,7 +8,7 @@ import { clientKey } from '../utils/rateLimitKey';
 import { authenticate, requireRole, requireStoreAccess } from '../middleware/auth';
 import { register, login, changePin, updateProfile, uploadAvatar, deleteAvatar, createStaffAccount, createSuperAdmin, listStaff, editStaffAccount, toggleUserActive, resetUserPin, setUserStores, getAccountFootprint, listCustomers, exportCustomersCsv, getCustomerDetail, grantGoodwillCredit, registerPushToken, removePushToken, setLanguage, setBirthday, getMe, addUserStore, removeUserStore, deleteUser, updateEmail, verifyFirebaseReset, resetPin, confirm21, decline21, deleteOwnAccount } from '../controllers/auth.controller';
 import {
-  initiateGrant, previewGrant,
+  initiateGrant, previewGrant, cancelGrant, getCashierRecent,
   uploadReceiptAndApprove,
   reviewFlaggedTransaction,
   voidTransaction,
@@ -28,13 +28,17 @@ import {
   getMyBenefitStatus,
   claimTierBenefit,
   processCatalogRedemption,
+  hqFindCustomers,
+  hqStoreStaff,
+  getMyExpiry, getCustomerExpiry, undoCustomerExpiry,
 } from '../controllers/points.controller';
 import { getCatalog, getAllCatalog, createCatalogItem, updateCatalogItem, deleteCatalogItem, customerInitiateRedemption, getMyRedemptions, cancelRedemption, getPendingRedemptionsForCustomer, confirmRedemption } from '../controllers/catalog.controller';
 import {
   createOffer, getActiveOffers, updateOffer, deleteOffer, getOffersHistory, getOfferResults, setOfferImage, removeOfferImage, translateOffer,
-  createBanner, getActiveBanners, deleteBanner,
+  createBanner, getActiveBanners, deleteBanner, updateBanner,
   estimateOfferCost, getPromotionIdeas, getComboIdeas, dismissComboIdea, restoreComboIdeas,
   listShelfDeals,
+  setShelfDealsHidden,
   setShelfDealHidden,
 } from '../controllers/offers.controller';
 import { createOfferRequest, listOfferRequests, withdrawOfferRequest, approveOfferRequest, declineOfferRequest } from '../controllers/offerRequests.controller';
@@ -48,7 +52,7 @@ import {
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification, getBroadcastAudience, listBroadcasts } from '../controllers/notifications.controller';
-import { getMyChatStores, getMessages, sendMessage, clearChat, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
+import { getMyChatStores, getChatPeople, getMessages, sendMessage, clearChat, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, getPendingCountByStore, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore } from '../controllers/productRequest.controller';
 import {
@@ -78,8 +82,10 @@ import {
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
 import { getRestockInsights, getDemandInsights, getRewardsHotFoodInsights } from '../controllers/inventoryInsights.controller';
 import { getAppVersion, updateAppVersions } from '../controllers/appVersion.controller';
+import { hqReadReceipt, hqLinkReceipt } from '../controllers/hqReceipt.controller';
+import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
-import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory } from '../controllers/customerProfile.controller';
+import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards, testUserPush } from '../controllers/customerProfile.controller';
 import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
 import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
@@ -104,7 +110,11 @@ import {
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
-import { getSettings, putRules, putFeatures, putBusiness, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
+import { getActiveFlash, listFlash, createFlash, endFlash } from '../controllers/engagementFlash.controller';
+import { getFriendsBoard, joinFriendsBoard, leaveFriendsBoard } from '../controllers/engagementFriends.controller';
+import { getGame, postPlay } from '../controllers/engagementGames.controller';
+import { getEngagementConfig, getMyEngagement, postRatePrompt, postTierUp, createWeeklyChallenge, postCheckIn, putGasAlert, deleteGasAlert, getEngagementHq, putEngagement, createGoal, updateGoal } from '../controllers/engagement.controller';
+import { getSettings, putRules, putFeatures, putBusiness, putWelcome, putTheme, getAppTheme, putPointsExpiry, getPointsExpiryPreview, getSettingsHistory, getAppSettings } from '../controllers/settings.controller';
 import {
   createThread, getThreads, getThread, sendMessage as sendSupportMessage, resolveThread,
   getUnreadCount as getSupportUnreadCount, updatePriority, getSupportStats,
@@ -175,6 +185,7 @@ import {
   assignCatalogItemToStore as assignHotFoodCatalogItemToStore,
   removeCatalogItemFromStore as removeHotFoodCatalogItemFromStore,
 } from '../controllers/hotFood.controller';
+import { getMenuGrid, applyMenuGrid } from '../controllers/hotFoodMenuGrid.controller';
 import {
   getCustomerLeaderboard,
   getEmployeeLeaderboard,
@@ -240,10 +251,14 @@ import {
 } from '../controllers/storeHours.controller';
 
 const router = Router();
+import { getActiveMissing, getMissingPublic, reportMissing, listMissing, createMissing, updateMissing, replaceMissingPhoto, confirmMissing, endMissing, previewMissingAlert, sendMissingAlert,
+  requestMissing, getMyMissingRequest, listMissingRequests, approveMissingRequest, declineMissingRequest } from '../controllers/missingPersons.controller';
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 router.get('/referrals/check', checkReferralCode);                                  // Whose invite code it is (no sign-in: the sign-up screen)
+router.get('/app/theme', getAppTheme);                                             // What theme the app shows today (no sign-in: asked when the app opens)
 router.get('/app/version', getAppVersion);                                         // Latest + minimum app version per platform (no sign-in: asked when the app opens)
 router.post('/auth/register', register);                                          // New customer signup
 router.post('/auth/login', login);                                                // Phone + PIN login
@@ -278,6 +293,8 @@ router.post('/users/customers/:userId/notes', authenticate, requireRole(Role.SUP
 router.delete('/users/customers/:userId/notes/:noteId', authenticate, requireRole(Role.SUPER_ADMIN), deleteCustomerNote);
 router.post('/users/customers/:userId/unlock', authenticate, requireRole(Role.SUPER_ADMIN), unlockCustomer);        // Clear a wrong-PIN lockout
 router.get('/users/customers/:userId/history', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerHistory);    // What staff did on the account
+router.get('/users/customers/:userId/receipt-cards', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerReceiptCards); // Cards on their scanned receipts (HQ only)
+router.post('/users/:userId/test-push', authenticate, requireRole(Role.SUPER_ADMIN), testUserPush);   // a test notification with Google's or Apple's answer (2026-10-16)
 router.post('/users/customers/:userId/goodwill-credit', authenticate, requireRole(Role.SUPER_ADMIN), grantGoodwillCredit); // A small credit outside the dispute flow
 router.patch('/users/:userId/edit', authenticate, requireRole(Role.SUPER_ADMIN), editStaffAccount);         // Fix a name/phone typo, promote/demote Employee<->Store Manager, set allStoresAccess
 router.patch('/users/:userId/toggle-active', authenticate, requireRole(Role.SUPER_ADMIN), toggleUserActive); // Deactivate/reactivate
@@ -299,6 +316,16 @@ router.get('/points/my-history', authenticate, requireRole(Role.CUSTOMER), getMy
 // ─── Points (Employee) ────────────────────────────────────────────────────────
 // Customer info lookup (cashier use — before grant/redeem)
 router.get('/points/customer-info/:qrCode', authenticate, requireRole(Role.EMPLOYEE), getCustomerInfo);
+// HQ's Grant & Redeem page (2026-10-15): find a customer when the QR photo will not read, and the store's staff for "Served by"
+router.get('/points/hq/customers', authenticate, requireRole(Role.SUPER_ADMIN), hqFindCustomers);
+router.get('/points/hq/staff/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), hqStoreStaff);
+// Receipt auto-fill on that page (2026-10-16): the AI reads the receipt photo and checks it was not used before; link = HQ granted from it
+router.post('/points/hq/receipt-read', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), hqReadReceipt);
+router.post('/points/hq/receipt-read/:id/link', authenticate, requireRole(Role.SUPER_ADMIN), hqLinkReceipt);
+// Win-back gifts (2026-10-16): a few points with a push for customers who have not been back, and how many came back
+router.get('/winback/preview', authenticate, requireRole(Role.SUPER_ADMIN), previewWinBack);
+router.get('/winback', authenticate, requireRole(Role.SUPER_ADMIN), listWinBacks);
+router.post('/winback', authenticate, requireRole(Role.SUPER_ADMIN), sendWinBack);
 router.get('/points/my-benefit-status', authenticate, requireRole(Role.CUSTOMER), getMyBenefitStatus);
 
 // Tier benefit claiming (Employee)
@@ -308,7 +335,9 @@ router.post('/points/tier-benefit', authenticate, requireRole(Role.EMPLOYEE), re
 router.post('/points/catalog-redeem', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, processCatalogRedemption);
 
 router.post('/points/grant', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, initiateGrant);
-router.post('/points/preview', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, previewGrant);   // the cashier's points preview, the grant's own math, nothing saved
+router.post('/points/preview', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, previewGrant);
+router.post('/points/grant/cancel', authenticate, requireRole(Role.EMPLOYEE), cancelGrant);
+router.get('/points/cashier/recent', authenticate, requireRole(Role.EMPLOYEE), getCashierRecent);   // the cashier's own sales and redemptions today (Recent tab)   // Cancel after Grant, before the receipt photo   // the cashier's points preview, the grant's own math, nothing saved
 router.post('/points/redeem', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, redeemCredits);
 router.post(
   '/points/grant/:transactionId/receipt',
@@ -349,6 +378,26 @@ router.post('/challenges', authenticate, requireRole(Role.SUPER_ADMIN), createCh
 router.patch('/challenges/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateChallenge); // Words, last day, End now
 router.get('/offers/shelf-deals', authenticate, requireRole(Role.SUPER_ADMIN), listShelfDeals);                    // Label deals shown in the app
 router.patch('/offers/shelf-deals/:labelId', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealHidden);     // Hide or show one
+router.post('/offers/shelf-deals/visibility', authenticate, requireRole(Role.SUPER_ADMIN), setShelfDealsHidden);   // Hide or show many (2026-10-18)
+
+// Missing person posters (2026-10-18): HQ posts them from an official source; customers see them near their store and call the police
+router.get('/missing-persons/active', authenticate, getActiveMissing);
+// customers ask HQ to post someone (police case number required); HQ checks it with the agency, then posts or declines
+router.post('/missing-persons/requests', authenticate, upload.single('photo'), requestMissing);
+router.get('/missing-persons/requests/mine', authenticate, getMyMissingRequest);
+router.get('/missing-persons/requests', authenticate, requireRole(Role.SUPER_ADMIN), listMissingRequests);
+router.post('/missing-persons/requests/:id/approve', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('photo'), approveMissingRequest);
+router.post('/missing-persons/requests/:id/decline', authenticate, requireRole(Role.SUPER_ADMIN), declineMissingRequest);
+router.get('/missing-persons/:id/public', authenticate, getMissingPublic);
+router.post('/missing-persons/:id/report', authenticate, reportMissing);
+router.get('/missing-persons', authenticate, requireRole(Role.SUPER_ADMIN), listMissing);
+router.post('/missing-persons', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('photo'), createMissing);
+router.patch('/missing-persons/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateMissing);
+router.post('/missing-persons/:id/photo', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('photo'), replaceMissingPhoto);
+router.post('/missing-persons/:id/confirm', authenticate, requireRole(Role.SUPER_ADMIN), confirmMissing);
+router.post('/missing-persons/:id/end', authenticate, requireRole(Role.SUPER_ADMIN), endMissing);
+router.get('/missing-persons/:id/alert-preview', authenticate, requireRole(Role.SUPER_ADMIN), previewMissingAlert);
+router.post('/missing-persons/:id/alert', authenticate, requireRole(Role.SUPER_ADMIN), sendMissingAlert);
 router.post('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), createOfferRequest);                 // A manager asks HQ for a cashback promotion
 router.get('/offer-requests', authenticate, requireRole(Role.STORE_MANAGER), listOfferRequests);                   // Manager: own stores; HQ: all
 router.post('/offer-requests/:id/withdraw', authenticate, requireRole(Role.STORE_MANAGER), withdrawOfferRequest);  // The manager takes it back
@@ -364,6 +413,7 @@ router.delete('/offers/:offerId', authenticate, requireRole(Role.STORE_MANAGER),
 // ─── Banners ──────────────────────────────────────────────────────────────────
 router.get('/banners', authenticate, getActiveBanners); // All authenticated users
 router.post('/banners', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), createBanner);
+router.patch('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), updateBanner);   // edit and schedule (2026-10-16)
 router.delete('/banners/:bannerId', authenticate, requireRole(Role.STORE_MANAGER), deleteBanner);
 
 // ─── Stores (SuperAdmin+) ─────────────────────────────────────────────────────
@@ -500,8 +550,9 @@ router.get('/schedule/vacancies', authenticate, getVacancies);                  
 router.get('/chat/my-stores', authenticate, getMyChatStores);                                        // Stores user can chat in
 router.get('/chat/unread-count', authenticate, getChatUnreadCount);                                  // Badge count across accessible stores
 router.get('/chat/unread-by-store', authenticate, getChatUnreadCountByStore);                        // Per-store breakdown for multi-store sidebar
+router.get('/chat/:storeId/people',   authenticate, getChatPeople);                                    // Who a private message can go to (2026-10-23)
 router.get('/chat/:storeId/messages', authenticate, getMessages);                                    // Fetch messages (polling)
-router.post('/chat/:storeId/messages', authenticate, sendMessage);                                   // Send message
+router.post('/chat/:storeId/messages', authenticate, upload.single('file'), sendMessage);                                   // Send message
 router.delete('/chat/:storeId/messages', authenticate, requireRole(Role.SUPER_ADMIN), clearChat);    // Permanently clear a store's chat history (SuperAdmin+ only)
 
 // ─── Redemption Catalog ───────────────────────────────────────────────────────
@@ -692,6 +743,9 @@ router.patch('/hot-food/store/:storeId/catalog/:catalogItemId/availability',    
 router.get('/hot-food/store/:storeId/menu', authenticate, requireRole(Role.CUSTOMER), getStoreMenu);
 router.post('/hot-food/orders',             authenticate, requireRole(Role.CUSTOMER), placeOrder);
 // Catalog — admin (global item library with store assignment)
+// Store menus grid (2026-10-20): which stores carry which item, and what is in stock today, set for many at once
+router.get('/hot-food/menu-grid',                      authenticate, requireRole(Role.SUPER_ADMIN),   getMenuGrid);
+router.post('/hot-food/menu-grid',                     authenticate, requireRole(Role.SUPER_ADMIN),   applyMenuGrid);
 router.get('/hot-food/catalog',                         authenticate, requireRole(Role.SUPER_ADMIN),   getHotFoodCatalog);
 router.post('/hot-food/catalog',                        authenticate, requireRole(Role.SUPER_ADMIN),   upload.single('image'), createHotFoodCatalogItem);
 router.patch('/hot-food/catalog/:id',                   authenticate, requireRole(Role.SUPER_ADMIN),   updateHotFoodCatalogItem);
@@ -706,6 +760,34 @@ router.get('/settings',                 authenticate, requireRole(Role.SUPER_ADM
 router.put('/settings/rules',           authenticate, requireRole(Role.SUPER_ADMIN),   putRules);
 router.put('/settings/features',        authenticate, requireRole(Role.SUPER_ADMIN),   putFeatures);
 router.put('/settings/business',        authenticate, requireRole(Role.SUPER_ADMIN),   putBusiness);
+router.get('/engagement/config',        authenticate,                                   getEngagementConfig);
+router.get('/engagement/me',            authenticate,                                   getMyEngagement);   // streak, check-in, badges, goals (2026-10-23)
+router.post('/engagement/check-in',      authenticate,                                   postCheckIn);
+router.post('/engagement/rate-prompt',   authenticate,                                   postRatePrompt);
+router.post('/engagement/tier-up',       authenticate,                                   postTierUp);       // the app's one-time tier celebration (2026-10-24)   // yes once per customer, after a good moment (2026-10-24)
+router.put('/engagement/gas-alerts',     authenticate,                                   putGasAlert);
+router.delete('/engagement/gas-alerts/:id', authenticate,                                deleteGasAlert);
+router.get('/engagement/hq',             authenticate, requireRole(Role.SUPER_ADMIN),   getEngagementHq);   // HQ: switches, results, suggestions, goals
+router.put('/settings/engagement',       authenticate, requireRole(Role.SUPER_ADMIN),   putEngagement);
+router.post('/engagement/goals',         authenticate, requireRole(Role.SUPER_ADMIN),   createGoal);
+router.patch('/engagement/goals/:id',    authenticate, requireRole(Role.SUPER_ADMIN),   updateGoal);
+router.post('/engagement/weekly',        authenticate, requireRole(Role.SUPER_ADMIN),   createWeeklyChallenge);
+router.get('/engagement/flash/active',   authenticate,                                   getActiveFlash);   // flash deals (2026-10-24): the one running now for this customer
+router.get('/engagement/flash',          authenticate, requireRole(Role.SUPER_ADMIN),   listFlash);
+router.post('/engagement/flash',         authenticate, requireRole(Role.SUPER_ADMIN),   createFlash);
+router.post('/engagement/flash/:id/end', authenticate, requireRole(Role.SUPER_ADMIN),   endFlash);
+router.get('/engagement/friends',        authenticate,                                   getFriendsBoard);   // friends leaderboard (2026-10-24)
+router.post('/engagement/friends/join',  authenticate,                                   joinFriendsBoard);
+router.delete('/engagement/friends/join', authenticate,                                  leaveFriendsBoard);
+router.get('/engagement/games',          authenticate,                                   getGame);   // the prize game (2026-10-25)
+router.post('/engagement/games/play',    authenticate,                                   postPlay);   // make and schedule the challenge of the week (2026-10-24)
+router.put('/settings/theme',           authenticate, requireRole(Role.SUPER_ADMIN),   putTheme);         // the seasonal app theme (2026-10-21)
+router.put('/settings/welcome',         authenticate, requireRole(Role.SUPER_ADMIN),   putWelcome);       // the joining bonus (2026-10-17)
+router.put('/settings/points-expiry',   authenticate, requireRole(Role.SUPER_ADMIN),   putPointsExpiry);  // points expiry (2026-10-17)
+router.get('/settings/points-expiry/preview', authenticate, requireRole(Role.SUPER_ADMIN), getPointsExpiryPreview);
+router.get('/points/my-expiry',          authenticate, requireRole(Role.CUSTOMER),      getMyExpiry);
+router.get('/points/expiry/customer/:userId', authenticate, requireRole(Role.SUPER_ADMIN), getCustomerExpiry);
+router.post('/points/expiry/undo/:userId', authenticate, requireRole(Role.SUPER_ADMIN), undoCustomerExpiry);
 router.get('/settings/history',         authenticate, requireRole(Role.SUPER_ADMIN),   getSettingsHistory);
 router.get('/settings/app',             authenticate,                                   getAppSettings);
 router.get('/hot-food/combos',          authenticate, requireRole(Role.SUPER_ADMIN),   listCombos);

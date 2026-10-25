@@ -5,6 +5,7 @@ import { formatInteger } from '../../components/formater';
 import { TEXT_MUTED, PRIMARY } from '../../lib/theme';
 import { s, storeBadge, storeColor, badgeInk, SectionHeader, SkeletonBox, SkeletonCards, PanelError, readSetting, writeSetting } from './shared';
 import { useLaunchStats } from './queries';
+import { storeToday } from '../../lib/storeDates';
 
 // How the launch is going: who signed up, who claimed the welcome reward, who has bought something.
 // The server counts from launch day only, so test accounts from before it never show up here.
@@ -17,7 +18,7 @@ type LaunchData =
   | {
       started: true; launchDate: string; dayNumber: number; totals: Totals;
       today: { signups: number; firstPurchases: number }; daily: DailyRow[];
-      rewards: { rewardType: string; count: number }[]; stores: StoreRow[]; testAccountsLeftOut: number;
+      rewards: { rewardType: string; count: number; label?: string; emoji?: string }[]; stores: StoreRow[]; testAccountsLeftOut: number;
     };
 
 const REWARD_LABEL: Record<string, { icon: string; label: string }> = {
@@ -225,7 +226,8 @@ function StoreTable({ stores }: { stores: StoreRow[] }) {
 // ── The section ──────────────────────────────────────────────────────────────
 
 export default function LaunchTracker() {
-  const [hidden, setHidden] = useState(() => readSetting('dash-launch', VIEWS, 'shown') === 'hidden');
+  // Shown for the first month after launch (Oct 5, 2026), then folded unless HQ chose to keep it (2026-10-16: a shorter Dashboard)
+  const [hidden, setHidden] = useState(() => readSetting('dash-launch', VIEWS, storeToday() > '2026-11-05' ? 'hidden' : 'shown') === 'hidden');
   const q = useLaunchStats(!hidden);
   const setShown = (show: boolean) => { setHidden(!show); writeSetting('dash-launch', show ? 'shown' : 'hidden'); };
 
@@ -285,7 +287,7 @@ export default function LaunchTracker() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, alignItems: 'center', marginBottom: 28, fontSize: 13.5, color: TEXT_MUTED }}>
             <span style={{ fontWeight: 700 }}>Welcome rewards picked:</span>
             {d.rewards.map((r) => {
-              const info = REWARD_LABEL[r.rewardType] ?? { icon: '🎁', label: r.rewardType };
+              const info = r.label ? { icon: r.emoji ?? '🎁', label: r.label } : REWARD_LABEL[r.rewardType] ?? { icon: '🎁', label: r.rewardType };   // HQ's names first
               return (
                 <span key={r.rewardType} style={{ background: '#fff', border: '1px solid #e4e7ec', borderRadius: 20, padding: '3px 11px', fontWeight: 600, color: '#374151' }}>
                   <Glyph e={info.icon} size={13} style={{ verticalAlign: -2, marginRight: 5 }} />{info.label} · {formatInteger(r.count)}

@@ -240,6 +240,7 @@ export default function LabelPaperModal({ visible, sheet, startAt, accentColor, 
                               style={st.sizeInput}
                               value={texts[k]}
                               keyboardType="decimal-pad"
+                              returnKeyType="done"
                               maxLength={5}
                               selectTextOnFocus
                               onFocus={() => setEditing(k)}

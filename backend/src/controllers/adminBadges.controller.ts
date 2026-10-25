@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { RequestStatus } from '@prisma/client';
+import { AWAITING_DECISION } from '../utils/unfinishedSales';
 
 // ─── GET /admin/badges ─────────────────────────────────────────────────────
 // One request for every "something is waiting for you" count the admin shell's sidebar badges and command
@@ -29,7 +30,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       data: {
         transactionsPendingCount: 0, disputesPendingCount: 0, requestsPendingCount: 0, chatUnreadCount: 0,
         schedulingPendingCount: 0, promotionsPendingCount: 0, hotFoodPendingCount: 0, categoriesPendingCount: 0,
-        billingPendingCount: 0, careersNewCount: 0, supportUnread: 0, offerRequestsPendingCount: 0,
+        billingPendingCount: 0, careersNewCount: 0, supportUnread: 0, offerRequestsPendingCount: 0, missingRequestsPendingCount: 0,
       },
     });
     return;
@@ -47,6 +48,8 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       where: {
         userId: { not: user.id },
         OR: storeIds.map((storeId) => ({ storeId, createdAt: { gt: readMap.get(storeId) ?? new Date(0) } })),
+        // a private line to someone else is not unread for this person (the same rule as the chat's own count)
+        AND: [{ OR: [{ toUserId: null }, { toUserId: user.id }] }],
       },
     });
   })();
@@ -66,9 +69,10 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
     careersNewCount,
     supportUnread,
     offerRequestsPendingCount,
+    missingRequestsPendingCount,
   ] = await Promise.all([
     // points.controller.ts getTransactionsPendingCount
-    prisma.pointsTransaction.count({ where: { storeId: { in: storeIds }, status: { in: ['PENDING', 'FLAGGED'] } } }),
+    prisma.pointsTransaction.count({ where: { storeId: { in: storeIds }, ...AWAITING_DECISION, isTestData: false } }),   // not a sale still waiting for its photo
     // dispute.controller.ts getPendingDisputeCount
     prisma.pointsDispute.count({ where: { status: 'PENDING' } }),
     // storeRequest.controller.ts getPendingCount
@@ -97,6 +101,8 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       : prisma.supportMessage.count({ where: { isRead: false, senderRole: 'DEV_ADMIN', thread: { fromUserId: user.id } } }),
     // offerRequests.controller.ts: store managers' promotion requests waiting for HQ
     prisma.offerRequest.count({ where: { status: 'PENDING', storeId: { in: storeIds } } }),
+    // missingPersons.controller.ts: customers' requests to post a missing person, waiting for HQ to check them with the police
+    prisma.missingPersonRequest.count({ where: { status: 'PENDING' } }),
   ]);
 
   res.json({
@@ -114,6 +120,7 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
       careersNewCount,
       supportUnread,
       offerRequestsPendingCount,
+      missingRequestsPendingCount,
     },
   });
 }

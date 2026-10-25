@@ -1,14 +1,17 @@
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../constants';
 import { notificationsApi } from '../../services/api';
 import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import { useAppSettings } from '../../hooks/useAppSettings';
+import { useEngagementFlags } from '../../hooks/useEngagement';
+import TierUpHost from '../../components/engagement/TierUpHost';
 import {
   HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
   BriefcaseIcon, ShoppingBagIcon, BellIcon, FlameIcon,
-  UserIcon, BookOpenIcon, ClipboardIcon, GiftIcon,
+  UserIcon, BookOpenIcon, ClipboardIcon, GiftIcon, AlertCircleIcon,
 } from '../../components/Icons';
 
 export default function CustomerLayout() {
@@ -21,6 +24,7 @@ export default function CustomerLayout() {
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
   const appSettings = useAppSettings();   // HQ's switches (admin Settings > Features)
+  const eng = useEngagementFlags();   // HQ's engagement switches (admin > Engagement)
   const bottomItems: [NavItem, NavItem] = [
     { route: '/(customer)/home',    icon: (p) => <HomeIcon {...p} strokeWidth={2} />, label: t('nav.home') },
     { route: '/(customer)/rewards', icon: (p) => <StarIcon {...p} strokeWidth={2} />, label: t('nav.rewards') },
@@ -42,8 +46,11 @@ export default function CustomerLayout() {
         { route: '/(customer)/invite-friends',  icon: (p) => <GiftIcon {...p} />,        label: t('nav.inviteFriends') },
         { route: '/(customer)/ads',             icon: (p) => <MegaphoneIcon {...p} />,   label: t('nav.adsPromos') },
         { route: '/(customer)/leaderboard',     icon: (p) => <TrophyIcon {...p} />,      label: t('nav.leaderboard') },
+        ...(eng && (eng.badges || eng.storeGoals || eng.streaks.enabled) ? [{ route: '/(customer)/progress', icon: (p: any) => <StarIcon {...p} />, label: t('nav.myProgress') }] : []),
+        ...(eng?.gasAlerts ? [{ route: '/(customer)/gas-alerts', icon: (p: any) => <BellIcon {...p} />, label: t('nav.gasAlerts') }] : []),
         { route: '/(customer)/careers',         icon: (p) => <BriefcaseIcon {...p} />,   label: t('nav.careers') },
         { route: '/(customer)/request-product', icon: (p) => <ShoppingBagIcon {...p} />, label: t('nav.requestProduct') },
+        { route: '/(customer)/missing/request', icon: (p) => <AlertCircleIcon {...p} />, label: t('nav.missingRequest') },
       ],
     },
     {
@@ -58,11 +65,14 @@ export default function CustomerLayout() {
   ];
 
   return (
+    <View style={{ flex: 1 }}>
     <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.primary}>
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
         <Tabs.Screen name="scan-receipt" options={{ href: null }} />
         <Tabs.Screen name="receipt-photo" options={{ href: null }} />
+        <Tabs.Screen name="missing/[id]" options={{ href: null }} />
+        <Tabs.Screen name="missing/request" options={{ href: null }} />
         <Tabs.Screen name="rewards" />
         <Tabs.Screen name="ads" />
         <Tabs.Screen name="history" />
@@ -75,7 +85,13 @@ export default function CustomerLayout() {
         <Tabs.Screen name="guide" />
         <Tabs.Screen name="profile" />
         <Tabs.Screen name="invite-friends" />
+        <Tabs.Screen name="progress" options={{ href: null }} />
+        <Tabs.Screen name="gas-alerts" options={{ href: null }} />
+        <Tabs.Screen name="games" options={{ href: null }} />
       </Tabs>
     </DrawerShell>
+    {/* the one-time tier celebration, over every customer screen and the bottom bar (2026-10-24) */}
+    <TierUpHost />
+    </View>
   );
 }

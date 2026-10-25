@@ -53,6 +53,7 @@ export default function HotFoodImportModal({ stores, existingNames, onClose }: {
       try {
         const fd = new FormData();
         fd.append('name', v.name);
+        if (v.category) fd.append('category', v.category);
         if (v.description) fd.append('description', v.description);
         fd.append('price', String(v.price));
         if (v.minutes) fd.append('estimatedMinutes', String(v.minutes));

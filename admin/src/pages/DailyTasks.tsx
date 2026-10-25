@@ -195,7 +195,7 @@ export default function DailyTasks() {
           <div style={s.emptyText}>
             {isDevAdmin
               ? 'Click "Load Defaults" to populate the standard Lucky Stop checklists, or add tasks manually.'
-              : 'No tasks have been configured yet. Contact your administrator.'}
+              : 'Add the first task with Add Task. Chain-wide tasks show at every store; a store\'s own tasks only there.'}
           </div>
         </div>
       ) : (

@@ -68,6 +68,7 @@ export default function ConfirmModal({
             <>
               {inputLabel && <label style={s.inputLabel}>{inputLabel}</label>}
               <textarea
+                aria-label={inputLabel || inputPlaceholder || 'Reason'}
                 className="ui-input"
                 style={s.textarea}
                 value={inputValue}

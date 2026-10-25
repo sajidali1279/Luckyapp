@@ -130,7 +130,7 @@ export async function submitRating(req: AuthRequest, res: Response) {
   // Verify transaction belongs to this customer and is approved
   const tx = await prisma.pointsTransaction.findUnique({
     where: { id: transactionId },
-    select: { id: true, customerId: true, grantedById: true, storeId: true, status: true, rating: true },
+    select: { id: true, customerId: true, grantedById: true, servedById: true, storeId: true, status: true, rating: true },
   });
   if (!tx) return res.status(404).json({ success: false, error: 'Transaction not found' });
   if (tx.customerId !== customerId) return res.status(403).json({ success: false, error: 'Not your transaction' });
@@ -140,7 +140,8 @@ export async function submitRating(req: AuthRequest, res: Response) {
   if (tx.grantedById === customerId) return res.status(400).json({ success: false, error: 'There is no cashier to rate on this sale.' });
 
   const result = await prisma.employeeRating.create({
-    data: { transactionId, customerId, employeeId: tx.grantedById, storeId: tx.storeId, rating },
+    // HQ entered the sale for an employee with no phone: the rating is that employee's (utils/servedBy.ts)
+    data: { transactionId, customerId, employeeId: tx.servedById ?? tx.grantedById, storeId: tx.storeId, rating },
   });
 
   res.json({ success: true, data: result });
@@ -169,12 +170,14 @@ export async function getPendingRatings(req: AuthRequest, res: Response) {
       createdAt: true,
       store: { select: { name: true } },
       grantedBy: { select: { id: true, name: true } },
+      servedBy: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: 1, // show one at a time
   });
 
-  res.json({ success: true, data: transactions });
+  // The app names grantedBy as who served: when HQ entered the sale for an employee, that is the employee
+  res.json({ success: true, data: transactions.map(({ servedBy, ...t }) => (servedBy ? { ...t, grantedBy: servedBy } : t)) });
 }
 
 // ─── Employee's own rating summary ───────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar, ScrollView } from 'react-native';
+import { View, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import { Text } from '../../components/ScaledText';
 import RefreshControl from '../../components/AppRefreshControl';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +13,7 @@ import ErrorState from '../../components/ErrorState';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import { ChevronLeftIcon, StarIcon, AwardIcon } from '../../components/Icons';
 import FadeSlideIn from '../../components/FadeSlideIn';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 const PODIUM_COLORS: Record<number, string> = { 1: '#D4A017', 2: '#78828E', 3: '#B5651D' };
 const MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
@@ -55,7 +56,7 @@ export default function EmployeeLeaderboardScreen() {
 
   return (
     <View style={st.root}>
-      <StatusBar barStyle="light-content" />
+      <FocusStatusBar barStyle="light-content" />
       <SafeAreaView style={{ backgroundColor: COLORS.secondary }}>
         <View style={st.header}>
           <TouchableOpacity

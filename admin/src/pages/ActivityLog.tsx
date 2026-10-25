@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { auditApi, storesApi } from '../services/api';
 import ErrorState from '../components/ErrorState';
@@ -9,6 +9,7 @@ import { storeToday, addDays, startOfStoreDay, endOfStoreDay } from '../lib/stor
 import { PageHeader, Button } from '../components/kit';
 import { RefreshCw } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import { useIsMobile } from '../hooks/use-mobile';
 
 // ─── Action metadata ──────────────────────────────────────────────────────────
 
@@ -30,6 +31,8 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   CLAIM_TIER_BENEFIT:        { label: 'Tier Perk Used',         color: '#8a5300', bg: '#b8860b18', icon: '⭐' },
   CATALOG_REDEMPTION:        { label: 'Reward Redeemed',        color: '#3c6e8f', bg: '#457b9d18', icon: '🎁' },
   CATALOG_CONFIRM:           { label: 'Reward Handed Out',      color: '#3c6e8f', bg: '#457b9d18', icon: '✅' },
+  WELCOME_GIFT:              { label: 'Welcome Gift Given',     color: '#3c6e8f', bg: '#457b9d18', icon: '🎉' },
+  WINBACK_SEND:              { label: 'Win-back Gifts Sent',    color: '#1a7f45', bg: '#2DC65318', icon: '🎁' },
   // Rewards and notices
   CATALOG_ITEM_CREATE:       { label: 'Reward Added',           color: PRIMARY, bg: '#1D355718', icon: '🎁' },
   CATALOG_ITEM_UPDATE:       { label: 'Reward Changed',         color: PRIMARY, bg: '#1D355718', icon: '✏️' },
@@ -98,6 +101,28 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   // Billing
   BILLING_GENERATE:          { label: 'Make Bills',             color: '#1D3557', bg: '#0369a118', icon: '🧾' },
   BILLING_FILL_MISSING:      { label: 'Fill In Missing Bills',  color: '#1D3557', bg: '#0369a118', icon: '🧩' },
+  HOT_FOOD_ITEM_CREATED:        { label: 'Hot Food Item Added', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_UPDATED:        { label: 'Hot Food Item Changed', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_DELETED:        { label: 'Hot Food Item Deleted', color: '#c42130', bg: '#E6394618', icon: '🔥' },
+  HOT_FOOD_ITEM_STORE_ADDED:    { label: 'Hot Food Item Added to Store', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_STORE_REMOVED:  { label: 'Hot Food Item Removed from Store', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  MISSING_PERSON_POSTED:        { label: 'Missing Person Posted', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_EDITED:        { label: 'Missing Person Edited', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_CONFIRMED:     { label: 'Missing Person Rechecked', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_REPORTED:      { label: 'Missing Person Poster Reported', color: '#c42130', bg: '#E6394618', icon: '🔎' },
+  CAREERS_APPLICATION_UPDATED:  { label: 'Job Application Updated', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_APPLICATION_DELETED:  { label: 'Job Application Deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
+  CAREERS_OPENING_CREATED:      { label: 'Job Opening Added', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_OPENING_UPDATED:      { label: 'Job Opening Changed', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_OPENING_DELETED:      { label: 'Job Opening Deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
+  ORDER_CATEGORY_UPDATED:       { label: 'Order Category Changed', color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
+  SETTINGS_ENGAGEMENT_UPDATE: { label: 'Engagement Changed', color: '#1D3557', bg: '#0369a118', icon: '✨' },
+  STORE_GOAL_CREATE:          { label: 'Store Goal Created', color: '#1a7f45', bg: '#2DC65318', icon: '🏪' },
+  FLASH_DEAL_CREATE:          { label: 'Flash Deal Sent', color: '#a51b28', bg: '#CC293618', icon: '⚡' },
+  FLASH_DEAL_END:             { label: 'Flash Deal Ended', color: '#5a6472', bg: '#5a647218', icon: '⚡' },
+  STORE_GOAL_UPDATE:          { label: 'Store Goal Changed', color: '#1D3557', bg: '#0369a118', icon: '🏪' },
+  SETTINGS_THEME_UPDATE:      { label: 'App Theme Changed', color: '#1D3557', bg: '#0369a118', icon: '🎃' },
+  ORDER_CATEGORY_DELETED:       { label: 'Order Category Deleted', color: '#c42130', bg: '#E6394618', icon: '🗂️' },
   BILLING_RECALCULATE:       { label: 'Recalculate Bill',       color: '#1D3557', bg: '#0369a118', icon: '🔄' },
   BILLING_MARK_PAID:         { label: 'Mark Bill Paid',         color: '#1a7f45', bg: '#2DC65318', icon: '💳' },
   BILLING_MARK_PERIOD_PAID:  { label: 'Mark Month Paid',        color: '#1a7f45', bg: '#2DC65318', icon: '💳' },
@@ -134,9 +159,9 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
 const ROLE_META: Record<string, { label: string; color: string }> = {
   DEV_ADMIN:    { label: 'Dev Admin',     color: '#1a7f45' },
   SUPER_ADMIN:  { label: 'Super Admin',   color: '#8a5300' },
-  STORE_MANAGER:{ label: 'Store Manager', color: '#4cc9f0' },
+  STORE_MANAGER:{ label: 'Store Manager', color: '#1d6fa5' },
   EMPLOYEE:     { label: 'Employee',      color: TEXT_MUTED },
-  CUSTOMER:     { label: 'Customer',      color: '#e4e7ec' },
+  CUSTOMER:     { label: 'Customer',      color: '#7a3e9d' },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -172,6 +197,24 @@ function fmtDetails(details: string | null): string {
     if (d.targetRole)             parts.push(d.targetRole);
     if (d.isActive != null)       parts.push(d.isActive ? 'activated' : 'deactivated');
     if (Array.isArray(d.before) && Array.isArray(d.after)) parts.push(`${d.before.join(', ') || 'no store'} → ${d.after.join(', ') || 'no store'}`);
+    // What changed (hot food items, job openings and applications, order categories, missing person posters)
+    if (typeof d.applicant === 'string') parts.push(d.position ? `${d.applicant} for ${d.position}` : d.applicant);
+    if (d.price != null && d.changes === undefined) parts.push(`$${Number(d.price).toFixed(2)}`);
+    if (d.changes && typeof d.changes === 'object') {
+      for (const [k, v] of Object.entries(d.changes as Record<string, { was: unknown; now: unknown }>)) {
+        const show = (x: unknown) => (k === 'price' && x != null ? `$${Number(x).toFixed(2)}` : x == null || x === '' ? 'none' : String(x));
+        parts.push(`${k.replace(/([A-Z])/g, ' $1').toLowerCase()}: ${show(v?.was)} → ${show(v?.now)}`);
+      }
+    }
+    if (d.status && typeof d.status === 'object' && 'was' in d.status) parts.push(`status ${String(d.status.was).toLowerCase()} → ${String(d.status.now).toLowerCase()}`);
+    if (typeof d.renamedTo === 'string') parts.push(`renamed to ${d.renamedTo}`);
+    if (Array.isArray(d.changed)) {
+      const said = d.changed.filter((k: string) => !((k === 'name' && d.renamedTo) || (k === 'status' && d.status && typeof d.status === 'object')));
+      if (said.length) parts.push(`changed ${said.join(', ')}`);
+    }
+    if (d.notesChanged) parts.push('notes changed');
+    if (typeof d.live === 'boolean') parts.push(d.live ? 'live' : 'hidden');
+    if (typeof d.reason === 'string' && d.reason && !d.footprint && !d.summary) parts.push(`“${d.reason.length > 120 ? d.reason.slice(0, 117) + '…' : d.reason}”`);
     if (d.mode === 'anonymized')  parts.push('personal details removed, sales kept');
     if (d.mode === 'deleted')     parts.push('deleted');
     if (d.footprint && typeof d.reason === 'string') parts.push(d.reason);
@@ -190,6 +233,10 @@ function fmtDetails(details: string | null): string {
     if (d.priceText)              parts.push(`$${d.priceText}`);
     if (d.labelCount != null)     parts.push(`${d.labelCount} label${d.labelCount === 1 ? '' : 's'}`);
     if (d.totalCopies != null)    parts.push(`${d.totalCopies} cop${d.totalCopies === 1 ? 'y' : 'ies'} printed`);
+    // HQ's Grant & Redeem page: who served the customer
+    if (d.noReceipt)              parts.push('no receipt photo');
+    if (d.heldFlagsWaived)        parts.push('review flags waived by HQ');
+    if (d.enteredByHQ)            parts.push(`served by ${d.servedByName || 'an employee'}, entered by HQ`);
     return parts.join(' · ');
   } catch {
     return '';
@@ -203,6 +250,7 @@ function monthAgoStr() { return addDays(storeToday(), -30); }
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ActivityLog() {
+  const narrow = useIsMobile();   // a phone: each entry stacks (the four columns pushed the time and the detail off the screen)
   const [action,    setAction]    = useState('');
   const [actorRole, setActorRole] = useState('');
   const [storeId,   setStoreId]   = useState('');
@@ -246,7 +294,7 @@ export default function ActivityLog() {
   }
 
   return (
-    <div style={s.container}>
+    <div style={narrow ? { ...s.container, padding: 16 } : s.container}>
       {/* Header */}
       <PageHeader
         title="Activity Log"
@@ -284,7 +332,7 @@ export default function ActivityLog() {
         <select style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
           <option value="">All Actions</option>
           <optgroup label="── Points ──">
-            {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
+            {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','WELCOME_GIFT','WINBACK_SEND','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
@@ -338,6 +386,21 @@ export default function ActivityLog() {
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
+          <optgroup label="── Hot food ──">
+            {['HOT_FOOD_ITEM_CREATED', 'HOT_FOOD_ITEM_UPDATED', 'HOT_FOOD_ITEM_DELETED', 'HOT_FOOD_ITEM_STORE_ADDED', 'HOT_FOOD_ITEM_STORE_REMOVED'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Missing persons ──">
+            {['MISSING_PERSON_POSTED', 'MISSING_PERSON_EDITED', 'MISSING_PERSON_CONFIRMED', 'MISSING_PERSON_REPORTED'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Careers & order lists ──">
+            {['CAREERS_APPLICATION_UPDATED', 'CAREERS_APPLICATION_DELETED', 'CAREERS_OPENING_CREATED', 'CAREERS_OPENING_UPDATED', 'CAREERS_OPENING_DELETED', 'ORDER_CATEGORY_UPDATED', 'ORDER_CATEGORY_DELETED'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
         </select>
 
         <select style={s.select} value={actorRole} onChange={(e) => { setActorRole(e.target.value); setPage(1); }}>
@@ -379,28 +442,28 @@ export default function ActivityLog() {
             const roleMeta = ROLE_META[log.actorRole] || { label: log.actorRole, color: TEXT_MUTED };
             const detail = fmtDetails(log.details);
             return (
-              <div key={log.id} style={s.row}>
+              <div key={log.id} style={narrow ? { ...s.row, gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 } : s.row}>
                 {/* Action badge */}
-                <div style={{ ...s.actionBadge, background: meta.bg, color: meta.color }}>
+                <div style={{ ...s.actionBadge, background: meta.bg, color: meta.color, ...(narrow ? { justifySelf: 'start' } : {}) }}>
                   <span style={{ fontSize: 16 }}><Glyph e={meta.icon} size={18} /></span>
                   <span style={s.actionLabel}>{meta.label}</span>
                 </div>
 
                 {/* Actor */}
-                <div style={s.actor}>
+                <div style={narrow ? { ...s.actor, gridColumn: '1 / -1', flexDirection: 'row', gap: 8, alignItems: 'baseline', order: 3 } : s.actor}>
                   <div style={s.actorName}>{log.actorName || log.actorId.slice(0, 8)}</div>
                   <div style={{ ...s.roleBadge, color: roleMeta.color }}>{roleMeta.label}</div>
                 </div>
 
                 {/* Detail */}
-                <div style={s.detail}>
-                  {detail && <span style={s.detailText}>{detail}</span>}
+                <div style={narrow ? { ...s.detail, gridColumn: '1 / -1', order: 4 } : s.detail}>
+                  {detail && <span style={narrow ? { ...s.detailText, whiteSpace: 'normal' } : s.detailText}>{detail}</span>}
                   {log.storeName && <span style={s.storeTag}>{log.storeName}</span>}
                   {!log.storeName && log.storeId && <span style={s.storeTag}>store</span>}
                 </div>
 
                 {/* Time */}
-                <div style={s.time} title={new Date(log.createdAt).toLocaleString()}>
+                <div style={narrow ? { ...s.time, order: 2 } : s.time} title={new Date(log.createdAt).toLocaleString()}>
                   {timeAgo(log.createdAt)}
                 </div>
               </div>
@@ -447,7 +510,7 @@ const s: Record<string, React.CSSProperties> = {
   logList: { display: 'flex', flexDirection: 'column', gap: 6 },
   row: {
     display: 'grid',
-    gridTemplateColumns: '180px 160px 1fr 80px',
+    gridTemplateColumns: '230px 150px minmax(0, 1fr) 80px',
     alignItems: 'center',
     gap: 16,
     background: '#fff',
@@ -458,9 +521,9 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   actionBadge: { display: 'flex', alignItems: 'center', gap: 6, borderRadius: 8, padding: '5px 10px', fontWeight: 700, fontSize: 14 },
-  actionLabel: { whiteSpace: 'nowrap' as const },
+  actionLabel: { whiteSpace: 'normal' as const, lineHeight: 1.25 },
 
-  actor: { display: 'flex', flexDirection: 'column', gap: 2 },
+  actor: { display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 },
   actorName: { fontWeight: 700, fontSize: 14, color: PRIMARY, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
   roleBadge: { fontSize: 13, fontWeight: 600 },
 

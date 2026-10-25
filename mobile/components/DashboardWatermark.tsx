@@ -1,6 +1,9 @@
 import { memo, useRef, useEffect } from 'react';
 import { View, Animated, Easing, StyleSheet, ViewStyle } from 'react-native';
 import { StarIcon, TagIcon, GiftIcon, PercentIcon } from './Icons';
+import { useAppTheme } from '../hooks/useAppTheme';
+import HalloweenWatermark from './halloween/HalloweenWatermark';
+import { ThanksgivingWatermark, ChristmasWatermark, GameDayWatermark } from './seasonal/Watermarks';
 
 type IconComponent = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number; filled?: boolean }>;
 
@@ -20,6 +23,9 @@ const ITEMS: Item[] = [
   { Icon: GiftIcon,   size: 170, duration: 47000, driftRange: 14, position: { top: '55%', left: '2%' } },
   { Icon: PercentIcon, size: 130, duration: 38000, driftRange: 18, reverse: true, position: { top: '76%', right: '12%' } },
 ];
+
+/** HQ's seasonal theme swaps the icons for its own shapes; a preset this version does not know (added after this build) keeps the icons. */
+const SEASONAL: Record<string, React.ComponentType | undefined> = { HALLOWEEN: HalloweenWatermark, THANKSGIVING: ThanksgivingWatermark, CHRISTMAS: ChristmasWatermark, GAME_DAY: GameDayWatermark };
 
 const FloatingIcon = memo(function FloatingIcon({ item, color }: { item: Item; color: string }) {
   const anim = useRef(new Animated.Value(0)).current;
@@ -46,9 +52,12 @@ const FloatingIcon = memo(function FloatingIcon({ item, color }: { item: Item; c
 });
 
 /** A few large, very-faint brand icons that slowly rotate and drift behind a
- * dashboard's content — a shared ambient background used across the
+ * * dashboard's content: a shared ambient background used across the
  * Customer, Employee, and Manager home screens. */
 const DashboardWatermark = memo(function DashboardWatermark({ color }: { color: string }) {
+  const theme = useAppTheme();   // HQ's seasonal theme (2026-10-21, more 2026-10-25): bats and ghosts, falling leaves, snow or footballs
+  const Seasonal = theme.background ? SEASONAL[theme.preset] : undefined;
+  if (Seasonal) return <Seasonal />;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
       <View style={styles.opacityLayer}>

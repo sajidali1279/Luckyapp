@@ -76,6 +76,8 @@ enum TransactionStatus {
   APPROVED   // Points granted
   REJECTED   // Rejected by admin/auto
   VOIDED     // Was APPROVED; undone after the fact, the credited points clawed back
+  CANCELLED  // Never finished: the cashier stopped before the receipt photo, so nothing was credited (2026-10-18). Not a decision and
+             // never shown to the customer: no push, and HQ and the managers see it only in its own filter.
 }
 
 enum OfferType {
@@ -251,6 +253,9 @@ model User {
   resolvedDisputes     PointsDispute[]  @relation("DisputeResolver")
   pointsEarned         PointsTransaction[]  @relation("PointsEarner")
   pointsGranted        PointsTransaction[]  @relation("PointsGranter")
+  pointsServed         PointsTransaction[]  @relation("PointsServer")
+  pointLots            PointLot[]
+  pointLotUses         PointLotUse[]
   redemptions          Redemption[]
   creditRedemptions    CreditRedemption[]   @relation("CustomerRedemptions")
   processedRedemptions CreditRedemption[]   @relation("ProcessorRedemptions")
@@ -499,7 +504,10 @@ model PointsTransaction {
   category        ProductCategory   @default(OTHER)
   status          TransactionStatus @default(PENDING)
   receiptImageUrl  String?
-  receiptImageHash String? @unique   // SHA-256 of receipt file — reuse of same photo across any transaction is blocked
+  // SHA-256 of the receipt file. Not unique: the lines of one multi-item sale (gas + groceries) share their receipt photo, and a
+  // unique index refused the second line ("That already exists", the cashier could never finish the sale, 2026-10-17). Reuse of a
+  // photo on any OTHER sale is refused by uploadReceipt (points.controller.ts) and the receipt scans.
+  receiptImageHash String?
   notes            String?
   isGas             Boolean @default(false)
   gasGallons        Float?
@@ -521,6 +529,19 @@ model PointsTransaction {
   // A referral reward (2026-10-09, utils/referrals.ts): like a challenge reward, its own approved line with no purchase, never a
   // sale. Both the person who shared and the friend get one, at the store of the friend's qualifying purchase.
   referralId        String?
+  // The employee who actually served the customer, when HQ entered the sale for them from photos (2026-10-15, admin Grant & Redeem
+  // page, for an employee with no phone). grantedById is then HQ. Cashier stats and ratings go to servedById when it is set.
+  servedById        String?
+  // The lines of one sale (groceries + hot food + gas, 2026-10-17): every line of a sale with more than one line carries the id of its
+  // first line, so HQ's Transactions page shows them as one sale. Null for a one-line sale and for sales made before.
+  saleId            String?
+  // A sale that was never finished (status CANCELLED, 2026-10-18): when, and why. CASHIER = the cashier pressed Cancel, NEW_SCAN = the
+  // cashier started the same customer's sale again, TIMEOUT = no receipt photo within 30 minutes, MANAGER = cleared by a manager or HQ.
+  cancelledAt       DateTime?
+  cancelReason      String?
+  // A receipt the customer left behind, added by the cashier to that customer's sale from the Recent tab after they had gone (2026-10-18):
+  // no QR scan, so only to their own sale of the last hour, with a new receipt photo, a few a day, and held for a manager from HQ's amount.
+  addOn             Boolean   @default(false)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -528,6 +549,7 @@ model PointsTransaction {
   offer       Offer? @relation(fields: [offerId], references: [id], onDelete: SetNull)
   challenge   Challenge? @relation(fields: [challengeId], references: [id], onDelete: SetNull)
   grantedBy   User  @relation("PointsGranter", fields: [grantedById], references: [id])
+  servedBy    User? @relation("PointsServer", fields: [servedById], references: [id])
   store       Store @relation(fields: [storeId], references: [id])
   rating      EmployeeRating?
   disputes    PointsDispute[]
@@ -541,6 +563,9 @@ model PointsTransaction {
   @@index([challengeId])
   @@index([rewardForSaleId])
   @@index([referralId])
+  @@index([servedById])
+  @@index([receiptImageHash])
+  @@index([saleId])
   @@map("points_transactions")
 }
 
@@ -549,7 +574,7 @@ model PointsTransaction {
 // at the moment they are approved, so a sale later rejected never counts. The reward is credited as an approved PointsTransaction.
 model Challenge {
   id            String           @id @default(uuid())
-  kind          String           // SPEND | VISITS
+  kind          String           // SPEND | VISITS | WINBACK (2026-10-16: a one-off gift to quiet customers, utils/winBack.ts; never runs as a challenge)
   title         String
   titleEs       String?
   description   String           @default("")
@@ -563,6 +588,7 @@ model Challenge {
   audience      String           @default("EVERYONE")   // as Offer (utils/offerAudience.ts)
   audienceTier  Tier?
   audienceDays  Int?
+  quietDays     Int?             // WINBACK: sent to customers with no purchase for this many days
   startDate     DateTime
   endDate       DateTime
   isActive      Boolean          @default(true)
@@ -738,6 +764,9 @@ model Banner {
   storeId   String?
   isActive  Boolean   @default(true)
   sortOrder Int       @default(0)
+  // Shown from / until (2026-10-16): the start of the first store day and the end of the last; empty = from now / no end
+  startAt   DateTime?
+  endAt     DateTime?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -987,6 +1016,9 @@ model ReceiptScan {
   receiptKey     String?  @unique                // store, date, receipt number and total: the same receipt photographed again
   receiptAt      DateTime?
   total          Float?
+  paymentMethod  String?                         // CASH | CARD | OTHER, as read (2026-10-13)
+  cardLast4      String?                         // the card's last 4 digits and brand, never more (utils/receiptCards.ts)
+  cardBrand      String?
   status         String                          // HELD | REFUSED | ERROR
   reason         String?                         // why it was refused, in words the customer reads
   flags          String?                         // JSON array: what the reviewer should look at
@@ -999,6 +1031,7 @@ model ReceiptScan {
 
   @@index([customerId, createdAt])
   @@index([status, createdAt])
+  @@index([cardLast4])
   @@map("receipt_scans")
 }
 
@@ -1011,12 +1044,22 @@ model ChatMessage {
   userName  String   // denormalized for display
   userRole  String   // denormalized for role badge
   text      String
+  // A private message to one person in the store's thread (2026-10-23): only the sender, that person and HQ can read it. null = to everyone.
+  toUserId   String?
+  toUserName String?   // denormalized for display
+  // A photo or a PDF in the thread (2026-10-24): kept in Cloudinary as a signed, private file; only the people who can read the message get a link.
+  // attachmentId is Cloudinary's public id; attachmentKind IMAGE or PDF. text may be empty when there is an attachment.
+  attachmentId    String?
+  attachmentKind  String?
+  attachmentName  String?
+  attachmentBytes Int?
   createdAt DateTime @default(now())
 
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([storeId, createdAt])
+  @@index([storeId, toUserId])
   @@map("chat_messages")
 }
 
@@ -1646,6 +1689,7 @@ model HotFoodCatalogItem {
   id               String   @id @default(uuid())
   name             String
   description      String?
+  category         String?                     // Chicken, Wings, Sides, Family Meals... (utils/hotFoodCategories.ts); the app's menu is grouped by it
   price            Float
   imageUrl         String?
   estimatedMinutes Int?
@@ -1666,12 +1710,16 @@ model HotFoodCombo {
   nameEs        String?
   description   String?
   catalogItemId String
-  drinks        String[]                    // the drinks the customer may choose (utils/hotFoodCombos.ts DRINKS)
+  // How many of the item come in it (2026-10-16): 2 for a "2 corn dogs for $3.50" deal. 1 = the item once, as before.
+  itemQuantity  Int      @default(1)
+  drinks        String[]                    // the drinks the customer may choose (utils/hotFoodCombos.ts DRINKS); none = no drink (a multi-buy deal)
   price         Float
   regularPrice  Float?                      // the item and the drink bought apart, for "Save $X" (kept within the deal limit)
   storeIds      String[] @default([])       // empty: every store that has the item on
   fromTime      String?                     // "HH:MM" store time; with toTime, only then (e.g. coffee combos 05:00 to 11:00)
   toTime        String?
+  // Days of the week it is on (2026-10-16): 0 = Sunday .. 6 = Saturday, store time; empty = every day ("Corn Dog Tuesday" = [2])
+  days          Int[]    @default([])
   isFeatured    Boolean  @default(true)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -1881,4 +1929,201 @@ model CustomerNote {
 
   @@index([customerId, createdAt])
   @@map("customer_notes")
+}
+
+// ─── Points expiry (2026-10-17) ──────────────────────────────────────────────
+// Every credit to a customer's balance is a batch (lot) with its own date; spending takes the oldest batches first (first in, first
+// out), so points expire in the order they were earned. A batch expires HQ's days after its date, or after the day HQ switched expiry
+// on if that is later (Settings > Rewards & offers > Points expiry, utils/appSettings.ts pointsExpiry()). utils/pointLots.ts keeps them.
+// Amounts are dollars of credit, like users.pointsBalance (100 points = $1). The balance is the sum of what is left in the batches; a
+// balance below zero (a voided sale the customer had already spent) has no batches left and is paid back by the next credit.
+model PointLot {
+  id            String    @id @default(uuid())
+  userId        String
+  amount        Float               // what was credited
+  remaining     Float               // what is left of it
+  earnedAt      DateTime  @default(now())
+  source        String              // SALE, RECEIPT_QR, CHALLENGE, REFERRAL, WINBACK, GOODWILL, DISPUTE, RESTORED, OPENING, TEST
+  sourceId      String?             // the sale, redemption or order it came from
+  expiredAmount Float     @default(0)
+  expiredAt     DateTime?
+  expiryUndoneAt DateTime?          // HQ gave the expired points back (they became a new RESTORED batch)
+  removedAmount Float     @default(0)  // taken back when its sale was voided
+  warnedAt      DateTime?           // the "expiring soon" push for it was sent
+  createdAt     DateTime  @default(now())
+
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uses PointLotUse[]
+
+  @@index([userId, earnedAt])
+  @@index([remaining, earnedAt])
+  @@index([sourceId])
+  @@map("point_lots")
+}
+
+// Which batches a spend took, so a refund (an unused reward code, a cancelled hot food order) puts the points back where they came from
+model PointLotUse {
+  id         String    @id @default(uuid())
+  lotId      String
+  userId     String
+  amount     Float
+  refType    String              // CREDIT_REDEMPTION, CATALOG, HOT_FOOD, VOID
+  refId      String?
+  restoredAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  lot  PointLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, refType, refId])
+  @@index([lotId])
+  @@map("point_lot_uses")
+}
+
+// ─── Missing person posters (2026-10-18) ─────────────────────────────────────
+// HQ posts them from an official source only (a police case number, an AMBER Alert): customers see an active poster on Home near
+// their store, can call the agency or 911, and may get one push when HQ sends it. Tips go to the police, never to the app. A poster stays
+// up until HQ marks it found or resolved, and every 30 days HQ must confirm it is still active (reviewDueAt) or it stops showing.
+// When it ends, the photo is deleted and the personal details are cleared; the case number, agency and dates stay for the record.
+model MissingPerson {
+  id               String    @id @default(uuid())
+  name             String
+  age              Int?
+  photoUrl         String?
+  photoPublicId    String?             // Cloudinary id, to delete the photo when the poster ends
+  lastSeenAt       DateTime
+  lastSeenPlace    String
+  description      String?             // height, hair, clothing, vehicle...
+  descriptionEs    String?
+  agencyName       String              // e.g. "Harris County Sheriff's Office"
+  agencyPhone      String              // the number customers call with information
+  caseNumber       String
+  sourceUrl        String?             // the official alert or agency page
+  urgent           Boolean   @default(false)   // an AMBER Alert or an endangered person: shown first, in red
+  storeIds         String[]  @default([])      // the stores whose customers see it; empty = every store
+  status           String    @default("ACTIVE") // ACTIVE, FOUND, RESOLVED, REMOVED
+  reviewDueAt      DateTime            // HQ confirms it is still active by then, or it stops showing
+  reviewNotifiedAt DateTime?
+  pushSentAt       DateTime?
+  pushCount        Int       @default(0)
+  endedAt          DateTime?
+  endNote          String?
+  createdById      String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, reviewDueAt])
+  @@map("missing_persons")
+}
+
+// A customer asks HQ to post a missing person (2026-10-18). Only with a police case number: HQ checks it with the agency, then posts it
+// (the poster is made from the request, photo and all) or declines it, and the requester is told either way. When HQ decides, or after
+// 30 days with no decision, the person's details and the photo are cleared; the cleared record goes 30 days later.
+model MissingPersonRequest {
+  id             String    @id @default(uuid())
+  requesterId    String
+  requesterPhone String              // who HQ calls back; only HQ sees it
+  relationship   String              // FAMILY, FRIEND, OTHER
+  storeId        String?             // the requester's store, so HQ knows where to show it
+  name           String
+  age            Int?
+  photoUrl       String?
+  photoPublicId  String?
+  lastSeenAt     DateTime
+  lastSeenPlace  String
+  description    String?
+  agencyName     String
+  agencyPhone    String?             // the requester may not know it; HQ finds it when checking
+  caseNumber     String
+  status         String    @default("PENDING") // PENDING, APPROVED, DECLINED, EXPIRED
+  declineReason  String?
+  posterId       String?
+  decidedById    String?
+  decidedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status, createdAt])
+  @@index([requesterId, createdAt])
+  @@map("missing_person_requests")
+}
+
+// ─── Engagement (2026-10-23, admin Engagement page) ──────────────────────────
+// One row each time something engagement-related happens to a customer that must never happen twice: a streak milestone paid, a daily
+// check-in, a store goal paid, a nudge sent. The unique (customer, kind, key) is what makes each of them once-only, even when two
+// requests race (inserted with skipDuplicates). `points` is the dollars paid, when it paid anything.
+model EngagementEvent {
+  id         String   @id @default(uuid())
+  customerId String
+  kind       String   // STREAK_AWARD | CHECKIN | GOAL_AWARD | NUDGE_NEAR_REWARD | NUDGE_STREAK_RISK | NUDGE_TIER_RESET | NUDGE_COMEBACK | GAS_ALERT
+  key        String   // what makes it "the same one again": a streak and its milestone, a store day, a goal, a week
+  points     Float    @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([customerId, kind, key])
+  @@index([kind, createdAt])
+  @@index([customerId, createdAt])
+  @@map("engagement_events")
+}
+
+// A store goal: "if Katy makes 200 sales this week, everyone who bought there gets 50 pts". Counted per store, paid once when the window
+// has ended and the target was reached (utils/engagement-cron.ts), to each customer with at least one approved purchase at that store.
+model StoreGoal {
+  id           String    @id @default(uuid())
+  storeId      String?   // null = every store, each one counted on its own
+  title        String
+  titleEs      String?
+  metric       String    // SALES (approved purchases) | CUSTOMERS (different customers who bought)
+  target       Int
+  rewardPoints Int       // points each qualifying customer gets (100 pts = $1)
+  startDate    DateTime
+  endDate      DateTime
+  isActive     Boolean   @default(true)
+  paidAt       DateTime? // when the reward was paid out
+  createdById  String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([isActive, endDate])
+  @@map("store_goals")
+}
+
+// "Tell me when regular drops below $2.89 at my store" (one per customer, store and fuel).
+model GasAlert {
+  id         String    @id @default(uuid())
+  customerId String
+  storeId    String
+  fuel       String    // GAS | DIESEL
+  maxPrice   Float
+  lastSentAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([customerId, storeId, fuel])
+  @@index([storeId, fuel])
+  @@map("gas_alerts")
+}
+
+// Flash deals (2026-10-24, admin > Engagement): a short, time-boxed message from HQ ("Double points on hot food until 2 PM") that is pushed
+// once to an audience and shows on the customer's Home with a countdown until it ends. announcedAt is the claim that makes the push go
+// out once; sentCount is how many people it reached. Cancelled before it started: cancelledAt. Ended early: endsAt moved to that moment.
+model FlashDeal {
+  id          String    @id @default(uuid())
+  title       String
+  titleEs     String?
+  body        String
+  bodyEs      String?
+  link        String    @default("NONE")   // NONE | OFFERS | HOT_FOOD | REWARDS | GAS
+  audience    String    @default("ALL")    // ALL | STORE | TIER
+  storeId     String?
+  tier        Tier?
+  startsAt    DateTime
+  endsAt      DateTime
+  announcedAt DateTime?
+  sentCount   Int       @default(0)
+  cancelledAt DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  @@index([startsAt, endsAt])
+  @@map("flash_deals")
 }

@@ -52,11 +52,22 @@ async function sendPushToStoreByRole(storeId: string, title: string, body: strin
 }
 
 /** Send a push notification to all devices registered for a single user. */
-export async function sendPushToUser(userId: string, title: string, body: string, type = 'GENERAL', actionUrl?: string): Promise<void> {
-  saveNotification(userId, title, body, type, actionUrl); // always save to in-app inbox
+export async function sendPushToUser(userId: string, title: string, body: string, type = 'GENERAL', actionUrl?: string, expiresAt?: Date): Promise<void> {
+  saveNotification(userId, title, body, type, actionUrl, expiresAt); // always save to in-app inbox (expiresAt: it leaves the inbox then)
 
   try {
     const tokens = await prisma.pushToken.findMany({ where: { userId }, select: { token: true } });
+    if (tokens.length === 0) return;
+    await sendExpoBatch(tokens.map((t) => t.token), { title, body, actionUrl });
+  } catch { /* non-critical */ }
+}
+
+/** The same push (and inbox line) to many people at once (2026-10-16, win-back gifts): one database read, batched sends. */
+export async function sendPushToUsers(userIds: string[], title: string, body: string, type = 'GENERAL', actionUrl?: string): Promise<void> {
+  if (userIds.length === 0) return;
+  try {
+    await saveNotificationMany(userIds, title, body, type, actionUrl);
+    const tokens = await prisma.pushToken.findMany({ where: { userId: { in: userIds } }, select: { token: true } });
     if (tokens.length === 0) return;
     await sendExpoBatch(tokens.map((t) => t.token), { title, body, actionUrl });
   } catch { /* non-critical */ }

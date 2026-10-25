@@ -12,6 +12,7 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { PageHeader, Button } from '../components/kit';
 import { CheckCheck, RefreshCw } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import { serverMessage } from '../lib/apiError';
 
 interface Notification {
   id: string;
@@ -100,9 +101,9 @@ export default function Notifications() {
       qc.invalidateQueries({ queryKey: ['dev-admin-notifications'] });
       qc.invalidateQueries({ queryKey: ['super-admin-notifications'] });
     },
-    onError: (_e, v) => {
+    onError: (e, v) => {
       setJustRead(prev => { const next = new Set(prev); v.ids.forEach(id => next.delete(id)); return next; });
-      toast.error('Could not save that as read. Please try again.');
+      toast.error(serverMessage(e, 'Could not save that as read. Please try again.'));
     },
   });
 

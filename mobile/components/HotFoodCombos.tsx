@@ -1,5 +1,6 @@
 // Hot food combos on the customer's menu (2026-10-12): the combos on at this store now (featured first), as a row of cards above the
 // menu. Add opens the drink choice (only the drinks HQ allowed for that combo); each combo with a drink is its own line in the order.
+// A multi-buy deal (2026-10-16) holds more than one of the item ("2 corn dogs for $3.50") and may have no drink: then Add puts it straight in.
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Image } from 'expo-image';
@@ -18,15 +19,17 @@ export interface Combo {
   description?: string | null;
   price: number;
   regularPrice?: number | null;
-  drinks: string[];
+  itemQuantity?: number;   // how many of the item (1 when an older server does not say)
+  drinks: string[];        // none: a deal with no drink
   isFeatured: boolean;
   fromTime?: string | null;
   toTime?: string | null;
+  days?: number[];          // on only these days (the server sends it only on one of them): "Today only"
   item: { id: string; name: string; imageUrl?: string | null };
   estimatedMinutes?: number | null;
 }
 
-/** The cart line of a combo with a drink (the server reads the same key). */
+/** The cart line of a combo with a drink (the server reads the same key); '' for a deal with no drink. */
 export const comboCartId = (comboId: string, drink: string) => `combo:${comboId}:${drink}`;
 const money = (n: number) => `$${n.toFixed(2)}`;
 function hourText(hhmm: string, lang: string) {
@@ -41,7 +44,18 @@ export function useComboWords() {
   return {
     name: (c: Combo) => (es && c.nameEs ? c.nameEs : c.name),
     drink: (code: string) => t(`hotFoodCombos.drink_${code}`, { defaultValue: code }),
-    hours: (c: Combo) => (c.fromTime && c.toTime ? t('hotFoodCombos.hours', { from: hourText(c.fromTime, es ? 'es' : 'en'), to: hourText(c.toTime, es ? 'es' : 'en') }) : null),
+    hours: (c: Combo) => {
+      const time = c.fromTime && c.toTime ? t('hotFoodCombos.hours', { from: hourText(c.fromTime, es ? 'es' : 'en'), to: hourText(c.toTime, es ? 'es' : 'en') }) : null;
+      const today = c.days && c.days.length > 0 && c.days.length < 7 ? t('hotFoodCombos.todayOnly') : null;
+      return [today, time].filter(Boolean).join(' · ') || null;
+    },
+    /** What is in it: "2 × Corn Dog", "2 × Corn Dog · With a drink: …", or "With a drink: …" */
+    contents: (c: Combo) => {
+      const qty = c.itemQuantity ?? 1;
+      const items = qty > 1 ? t('hotFoodCombos.dealOf', { count: qty, item: c.item.name }) : null;
+      const drinks = c.drinks.length ? t('hotFoodCombos.withDrink', { drinks: c.drinks.map((d) => t(`hotFoodCombos.drink_${d}`, { defaultValue: d })).join(', ') }) : null;
+      return [items, drinks].filter(Boolean).join(' · ');
+    },
   };
 }
 
@@ -76,7 +90,7 @@ export function ComboStrip({ combos, closed, countOf, onAdd, openComboId, onOpen
                 ? <Image source={{ uri: sized(c.item.imageUrl, 400) }} style={st.img} contentFit="cover" accessibilityIgnoresInvertColors />
                 : <View style={[st.img, st.imgEmpty]}><FlameIcon size={28} color={COLORS.primary} /></View>}
               <Text style={st.name} numberOfLines={2}>{w.name(c)}</Text>
-              <Text style={st.with} numberOfLines={2}>{t('hotFoodCombos.withDrink', { drinks: c.drinks.map(w.drink).join(', ') })}</Text>
+              <Text style={st.with} numberOfLines={2}>{w.contents(c)}</Text>
               <View style={st.priceRow}>
                 <Text style={st.price}>{money(c.price)}</Text>
                 {save != null && <Text style={st.save}>{t('hotFoodCombos.save', { amount: money(save) })}</Text>}
@@ -84,7 +98,7 @@ export function ComboStrip({ combos, closed, countOf, onAdd, openComboId, onOpen
               {hours && <Text style={st.hours}>{hours}</Text>}
               <TouchableOpacity
                 style={[st.add, closed && st.addOff]}
-                onPress={() => { haptic.tap(); setPicking(c); }}
+                onPress={() => { haptic.tap(); if (c.drinks.length === 0) onAdd(c, ''); else setPicking(c); }}
                 disabled={closed}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: closed }}
@@ -106,7 +120,9 @@ export function ComboStrip({ combos, closed, countOf, onAdd, openComboId, onOpen
 function DrinkSheet({ combo, onClose, onPick }: { combo: Combo; onClose: () => void; onPick: (drink: string) => void }) {
   const { t } = useTranslation();
   const w = useComboWords();
-  const [drink, setDrink] = useState<string | null>(combo.drinks.length === 1 ? combo.drinks[0] : null);
+  // No drinks (a multi-buy deal opened from Home): nothing to choose, Add is ready
+  const [drink, setDrink] = useState<string | null>(combo.drinks.length === 0 ? '' : combo.drinks.length === 1 ? combo.drinks[0] : null);
+  const ready = drink !== null;
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
       <View style={st.overlay}>
@@ -117,7 +133,8 @@ function DrinkSheet({ combo, onClose, onPick }: { combo: Combo; onClose: () => v
             <ModalCloseButton onPress={onClose} label={t('hotFoodCombos.closeA11y')} size={20} color={COLORS.textMuted} />
           </View>
           {combo.description ? <Text style={st.desc}>{combo.description}</Text> : null}
-          <Text style={st.pickLabel}>{t('hotFoodCombos.chooseDrink')}</Text>
+          {(combo.itemQuantity ?? 1) > 1 && <Text style={st.desc}>{t('hotFoodCombos.dealOf', { count: combo.itemQuantity, item: combo.item.name })}</Text>}
+          {combo.drinks.length > 0 && <Text style={st.pickLabel}>{t('hotFoodCombos.chooseDrink')}</Text>}
           <View accessibilityRole="radiogroup">
             {combo.drinks.map((d) => (
               <TouchableOpacity key={d} style={[st.option, drink === d && st.optionOn]} onPress={() => setDrink(d)} accessibilityRole="radio" accessibilityState={{ checked: drink === d }}>
@@ -127,11 +144,11 @@ function DrinkSheet({ combo, onClose, onPick }: { combo: Combo; onClose: () => v
             ))}
           </View>
           <TouchableOpacity
-            style={[st.confirm, !drink && { opacity: 0.5 }]}
-            onPress={() => drink && onPick(drink)}
-            disabled={!drink}
+            style={[st.confirm, !ready && { opacity: 0.5 }]}
+            onPress={() => ready && onPick(drink!)}
+            disabled={!ready}
             accessibilityRole="button"
-            accessibilityState={{ disabled: !drink }}
+            accessibilityState={{ disabled: !ready }}
           >
             <Text style={st.confirmText}>{t('hotFoodCombos.addToOrder', { price: money(combo.price) })}</Text>
           </TouchableOpacity>

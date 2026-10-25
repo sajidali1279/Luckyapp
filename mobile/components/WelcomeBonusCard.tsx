@@ -4,9 +4,12 @@ import { Text } from './ScaledText';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Toast from 'react-native-toast-message';
 import { welcomeBonusApi } from '../services/api';
 import { COLORS } from '../constants';
 
+// The four first items, for a server from before HQ could set the items (2026-10-17): the server now sends the choices with their
+// names in English and Spanish (rewards[].label / labelEs), and HQ can rename, switch off and add items.
 const REWARD_OPTIONS = [
   { rewardType: 'FOUNTAIN_DRINK', labelKey: 'customerWelcomeBonus.optionFountain', emoji: '🥤' },
   { rewardType: 'COFFEE',         labelKey: 'customerWelcomeBonus.optionCoffee',   emoji: '☕' },
@@ -17,16 +20,16 @@ const REWARD_OPTIONS = [
 const GOLD = '#F59E0B';
 const GREEN = '#22C55E';
 
-export default function WelcomeBonusCard() {
-  const { t } = useTranslation();
+export default function WelcomeBonusCard({ storeId, storeName }: { storeId?: string; storeName?: string }) {
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['welcome-bonus'],
-    queryFn: () => welcomeBonusApi.getStatus(),
+    queryKey: ['welcome-bonus', storeId ?? null],
+    queryFn: () => welcomeBonusApi.getStatus(storeId),
     staleTime: 60_000,
   });
 
@@ -37,6 +40,10 @@ export default function WelcomeBonusCard() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['welcome-bonus'] });
       setShowModal(true);
+    },
+    onError: (e: any) => {
+      Toast.show({ type: 'error', text1: e?.response?.data?.error || t('customerWelcomeBonus.claimFailed') });
+      qc.invalidateQueries({ queryKey: ['welcome-bonus'] });   // the list may have changed (an item no longer offered)
     },
   });
 
@@ -54,18 +61,34 @@ export default function WelcomeBonusCard() {
     claimMut.mutate(selected);
   }
 
-  const optionLabel = (o: { labelKey: string } | null | undefined) => (o ? t(o.labelKey) : undefined);
-  const claimedOption = bonus.claimed
-    ? REWARD_OPTIONS.find(r => r.rewardType === bonus.rewardType) ?? null
+  // An item's name in the app's language: HQ's name from the server, else (an older server) the app's own words for the four first items
+  const es = (i18n.language ?? '').startsWith('es');
+  const wordsFor = (rewardType: string, label?: string | null, labelEs?: string | null) => {
+    const own = REWARD_OPTIONS.find(r => r.rewardType === rewardType);
+    if (es) return labelEs || (own ? t(own.labelKey) : label) || '';
+    return label || (own ? t(own.labelKey) : '') || '';
+  };
+  type Option = { rewardType: string; text: string; emoji: string };
+  const options: Option[] = Array.isArray(bonus.rewards) && bonus.rewards.length
+    ? bonus.rewards.map((r: any) => ({ rewardType: r.rewardType, text: wordsFor(r.rewardType, r.label, r.labelEs), emoji: r.emoji || '🎁' }))
+    : REWARD_OPTIONS.map(o => ({ rewardType: o.rewardType, text: t(o.labelKey), emoji: o.emoji }));
+  const optionLabel = (o: Option | null | undefined) => o?.text;
+  const claimedOption: Option | null = bonus.claimed
+    ? { rewardType: bonus.rewardType, text: wordsFor(bonus.rewardType, bonus.rewardLabel, bonus.rewardLabelEs), emoji: bonus.rewardEmoji || REWARD_OPTIONS.find(r => r.rewardType === bonus.rewardType)?.emoji || '🎁' }
     : null;
-  const selectedLabel = optionLabel(REWARD_OPTIONS.find(r => r.rewardType === selected));
+  const selectedLabel = optionLabel(options.find(r => r.rewardType === selected));
+  const totalDays: number = bonus.totalDays ?? 7;
+  // A store can ask for a purchase first ("spend $10 today to unlock"): the item can be chosen now, the cashier hands it over once it is met
+  const spend = bonus.spend && bonus.spend.required > 0 && bonus.spend.unlocked !== true && !bonus.confirmed ? bonus.spend : null;
+  const unlockedNow = !!bonus.spend && bonus.spend.required > 0 && bonus.spend.unlocked === true && !bonus.confirmed;
+  const money = (n: number) => `$${Number(n).toFixed(2)}`;
 
   return (
     <>
       <View style={st.card}>
         {/* Day progress */}
         <View style={st.progressRow}>
-          {Array.from({ length: 7 }, (_, i) => i + 1).map(d => (
+          {Array.from({ length: totalDays }, (_, i) => i + 1).map(d => (
             <View
               key={d}
               style={[
@@ -82,7 +105,20 @@ export default function WelcomeBonusCard() {
         </View>
 
         <View style={st.body}>
-          <Text style={st.tag}>{t('customerWelcomeBonus.tag', { day: bonus.dayNumber })}</Text>
+          <Text style={st.tag}>{t('customerWelcomeBonus.tag', { day: bonus.dayNumber, total: totalDays })}</Text>
+
+          {spend && (
+            <View style={st.spendBox} accessible accessibilityLabel={t('customerWelcomeBonus.spendNeeded', { amount: money(spend.required), store: storeName || t('customerWelcomeBonus.thisStore') })}>
+              <Text style={st.spendTitle}>{t('customerWelcomeBonus.spendNeeded', { amount: money(spend.required), store: storeName || t('customerWelcomeBonus.thisStore') })}</Text>
+              {spend.spent !== null && spend.spent !== undefined && (
+                <>
+                  <View style={st.spendTrack}><View style={[st.spendFill, { width: `${Math.max(4, Math.min(100, (spend.spent / spend.required) * 100))}%` }]} /></View>
+                  <Text style={st.spendSub}>{t('customerWelcomeBonus.spendProgress', { spent: money(spend.spent), amount: money(spend.required) })}</Text>
+                </>
+              )}
+            </View>
+          )}
+          {unlockedNow && <Text style={st.spendDone}>{t('customerWelcomeBonus.spendUnlocked')}</Text>}
 
           {/* Already confirmed */}
           {bonus.confirmed && (
@@ -122,7 +158,7 @@ export default function WelcomeBonusCard() {
             <>
               <Text style={st.pickTitle}>{t('customerWelcomeBonus.pickTitle')}</Text>
               <View style={st.grid}>
-                {REWARD_OPTIONS.map(opt => {
+                {options.map(opt => {
                   const active = selected === opt.rewardType;
                   return (
                     <TouchableOpacity
@@ -131,12 +167,12 @@ export default function WelcomeBonusCard() {
                       onPress={() => setSelected(opt.rewardType)}
                       activeOpacity={0.8}
                       accessibilityRole="radio"
-                      accessibilityLabel={t(opt.labelKey)}
+                      accessibilityLabel={opt.text}
                       accessibilityState={{ selected: active }}
                     >
                       <Text style={st.optionEmoji}>{opt.emoji}</Text>
                       <Text style={[st.optionLabel, active && st.optionLabelActive]} numberOfLines={2}>
-                        {t(opt.labelKey)}
+                        {opt.text}
                       </Text>
                       {active && <View style={st.checkDot}><Text style={st.checkMark}>✓</Text></View>}
                     </TouchableOpacity>
@@ -192,7 +228,7 @@ export default function WelcomeBonusCard() {
             </TouchableOpacity>
 
             <Text style={md.note}>
-              {t('customerWelcomeBonus.note')}
+              {t('customerWelcomeBonus.note', { total: totalDays })}
             </Text>
 
             <TouchableOpacity
@@ -219,7 +255,7 @@ const st = StyleSheet.create({
     borderWidth: 1.5, borderColor: GOLD + '44',
   },
   progressRow: {
-    flexDirection: 'row', backgroundColor: '#FEF3C7',
+    flexDirection: 'row', flexWrap: 'wrap', backgroundColor: '#FEF3C7',   // up to 14 days (HQ's setting) take two rows
     paddingVertical: 10, paddingHorizontal: 16, gap: 6, justifyContent: 'center',
   },
   dayPill: {
@@ -271,6 +307,12 @@ const st = StyleSheet.create({
   confirmedEmoji: { fontSize: 44 },
   confirmedLabel: { fontSize: 18, fontWeight: '900', color: '#1D3557' },
   confirmedSub: { fontSize: 13, color: GREEN, fontWeight: '700' },
+  spendBox: { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FCD34D', borderRadius: 12, padding: 12, marginTop: 10, gap: 6 },
+  spendTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
+  spendTrack: { height: 8, borderRadius: 4, backgroundColor: '#FDE68A', overflow: 'hidden' },
+  spendFill: { height: 8, borderRadius: 4, backgroundColor: GOLD },
+  spendSub: { fontSize: 12, color: '#78350F' },
+  spendDone: { fontSize: 13, fontWeight: '800', color: GREEN, marginTop: 8 },
 
   claimedOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   claimedOptionEmoji: { fontSize: 32 },

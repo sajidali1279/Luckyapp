@@ -9,13 +9,14 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ProductCategory, Tier } from '@prisma/client';
 import { DEFAULT_DEV_CUT_RATE, DEFAULT_TIER_RATES } from '../config/constants';
-import { updateCustomerTierIfNeeded, GAS_BONUS_PER_GALLON, effectiveTier, rollCustomerPeriod } from '../utils/tier';
+import { updateCustomerTierIfNeeded, gasBonusPerGallon, effectiveTier, rollCustomerPeriod } from '../utils/tier';
 import { pickOffer, percentBonus } from '../utils/offerPick';
 import { sendPushToUser } from '../utils/push';
 import { pointsUrl } from '../utils/notificationRoutes';
 import { getStoreByApiKey, generateStoreApiKey } from '../utils/storeApiKey';
 import { audit } from '../utils/audit';
 import { storeDayStart } from '../utils/storeTime';
+import { addLot } from '../utils/pointLots';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -304,7 +305,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       const pointsAwarded = cashbackIssued; // customer gets full cashback
 
       // Gas tier bonus — extra per-gallon bonus for Gold+ (stacks on top)
-      const gasBonusRate = isGasItem ? (GAS_BONUS_PER_GALLON[customerTier] ?? 0) : 0;
+      const gasBonusRate = isGasItem ? gasBonusPerGallon(customerTier) : 0;
       const gasBonusPoints = isGasItem && estimatedGallons != null
         ? parseFloat((estimatedGallons * gasBonusRate).toFixed(4))
         : 0;
@@ -357,13 +358,15 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         throw Object.assign(new Error('ALREADY_CLAIMED'), { code: 'ALREADY_CLAIMED' });
       }
       await rollCustomerPeriod(tx, customer.id);
-      return tx.user.update({
+      const after = await tx.user.update({
         where: { id: customer.id },
         data: {
           pointsBalance: { increment: totalPointsAwarded },
           periodPoints:  { increment: totalPointsAwarded },
         },
       });
+      await addLot(tx, customer.id, totalPointsAwarded, 'RECEIPT_QR', tokenId, after.pointsBalance);   // points expiry (utils/pointLots.ts)
+      return after;
     });
   } catch (err: any) {
     if (err.code === 'ALREADY_CLAIMED') {

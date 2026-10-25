@@ -4,6 +4,7 @@ import { AuthRequest } from '../types';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { storeDateKey, addStoreDays, startOfStoreDate, storeDaysBetween } from '../utils/storeTime';
 import { isTestPhone } from '../utils/testAccounts';
+import { welcome } from '../utils/appSettings';
 
 // ─── Launch tracker ───────────────────────────────────────────────────────────
 // How the launch is going: who signed up, who claimed the welcome reward, who has actually
@@ -98,7 +99,8 @@ export async function getLaunchStats(_req: AuthRequest, res: Response) {
       },
       today,
       daily,
-      rewards: [...rewardCounts.entries()].map(([rewardType, count]) => ({ rewardType, count })).sort((a, b) => b.count - a.count),
+      // with HQ's name and picture for each item (Settings > Joining bonus, 2026-10-17)
+      rewards: [...rewardCounts.entries()].map(([rewardType, count]) => { const i = welcome().items.find((x) => x.key === rewardType); return { rewardType, count, label: i?.name, emoji: i?.emoji }; }).sort((a, b) => b.count - a.count),
       stores: storeRows,
       testAccountsLeftOut: rawCustomers.length - customers.length,
     },

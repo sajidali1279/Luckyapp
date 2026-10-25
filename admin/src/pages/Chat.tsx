@@ -10,6 +10,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import NoticeBanner, { usePinnedNotice } from '../components/NoticeBanner';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import Glyph from '../components/Glyph';
+import { serverMessage } from '../lib/apiError';
+import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#1a7f45',
@@ -43,8 +45,14 @@ interface Message {
   userName: string;
   userRole: string;
   text: string;
+  toUserId?: string | null;
+  toUserName?: string | null;
+  attachment?: { kind: 'IMAGE' | 'PDF'; name: string; bytes: number | null; url: string; thumbUrl: string } | null;   // a photo or a PDF (2026-10-24)
   createdAt: string;
 }
+
+const MAX_PDF = 5 * 1024 * 1024;
+const sizeText = (b?: number | null) => (b == null ? '' : b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -79,6 +87,7 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [lastTimestamp, setLastTimestamp] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
+  const [toUserId, setToUserId] = useState('');   // a private message to this person (2026-10-23); '' = everyone
   const [sending, setSending] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -120,8 +129,9 @@ export default function Chat() {
   const unreadByStore: Record<string, number> = unreadByStoreData?.data?.data || {};
 
   useEffect(() => {
-    if (stores.length > 0 && !selectedStoreId) setSelectedStoreId(stores[0].id);
+    if (stores.length > 0 && !selectedStoreId) setSelectedStoreId(pickStore('chat', stores.map((st) => st.id)));   // the last one looked at
   }, [stores, selectedStoreId]);
+  useEffect(() => { rememberStore('chat', selectedStoreId); }, [selectedStoreId]);
 
   const { data: initialData } = useQuery({
     queryKey: ['chat-messages-init', selectedStoreId],
@@ -129,15 +139,17 @@ export default function Chat() {
     enabled: !!selectedStoreId,
   });
 
+  // Order matters: when the store changes, clear first and then load, so a store whose messages are already cached shows them
+  // (the clear used to run last and wipe them, and with no timestamp the poll never started)
+  useEffect(() => { setMessages([]); setLastTimestamp(null); }, [selectedStoreId]);
+
   useEffect(() => {
     if (initialData?.data?.data) {
       const msgs: Message[] = initialData.data.data;
       setMessages(msgs);
       setLastTimestamp(msgs[msgs.length - 1]?.createdAt ?? null);
     }
-  }, [initialData]);
-
-  useEffect(() => { setMessages([]); setLastTimestamp(null); }, [selectedStoreId]);
+  }, [initialData, selectedStoreId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -159,21 +171,50 @@ export default function Chat() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [poll]);
 
+  // A photo or PDF chosen to go with the next message (2026-10-24); the server checks what it really is and shrinks photos
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  function acceptFile(f: File | undefined | null) {
+    if (!f) return;
+    if (f.type === 'application/pdf' && f.size > MAX_PDF) { toast.error('That PDF is over 5 MB. Send a smaller one.'); return; }
+    if (!f.type.startsWith('image/') && f.type !== 'application/pdf') { toast.error('Send a photo or a PDF.'); return; }
+    setFile(f);
+    inputRef.current?.focus();
+  }
+  function chooseFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    acceptFile(f);
+  }
+  // A photo pasted from the clipboard (a screenshot, a copied picture) or dropped on the conversation is the same as choosing it
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const f = Array.from(e.clipboardData?.files ?? []).find((x) => x.type.startsWith('image/') || x.type === 'application/pdf');
+    if (f) { e.preventDefault(); acceptFile(f); }
+  }
+  const [dragging, setDragging] = useState(false);
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    acceptFile(e.dataTransfer?.files?.[0]);
+  }
+
   async function handleSend(e?: React.FormEvent) {
     e?.preventDefault();
     const text = inputText.trim();
-    if (!text || !selectedStoreId || sending) return;
+    if ((!text && !file) || !selectedStoreId || sending) return;
     setSending(true);
     setInputText('');
+    const sentFile = file;   // stays shown above the box ("Sending...") until it is saved
     if (inputRef.current) inputRef.current.style.height = '44px';
     try {
-      const res = await chatApi.sendMessage(selectedStoreId, text);
+      const res = sentFile ? await chatApi.sendAttachment(selectedStoreId, sentFile, text, toUserId || undefined) : await chatApi.sendMessage(selectedStoreId, text, toUserId || undefined);
       const newMsg: Message = res.data.data;
-      setMessages((prev) => [...prev, newMsg]);
+      setFile(null);
+      setMessages((prev) => (prev.some((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]));
       setLastTimestamp(newMsg.createdAt);
-    } catch {
+    } catch (e) {
       setInputText(text);
-      toast.error('Failed to send message');
+      toast.error(serverMessage(e, 'Failed to send message'));
     }
     setSending(false);
     inputRef.current?.focus();
@@ -189,6 +230,10 @@ export default function Chat() {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
   }
 
+  const peopleQ = useQuery({ queryKey: ['chat-people', selectedStoreId], queryFn: () => chatApi.getPeople(selectedStoreId!).then((r) => (r.data.data ?? []) as { id: string; name: string; role: string }[]), enabled: !!selectedStoreId, staleTime: 5 * 60_000 });
+  const people = peopleQ.data ?? [];
+  useEffect(() => { setToUserId(''); }, [selectedStoreId]);   // a private message belongs to one store's thread
+  const toPerson = people.find((p) => p.id === toUserId) ?? null;
   const selectedStore = stores.find((s) => s.id === selectedStoreId);
   const storeIdx = stores.findIndex((s) => s.id === selectedStoreId);
   const gradient = STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0];
@@ -235,7 +280,7 @@ export default function Chat() {
 
           <div style={s.storeList}>
             {filteredStores.length === 0 && (
-              <div style={s.storeListEmpty}>No stores match "{storeFilter}"</div>
+              <div style={s.storeListEmpty}>{storeFilter.trim() ? `No stores match "${storeFilter}"` : 'No stores yet'}</div>
             )}
             {filteredStores.map((store) => {
               const i = stores.findIndex((s2) => s2.id === store.id);
@@ -311,7 +356,12 @@ export default function Chat() {
             )}
 
             {/* Messages */}
-            <div style={s.messageList}>
+            <div
+              style={{ ...s.messageList, ...(dragging ? { outline: '3px dashed #1D3557', outlineOffset: -8 } : {}) }}
+              onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setDragging(true); } }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+            >
               {messages.length === 0 && (
                 <div style={s.noMessages}>
                   <div style={{ fontSize: 36, marginBottom: 10 }}><Glyph e="👋" size={28} color="#5a6472" /></div>
@@ -355,6 +405,11 @@ export default function Chat() {
                       )}
 
                       <div style={{ maxWidth: '62%' }}>
+                        {!!msg.toUserId && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#92400e', marginBottom: 2, textAlign: isMe ? 'right' : 'left' }}>
+                            🔒 {isMe ? `Private to ${msg.toUserName}` : msg.toUserId === user?.id ? 'Private, to you' : `Private: ${msg.userName} to ${msg.toUserName}`}
+                          </div>
+                        )}
                         {!isMe && isFirstInGroup && (
                           <div style={s.msgMeta}>
                             <span style={s.msgSenderName}>{msg.userName}</span>
@@ -373,6 +428,20 @@ export default function Chat() {
                             borderBottomRightRadius: isMe && isLastInGroup ? 4 : 18,
                             borderBottomLeftRadius: !isMe && isLastInGroup ? 4 : 18,
                           }}>
+                            {msg.attachment?.kind === 'IMAGE' && (
+                              <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', marginBottom: msg.text ? 6 : 0 }} aria-label={`Open photo from ${msg.userName}`}>
+                                <img src={msg.attachment.thumbUrl} alt={`Photo from ${msg.userName}`} loading="lazy" style={{ display: 'block', maxWidth: 260, maxHeight: 200, borderRadius: 12, background: '#e5e7eb' }} />
+                              </a>
+                            )}
+                            {msg.attachment?.kind === 'PDF' && (
+                              <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', marginBottom: msg.text ? 6 : 0 }} aria-label={`Open PDF ${msg.attachment.name}`}>
+                                <img src={msg.attachment.thumbUrl} alt="" loading="lazy" style={{ width: 46, height: 58, objectFit: 'cover', borderRadius: 6, background: '#e5e7eb' }} />
+                                <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                  <span style={{ fontWeight: 700, fontSize: 14, wordBreak: 'break-word' }}>{msg.attachment.name}</span>
+                                  <span style={{ fontSize: 12, opacity: 0.75 }}>PDF{msg.attachment.bytes ? ` · ${sizeText(msg.attachment.bytes)}` : ''} · click to open</span>
+                                </span>
+                              </a>
+                            )}
                             {msg.text}
                           </div>
                           {isLastInGroup && (
@@ -398,16 +467,37 @@ export default function Chat() {
               <div ref={bottomRef} />
             </div>
 
+            {/* Who it is for: everyone, or one person privately (2026-10-23) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px 0', flexWrap: 'wrap' }}>
+              <label htmlFor="chat-to" style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>To</label>
+              <select id="chat-to" value={toUserId} onChange={(e) => setToUserId(e.target.value)} disabled={sending}
+                style={{ padding: '6px 10px', borderRadius: 8, border: `1px solid ${toUserId ? '#f59e0b' : '#d1d5db'}`, background: toUserId ? '#fffbeb' : '#fff', fontSize: 14, fontWeight: 600 }}>
+                <option value="">Everyone in this store</option>
+                {people.map((p) => <option key={p.id} value={p.id}>{p.name} ({ROLE_LABELS[p.role] || p.role})</option>)}
+              </select>
+              {toPerson && <span style={{ fontSize: 12, color: '#92400e' }}>🔒 Private: only {toPerson.name} and HQ can read this.</span>}
+            </div>
+
             {/* Input bar */}
-            <div style={s.inputBar}>
-              <div style={s.inputWrap}>
+            {file && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px 0' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{file.type === 'application/pdf' ? '📄' : '🖼️'} {file.name} · {sizeText(file.size)}{sending ? ' · Sending…' : ''}</span>
+                <button type="button" onClick={() => setFile(null)} disabled={sending} aria-label="Remove the attachment" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 16, color: '#6b7280' }}>✕</button>
+              </div>
+            )}
+            <div style={{ ...s.inputBar, display: 'flex', alignItems: 'flex-end', gap: 10 }}>
+              <input ref={fileInputRef} type="file" accept="image/*,application/pdf" onChange={chooseFile} style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} />
+              <button type="button" onClick={() => fileInputRef.current?.click()} disabled={sending} aria-label="Add a photo or PDF" title="Add a photo or PDF"
+                style={{ width: 44, height: 44, borderRadius: 22, border: 'none', background: '#eef2f7', cursor: 'pointer', fontSize: 22, color: '#1D3557', flexShrink: 0 }}>+</button>
+              <div style={{ ...s.inputWrap, flex: 1 }}>
                 <textarea
                   ref={inputRef}
                   style={s.textarea}
                   value={inputText}
                   onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Message ${selectedStore?.name}…`}
+                  onPaste={onPaste}
+                  placeholder={toPerson ? `Private message to ${toPerson.name}…` : `Message ${selectedStore?.name}…`}
                   disabled={sending}
                   rows={1}
                   autoComplete="off"
@@ -415,9 +505,9 @@ export default function Chat() {
                 <div style={s.inputActions}>
                   <span style={s.inputHint}>↵ send · ⇧↵ newline</span>
                   <button
-                    style={{ ...s.sendBtn, opacity: (!inputText.trim() || sending) ? 0.45 : 1 }}
+                    style={{ ...s.sendBtn, opacity: ((!inputText.trim() && !file) || sending) ? 0.45 : 1 }}
                     onClick={() => handleSend()}
-                    disabled={!inputText.trim() || sending}
+                    disabled={(!inputText.trim() && !file) || sending}
                   >
                     {sending ? '…' : '↑'}
                   </button>

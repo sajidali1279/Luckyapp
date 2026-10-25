@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  StatusBar,
   Animated,
 } from 'react-native';
 import { Text } from '../../components/ScaledText';
@@ -19,6 +18,7 @@ import { receiptApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import { AlertTriangleIcon, XIcon } from '../../components/Icons';
+import FocusStatusBar from '../../components/FocusStatusBar';
 
 type Step = 'scan' | 'loading' | 'confirm' | 'success' | 'error';
 
@@ -71,8 +71,10 @@ export default function ScanReceiptScreen() {
     }
   }
 
+  const claimingRef = useRef(false);   // set on the first tap: a second one must not send a second claim and replace the success
   async function handleClaim() {
-    if (!tokenData) return;
+    if (!tokenData || claimingRef.current) return;
+    claimingRef.current = true;
     setClaiming(true);
     try {
       const { data: res } = await receiptApi.selfGrant(tokenData.tokenId);
@@ -85,6 +87,7 @@ export default function ScanReceiptScreen() {
       setErrorMsg(err.response?.data?.error || t('customerScanReceipt.claimFailedFallback'));
       setStep('error');
     } finally {
+      claimingRef.current = false;
       setClaiming(false);
     }
   }
@@ -108,7 +111,7 @@ export default function ScanReceiptScreen() {
     }
     return (
       <View style={s.root}>
-        <StatusBar barStyle="light-content" />
+        <FocusStatusBar barStyle="light-content" />
         <CameraView
           style={s.camera}
           facing="back"
@@ -178,7 +181,7 @@ export default function ScanReceiptScreen() {
     const minsLeft = Math.ceil((new Date(tokenData.expiresAt).getTime() - Date.now()) / 60000);
     return (
       <Animated.View style={[s.root, { opacity: fadeAnim }]}>
-        <StatusBar barStyle="light-content" />
+        <FocusStatusBar barStyle="light-content" />
         <SafeAreaView style={s.confirmHeader}>
           <View style={s.confirmHeaderInner}>
             <Text style={s.confirmHeaderTitle}>{t('customerScanReceipt.confirmTitle')}</Text>

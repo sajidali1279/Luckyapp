@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react';
+import { useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
@@ -31,6 +31,7 @@ import {
   Calendar,
   Users,
   UserCircle,
+  ScanLine,
   ClipboardList,
   ShoppingCart,
   Briefcase,
@@ -54,7 +55,7 @@ import {
   ChevronRight,
   Barcode,
   Printer,
-  SlidersHorizontal,
+  SlidersHorizontal, UserSearch, Sparkles,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -163,7 +164,7 @@ export function AppSidebar() {
   const {
     unreadCount, supportUnread, careersNewCount, requestsPendingCount, disputesPendingCount, chatUnreadCount,
     transactionsPendingCount, schedulingPendingCount, promotionsPendingCount, hotFoodPendingCount,
-    categoriesPendingCount, billingPendingCount, offerRequestsPendingCount,
+    categoriesPendingCount, billingPendingCount, offerRequestsPendingCount, missingRequestsPendingCount,
   } = badges;
 
   // Pinned pages (from the command palette, Shift+Enter) and pages opened recently through it. Both are
@@ -318,6 +319,12 @@ export function AppSidebar() {
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot Food" badge={hotFoodPendingCount} />
               )}
+              {(isDevAdmin || isSuperAdmin) && (
+                <SidebarNavItem to="/engagement" icon={<Sparkles size={16} />} label="Engagement" />
+              )}
+              {(isDevAdmin || isSuperAdmin) && (
+                <SidebarNavItem to="/missing-persons" icon={<UserSearch size={16} />} label="Missing persons" badge={missingRequestsPendingCount} />
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -336,6 +343,9 @@ export function AppSidebar() {
               )}
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to={disputesPendingCount > 0 ? '/customers?tab=disputes' : '/customers'} icon={<UserCircle size={16} />} label="Customers" badge={disputesPendingCount} />
+              )}
+              {(isDevAdmin || isSuperAdmin) && (
+                <SidebarNavItem to="/grant-redeem" icon={<ScanLine size={16} />} label="Grant & Redeem" />
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
               {(isDevAdmin || isSuperAdmin) && (

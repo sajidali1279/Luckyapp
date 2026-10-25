@@ -12,6 +12,9 @@ import { DEFAULT_DEV_CUT_RATE } from '../config/constants';
 import { excludeDeletedCustomers } from './accountDeletion';
 import { startOfStoreDate, storeDateKey } from './storeTime';
 import { sendPushToUser } from './push';
+import { rule } from './appSettings';
+import { addLot } from './pointLots';
+import { raiseTierFor } from './tier';
 
 type Db = Prisma.TransactionClient | PrismaClient;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -27,7 +30,8 @@ export interface ReferralSettings {
   windowDays: number;       // the friend has this many days from giving the code to make that purchase
 }
 export const DEFAULT_REFERRAL_SETTINGS: ReferralSettings = { enabled: true, referrerReward: 5, friendReward: 5, minPurchase: 10, monthlyLimit: 10, windowDays: 30 };
-export const CLAIM_LATE_DAYS = 7;   // a code can still be given this many days after signing up, if no purchase was approved yet
+// A code can still be given this many days after signing up, if no purchase was approved yet: HQ's days (Settings, 2026-10-17); it was 7
+export const claimLateDays = () => rule('referralLateDays');
 
 export async function readReferralSettings(db: Db = prisma): Promise<ReferralSettings> {
   const row = await db.appConfig.findUnique({ where: { key: REFERRAL_SETTINGS_KEY } });
@@ -98,7 +102,7 @@ export async function attachReferral(db: Db, friendId: string, code: string, now
   if (!friend || friend.role !== Role.CUSTOMER) return { ok: false, error: 'Only customer accounts can use an invite code.' };
   if (friend.referredBy) return { ok: false, error: 'An invite code is already on your account.' };
   if (lateClaim) {
-    if (now.getTime() - friend.createdAt.getTime() > CLAIM_LATE_DAYS * DAY) return { ok: false, error: `An invite code can only be added in the first ${CLAIM_LATE_DAYS} days after signing up.` };
+    if (now.getTime() - friend.createdAt.getTime() > claimLateDays() * DAY) return { ok: false, error: claimLateDays() > 0 ? `An invite code can only be added in the first ${claimLateDays()} days after signing up.` : 'An invite code can only be added while signing up.' };
     const bought = await db.pointsTransaction.count({ where: { customerId: friendId, status: TransactionStatus.APPROVED, challengeId: null, referralId: null } });
     if (bought > 0) return { ok: false, error: 'An invite code has to be added before your first purchase.' };
   }
@@ -160,13 +164,14 @@ export async function creditReferral(db: Db, saleId: string, now: Date = new Dat
   const pay = async (customerId: string, amount: number, note: string) => {
     if (amount <= 0) return;
     const fee = r2(amount * feeRate);
-    await db.pointsTransaction.create({
+    const line = await db.pointsTransaction.create({
       data: {
         customerId, grantedById: customerId, storeId: sale.storeId, purchaseAmount: 0, pointsAwarded: amount, devCut: fee, storeCost: fee,
         cashbackRate: 0, category: sale.category, status: TransactionStatus.APPROVED, notes: note, referralId: ref.id, rewardForSaleId: sale.id,
       },
     });
-    await db.user.update({ where: { id: customerId }, data: { pointsBalance: { increment: amount }, periodPoints: { increment: amount } } });
+    const after = await db.user.update({ where: { id: customerId }, data: { pointsBalance: { increment: amount }, periodPoints: { increment: amount } } });
+    await addLot(db, customerId, amount, 'REFERRAL', line.id, after.pointsBalance);
   };
   const awards: ReferralAward[] = [];
   await pay(ref.friendId, settings.friendReward, `Referral reward: welcome bonus (invited by ${shortName(referrer?.name)})`);
@@ -189,6 +194,7 @@ export async function pushReferralAwards(awards: ReferralAward[]): Promise<void>
       ? (es ? ['🎉 ¡Tu invitación funcionó!', `${a.otherName} hizo su primera compra. ${amt} agregados a tu saldo.`] : ['🎉 Your invite worked!', `${a.otherName} made their first purchase. ${amt} added to your balance.`])
       : (es ? ['🎁 Bono de bienvenida', `${amt} agregados a tu saldo por unirte con la invitación de ${a.otherName}.`] : ['🎁 Welcome bonus', `${amt} added to your balance for joining with ${a.otherName}'s invite.`]);
     sendPushToUser(a.customerId, title, body, 'OFFER', '/(customer)/invite-friends');
+    if (a.role === 'REFERRER') await raiseTierFor(a.customerId);   // the sharer's reward adds period points but is not their sale (never throws)
   }
 }
 
@@ -202,7 +208,7 @@ export async function referralSummaryFor(userId: string, now: Date = new Date())
     prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } }),
   ]);
   const boughtYet = await prisma.pointsTransaction.count({ where: { customerId: userId, status: TransactionStatus.APPROVED, challengeId: null, referralId: null } });
-  const canAddCode = !mine && !!me && boughtYet === 0 && now.getTime() - me.createdAt.getTime() <= CLAIM_LATE_DAYS * DAY && settings.enabled;
+  const canAddCode = !mine && !!me && boughtYet === 0 && now.getTime() - me.createdAt.getTime() <= claimLateDays() * DAY && settings.enabled;
   const paidThisMonth = made.filter((r) => r.referrerRewarded && r.rewardedAt && r.rewardedAt >= monthStart(now)).length;
   return {
     code, settings,

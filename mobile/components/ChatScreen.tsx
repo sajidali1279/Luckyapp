@@ -8,7 +8,11 @@ import {
   Animated,
   Modal,
   ScrollView,
+  Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { Text, TextInput } from './ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -20,11 +24,12 @@ import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
 import EmptyState from './EmptyState';
 import ModalCloseButton from './ModalCloseButton';
-import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon } from './Icons';
+import { MessageCircleIcon, ArrowUpIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon, XIcon } from './Icons';
 import { NoticeStack, usePinnedNotices } from './NoticeBanner';
 import KeyboardSafe from './KeyboardSafe';
 import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
+import FocusStatusBar from './FocusStatusBar';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -49,8 +54,17 @@ interface Message {
   userName: string;
   userRole: string;
   text: string;
+  toUserId?: string | null;
+  toUserName?: string | null;
+  attachment?: { kind: 'IMAGE' | 'PDF'; name: string; bytes: number | null; url: string; thumbUrl: string } | null;   // a photo or a PDF (2026-10-24)
   createdAt: string;
+  uploading?: boolean;   // a photo or PDF still on its way: shown right away, dimmed with a spinner, replaced by the saved message
 }
+
+// What is waiting to be sent with the next message
+interface Pending { uri: string; name: string; type: string; kind: 'IMAGE' | 'PDF'; bytes?: number }
+const MAX_PDF = 5 * 1024 * 1024;
+const sizeText = (b?: number | null) => (b == null ? '' : b >= 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 interface Store {
   id: string;
@@ -93,6 +107,11 @@ export default function ChatScreen() {
   const [lastTimestamp, setLastTimestamp] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [toUser, setToUser] = useState<{ id: string; name: string } | null>(null);   // a private message to this person; null = everyone
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pending, setPending] = useState<Pending | null>(null);   // a photo or PDF chosen, not yet sent
+  const [attachOpen, setAttachOpen] = useState(false);          // the 'add a photo or file' sheet (a sheet, not an Alert: Android shows an Alert's first 3 buttons only)
+  const [viewing, setViewing] = useState<string | null>(null);     // a photo opened full size
   const [pollOffline, setPollOffline] = useState(false);
   const listRef = useRef<FlatList>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -108,6 +127,10 @@ export default function ChatScreen() {
   const unreadBy: Record<string, number> = unreadQ.data?.data?.data ?? {};
 
   const { notices: visibleNotices, dismiss: dismissNotice } = usePinnedNotices(selectedStoreId);
+  // Who a private message can go to at this store (2026-10-23)
+  const peopleQ = useQuery({ queryKey: ['chat-people', selectedStoreId], queryFn: () => chatApi.getPeople(selectedStoreId!), enabled: !!selectedStoreId, staleTime: 5 * 60_000 });
+  const people: { id: string; name: string; role: string }[] = peopleQ.data?.data?.data ?? [];
+  useEffect(() => { setToUser(null); }, [selectedStoreId]);   // a private message belongs to one store's thread
 
   const ROLE_LABELS: Record<string, string> = {
     DEV_ADMIN:     t('sharedChat.roleDev'),
@@ -138,15 +161,17 @@ export default function ChatScreen() {
     enabled: !!selectedStoreId,
   });
 
+  // Order matters: on a store change, clear first and then load, so a store whose messages are already cached shows them (the clear
+  // used to run last and wipe them, and with no timestamp the poll never started)
+  useEffect(() => { setMessages([]); setLastTimestamp(null); }, [selectedStoreId]);
+
   useEffect(() => {
     if (initialData?.data?.data) {
       const msgs: Message[] = initialData.data.data;
       setMessages(msgs);
       setLastTimestamp(msgs[msgs.length - 1]?.createdAt ?? null);
     }
-  }, [initialData]);
-
-  useEffect(() => { setMessages([]); setLastTimestamp(null); }, [selectedStoreId]);
+  }, [initialData, selectedStoreId]);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -160,7 +185,8 @@ export default function ChatScreen() {
       const res = await chatApi.getMessages(selectedStoreId, lastTimestamp);
       const newMsgs: Message[] = res.data?.data || [];
       if (newMsgs.length > 0) {
-        setMessages((prev) => [...prev, ...newMsgs]);
+        // Never twice: a poll that was in flight while we sent can bring our own message back
+        setMessages((prev) => { const seen = new Set(prev.map((m) => m.id)); const add = newMsgs.filter((m) => !seen.has(m.id)); return add.length ? [...prev, ...add] : prev; });
         setLastTimestamp(newMsgs[newMsgs.length - 1]!.createdAt);
       }
       setPollOffline(false);
@@ -178,9 +204,40 @@ export default function ChatScreen() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [poll]);
 
+  // Choosing a photo or a PDF to send (2026-10-24): the camera, the photo library or a PDF from Files. It waits above the box until Send.
+  async function takePhoto(camera: boolean) {
+    try {
+      const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8, exif: false };
+      if (camera) {
+        const perm = await ImagePicker.requestCameraPermissionsAsync();
+        if (!perm.granted) { Toast.show({ type: 'error', text1: t('sharedChat.cameraDenied') }); return; }
+      }
+      const r = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+      const a = r.canceled ? null : r.assets?.[0];
+      if (a) setPending({ uri: a.uri, name: a.fileName || 'photo.jpg', type: a.mimeType || 'image/jpeg', kind: 'IMAGE', bytes: a.fileSize });
+    } catch { Toast.show({ type: 'error', text1: t('sharedChat.attachFailed') }); }
+  }
+  async function pickPdf() {
+    try {
+      const r = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true, multiple: false });
+      const a = r.canceled ? null : r.assets?.[0];
+      if (!a) return;
+      if (a.size != null && a.size > MAX_PDF) { Toast.show({ type: 'error', text1: t('sharedChat.pdfTooBig') }); return; }
+      setPending({ uri: a.uri, name: a.name || 'document.pdf', type: 'application/pdf', kind: 'PDF', bytes: a.size ?? undefined });
+    } catch { Toast.show({ type: 'error', text1: t('sharedChat.attachFailed') }); }
+  }
+  // Open the next picker once the sheet has closed (iOS will not present a second screen while a Modal is still closing)
+  const chooseAttachment = () => setAttachOpen(true);
+  const attachThen = (go: () => void) => { setAttachOpen(false); setTimeout(go, 350); };
+  async function openFile(m: Message) {
+    if (!m.attachment) return;
+    if (m.attachment.kind === 'IMAGE') { setViewing(m.attachment.url); return; }
+    try { await Linking.openURL(m.attachment.url); } catch { Toast.show({ type: 'error', text1: t('sharedChat.openFailed') }); }
+  }
+
   async function handleSend() {
     const text = inputText.trim();
-    if (!text || !selectedStoreId || sending) return;
+    if ((!text && !pending) || !selectedStoreId || sending) return;
 
     Animated.sequence([
       Animated.timing(sendScale, { toValue: 0.88, duration: 80, useNativeDriver: true }),
@@ -188,15 +245,35 @@ export default function ChatScreen() {
     ]).start();
 
     setSending(true);
+    // A photo or PDF appears in the thread at once, dimmed with a spinner, so the person can see it is on its way (a slow connection takes a while)
+    const file = pending;
+    const tempId = file ? `sending-${Date.now()}` : null;
+    if (file && tempId) {
+      setMessages((prev) => [...prev, {
+        id: tempId, storeId: selectedStoreId, userId: user?.id ?? '', userName: user?.name ?? '', userRole: user?.role ?? 'EMPLOYEE', text,
+        toUserId: toUser?.id ?? null, toUserName: toUser?.name ?? null, createdAt: new Date().toISOString(), uploading: true,
+        attachment: { kind: file.kind, name: file.name, bytes: file.bytes ?? null, url: file.uri, thumbUrl: file.uri },
+      }]);
+      setInputText('');
+      setPending(null);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+    }
     try {
-      const res = await chatApi.sendMessage(selectedStoreId, text);
+      const res = file ? await chatApi.sendAttachment(selectedStoreId, file, text, toUser?.id) : await chatApi.sendMessage(selectedStoreId, text, toUser?.id);
       const newMsg: Message = res.data.data;
       setInputText('');
-      setMessages((prev) => [...prev, newMsg]);
-      setLastTimestamp(newMsg.createdAt);
+      setPending(null);
+      setMessages((prev) => {
+        const without = tempId ? prev.filter((m) => m.id !== tempId) : prev;
+        return without.some((m) => m.id === newMsg.id) ? without : [...without, newMsg];
+      });
+      // The poll cursor stays where it was: moving it to our message skipped any teammate's message sent just before it. (An empty chat
+      // has no cursor yet, so it starts at ours.)
+      setLastTimestamp((prev) => prev ?? newMsg.createdAt);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } catch (err: any) {
-      // Keep the typed text in the input — don't make the cashier retype a lost message
+      // Keep the typed text in the input — don't make the cashier retype a lost message (and a photo or PDF goes back above the box)
+      if (tempId && file) { setMessages((prev) => prev.filter((m) => m.id !== tempId)); setPending(file); setInputText(text); }
       Toast.show({ type: 'error', text1: t('sharedChat.sendErrorTitle'), text2: err.response?.data?.error || t('sharedChat.sendErrorDefault') });
     }
     setSending(false);
@@ -242,9 +319,14 @@ export default function ChatScreen() {
           )}
 
           <View style={{ maxWidth: '72%' }}>
+            {!!item.toUserId && (
+              <Text style={[s.privateTag, { textAlign: isMe ? 'right' : 'left' }]}>
+                🔒 {isMe ? t('sharedChat.privateTo', { name: item.toUserName }) : item.toUserId === user?.id ? t('sharedChat.privateToYou') : t('sharedChat.privateBetween', { from: item.userName, to: item.toUserName })}
+              </Text>
+            )}
             {!isMe && isFirstInGroup && (
               <View style={s.msgMeta}>
-                <Text style={s.msgSender}>{item.userName}</Text>
+                <Text style={s.msgSender} onPress={() => { const p = people.find((x) => x.id === item.userId); if (p) setToUser({ id: p.id, name: p.name }); }} accessibilityRole="button" accessibilityLabel={t('sharedChat.replyPrivatelyA11y', { name: item.userName })}>{item.userName}</Text>
                 <View style={[s.roleBadge, { backgroundColor: roleColor }]}>
                   <Text style={s.roleBadgeText}>{ROLE_LABELS[item.userRole] || item.userRole}</Text>
                 </View>
@@ -261,7 +343,22 @@ export default function ChatScreen() {
               isMe && !isFirstInGroup && !isLastInGroup && s.bubbleMidRight,
               isMe && !isFirstInGroup && isLastInGroup && s.bubbleBotRight,
             ]}>
-              <Text style={[s.bubbleText, isMe && { color: '#fff' }]}>{item.text}</Text>
+              {item.attachment?.kind === 'IMAGE' && (
+                <TouchableOpacity onPress={() => openFile(item)} disabled={item.uploading} activeOpacity={0.85} accessibilityRole="imagebutton" accessibilityLabel={t('sharedChat.openPhotoA11y', { name: item.userName })}>
+                  <Image source={{ uri: item.attachment.thumbUrl }} style={[s.photo, item.uploading && { opacity: 0.55 }]} contentFit="cover" transition={150} />
+                  {item.uploading && <View style={s.uploadOverlay}><ActivityIndicator color="#fff" /><Text style={s.uploadText}>{t('sharedChat.sending')}</Text></View>}
+                </TouchableOpacity>
+              )}
+              {item.attachment?.kind === 'PDF' && (
+                <TouchableOpacity onPress={() => openFile(item)} disabled={item.uploading} activeOpacity={0.85} style={[s.pdfCard, item.uploading && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel={t('sharedChat.openPdfA11y', { name: item.attachment.name })}>
+                  <Image source={{ uri: item.attachment.thumbUrl }} style={s.pdfThumb} contentFit="cover" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.pdfName, isMe && { color: '#fff' }]} numberOfLines={2}>{item.attachment.name}</Text>
+                    <Text style={[s.pdfSub, isMe && { color: 'rgba(255,255,255,0.8)' }]}>PDF{item.attachment.bytes ? ` · ${sizeText(item.attachment.bytes)}` : ''} · {item.uploading ? t('sharedChat.sending') : t('sharedChat.tapToOpen')}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              {!!item.text && <Text style={[s.bubbleText, isMe && { color: '#fff' }, !!item.attachment && { marginTop: 6 }]}>{item.text}</Text>}
             </View>
 
             {isLastInGroup && (
@@ -303,6 +400,7 @@ export default function ChatScreen() {
       style={{ flex: 1 }}
     >
       <View style={s.root}>
+        <FocusStatusBar barStyle="light-content" />
         {/* ── Header ── */}
         <View style={[s.headerGradient, { backgroundColor: gradientPair[0] }]}>
           <SafeAreaView edges={['top']}>
@@ -406,14 +504,45 @@ export default function ChatScreen() {
           />
         )}
 
+        {/* ── Who it is for (2026-10-23): everyone, or one person privately ── */}
+        <View style={s.toRow}>
+          <TouchableOpacity style={[s.toChip, toUser && s.toChipPrivate]} onPress={() => setPickerOpen(true)} accessibilityRole="button"
+            accessibilityLabel={toUser ? t('sharedChat.toPersonA11y', { name: toUser.name }) : t('sharedChat.toEveryoneA11y')}>
+            <Text style={[s.toChipText, toUser && { color: '#92400e' }]}>{toUser ? `🔒 ${t('sharedChat.toPerson', { name: toUser.name })}` : `${t('sharedChat.toEveryone')}  ▾`}</Text>
+          </TouchableOpacity>
+          {toUser && (
+            <TouchableOpacity onPress={() => setToUser(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={t('sharedChat.toEveryoneA11y')}>
+              <Text style={s.toClear}>✕</Text>
+            </TouchableOpacity>
+          )}
+          {toUser && <Text style={s.toNote}>{t('sharedChat.privateNote')}</Text>}
+        </View>
+
+        {/* ── What is about to be sent (2026-10-24) ── */}
+        {pending && (
+          <View style={s.pendingRow}>
+            {pending.kind === 'IMAGE' ? <Image source={{ uri: pending.uri }} style={s.pendingThumb} contentFit="cover" /> : <View style={[s.pendingThumb, s.pendingPdf]}><Text style={{ fontSize: 22 }}>📄</Text></View>}
+            <View style={{ flex: 1 }}>
+              <Text style={s.pendingName} numberOfLines={1}>{pending.name}</Text>
+              <Text style={s.pendingSub}>{pending.kind === 'PDF' ? `PDF${pending.bytes ? ` · ${sizeText(pending.bytes)}` : ''}` : t('sharedChat.photoLabel')}</Text>
+            </View>
+            <TouchableOpacity onPress={() => setPending(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={t('sharedChat.removeAttachment')}>
+              <XIcon size={18} color="#6b7280" strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ── Input ── */}
         <View style={s.inputBar}>
+          <TouchableOpacity style={s.attachBtn} onPress={chooseAttachment} disabled={sending} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('sharedChat.attach')}>
+            <PlusIcon size={22} color="#1D3557" strokeWidth={2.2} />
+          </TouchableOpacity>
           <View style={s.inputWrap}>
             <TextInput
               style={s.input}
               value={inputText}
               onChangeText={setInputText}
-              placeholder={t('sharedChat.inputPlaceholder')}
+              placeholder={toUser ? t('sharedChat.inputPlaceholderPrivate', { name: toUser.name }) : t('sharedChat.inputPlaceholder')}
               placeholderTextColor="#9ca3af"
               multiline
               maxLength={500}
@@ -422,9 +551,9 @@ export default function ChatScreen() {
           </View>
           <Animated.View style={{ transform: [{ scale: sendScale }] }}>
             <TouchableOpacity
-              style={[s.sendBtn, (!inputText.trim() || sending) && s.sendBtnDisabled]}
+              style={[s.sendBtn, ((!inputText.trim() && !pending) || sending) && s.sendBtnDisabled]}
               onPress={handleSend}
-              disabled={!inputText.trim() || sending}
+              disabled={(!inputText.trim() && !pending) || sending}
               activeOpacity={0.8}
             >
               {sending
@@ -435,6 +564,51 @@ export default function ChatScreen() {
           </Animated.View>
         </View>
       </View>
+
+      <Modal visible={attachOpen} transparent animationType="fade" onRequestClose={() => setAttachOpen(false)}>
+        <View style={s.pickOverlay}>
+          <View style={s.pickSheet}>
+            <Text style={s.pickTitle}>{t('sharedChat.attach')}</Text>
+            <TouchableOpacity style={s.pickRow} onPress={() => attachThen(() => takePhoto(true))} accessibilityRole="button"><Text style={s.pickName}>📷  {t('sharedChat.takePhoto')}</Text></TouchableOpacity>
+            <TouchableOpacity style={s.pickRow} onPress={() => attachThen(() => takePhoto(false))} accessibilityRole="button"><Text style={s.pickName}>🖼️  {t('sharedChat.fromPhotos')}</Text></TouchableOpacity>
+            <TouchableOpacity style={s.pickRow} onPress={() => attachThen(pickPdf)} accessibilityRole="button"><Text style={s.pickName}>📄  {t('sharedChat.pickPdf')}</Text></TouchableOpacity>
+            <TouchableOpacity style={s.pickCancel} onPress={() => setAttachOpen(false)} accessibilityRole="button"><Text style={s.pickCancelText}>{t('sharedChat.cancel')}</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!viewing} transparent animationType="fade" onRequestClose={() => setViewing(null)}>
+        <View style={s.viewer}>
+          {viewing && <Image source={{ uri: viewing }} style={{ flex: 1 }} contentFit="contain" />}
+          <TouchableOpacity style={s.viewerClose} onPress={() => setViewing(null)} accessibilityRole="button" accessibilityLabel={t('sharedChat.close')}>
+            <XIcon size={22} color="#fff" strokeWidth={2.2} />
+          </TouchableOpacity>
+        </View>
+      </Modal>
+
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <View style={s.pickOverlay}>
+          <View style={s.pickSheet}>
+            <Text style={s.pickTitle}>{t('sharedChat.pickPerson')}</Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              <TouchableOpacity style={s.pickRow} onPress={() => { setToUser(null); setPickerOpen(false); }} accessibilityRole="button">
+                <Text style={s.pickName}>{t('sharedChat.toEveryone')}</Text>
+                {!toUser && <Text style={s.pickCheck}>✓</Text>}
+              </TouchableOpacity>
+              {people.map((p) => (
+                <TouchableOpacity key={p.id} style={s.pickRow} onPress={() => { setToUser({ id: p.id, name: p.name }); setPickerOpen(false); }} accessibilityRole="button">
+                  <Text style={s.pickName}>{p.name}</Text>
+                  <Text style={s.pickRole}>{ROLE_LABELS[p.role] || p.role}</Text>
+                  {toUser?.id === p.id && <Text style={s.pickCheck}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+              {peopleQ.isLoading && <ActivityIndicator style={{ margin: 16 }} color={COLORS.primary} />}
+              {!peopleQ.isLoading && people.length === 0 && <Text style={s.pickEmpty}>{t('sharedChat.noPeople')}</Text>}
+            </ScrollView>
+            <TouchableOpacity style={s.pickCancel} onPress={() => setPickerOpen(false)} accessibilityRole="button"><Text style={s.pickCancelText}>{t('sharedChat.cancel')}</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardSafe>
   );
 }
@@ -512,6 +686,23 @@ const s = StyleSheet.create({
 
   msgMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, paddingLeft: 2 },
   msgSender: { fontSize: 12, fontWeight: '700', color: '#374151' },
+  privateTag: { fontSize: 11, fontWeight: '700', color: '#92400e', marginBottom: 2 },
+  toRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 6, backgroundColor: '#fff', flexWrap: 'wrap' },
+  toChip: { borderRadius: 14, borderWidth: 1, borderColor: '#d1d5db', paddingHorizontal: 10, paddingVertical: 4, backgroundColor: '#f9fafb' },
+  toChipPrivate: { borderColor: '#f59e0b', backgroundColor: '#fffbeb' },
+  toChipText: { fontSize: 13, fontWeight: '700', color: '#374151' },
+  toClear: { fontSize: 15, color: '#6b7280', fontWeight: '700', paddingHorizontal: 4 },
+  toNote: { fontSize: 11, color: '#92400e', flexShrink: 1 },
+  pickOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
+  pickSheet: { backgroundColor: '#fff', borderRadius: 18, padding: 16 },
+  pickTitle: { fontSize: 17, fontWeight: '800', color: '#111827', marginBottom: 8 },
+  pickRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  pickName: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
+  pickRole: { fontSize: 12, color: '#6b7280' },
+  pickCheck: { fontSize: 16, color: '#16a34a', fontWeight: '800' },
+  pickEmpty: { padding: 16, color: '#6b7280', textAlign: 'center' },
+  pickCancel: { marginTop: 8, paddingVertical: 12, alignItems: 'center' },
+  pickCancelText: { fontSize: 15, fontWeight: '700', color: '#6b7280' },
   roleBadge: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 5 },
   roleBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
@@ -555,5 +746,20 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: '#d1d5db' },
+  attachBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2f7', alignItems: 'center', justifyContent: 'center' },
+  photo: { width: 220, height: 165, borderRadius: 12, backgroundColor: '#e5e7eb' },
+  uploadOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  uploadText: { color: '#fff', fontSize: 12, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 3 },
+  pdfCard: { flexDirection: 'row', alignItems: 'center', gap: 10, width: 230, paddingVertical: 2 },
+  pdfThumb: { width: 46, height: 58, borderRadius: 6, backgroundColor: '#e5e7eb' },
+  pdfName: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  pdfSub: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  pendingRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#f9fafb', borderTopWidth: 1, borderTopColor: '#e5e7eb' },
+  pendingThumb: { width: 44, height: 44, borderRadius: 8, backgroundColor: '#e5e7eb' },
+  pendingPdf: { alignItems: 'center', justifyContent: 'center' },
+  pendingName: { fontSize: 13, fontWeight: '700', color: '#111827' },
+  pendingSub: { fontSize: 11, color: '#6b7280', marginTop: 1 },
+  viewer: { flex: 1, backgroundColor: '#000' },
+  viewerClose: { position: 'absolute', top: 54, right: 18, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
 
 });
