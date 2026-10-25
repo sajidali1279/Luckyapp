@@ -19,6 +19,7 @@ export interface EngagementFlags {
   tierUp: boolean;
   weeklyChallenge: boolean;
   flashDeals: boolean;
+  friendsBoard?: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH' };
 }
 export interface Streak { weeks: number; current: boolean; atRisk: boolean; endsOn: string | null; best: number; minPurchase: number; next: { weeks: number; pts: number } | null; milestones: { weeks: number; pts: number; reached: boolean; paid: boolean }[] }
 export interface CheckIn { available: boolean; reason: 'OFF' | 'ALREADY' | 'NO_VISIT' | 'CAP' | null; doneToday: boolean; streakDays: number; mode: 'FIXED' | 'MYSTERY'; todayPts: number | null; weekBonusPts: number; monthLeftPts: number }

@@ -31,6 +31,7 @@ interface Config {
   weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
   flashDeals: { enabled: boolean; maxPerWeek: number };
   tierUp: { enabled: boolean };
+  friendsBoard: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH'; minMembers: number; maxRows: number };
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
   nudges: {
     enabled: boolean; quietFrom: number; quietTo: number; maxPerWeek: number;
@@ -44,7 +45,7 @@ interface Hq {
   config: Config; defaults: Config;
   badges: { key: string; emoji: string; name: string; desc: string }[];
   stores: { id: string; name: string }[];
-  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number; welcome: { sent: number; byStep: number[] }; tierUp: { reached: number; celebrated: number }; birthday: { greeted: number; paid: number; pts: number; spentThisMonth: number; withBirthday: number; customers: number } };
+  results: { streaks: { awards: number; pts: number }; checkIn: { checkIns: number; pts: number }; goals: { awards: number; pts: number }; nudges: Record<string, number>; gasAlerts: number; ratePrompt: number; welcome: { sent: number; byStep: number[] }; tierUp: { reached: number; celebrated: number }; friendsBoard: { joined: number }; birthday: { greeted: number; paid: number; pts: number; spentThisMonth: number; withBirthday: number; customers: number } };
   goals: Goal[]; suggestions: Suggestion[];
   weekly: {
     thisWeek: string; weeks: string[]; thisWeekStats: { customers: number; earned: number; paid: number } | null;
@@ -135,7 +136,7 @@ export default function Engagement() {
               <Card key={s.id} padding={16} style={{ borderLeft: `4px solid ${s.tone === 'tip' ? C.primary : C.border}` }}>
                 <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{s.title}</div>
                 <div style={{ fontSize: FONT.small, color: TEXT_MUTED, marginBottom: 8 }}>{s.detail}</div>
-                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {s.feature === 'nudges' ? 'smart nudges' : s.feature === 'storeGoals' ? 'store goals' : s.feature === 'checkIn' ? 'daily check-in' : s.feature === 'events' ? 'the event kit' : s.feature === 'welcome' ? 'the welcome series' : s.feature === 'birthday' ? 'the birthday gift' : s.feature}</Button>
+                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {s.feature === 'nudges' ? 'smart nudges' : s.feature === 'storeGoals' ? 'store goals' : s.feature === 'checkIn' ? 'daily check-in' : s.feature === 'events' ? 'the event kit' : s.feature === 'welcome' ? 'the welcome series' : s.feature === 'birthday' ? 'the birthday gift' : s.feature === 'friendsBoard' ? 'the friends leaderboard' : s.feature}</Button>
               </Card>
             ))}
           </div>
@@ -209,6 +210,12 @@ export default function Engagement() {
 
         <Feature id="tierUp" emoji="🏆" title="Tier celebration" blurb="When a customer reaches a higher tier, the app shows a short celebration with the perks they unlocked and a button to Rewards, once per tier per half year, on whichever phone they use. The tier-up push always goes out, in their language, and opens Rewards. It costs nothing." on={c.tierUp.enabled} onToggle={toggle('tierUp')} busy={save.isPending} open={false} setOpen={() => {}}
           summary={`Last 30 days: ${R.tierUp.reached} reached a higher tier, ${R.tierUp.celebrated} saw the celebration`} />
+
+        <Feature id="friendsBoard" emoji="🏁" title="Friends leaderboard" blurb="A private race inside each invite circle (a customer, the friends who joined with their code, and the friend who invited them), on the app's Leaderboard. Only people who tap Join show up. Names show only along invite lines, as 'Maria G.'; friends of the same inviter see each other as 'A friend'. A circle opens once enough people joined, which nudges people to invite more. It pays nothing." on={c.friendsBoard.enabled}
+          onToggle={(v) => { if (v && !window.confirm('Turn on the friends leaderboard? It shows first names and last initials to friends, so update the privacy policy first.')) return; toggle('friendsBoard')(v); }} busy={save.isPending}
+          open={!!open.friendsBoard} setOpen={(v) => setOpen((o) => ({ ...o, friendsBoard: v }))} summary={`${c.friendsBoard.metric === 'POINTS' ? 'Points from purchases' : 'Days with a purchase'}, ${c.friendsBoard.period === 'MONTH' ? 'by month' : 'by week'}, opens at ${c.friendsBoard.minMembers} joined. ${R.friendsBoard.joined} ${R.friendsBoard.joined === 1 ? 'customer has' : 'customers have'} joined.`}>
+          <FriendsEditor value={c.friendsBoard} onSave={(v) => save.mutate({ friendsBoard: v })} busy={save.isPending} />
+        </Feature>
 
         <Feature id="birthday" emoji="🎂" title="Birthday gift" blurb="A warm greeting push on a customer's birthday (after 10 AM, never in quiet hours) and, if you set one, a small points gift once a year for people who bought lately. The gift is paid at the store they last bought at, inside a monthly budget that is a hard cap. Customers add their birthday in Profile (month and day only), and the app reminds those who have not." on={c.birthday.enabled} onToggle={toggle('birthday')} busy={save.isPending} money={c.birthday.bonusPts > 0}
           open={!!open.birthday} setOpen={(v) => setOpen((o) => ({ ...o, birthday: v }))} summary={`${c.birthday.bonusPts > 0 ? `${c.birthday.bonusPts} pts gift` : 'Greeting only'}, budget ${usd(c.birthday.monthlyBudgetPts)} a month (${usd(R.birthday.spentThisMonth)} used). ${R.birthday.withBirthday} of ${R.birthday.customers} customers gave a birthday.`}>
@@ -617,6 +624,29 @@ function FlashEditor({ value, stores, onSave, busy }: { value: Config['flashDeal
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+function FriendsEditor({ value, onSave, busy }: { value: Config['friendsBoard']; onSave: (v: Omit<Config['friendsBoard'], 'enabled'>) => void; busy: boolean }) {
+  const [metric, setMetric] = useState(value.metric);
+  const [period, setPeriod] = useState(value.period);
+  const [min, setMin] = useState(String(value.minMembers));
+  const [rows, setRows] = useState(String(value.maxRows));
+  useEffect(() => { setMetric(value.metric); setPeriod(value.period); setMin(String(value.minMembers)); setRows(String(value.maxRows)); }, [value.metric, value.period, value.minMembers, value.maxRows]);
+  const mn = num(min), rn = num(rows);
+  const bad = !(Number.isInteger(mn) && mn >= 3 && mn <= 20) || !(Number.isInteger(rn) && rn >= 5 && rn <= 50);
+  const changed = metric !== value.metric || period !== value.period || mn !== value.minMembers || rn !== value.maxRows;
+  return (
+    <>
+      <div style={row}>
+        <Field label="Rank by" htmlFor="fr-metric"><select id="fr-metric" style={{ ...INPUT, width: 210 }} value={metric} onChange={(e) => setMetric(e.target.value as 'VISITS' | 'POINTS')}><option value="VISITS">Days with a purchase</option><option value="POINTS">Points from purchases</option></select></Field>
+        <Field label="Over" htmlFor="fr-period"><select id="fr-period" style={{ ...INPUT, width: 150 }} value={period} onChange={(e) => setPeriod(e.target.value as 'WEEK' | 'MONTH')}><option value="WEEK">A week</option><option value="MONTH">A month</option></select></Field>
+        <Field label="Opens when this many joined" htmlFor="fr-min" hint="3 to 20, the inviter counts"><input id="fr-min" style={smallInput} inputMode="numeric" value={min} onChange={(e) => setMin(whole(e.target.value))} /></Field>
+        <Field label="Rows shown" htmlFor="fr-rows" hint="5 to 50"><input id="fr-rows" style={smallInput} inputMode="numeric" value={rows} onChange={(e) => setRows(whole(e.target.value))} /></Field>
+      </div>
+      <Notice>Days with a purchase counts each store day once, however many sales; points count only what purchases earned, never bonuses. Customers see this week and last week (or month). The board shows a rank, a name or 'A friend' and that number: never a phone, a store, a time or money. Closed, restricted, staff and test accounts never show. Before you switch it on, add it to the privacy policy: friends in a circle see each other's first name and last initial and how often they buy.</Notice>
+      <div style={row}><Button variant="primary" disabled={bad || !changed || busy} onClick={() => onSave({ metric, period, minMembers: mn, maxRows: rn })}>Save</Button></div>
     </>
   );
 }

@@ -181,6 +181,9 @@ export const engagementApi = {
   checkIn: () => api.post('/engagement/check-in'),
   ratePrompt: () => api.post('/engagement/rate-prompt'),   // { ask: true } at most once per customer
   tierUp: () => api.post('/engagement/tier-up'),           // { show, tier }: the one-time tier celebration
+  friends: (when: 'this' | 'last') => api.get(`/engagement/friends?when=${when}`),   // the friends leaderboard (2026-10-24)
+  friendsJoin: () => api.post('/engagement/friends/join'),
+  friendsLeave: () => api.delete('/engagement/friends/join'),
   flashActive: (storeId?: string) => api.get(`/engagement/flash/active${storeId ? `?storeId=${storeId}` : ''}`),   // the flash deal running now, or null
   putGasAlert: (body: { storeId: string; fuel: 'GAS' | 'DIESEL'; maxPrice: number }) => api.put('/engagement/gas-alerts', body),
   deleteGasAlert: (id: string) => api.delete(`/engagement/gas-alerts/${id}`),

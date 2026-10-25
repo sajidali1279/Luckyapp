@@ -716,7 +716,9 @@
     "allStoresA11y": "Show all stores leaderboard",
     "byStoreA11y": "Show by-store leaderboard",
     "allStores": "All Stores",
-    "byStore": "By Store"
+    "byStore": "By Store",
+    "friends": "Friends",
+    "friendsA11y": "Show the friends leaderboard"
   },
   "customerMyDisputes": {
     "statusPending": "Pending",
@@ -3443,5 +3445,41 @@
     "leftMinutes_one": "1 minute left",
     "leftMinutes_other": "{{count}} minutes left",
     "endsDay": "Ends {{day}}"
+  },
+  "friends": {
+    "subtitle": "Your private race",
+    "off": "The friends leaderboard is not on right now.",
+    "joinTitle": "Race your friends",
+    "joinBody": "A private ranking with the friends you invited and the friend who invited you. Only people who join take part. Your inviter and the friends you invited see your first name and last initial; other friends see \"A friend\".",
+    "joinBtn": "Join",
+    "metricVisits": "Days with a purchase",
+    "metricPoints": "Points from purchases",
+    "thisWeek": "This week",
+    "lastWeek": "Last week",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "ownCircle": "Your invites",
+    "inviterCircle": "Invited by {{name}}",
+    "locked": "{{joined}} of the {{total}} needed have joined",
+    "lockedHint_one": "It opens when 1 more person joins. Invite friends, or ask yours to join.",
+    "lockedHint_other": "It opens when {{count}} more people join. Invite friends, or ask yours to join.",
+    "invite": "Invite friends",
+    "noneTitle": "No friends here yet",
+    "noneBody": "Invite friends with your code. Once they join the app and this board, you race every week.",
+    "aFriend": "A friend",
+    "you": "(you)",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "pts": "{{pts}} pts",
+    "more_one": "and 1 more",
+    "more_other": "and {{count}} more",
+    "nobody": "Nobody yet. Be the first!",
+    "leave": "Leave the friends leaderboard",
+    "leaveTitle": "Leave the friends leaderboard?",
+    "leaveBody": "You will not show on your friends' board, and you will not see theirs. You can join again any time.",
+    "leaveYes": "Leave",
+    "cancel": "Cancel",
+    "loadError": "Could not load the friends leaderboard.",
+    "tryAgain": "Something went wrong. Try again."
   }
 }

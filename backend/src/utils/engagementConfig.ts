@@ -11,7 +11,7 @@ export const ENGAGEMENT_LIMITS = {
   tierResetDays: { min: 3, max: 60 }, comebackDays: { min: 7, max: 180 }, shareMessage: 140,
   ratePurchases: { min: 1, max: 50 }, rateDays: { min: 0, max: 365 },
   welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
-  weeklySlots: 12, flashPerWeek: { min: 1, max: 14 },
+  weeklySlots: 12, flashPerWeek: { min: 1, max: 14 }, friendsMinMembers: { min: 3, max: 20 }, friendsMaxRows: { min: 5, max: 50 },
   birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200,
 } as const;
 
@@ -43,6 +43,8 @@ export interface EngagementConfig {
   // Challenge of the week (2026-10-24): one challenge per store week (weekOf is the Monday). Ids are checked against the real challenges
   // when HQ saves (engagement.controller.ts), since this cleaner may not import anything.
   weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
+  // Friends leaderboard (2026-10-24): a private, opt-in ranking inside each invite circle (utils/friendsBoard.ts)
+  friendsBoard: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH'; minMembers: number; maxRows: number };
   // Flash deals (2026-10-24): HQ's short, time-boxed messages (utils/engagementFlash.ts); at most maxPerWeek in a store week
   flashDeals: { enabled: boolean; maxPerWeek: number };
   // Tier celebration (2026-10-24): the app's one-time celebration when a customer reaches a higher tier (the tier-up push itself always goes out)
@@ -84,6 +86,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
   },
   weeklyChallenge: { enabled: false, schedule: [] },
   flashDeals: { enabled: false, maxPerWeek: 3 },
+  friendsBoard: { enabled: false, metric: 'VISITS', period: 'WEEK', minMembers: 3, maxRows: 15 },
   tierUp: { enabled: false },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
@@ -211,6 +214,11 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     ratePrompt: { enabled: bool(rp.enabled, false), minPurchases: int(rp.minPurchases, L.ratePurchases, d.ratePrompt.minPurchases), minDays: int(rp.minDays, L.rateDays, d.ratePrompt.minDays) },
     welcome: { enabled: bool(we.enabled, false), since: dayKey(we.since), steps, texts },
     weeklyChallenge: { enabled: bool(wk.enabled, false), schedule },
+    friendsBoard: (() => {
+      const fb = isObj(s.friendsBoard) ? s.friendsBoard : {};
+      return { enabled: bool(fb.enabled, false), metric: fb.metric === 'POINTS' ? 'POINTS' as const : 'VISITS' as const, period: fb.period === 'MONTH' ? 'MONTH' as const : 'WEEK' as const,
+        minMembers: int(fb.minMembers, L.friendsMinMembers, d.friendsBoard.minMembers), maxRows: int(fb.maxRows, L.friendsMaxRows, d.friendsBoard.maxRows) };
+    })(),
     flashDeals: { enabled: bool(isObj(s.flashDeals) ? s.flashDeals.enabled : false, false), maxPerWeek: int(isObj(s.flashDeals) ? s.flashDeals.maxPerWeek : undefined, L.flashPerWeek, d.flashDeals.maxPerWeek) },
     tierUp: { enabled: bool(isObj(s.tierUp) ? s.tierUp.enabled : false, false) },
     birthday: {
@@ -245,5 +253,6 @@ export function publicEngagement(c: EngagementConfig) {
     tierUp: c.tierUp.enabled,
     weeklyChallenge: c.weeklyChallenge.enabled,
     flashDeals: c.flashDeals.enabled,
+    friendsBoard: { enabled: c.friendsBoard.enabled, metric: c.friendsBoard.metric, period: c.friendsBoard.period },
   };
 }

@@ -716,7 +716,9 @@
     "filterByStoreA11y": "Filtrar por {{store}}",
     "loadError": "No se pudo cargar la clasificación.",
     "emptyTitle": "Aún no hay clasificaciones",
-    "emptySubtitle": "¡Sé el primero en ganar puntos!"
+    "emptySubtitle": "¡Sé el primero en ganar puntos!",
+    "friends": "Amigos",
+    "friendsA11y": "Mostrar la tabla de amigos"
   },
   "customerMyDisputes": {
     "reportSubmittedTitle": "Informe enviado",
@@ -3443,5 +3445,41 @@
     "leftMinutes_one": "Queda 1 minuto",
     "leftMinutes_other": "Quedan {{count}} minutos",
     "endsDay": "Termina el {{day}}"
+  },
+  "friends": {
+    "subtitle": "Tu competencia privada",
+    "off": "La tabla de amigos no está activa por ahora.",
+    "joinTitle": "Compite con tus amigos",
+    "joinBody": "Una clasificación privada con los amigos que invitaste y con quien te invitó. Solo participan quienes se unen. Quien te invitó y los amigos que invitaste ven tu nombre y la inicial de tu apellido; los demás amigos ven \"Amigo o amiga\".",
+    "joinBtn": "Unirme",
+    "metricVisits": "Días con compra",
+    "metricPoints": "Puntos por compras",
+    "thisWeek": "Esta semana",
+    "lastWeek": "La semana pasada",
+    "thisMonth": "Este mes",
+    "lastMonth": "El mes pasado",
+    "ownCircle": "Tus invitados",
+    "inviterCircle": "Te invitó {{name}}",
+    "locked": "{{joined}} de las {{total}} personas necesarias se han unido",
+    "lockedHint_one": "Se abre cuando se una 1 persona más. Invita amigos o pide a los tuyos que se unan.",
+    "lockedHint_other": "Se abre cuando se unan {{count}} personas más. Invita amigos o pide a los tuyos que se unan.",
+    "invite": "Invitar amigos",
+    "noneTitle": "Todavía no hay amigos aquí",
+    "noneBody": "Invita amigos con tu código. Cuando se unan a la app y a esta tabla, compiten cada semana.",
+    "aFriend": "Amigo o amiga",
+    "you": "(tú)",
+    "days_one": "{{count}} día",
+    "days_other": "{{count}} días",
+    "pts": "{{pts}} pts",
+    "more_one": "y 1 más",
+    "more_other": "y {{count}} más",
+    "nobody": "Nadie todavía. ¡Empieza tú!",
+    "leave": "Salir de la tabla de amigos",
+    "leaveTitle": "¿Salir de la tabla de amigos?",
+    "leaveBody": "No aparecerás en la tabla de tus amigos y no verás la suya. Puedes volver a unirte cuando quieras.",
+    "leaveYes": "Salir",
+    "cancel": "Cancelar",
+    "loadError": "No se pudo cargar la tabla de amigos.",
+    "tryAgain": "Algo salió mal. Inténtalo de nuevo."
   }
 }

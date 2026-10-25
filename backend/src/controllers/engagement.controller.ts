@@ -130,7 +130,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', flashDeals: 'Flash deals', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', flashDeals: 'Flash deals', friendsBoard: 'Friends leaderboard', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {
@@ -344,6 +344,11 @@ export async function suggestionsFor(cfg: EngagementConfig, now: Date = new Date
     const born = await prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers, birthMonth: birthdaysOn(now).month } });
     if (born > 0) out.push({ id: 'birthday', tone: 'tip', feature: 'birthday', title: `${born} ${born === 1 ? 'customer has' : 'customers have'} a birthday this month`, detail: `A birthday greeting on the day, with an optional small gift (${cfg.birthday.bonusPts} pts suggested, only for people who bought lately), inside a monthly budget you set. Customers add their birthday in Profile.` });
   }
+  // friends who could race each other
+  if (!cfg.friendsBoard.enabled) {
+    const inviters = (await prisma.referral.groupBy({ by: ['referrerId'], where: { status: { not: 'CANCELLED' } }, _count: { _all: true } })).filter((r) => r._count._all >= 2).length;
+    if (inviters > 0) out.push({ id: 'friendsBoard', tone: 'info', feature: 'friendsBoard', title: `${inviters} ${inviters === 1 ? 'customer has' : 'customers have'} invited 2 or more friends`, detail: 'A friends leaderboard lets each invite circle race on visits this week. It is private and opt-in, costs nothing, and its locked state nudges people to invite more friends. Update the privacy policy before you switch it on.' });
+  }
   // badges are free
   if (!cfg.badges.enabled) out.push({ id: 'badges', tone: 'info', feature: 'badges', title: 'Badges cost nothing to run', detail: 'Nobody is paid for a badge. They give regulars goals between tier steps and something to share. Turn them on and switch off any you do not want.' });
   return out.slice(0, 8);
@@ -355,7 +360,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
   const now = new Date();
   const since = new Date(now.getTime() - 30 * DAY);
   const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'TIER_UP', 'TIER_UP_SEEN', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK', 'NUDGE_WEEKLY_CHALLENGE', 'NUDGE_FLASH'];
-  const [events, goals, alerts, suggestions, stores, welcomeSteps, birthdaySpent, birthdayPaid, withBirthday, customers] = await Promise.all([
+  const [events, goals, alerts, suggestions, stores, welcomeSteps, birthdaySpent, birthdayPaid, withBirthday, customers, friendsJoined] = await Promise.all([
     prisma.engagementEvent.groupBy({ by: ['kind'], where: { kind: { in: kinds }, createdAt: { gte: since } }, _count: { _all: true }, _sum: { points: true } }),
     prisma.storeGoal.findMany({ orderBy: { endDate: 'desc' }, take: 40 }),
     prisma.gasAlert.count(),
@@ -366,6 +371,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
     prisma.engagementEvent.count({ where: { kind: 'BIRTHDAY', points: { gt: 0 }, createdAt: { gte: since } } }),
     prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers, birthMonth: { not: null } } }),
     prisma.user.count({ where: { role: 'CUSTOMER', isActive: true, ...excludeDeletedCustomers } }),
+    prisma.engagementEvent.count({ where: { kind: 'FRIENDS_JOINED' } }),
   ]);
   const names = new Map(stores.map((s) => [s.id, s.name]));
   const welcomeBy = WELCOME_STEPS.map((_k, i) => welcomeSteps.find((w) => w.key === `step${i + 1}`)?._count._all ?? 0);
@@ -396,6 +402,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
       ratePrompt: count('RATE_PROMPT'),
       welcome: { sent: welcomeBy.reduce((t, n) => t + n, 0), byStep: welcomeBy },
       tierUp: { reached: count('TIER_UP'), celebrated: count('TIER_UP_SEEN') },
+      friendsBoard: { joined: friendsJoined },
       birthday: { greeted: count('BIRTHDAY'), paid: birthdayPaid, pts: paid('BIRTHDAY'), spentThisMonth: birthdaySpent, withBirthday, customers },
     },
     goals: goalRows, suggestions, weekly: await weeklyHq(cfg, now),

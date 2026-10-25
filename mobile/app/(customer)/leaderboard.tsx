@@ -15,6 +15,8 @@ import FadeSlideIn from '../../components/FadeSlideIn';
 import { useCurrentStoreId } from '../../utils/geo';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import FriendsBoard from '../../components/engagement/FriendsBoard';
+import { useEngagementFlags } from '../../hooks/useEngagement';
 
 const TIER_ICONS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 const PODIUM_COLORS: Record<number, string> = { 1: '#D4A017', 2: '#78828E', 3: '#B5651D' };
@@ -23,7 +25,10 @@ export default function CustomerLeaderboardScreen() {
   const { t } = useTranslation();
   const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
-  const [tab, setTab] = useState<'chain' | 'store'>('chain');
+  const [tabPicked, setTab] = useState<'chain' | 'store' | 'friends'>('chain');
+  // Friends (2026-10-24): a third tab while HQ has the friends leaderboard on; if it is switched off, the tab falls back to All stores
+  const friendsOn = !!useEngagementFlags()?.friendsBoard?.enabled;
+  const tab = tabPicked === 'friends' && !friendsOn ? 'chain' : tabPicked;
   const [manualStoreId, setManualStoreId] = useState<string | null>(null);
 
   // Reuse the gas-prices cache (same data as home screen) to get store list
@@ -91,11 +96,11 @@ export default function CustomerLeaderboardScreen() {
     <View style={st.root}>
       <LargeTitleHeader
         title={t('customerLeaderboard.headerTitle')}
-        subtitle={tab === 'chain' ? t('customerLeaderboard.topCustomers') : (stores.find(s => s.id === selectedStoreId)?.name ?? t('customerLeaderboard.storeRankings'))}
+        subtitle={tab === 'friends' ? t('friends.subtitle') : tab === 'chain' ? t('customerLeaderboard.topCustomers') : (stores.find(s => s.id === selectedStoreId)?.name ?? t('customerLeaderboard.storeRankings'))}
         scrollY={largeTitle.scrollY}
         icon={<TrophyIcon size={24} color="rgba(255,255,255,0.8)" strokeWidth={1.75} />}
         left={<BackButton variant="light" />}
-        right={myRank ? (
+        right={myRank && tab !== 'friends' ? (
           <View style={st.myRankPill}>
             <Text style={st.myRankLabel} maxFontSizeMultiplier={1.15}>{t('customerLeaderboard.yourRank')}</Text>
             <Text style={st.myRankNum} maxFontSizeMultiplier={1.15}>#{myRank}</Text>
@@ -105,19 +110,19 @@ export default function CustomerLeaderboardScreen() {
 
         {/* Tab bar */}
         <View style={st.tabBar}>
-          {(['chain', 'store'] as const).map((tabValue) => (
+          {(friendsOn ? (['chain', 'store', 'friends'] as const) : (['chain', 'store'] as const)).map((tabValue) => (
             <TouchableOpacity
               key={tabValue}
               style={[st.tab, tab === tabValue && st.tabActive]}
               onPress={() => setTab(tabValue)}
               activeOpacity={0.8}
               accessibilityRole="tab"
-              accessibilityLabel={tabValue === 'chain' ? t('customerLeaderboard.allStoresA11y') : t('customerLeaderboard.byStoreA11y')}
+              accessibilityLabel={tabValue === 'chain' ? t('customerLeaderboard.allStoresA11y') : tabValue === 'store' ? t('customerLeaderboard.byStoreA11y') : t('customerLeaderboard.friendsA11y')}
               accessibilityState={{ selected: tab === tabValue }}
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
             >
               <Text style={[st.tabText, tab === tabValue && st.tabTextActive]}>
-                {tabValue === 'chain' ? t('customerLeaderboard.allStores') : t('customerLeaderboard.byStore')}
+                {tabValue === 'chain' ? t('customerLeaderboard.allStores') : tabValue === 'store' ? t('customerLeaderboard.byStore') : t('customerLeaderboard.friends')}
               </Text>
             </TouchableOpacity>
           ))}
@@ -146,7 +151,9 @@ export default function CustomerLeaderboardScreen() {
         )}
       </LargeTitleHeader>
 
-      {activeQuery.isLoading ? (
+      {tab === 'friends' ? (
+        <FriendsBoard onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle} />
+      ) : activeQuery.isLoading ? (
         <View style={st.center}>
           <ActivityIndicator color={COLORS.primary} size="large" />
         </View>
