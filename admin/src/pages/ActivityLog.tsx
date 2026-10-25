@@ -118,6 +118,8 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   ORDER_CATEGORY_UPDATED:       { label: 'Order Category Changed', color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
   SETTINGS_ENGAGEMENT_UPDATE: { label: 'Engagement Changed', color: '#1D3557', bg: '#0369a118', icon: '✨' },
   STORE_GOAL_CREATE:          { label: 'Store Goal Created', color: '#1a7f45', bg: '#2DC65318', icon: '🏪' },
+  FLASH_DEAL_CREATE:          { label: 'Flash Deal Sent', color: '#a51b28', bg: '#CC293618', icon: '⚡' },
+  FLASH_DEAL_END:             { label: 'Flash Deal Ended', color: '#5a6472', bg: '#5a647218', icon: '⚡' },
   STORE_GOAL_UPDATE:          { label: 'Store Goal Changed', color: '#1D3557', bg: '#0369a118', icon: '🏪' },
   SETTINGS_THEME_UPDATE:      { label: 'App Theme Changed', color: '#1D3557', bg: '#0369a118', icon: '🎃' },
   ORDER_CATEGORY_DELETED:       { label: 'Order Category Deleted', color: '#c42130', bg: '#E6394618', icon: '🗂️' },

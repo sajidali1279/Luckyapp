@@ -119,6 +119,9 @@ export const engagementApi = {
   createGoal: (data: object) => api.post('/engagement/goals', data),
   updateGoal: (id: string, data: object) => api.patch(`/engagement/goals/${id}`, data),
   createWeekly: (data: object) => api.post('/engagement/weekly', data),   // make the challenge of the week and put it on its week
+  flashList: () => api.get('/engagement/flash'),
+  createFlash: (data: object) => api.post('/engagement/flash', data),
+  endFlash: (id: string) => api.post(`/engagement/flash/${id}/end`),
 };
 
 export const challengesApi = {

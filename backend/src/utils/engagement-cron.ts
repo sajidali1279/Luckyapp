@@ -14,6 +14,7 @@ import { getCurrentPeriod, raiseTierFor } from './tier';
 import { runWelcome } from './engagementWelcome';
 import { runBirthdays } from './engagementBirthday';
 import { runWeeklyChallengePush } from './engagementWeekly';
+import { announceDueFlashDeals } from './engagementFlash';
 
 const DAY = 86_400_000;
 const PER_RUN = 150;   // most nudges one run sends, so a bad setting cannot flood anyone
@@ -186,7 +187,7 @@ export async function checkGasAlerts(storeId: string, prices: { GAS?: number | n
   return sent;
 }
 
-let nudging = false, paying = false, welcoming = false, celebrating = false, announcingWeek = false;   // a run that is still going when the next one is due makes the next one skip, not pile on
+let nudging = false, paying = false, welcoming = false, celebrating = false, announcingWeek = false, flashing = false;   // a run that is still going when the next one is due makes the next one skip, not pile on
 export function startEngagementCron() {
   cron.schedule('*/30 * * * *', () => {
     if (nudging) return;
@@ -213,5 +214,10 @@ export function startEngagementCron() {
     announcingWeek = true;
     runWeeklyChallengePush().catch((e) => console.error('[engagement] weekly challenge push failed:', e?.message ?? e)).finally(() => { announcingWeek = false; });
   });
-  console.log('[engagement] nudges, the welcome series, birthdays and the weekly challenge every 30 minutes, store goals every hour, only for what HQ has switched on');
+  cron.schedule('*/5 * * * *', () => {   // flash deals that have started (or whose quiet hours just ended) are pushed within minutes
+    if (flashing) return;
+    flashing = true;
+    announceDueFlashDeals().catch((e) => console.error('[engagement] flash deals failed:', e?.message ?? e)).finally(() => { flashing = false; });
+  });
+  console.log('[engagement] nudges, the welcome series, birthdays and the weekly challenge every 30 minutes, flash deals every 5, store goals every hour, only for what HQ has switched on');
 }

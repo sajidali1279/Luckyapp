@@ -11,7 +11,7 @@ export const ENGAGEMENT_LIMITS = {
   tierResetDays: { min: 3, max: 60 }, comebackDays: { min: 7, max: 180 }, shareMessage: 140,
   ratePurchases: { min: 1, max: 50 }, rateDays: { min: 0, max: 365 },
   welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
-  weeklySlots: 12,
+  weeklySlots: 12, flashPerWeek: { min: 1, max: 14 },
   birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200,
 } as const;
 
@@ -43,6 +43,8 @@ export interface EngagementConfig {
   // Challenge of the week (2026-10-24): one challenge per store week (weekOf is the Monday). Ids are checked against the real challenges
   // when HQ saves (engagement.controller.ts), since this cleaner may not import anything.
   weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
+  // Flash deals (2026-10-24): HQ's short, time-boxed messages (utils/engagementFlash.ts); at most maxPerWeek in a store week
+  flashDeals: { enabled: boolean; maxPerWeek: number };
   // Tier celebration (2026-10-24): the app's one-time celebration when a customer reaches a higher tier (the tier-up push itself always goes out)
   tierUp: { enabled: boolean };
   // Birthday gift (2026-10-24): a greeting push on the day and, when bonusPts is more than 0, a bonus once a year for people who bought in
@@ -81,6 +83,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
     },
   },
   weeklyChallenge: { enabled: false, schedule: [] },
+  flashDeals: { enabled: false, maxPerWeek: 3 },
   tierUp: { enabled: false },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
@@ -208,6 +211,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     ratePrompt: { enabled: bool(rp.enabled, false), minPurchases: int(rp.minPurchases, L.ratePurchases, d.ratePrompt.minPurchases), minDays: int(rp.minDays, L.rateDays, d.ratePrompt.minDays) },
     welcome: { enabled: bool(we.enabled, false), since: dayKey(we.since), steps, texts },
     weeklyChallenge: { enabled: bool(wk.enabled, false), schedule },
+    flashDeals: { enabled: bool(isObj(s.flashDeals) ? s.flashDeals.enabled : false, false), maxPerWeek: int(isObj(s.flashDeals) ? s.flashDeals.maxPerWeek : undefined, L.flashPerWeek, d.flashDeals.maxPerWeek) },
     tierUp: { enabled: bool(isObj(s.tierUp) ? s.tierUp.enabled : false, false) },
     birthday: {
       enabled: bool(bd2.enabled, false), bonusPts: int(bd2.bonusPts, L.birthdayPts, d.birthday.bonusPts), needBoughtDays: int(bd2.needBoughtDays, L.birthdayBoughtDays, d.birthday.needBoughtDays),
@@ -240,5 +244,6 @@ export function publicEngagement(c: EngagementConfig) {
     birthday: c.birthday.enabled,
     tierUp: c.tierUp.enabled,
     weeklyChallenge: c.weeklyChallenge.enabled,
+    flashDeals: c.flashDeals.enabled,
   };
 }

@@ -3428,7 +3428,11 @@
     "tierUpTitle": "¡Llegaste a {{tier}}!",
     "tierUpSub": "Esto es lo que desbloqueas:",
     "tierUpPerks": "Ver mis beneficios",
-    "tierUpClose": "Cerrar"
+    "tierUpClose": "Cerrar",
+    "flashKicker": "Oferta relámpago",
+    "flashLeftHm": "Quedan {{h}} h {{m}} min",
+    "flashLeftM": "Quedan {{m}} min",
+    "flashOpen": "Ver"
   },
   "weeklyChallenge": {
     "kicker": "Reto de la semana",

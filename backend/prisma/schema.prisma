@@ -2102,3 +2102,28 @@ model GasAlert {
   @@index([storeId, fuel])
   @@map("gas_alerts")
 }
+
+// Flash deals (2026-10-24, admin > Engagement): a short, time-boxed message from HQ ("Double points on hot food until 2 PM") that is pushed
+// once to an audience and shows on the customer's Home with a countdown until it ends. announcedAt is the claim that makes the push go
+// out once; sentCount is how many people it reached. Cancelled before it started: cancelledAt. Ended early: endsAt moved to that moment.
+model FlashDeal {
+  id          String    @id @default(uuid())
+  title       String
+  titleEs     String?
+  body        String
+  bodyEs      String?
+  link        String    @default("NONE")   // NONE | OFFERS | HOT_FOOD | REWARDS | GAS
+  audience    String    @default("ALL")    // ALL | STORE | TIER
+  storeId     String?
+  tier        Tier?
+  startsAt    DateTime
+  endsAt      DateTime
+  announcedAt DateTime?
+  sentCount   Int       @default(0)
+  cancelledAt DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  @@index([startsAt, endsAt])
+  @@map("flash_deals")
+}

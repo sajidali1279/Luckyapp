@@ -130,7 +130,7 @@ const merge = (a: any, b: any): any => {
 };
 const NAMES: Record<string, string> = {
   streaks: 'Visit streaks', punchCards: 'Punch cards', checkIn: 'Daily check-in', badges: 'Badges', storeGoals: 'Store goals', reorder: 'Order your usual',
-  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', nudges: 'Smart nudges',
+  gasAlerts: 'Gas price alerts', sharing: 'Sharing', ratePrompt: 'Rate the app', welcome: 'Welcome series', birthday: 'Birthday gift', tierUp: 'Tier celebration', weeklyChallenge: 'Challenge of the week', flashDeals: 'Flash deals', nudges: 'Smart nudges',
 };
 /** What changed, in words, for the Activity Log. */
 function changesIn(before: EngagementConfig, after: EngagementConfig): string[] {
@@ -354,7 +354,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
   const cfg = engagement();
   const now = new Date();
   const since = new Date(now.getTime() - 30 * DAY);
-  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'TIER_UP', 'TIER_UP_SEEN', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK', 'NUDGE_WEEKLY_CHALLENGE'];
+  const kinds = ['STREAK_AWARD', 'CHECKIN', 'GOAL_AWARD', 'RATE_PROMPT', 'BIRTHDAY', 'TIER_UP', 'TIER_UP_SEEN', 'NUDGE_NEAR_REWARD', 'NUDGE_STREAK_RISK', 'NUDGE_TIER_RESET', 'NUDGE_COMEBACK', 'NUDGE_WEEKLY_CHALLENGE', 'NUDGE_FLASH'];
   const [events, goals, alerts, suggestions, stores, welcomeSteps, birthdaySpent, birthdayPaid, withBirthday, customers] = await Promise.all([
     prisma.engagementEvent.groupBy({ by: ['kind'], where: { kind: { in: kinds }, createdAt: { gte: since } }, _count: { _all: true }, _sum: { points: true } }),
     prisma.storeGoal.findMany({ orderBy: { endDate: 'desc' }, take: 40 }),
@@ -391,7 +391,7 @@ export async function getEngagementHq(_req: AuthRequest, res: Response) {
       streaks: { awards: count('STREAK_AWARD'), pts: paid('STREAK_AWARD') },
       checkIn: { checkIns: count('CHECKIN'), pts: paid('CHECKIN') },
       goals: { awards: count('GOAL_AWARD'), pts: paid('GOAL_AWARD') },
-      nudges: { nearReward: count('NUDGE_NEAR_REWARD'), streakRisk: count('NUDGE_STREAK_RISK'), tierReset: count('NUDGE_TIER_RESET'), comeback: count('NUDGE_COMEBACK'), weeklyChallenge: count('NUDGE_WEEKLY_CHALLENGE') },
+      nudges: { nearReward: count('NUDGE_NEAR_REWARD'), streakRisk: count('NUDGE_STREAK_RISK'), tierReset: count('NUDGE_TIER_RESET'), comeback: count('NUDGE_COMEBACK'), weeklyChallenge: count('NUDGE_WEEKLY_CHALLENGE'), flash: count('NUDGE_FLASH') },
       gasAlerts: alerts,
       ratePrompt: count('RATE_PROMPT'),
       welcome: { sent: welcomeBy.reduce((t, n) => t + n, 0), byStep: welcomeBy },

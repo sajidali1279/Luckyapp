@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { engagementApi, challengesApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
-import { addDays, dayLabel, endOfStoreDay, startOfStoreDay } from '../lib/storeDates';
+import { addDays, dayLabel, endOfStoreDay, startOfStoreDay, storeToday } from '../lib/storeDates';
 import { Page, PageHeader, Card, Button, Badge, Notice, Field, StatTile, SectionTitle } from '../components/kit';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
@@ -29,6 +29,7 @@ interface Config {
   ratePrompt: { enabled: boolean; minPurchases: number; minDays: number };
   welcome: { enabled: boolean; since: string | null; steps: WelcomeStep[]; texts: Record<WelcomeKey, WelcomeText> };
   weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
+  flashDeals: { enabled: boolean; maxPerWeek: number };
   tierUp: { enabled: boolean };
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
   nudges: {
@@ -193,6 +194,11 @@ export default function Engagement() {
         <Feature id="welcome" emoji="👋" title="Welcome series" blurb="Up to three friendly pushes in a new customer's first days: how to earn at the register (and their welcome treats), then order ahead or check in daily, then invite a friend or see their tier. Each one is skipped when they have already done it, and only people who join after you switch it on get it. Never in quiet hours." on={c.welcome.enabled} onToggle={toggle('welcome')} busy={save.isPending}
           open={!!open.welcome} setOpen={(v) => setOpen((o) => ({ ...o, welcome: v }))} summary={`${c.welcome.steps.filter((s) => s.enabled).map((s) => `day ${s.day}`).join(', ') || 'No steps on'}${c.welcome.since ? `, for people who joined from ${day(`${c.welcome.since}T12:00:00`)}` : ''}. Sent in the last 30 days: ${R.welcome.sent}`}>
           <WelcomeEditor value={c.welcome} defaults={d.defaults.welcome} onSave={(v) => save.mutate({ welcome: v })} busy={save.isPending} sent={R.welcome.byStep} />
+        </Feature>
+
+        <Feature id="flashDeals" emoji="⚡" title="Flash deals" blurb="A short message with a countdown ('Double points on hot food until 2 PM'), pushed once to the people you pick and shown at the top of their Home until it ends. It changes no prices or points by itself: make the offer first, then point the flash deal to the offers. Quiet hours and each person's weekly nudge limit apply to the push." on={c.flashDeals.enabled} onToggle={toggle('flashDeals')} busy={save.isPending}
+          open={!!open.flashDeals} setOpen={(v) => setOpen((o) => ({ ...o, flashDeals: v }))} summary={`At most ${c.flashDeals.maxPerWeek} a week, one at a time. Pushes sent in the last 30 days: ${R.nudges.flash ?? 0}`}>
+          <FlashEditor value={c.flashDeals} stores={d.stores} onSave={(v) => save.mutate({ flashDeals: v })} busy={save.isPending} />
         </Feature>
 
         <Feature id="weeklyChallenge" emoji="🏆" title="Challenge of the week" blurb="Feature one challenge each week (Monday to Sunday). It shows first in the app with a countdown to the end of the week, and a Monday morning push tells customers about it (a smart nudge: quiet hours and the weekly limit apply). Featuring pays nothing extra: the challenge pays its own reward." on={c.weeklyChallenge.enabled} onToggle={toggle('weeklyChallenge')} busy={save.isPending}
@@ -518,6 +524,98 @@ function WeeklyEditor({ value, weekly, stores, onSave, busy }: { value: Config['
         </div>
         <Notice>It runs from that Monday (or now, if the week has started) to Sunday night, pays each customer once, and is not pushed at midnight: the Monday push announces it when the smart nudges are on.</Notice>
         <div style={row}><Button variant="primary" disabled={formBad || making} onClick={make}>Make it and feature it</Button></div>
+      </div>
+    </>
+  );
+}
+
+type FlashRow = { id: string; title: string; titleEs: string | null; body: string; link: string; audience: string; store: string | null; tier: string | null; startsAt: string; endsAt: string; announcedAt: string | null; sentCount: number; state: 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED' };
+const FLASH_LINKS: { key: string; label: string }[] = [{ key: 'OFFERS', label: 'The offers on Home' }, { key: 'HOT_FOOD', label: 'Hot Food' }, { key: 'REWARDS', label: 'Rewards' }, { key: 'GAS', label: 'Gas prices' }, { key: 'NONE', label: 'Nothing (just the message)' }];
+const FLASH_STATE: Record<FlashRow['state'], { label: string; tone: 'success' | 'warning' | 'neutral' }> = { LIVE: { label: 'Live', tone: 'success' }, SCHEDULED: { label: 'Scheduled', tone: 'warning' }, ENDED: { label: 'Ended', tone: 'neutral' }, CANCELLED: { label: 'Cancelled', tone: 'neutral' } };
+const storeHourFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: 'numeric', hourCycle: 'h23' });
+/** The instant a store day shows `hour` on the store clock (corrected on the nights the clocks change). */
+const atStoreHour = (key: string, hour: number) => {
+  let t = startOfStoreDay(key).getTime() + hour * 3_600_000;
+  t += (hour - Number(storeHourFmt.format(new Date(t)))) * 3_600_000;
+  return new Date(t);
+};
+const storeWhen = (iso: string) => new Date(iso).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+function FlashEditor({ value, stores, onSave, busy }: { value: Config['flashDeals']; stores: Hq['stores']; onSave: (v: { maxPerWeek: number }) => void; busy: boolean }) {
+  const qc = useQueryClient();
+  const list = useQuery({ queryKey: ['engagement-flash'], queryFn: () => engagementApi.flashList().then((r) => r.data.data as { thisWeek: number; maxPerWeek: number; deals: FlashRow[] }) });
+  const [max, setMax] = useState(String(value.maxPerWeek));
+  useEffect(() => { setMax(String(value.maxPerWeek)); }, [value.maxPerWeek]);
+  const today = storeToday();
+  const [f, setF] = useState({ title: '', body: '', titleEs: '', bodyEs: '', link: 'OFFERS', audience: 'ALL', storeId: '', tier: 'GOLD', hours: '2', when: 'NOW', day: today, hour: '10' });
+  const set = (k: keyof typeof f) => (v: string) => setF((x) => ({ ...x, [k]: v }));
+  const [sending, setSending] = useState(false);
+  const bad = !f.title.trim() || !f.body.trim() || f.title.length > 60 || f.titleEs.length > 60 || f.body.length > 160 || f.bodyEs.length > 160 || (f.audience === 'STORE' && !f.storeId);
+  const send = async () => {
+    if (!window.confirm(f.when === 'NOW' ? 'Send this flash deal now? It is pushed to the people you picked (outside quiet hours).' : 'Schedule this flash deal? It is pushed when it starts.')) return;
+    setSending(true);
+    try {
+      await engagementApi.createFlash({ title: f.title, body: f.body, titleEs: f.titleEs, bodyEs: f.bodyEs, link: f.link, audience: f.audience, storeId: f.storeId || null, tier: f.tier, hours: Number(f.hours), ...(f.when === 'LATER' ? { startsAt: atStoreHour(f.day, Number(f.hour)).toISOString() } : {}) });
+      toast.success(f.when === 'NOW' ? 'Sent.' : 'Scheduled.');
+      setF((x) => ({ ...x, title: '', body: '', titleEs: '', bodyEs: '' }));
+      qc.invalidateQueries({ queryKey: ['engagement-flash'] }); qc.invalidateQueries({ queryKey: ['engagement-hq'] });
+    } catch (e) { toast.error(serverMessage(e, 'Could not send it.')); }
+    setSending(false);
+  };
+  const end = async (r: FlashRow) => {
+    if (!window.confirm(r.state === 'LIVE' ? `End "${r.title}" now? It leaves customers' Home right away.` : `Cancel "${r.title}"?`)) return;
+    try { await engagementApi.endFlash(r.id); qc.invalidateQueries({ queryKey: ['engagement-flash'] }); } catch (e) { toast.error(serverMessage(e, 'Could not end it.')); }
+  };
+  const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
+  const m = num(max);
+  return (
+    <>
+      <div style={row}>
+        <Field label="At most this many a week" htmlFor="fl-max" hint="1 to 14"><input id="fl-max" style={smallInput} inputMode="numeric" value={max} onChange={(e) => setMax(whole(e.target.value))} /></Field>
+        <Button variant="secondary" disabled={!(Number.isInteger(m) && m >= 1 && m <= 14) || m === value.maxPerWeek || busy} onClick={() => onSave({ maxPerWeek: m })}>Save</Button>
+        {list.data && <span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>This week: {list.data.thisWeek} of {list.data.maxPerWeek}</span>}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <Field label="Title (English)" htmlFor="fl-title" hint={`${f.title.length} of 60`}><input id="fl-title" style={INPUT} maxLength={60} value={f.title} onChange={(e) => set('title')(e.target.value)} placeholder="Double points on hot food" /></Field>
+          <Field label="Message (English)" htmlFor="fl-body" hint={`${f.body.length} of 160`}><textarea id="fl-body" style={{ ...INPUT, minHeight: 56, resize: 'vertical' }} maxLength={160} value={f.body} onChange={(e) => set('body')(e.target.value)} placeholder="Until 2 PM at every Lucky Stop." /></Field>
+          <Field label="Title (Spanish, optional)" htmlFor="fl-titleEs" hint={`${f.titleEs.length} of 60`}><input id="fl-titleEs" style={INPUT} maxLength={60} value={f.titleEs} onChange={(e) => set('titleEs')(e.target.value)} /></Field>
+          <Field label="Message (Spanish, optional)" htmlFor="fl-bodyEs" hint={`${f.bodyEs.length} of 160`}><textarea id="fl-bodyEs" style={{ ...INPUT, minHeight: 56, resize: 'vertical' }} maxLength={160} value={f.bodyEs} onChange={(e) => set('bodyEs')(e.target.value)} /></Field>
+          <div style={row}>
+            <Field label="A tap opens" htmlFor="fl-link"><select id="fl-link" style={{ ...INPUT, width: 200 }} value={f.link} onChange={(e) => set('link')(e.target.value)}>{FLASH_LINKS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select></Field>
+            <Field label="Who" htmlFor="fl-aud"><select id="fl-aud" style={{ ...INPUT, width: 190 }} value={f.audience} onChange={(e) => set('audience')(e.target.value)}><option value="ALL">Every customer</option><option value="STORE">One store's customers</option><option value="TIER">A tier and above</option></select></Field>
+            {f.audience === 'STORE' && <Field label="Store" htmlFor="fl-store"><select id="fl-store" style={{ ...INPUT, width: 170 }} value={f.storeId} onChange={(e) => set('storeId')(e.target.value)}><option value="">Pick a store</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>}
+            {f.audience === 'TIER' && <Field label="Tier" htmlFor="fl-tier"><select id="fl-tier" style={{ ...INPUT, width: 140 }} value={f.tier} onChange={(e) => set('tier')(e.target.value)}>{['SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'].map((t) => <option key={t} value={t}>{t.charAt(0) + t.slice(1).toLowerCase()} and above</option>)}</select></Field>}
+          </div>
+          <div style={row}>
+            <Field label="Starts" htmlFor="fl-when"><select id="fl-when" style={{ ...INPUT, width: 130 }} value={f.when} onChange={(e) => set('when')(e.target.value)}><option value="NOW">Now</option><option value="LATER">Later</option></select></Field>
+            {f.when === 'LATER' && <Field label="Day" htmlFor="fl-day"><select id="fl-day" style={{ ...INPUT, width: 150 }} value={f.day} onChange={(e) => set('day')(e.target.value)}>{days.map((dd, i) => <option key={dd} value={dd}>{i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : dayLabel(dd)}</option>)}</select></Field>}
+            {f.when === 'LATER' && <Field label="At (store time)" htmlFor="fl-hour"><select id="fl-hour" style={{ ...INPUT, width: 120 }} value={f.hour} onChange={(e) => set('hour')(e.target.value)}>{Array.from({ length: 18 }, (_, i) => i + 6).map((h) => <option key={h} value={h}>{hourLabel(h)}</option>)}</select></Field>}
+            <Field label="Lasts" htmlFor="fl-hours"><select id="fl-hours" style={{ ...INPUT, width: 120 }} value={f.hours} onChange={(e) => set('hours')(e.target.value)}>{Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option key={h} value={h}>{h} hour{h === 1 ? '' : 's'}</option>)}</select></Field>
+          </div>
+          <div style={row}><Button variant="primary" disabled={bad || sending} onClick={send}>{f.when === 'NOW' ? 'Send it now' : 'Schedule it'}</Button></div>
+        </div>
+        <div aria-label="Preview on a phone" style={{ borderRadius: 18, background: '#CC2936', color: '#fff', padding: 16, display: 'grid', gap: 6, maxWidth: 360 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ color: '#FFE8A3', fontSize: 12, fontWeight: 900, letterSpacing: 0.6 }}>⚡ FLASH DEAL</span><span style={{ background: '#FFE8A3', color: '#7A1220', borderRadius: 999, padding: '3px 10px', fontSize: 12, fontWeight: 900 }}>{f.hours} h 0 min left</span></div>
+          <div style={{ fontSize: 19, fontWeight: 900 }}>{f.title || 'Your title'}</div>
+          <div style={{ fontSize: 14, opacity: 0.92 }}>{f.body || 'Your message.'}</div>
+          {f.link !== 'NONE' && <div style={{ fontSize: 14, fontWeight: 800 }}>See it ›</div>}
+        </div>
+      </div>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ fontWeight: 700, color: C.text }}>Recent flash deals</div>
+        {list.isLoading && <div style={{ fontSize: FONT.small, color: TEXT_MUTED }}>Loading...</div>}
+        {list.data && list.data.deals.length === 0 && <div style={{ fontSize: FONT.small, color: TEXT_MUTED }}>None yet.</div>}
+        {list.data?.deals.map((r) => (
+          <div key={r.id} style={{ ...row, alignItems: 'center', borderBottom: `1px solid ${C.border}`, paddingBottom: 8 }}>
+            <Badge tone={FLASH_STATE[r.state].tone}>{FLASH_STATE[r.state].label}</Badge>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontWeight: 700, color: C.text }}>{r.title}</div>
+              <div style={{ fontSize: FONT.small, color: TEXT_MUTED }}>{storeWhen(r.startsAt)} to {storeWhen(r.endsAt)} · {r.audience === 'ALL' ? 'every customer' : r.audience === 'STORE' ? `${r.store ?? 'a store'}'s customers` : `${(r.tier ?? '').charAt(0)}${(r.tier ?? '').slice(1).toLowerCase()} and above`} · {r.announcedAt ? `pushed to ${r.sentCount}` : r.state === 'LIVE' ? 'push waiting for quiet hours to end' : 'not pushed'}</div>
+            </div>
+            {(r.state === 'LIVE' || r.state === 'SCHEDULED') && <Button size="sm" variant="secondary" onClick={() => end(r)}>{r.state === 'LIVE' ? 'End now' : 'Cancel'}</Button>}
+          </div>
+        ))}
       </div>
     </>
   );

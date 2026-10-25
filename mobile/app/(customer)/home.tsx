@@ -33,6 +33,7 @@ import { offerBonusText } from '../../utils/offerRate';
 import { spanishOffer } from '../../utils/offerText';
 import ChallengesSection from '../../components/ChallengesSection';
 import EngagementHome from '../../components/engagement/EngagementHome';
+import FlashDealBanner from '../../components/engagement/FlashDealBanner';
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
@@ -1130,6 +1131,7 @@ function CustomerHomeScreen() {
       </Animated.View>
 
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
+        <FlashDealBanner storeId={nearestStore?.id} enabled={locationReady} />
         <NotificationsOffBanner dismissible />
         <WelcomeBonusCard storeId={nearestStore?.id} storeName={nearestStore?.name} />
         <MissingPersonsCard storeId={nearestStore?.id} />
