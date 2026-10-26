@@ -493,18 +493,19 @@ export default function Transactions() {
     const hasReceipt = !!tx.receiptImageUrl;
     const who = tx.customer?.name || tx.customer?.phone || 'customer';
     const badgeBg = STATUS_COLORS[tx.status] || '#e4e7ec';
+    const rowBg = i === focusedIndex ? '#eef2f7' : tx.status === 'FLAGGED' ? '#fdf2f2' : tx.status === 'REJECTED' ? '#f7f8fa' : inSale ? '#fbfcfd' : undefined;
     return (
     <TableRow
       key={tx.id}
       style={{
-        background: i === focusedIndex ? '#eef2f7' : tx.status === 'FLAGGED' ? '#fdf2f2' : tx.status === 'REJECTED' ? '#f7f8fa' : inSale ? '#fbfcfd' : undefined,
+        background: rowBg,
         boxShadow: i === focusedIndex ? 'inset 3px 0 0 ' + PRIMARY : inSale ? 'inset 3px 0 0 #c9d2de' : undefined,
       }}
     >
       <TableCell style={inSale ? { ...s.td, paddingLeft: 28 } : s.td}>
         {inSale && <div style={{ fontSize: 11, color: TEXT_MUTED, fontWeight: 700, letterSpacing: '.04em' }}>LINE OF THIS SALE</div>}
-        <div>{storeDay(tx.createdAt)}{tx.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
-        <div style={{ fontSize: 13, color: TEXT_MUTED }}>{storeTime(tx.createdAt)}</div>
+        <div style={s.oneLine}>{storeDay(tx.createdAt)}{tx.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
+        <div style={{ fontSize: 13, color: TEXT_MUTED, ...s.oneLine }}>{storeTime(tx.createdAt)}</div>
         <button
           type="button"
           style={s.copyId}
@@ -571,7 +572,7 @@ export default function Transactions() {
           <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span>
         ) : ' - '}
       </TableCell>
-      <TableCell style={s.td}>
+      <TableCell className="ui-sticky-end" style={{ ...s.td, backgroundColor: rowBg }}>
         {tx.status === 'PENDING' && (
           <button
             style={s.rejectBtn}
@@ -622,12 +623,13 @@ export default function Transactions() {
     const allReceipts = lines.every((t) => t.receiptImageUrl);
     const who = first.customer?.name || first.customer?.phone || 'customer';
     const badgeBg = one ? STATUS_COLORS[one] || '#e4e7ec' : '#e4e7ec';
+    const saleBg = one === 'FLAGGED' ? '#fdf2f2' : one === 'REJECTED' ? '#f7f8fa' : undefined;
     return (
       <Fragment key={`sale-${e.saleId}`}>
-        <TableRow style={{ background: one === 'FLAGGED' ? '#fdf2f2' : one === 'REJECTED' ? '#f7f8fa' : undefined, borderTop: '2px solid #d7dde6' }}>
+        <TableRow style={{ background: saleBg, borderTop: '2px solid #d7dde6' }}>
           <TableCell style={s.td}>
-            <div>{storeDay(first.createdAt)}{first.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
-            <div style={{ fontSize: 13, color: TEXT_MUTED }}>{storeTime(first.createdAt)}</div>
+            <div style={s.oneLine}>{storeDay(first.createdAt)}{first.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
+            <div style={{ fontSize: 13, color: TEXT_MUTED, ...s.oneLine }}>{storeTime(first.createdAt)}</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: PRIMARY, marginTop: 2 }}>One sale · {lines.length} lines</div>
             <button type="button" style={s.detailsBtn} aria-expanded={open} onClick={() => toggleSale(e.saleId)}>{open ? 'Hide lines ▴' : 'Show lines ▾'}</button>
           </TableCell>
@@ -666,7 +668,7 @@ export default function Transactions() {
           <TableCell style={s.td}>
             {receipt ? <a href={receipt} target="_blank" rel="noopener noreferrer" style={s.link}>View</a> : one === 'FLAGGED' ? <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span> : ' - '}
           </TableCell>
-          <TableCell style={s.td}>
+          <TableCell className="ui-sticky-end" style={{ ...s.td, backgroundColor: saleBg }}>
             {one === 'PENDING' && (
               <button style={s.rejectBtn} aria-label={`Reject the whole ${fmt$(amount)} sale for ${who}`} onClick={() => setDecision({ kind: 'REJECT_SALE_PENDING', tx: first, lines })}>Reject sale</button>
             )}
@@ -892,7 +894,7 @@ export default function Transactions() {
                 <TableHead style={s.th}>Employee</TableHead>
                 <TableHead style={s.th}>Status</TableHead>
                 <TableHead style={s.th}>Receipt</TableHead>
-                <TableHead style={s.th}>Actions</TableHead>
+                <TableHead className="ui-sticky-end" style={s.th}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1057,14 +1059,17 @@ const s: Record<string, React.CSSProperties> = {
   summaryValue: { fontSize: 20, fontWeight: 700, color: PRIMARY },
   summaryNote: { fontSize: 13, color: TEXT_MUTED, margin: '-12px 0 16px' },
 
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  // no overflow: hidden on the table: it stops the Actions column pinning to the right edge (ui-sticky-end)
+  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
   th: { background: '#f7f8fa', padding: '12px 14px', textAlign: 'left', fontSize: 14, color: TEXT_MUTED, fontWeight: 600, whiteSpace: 'nowrap' },
-  td: { padding: '12px 14px', borderBottom: '1px solid #e4e7ec', fontSize: 15, verticalAlign: 'middle' },
-  badge: { borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 600 },
+  // cells wrap (the shared cell keeps text on one line, which made this table about 1,450 px wide, past a laptop's edge, 2026-10-25)
+  td: { padding: '12px 14px', borderBottom: '1px solid #e4e7ec', fontSize: 15, verticalAlign: 'middle', whiteSpace: 'normal' },
+  oneLine: { whiteSpace: 'nowrap' },
+  badge: { borderRadius: 6, padding: '3px 10px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
   catBadge: { background: '#f7f8fa', color: '#374151', borderRadius: 6, padding: '3px 8px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' },
   link: { color: PRIMARY, fontWeight: 600, fontSize: 15 },
   copyId: { display: 'block', background: 'none', border: 'none', padding: 0, marginTop: 2, fontSize: 12, color: TEXT_MUTED, cursor: 'pointer', fontFamily: 'inherit' },
-  rejectBtn: { background: 'none', border: `1px solid ${DANGER}`, color: DANGER, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14 },
+  rejectBtn: { background: 'none', border: `1px solid ${DANGER}`, color: DANGER, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' },
   approveBtn: { background: APPROVED_TEXT, border: `1px solid ${APPROVED_TEXT}`, color: '#fff' },
   voidBtn: { flex: 1, background: 'none', border: '1px solid #4f6d8f', color: '#4f6d8f', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   approveOff: { background: '#e4e7ec', border: '1px solid #ced4da', color: '#5a6472', cursor: 'not-allowed' },
@@ -1081,7 +1086,7 @@ const s: Record<string, React.CSSProperties> = {
   amountInput: { width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, boxSizing: 'border-box' },
   testDataLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: TEXT_MUTED, fontWeight: 600, cursor: 'pointer' },
   testBadge: { marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#8a5300', background: '#fdf6e8', borderRadius: 4, padding: '1px 5px', letterSpacing: 0.3 },
-  detailsBtn: { display: 'block', background: 'none', border: 'none', padding: 0, marginTop: 3, fontSize: 12, color: PRIMARY, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, textDecoration: 'underline' },
+  detailsBtn: { display: 'block', background: 'none', border: 'none', padding: 0, marginTop: 3, fontSize: 12, color: PRIMARY, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, textDecoration: 'underline', whiteSpace: 'nowrap' },
 
   keyboardHint: { fontSize: 13, color: TEXT_MUTED, margin: '-6px 0 12px' },
   kbd: { fontSize: 11, fontWeight: 700, color: TEXT_MUTED, background: '#f1f3f6', border: '1px solid #e4e7ec', borderRadius: 4, padding: '1px 5px' },

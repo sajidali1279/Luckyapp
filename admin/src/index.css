@@ -461,6 +461,13 @@
 .ui-how > summary:focus-visible { outline: 2px solid #1D3557; outline-offset: 2px; border-radius: 4px; }
 .ui-how[open] > summary { margin-bottom: 2px; }
 
+/* A table's actions column stays on screen: while a wide table scrolls sideways in its box, the last column is pinned to the right
+   edge with a line beside it (2026-10-25: on a laptop the Transactions table ran past the edge, so Approve and Reject could not be
+   seen, and the sideways scrollbar was at the bottom of the page). The cell is solid to cover what scrolls under it, so a tinted
+   row passes its colour as backgroundColor; the hover tint is laid over it. */
+.ui-sticky-end { position: sticky; right: 0; z-index: 1; background-color: #fff; box-shadow: inset 1px 0 0 #e4e7ec; }
+tr:hover > .ui-sticky-end { background-image: linear-gradient(rgb(241 243 246 / 0.5), rgb(241 243 246 / 0.5)); }
+
 /* A store list beside its panel (Scheduling, Requests, Chat): on a phone the list stacks on top, a third of the screen at most and
    scrolling on its own, and the panel fills the rest with its own scrolling (2026-10-25: side by side, the list took 70% of the
    screen and the panel was squeezed to about 118 px). The !important wins over the pages' inline widths. */
