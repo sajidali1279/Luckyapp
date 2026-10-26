@@ -245,7 +245,7 @@ function DeclineModal({ request: r, onClose }: { request: any; onClose: () => vo
   return (
     <Modal title="Decline this request?" subtitle={`"${r.title}" at ${r.store?.name ?? 'the store'}. The manager gets a push with your reason.`} onClose={onClose} busy={decline.isPending} maxWidth={520}>
       <form onSubmit={(e) => { e.preventDefault(); if (reason.trim() && !decline.isPending) decline.mutate(); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Field label="Reason" htmlFor="req-decline" required hint={`${reason.length}/300`}>
+        <Field label="Reason" htmlFor="req-decline" required after={`${reason.length}/300`}>
           <textarea id="req-decline" className="ui-input" style={{ ...INPUT, minHeight: 80, resize: 'vertical' }} maxLength={300} value={reason}
             onChange={(e) => setReason(e.target.value)} placeholder="e.g. Too close to the chain-wide gas promotion. Try the week after." />
         </Field>

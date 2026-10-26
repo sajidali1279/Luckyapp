@@ -177,6 +177,7 @@ export default function DailyReports() {
       {/* Filters */}
       <div style={s.filters}>
         <select
+          aria-label="Store"
           style={s.select}
           value={selectedStoreId}
           onChange={e => setSelectedStoreId(e.target.value)}
@@ -188,6 +189,7 @@ export default function DailyReports() {
         </select>
         <input
           type="date"
+          aria-label="Report date"
           style={s.dateInput}
           value={date}
           onChange={e => setDate(e.target.value)}

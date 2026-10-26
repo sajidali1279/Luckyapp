@@ -33,7 +33,8 @@ export default function PointsExpirySettings() {
   const daysOk = !!lim && Number.isInteger(d) && d >= lim.days.min && d <= lim.days.max;
   const warnOk = !!lim && Number.isInteger(w) && w >= lim.warnDays.min && w <= lim.warnDays.max;
   const changed = !!saved && (d !== saved.days || w !== saved.warnDays);
-  useUnsaved('points-expiry', changed);
+  // while it is off the boxes only set what Switch on will use (there is no Save), so leaving the page does not warn about them
+  useUnsaved('points-expiry', changed && !!saved?.enabled);
 
   const preview = useQuery({
     queryKey: ['points-expiry-preview', daysOk ? d : null],

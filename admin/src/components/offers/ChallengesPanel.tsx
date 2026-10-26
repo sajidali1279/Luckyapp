@@ -12,6 +12,7 @@ import { Button, Card, Badge, Chip, EmptyState, Field, Notice, SectionTitle } fr
 import ConfirmModal from '../ConfirmModal';
 import Modal from '../Modal';
 import CardSkeleton from '../CardSkeleton';
+import ErrorState from '../ErrorState';
 import { storeToday, addDays, startOfStoreDay, endOfStoreDay, storeDayLong } from '../../lib/storeDates';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from './SpanishFields';
 import { AudienceLimitsField, NO_AUDIENCE, audiencePayload, audienceProblem, audienceLabel, type AudienceLimitsValue } from './AudienceLimits';
@@ -31,7 +32,7 @@ export function ruleText(kind: string, target: number, reward: number, minPurcha
 
 export default function ChallengesPanel() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['challenges'], queryFn: () => challengesApi.list() });
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['challenges'], queryFn: () => challengesApi.list() });
   const rows: any[] = data?.data?.data ?? [];
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
@@ -58,7 +59,7 @@ export default function ChallengesPanel() {
         <Button variant={creating ? 'secondary' : 'primary'} icon={creating ? <X /> : <Plus />} onClick={() => setCreating(!creating)}>{creating ? 'Cancel' : 'New challenge'}</Button>
       </div>
       {creating && <NewChallenge onDone={() => { setCreating(false); refresh(); }} />}
-      {isLoading ? <CardSkeleton count={2} /> : rows.length === 0 && !creating ? (
+      {isLoading ? <CardSkeleton count={2} /> : isError ? <ErrorState message="Could not load the challenges." onRetry={() => refetch()} /> : rows.length === 0 && !creating ? (
         <EmptyState icon={<Trophy size={22} />} title="No challenges yet" description='Try "Spend $30 on groceries this week, get 300 pts back".' />
       ) : (
         [['Live now', live], ['Scheduled', later], ['Past', done]].map(([label, list]) => (list as any[]).length > 0 && (

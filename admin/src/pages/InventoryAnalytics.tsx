@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -77,6 +77,7 @@ export default function InventoryAnalytics() {
   const categories: { id: string; name: string }[] = catData?.data?.data || [];
 
   // Inventory analytics
+  const qc = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['inventory-analytics-admin', storeId, period, category],
     queryFn: () => inventoryAnalyticsApi.get({
@@ -100,7 +101,8 @@ export default function InventoryAnalytics() {
       <PageHeader
         title="Inventory Intelligence"
         description={`Order history across ${stores.length} store${stores.length === 1 ? '' : 's'} - ${totalItems} item${totalItems === 1 ? '' : 's'} tracked.`}
-        actions={<Button icon={<RefreshCw />} onClick={() => refetch()} aria-label="Refresh analytics data">Refresh</Button>}
+        // every panel (2026-10-25): the tabs below (restock speed, what people ask for, rewards and hot food) have their own data
+        actions={<Button icon={<RefreshCw />} onClick={() => { qc.invalidateQueries({ queryKey: ['inventory-analytics-admin'] }); qc.invalidateQueries({ queryKey: ['inventory-insights'] }); }} aria-label="Refresh analytics data">Refresh</Button>}
       />
 
       {/* Filters */}

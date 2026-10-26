@@ -186,7 +186,7 @@ export default function MissingPersons() {
         </Card>
       )}
 
-      {q.isLoading ? <div style={{ color: C.muted }}>Loading…</div> : q.isError ? <Notice tone="danger">Could not load the posters.</Notice> : (
+      {q.isLoading ? <div style={{ color: C.muted }}>Loading…</div> : q.isError ? <Notice tone="danger">Could not load the posters. <button type="button" onClick={() => q.refetch()} style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', font: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>Try again</button></Notice> : (
         <>
           {requests.length > 0 && (
             <>

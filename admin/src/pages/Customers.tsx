@@ -227,7 +227,8 @@ export default function Customers() {
       <PageHeader
         title="Customers"
         description="Every customer account, their balances, and disputes to settle."
-        actions={isSuperAdmin && total > 0 && (
+        // only on the customer list: on the other tabs it still exported customers, which looked like an export of that tab
+        actions={isSuperAdmin && total > 0 && activeTab === 'customers' && (
           <Button icon={<Download />} onClick={handleExportCustomers} disabled={exportingCustomers}>
             {exportingCustomers ? 'Exporting…' : 'Export CSV'}
           </Button>

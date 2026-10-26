@@ -448,7 +448,7 @@ export default function StoreLabelsPanel() {
               style={s.searchInput}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by product name or barcode…"
+              placeholder="Search by product name or barcode…" aria-label="Search by product name or barcode"
             />
             {(availableCategories.length > 0 || hasUncategorized) && (
               <select style={s.filterSelect} aria-label="Filter by category" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>

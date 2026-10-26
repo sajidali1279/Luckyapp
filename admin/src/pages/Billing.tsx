@@ -12,7 +12,7 @@ import TableSkeleton from '../components/TableSkeleton';
 import InvoiceModal from '../components/InvoiceModal';
 import CombinedInvoiceModal from '../components/CombinedInvoiceModal';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
 import { PageHeader, Tabs, Button, MenuButton, HowItWorks, Notice } from '../components/kit';
 import { Download, FilePlus2, CalendarRange, Send, FlaskConical, ListChecks } from 'lucide-react';
@@ -56,7 +56,11 @@ export default function Billing() {
   // Default straight to the Monthly Bills tab, pre-filtered to Unpaid — the
   // same thing the sidebar's own Billing badge is counting, so opening this
   // page from that badge doesn't land on an unrelated tab/filter.
-  const [tab, setTab] = useState<Tab>('monthly');
+  // The tab lives in the address (?tab=stores), like the other tabbed pages (2026-10-25): a link, a refresh or Back keeps it
+  const [searchParams, setSearchParams] = useSearchParams();
+  const askedTab = searchParams.get('tab') as Tab | null;
+  const tab: Tab = askedTab && (['stores', 'monthly', 'manual', 'settings'] as Tab[]).includes(askedTab) ? askedTab : 'monthly';
+  const setTab = (t: Tab) => setSearchParams((prev) => { const next = new URLSearchParams(prev); if (t === 'monthly') next.delete('tab'); else next.set('tab', t); return next; }, { replace: true });
   const [showSeedConfirm, setShowSeedConfirm] = useState(false);
   const [confirmDeleteChargeId, setConfirmDeleteChargeId] = useState<string | null>(null);
   // Payments: the box that records how and when a bill was paid, and the way back from a mistake
@@ -238,7 +242,7 @@ export default function Billing() {
   const [editingCharge, setEditingCharge] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ description: '', amount: '' });
 
-  const { data: extraChargesData, isLoading: ecLoading, refetch: refetchCharges } = useQuery({
+  const { data: extraChargesData, isLoading: ecLoading, isError: ecError, refetch: refetchCharges } = useQuery({
     queryKey: ['extra-charges', ecStoreFilter, ecPeriodFilter, ecPaidFilter],
     queryFn: () => billingApi.getExtraCharges(
       ecStoreFilter || undefined,
@@ -812,7 +816,8 @@ export default function Billing() {
                                     <TableCell style={{ ...s.catTd, fontWeight: 700 }}>{inv.totalTxns}</TableCell>
                                     <TableCell style={{ ...s.catTd, fontWeight: 700 }}>{fmt$(inv.totalVolume)}</TableCell>
                                     <TableCell style={s.catTd}></TableCell>
-                                    <TableCell style={{ ...s.catTd, color: '#a51b28', fontWeight: 700, fontSize: 14 }}>{fmt$(inv.totalDevCut)}</TableCell>
+                                    {/* the rows above include extra charges, so the total does too (it showed the fees alone) */}
+                                    <TableCell style={{ ...s.catTd, color: '#a51b28', fontWeight: 700, fontSize: 14 }}>{fmt$(inv.totalDevCut + inv.totalExtraCharges)}</TableCell>
                                     <TableCell style={s.catTd}></TableCell>
                                     <TableCell style={s.catTd}></TableCell>
                                   </TableRow>
@@ -834,7 +839,9 @@ export default function Billing() {
             <div style={s.monthlyTotals}>
               <span>
                 <strong>{consolidatedInvoices.length}</strong> invoices ·{' '}
-                Total Dev Cut: <strong>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.totalDevCut, 0))}</strong> ·{' '}
+                {/* everything billed, extra charges too, so Total = Collected + Outstanding (it was the fees alone, 2026-10-25) */}
+                Total billed: <strong>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.totalDevCut + i.totalExtraCharges, 0))}</strong>
+                {(consolidatedInvoices as any[]).some((i) => i.totalExtraCharges > 0) && <> (extra charges {fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.totalExtraCharges, 0))})</>} ·{' '}
                 Collected: <strong style={{ color: '#17663a' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong> ·{' '}
                 Outstanding: <strong style={{ color: '#a51b28' }}>{fmt$((consolidatedInvoices as any[]).reduce((s, i) => s + i.stores.filter((r: any) => !r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0))}</strong>
               </span>
@@ -985,6 +992,8 @@ export default function Billing() {
 
               {ecLoading ? (
                 <TableSkeleton columns={6} />
+              ) : ecError ? (
+                <ErrorState message="Could not load the extra charges." onRetry={() => refetchCharges()} compact />
               ) : extraCharges.length === 0 ? (
                 <div style={ec.emptyBox}>
                   No extra charges found{ecStoreFilter || ecPeriodFilter || ecPaidFilter ? ' for this filter' : ''}. Add one above.

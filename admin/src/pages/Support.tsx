@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { supportApi } from '../services/api';
+import { serverMessage } from '../lib/apiError';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import { TEXT_MUTED } from '../lib/theme';
@@ -148,6 +150,8 @@ export default function Support() {
       setShowNewModal(false);
       setNewSubject(''); setNewMessage(''); setNewPriority('NORMAL'); setNewCategory('OTHER');
     },
+    // a failure says so and keeps what was typed (2026-10-25: it failed silently)
+    onError: (e) => toast.error(serverMessage(e, 'Could not send the request. Try again.')),
   });
 
   const sendReply = useMutation({
@@ -159,6 +163,7 @@ export default function Support() {
       qc.invalidateQueries({ queryKey: ['support-thread', activeThread?.id] });
       qc.invalidateQueries({ queryKey: ['support-threads'] });
     },
+    onError: (e) => toast.error(serverMessage(e, 'Could not send the reply. It is still in the box: try again.')),
   });
 
   const resolveThread = useMutation({
@@ -168,6 +173,7 @@ export default function Support() {
       qc.invalidateQueries({ queryKey: ['support-threads'] });
       qc.invalidateQueries({ queryKey: ['support-stats'] });
     },
+    onError: (e) => toast.error(serverMessage(e, 'Could not change the status. Try again.')),
   });
 
   const setPriority = useMutation({
@@ -176,6 +182,7 @@ export default function Support() {
       qc.invalidateQueries({ queryKey: ['support-thread', activeThread?.id] });
       qc.invalidateQueries({ queryKey: ['support-threads'] });
     },
+    onError: (e) => toast.error(serverMessage(e, 'Could not change the priority. Try again.')),
   });
 
   const handleSendReply = (e: React.FormEvent) => {
@@ -224,7 +231,7 @@ export default function Support() {
         <div style={s.filterBar}>
           <input
             style={s.filterInput}
-            placeholder="Search by subject…"
+            placeholder="Search by subject…" aria-label="Search by subject"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />

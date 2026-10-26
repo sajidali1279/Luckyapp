@@ -436,7 +436,7 @@ const s: Record<string, React.CSSProperties> = {
  *  cost per item. A category can also be left out (Tobacco by default). */
 export function DealLimitsCard() {
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ['deal-settings'], queryFn: () => labelsApi.getDealSettings() });
+  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['deal-settings'], queryFn: () => labelsApi.getDealSettings() });
   const saved: Limits | undefined = data?.data?.data?.limits;
   const cats: string[] = data?.data?.data?.categories ?? [];
   const [draft, setDraft] = useState<{ defaultPct: string; pct: Record<string, string>; out: Set<string> } | null>(null);
@@ -455,7 +455,8 @@ export function DealLimitsCard() {
     onSuccess: () => { toast.success('Deal limits saved. The ideas follow them now.'); setDraft(null); qc.invalidateQueries({ queryKey: ['deal-settings'] }); qc.invalidateQueries({ queryKey: ['deal-recos'] }); },
     onError: (err) => toast.error(serverMessage(err, 'Could not save the limits.')),
   });
-  if (isLoading || !d) return null;
+  if (isLoading) return <div style={{ color: '#5a6472', fontSize: 14, padding: '12px 0' }}>Loading the deal limits…</div>;
+  if (isError || !d) return <ErrorState message="Could not load the deal limits." onRetry={() => refetch()} compact />;   // (2026-10-25: nothing at all showed)
   const set = (fn: (x: NonNullable<typeof d>) => NonNullable<typeof d>) => setDraft(fn({ defaultPct: d.defaultPct, pct: { ...d.pct }, out: new Set(d.out) }));
   const bad = [d.defaultPct, ...Object.values(d.pct)].some((v) => v.trim() !== '' && !(Number(v) >= 0 && Number(v) <= 50));
   return (

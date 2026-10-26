@@ -45,10 +45,12 @@ export default function WinBackPanel() {
   useEffect(() => { const t = setTimeout(() => setAskFor({ days, storeId }), 350); return () => clearTimeout(t); }, [days, storeId]);
   const previewQ = useQuery({
     queryKey: ['winback-preview', askFor.days, askFor.storeId],
-    queryFn: () => winBackApi.preview(askFor.days, askFor.storeId || null).then((r) => r.data.data as Preview),
+    // a reply that is not the expected shape becomes an empty one (2026-10-25: a missing list crashed the whole Customers page)
+    queryFn: () => winBackApi.preview(askFor.days, askFor.storeId || null).then((r) => { const d = (r.data.data ?? {}) as Partial<Preview>;
+      return { ...d, count: Number(d.count) || 0, byStore: Array.isArray(d.byStore) ? d.byStore : [], sample: Array.isArray(d.sample) ? d.sample : [] } as Preview; }),
     enabled: askFor.days >= 14 && askFor.days <= 365,
   });
-  const listQ = useQuery({ queryKey: ['winback-list'], queryFn: () => winBackApi.list().then((r) => (r.data.data ?? []) as Campaign[]) });
+  const listQ = useQuery({ queryKey: ['winback-list'], queryFn: () => winBackApi.list().then((r) => (Array.isArray(r.data.data) ? r.data.data : []) as Campaign[]) });
 
   const amount = Number(amountText);
   const p = previewQ.data;
@@ -117,7 +119,7 @@ export default function WinBackPanel() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Field label="Name" htmlFor="wb-title"><input id="wb-title" className="ui-input" style={INPUT} value={title} maxLength={60} onChange={(e) => setTitle(e.target.value)} /></Field>
-            <Field label="Message" htmlFor="wb-msg" hint={`${message.length}/160. "${pts} pts added to your balance." is added at the end.`}>
+            <Field label="Message" htmlFor="wb-msg" hint={`"${pts} pts added to your balance." is added at the end.`} after={`${message.length}/160`}>
               <textarea id="wb-msg" className="ui-input" style={{ ...INPUT, minHeight: 64, resize: 'vertical' }} value={message} maxLength={160} onChange={(e) => setMessage(e.target.value)} />
             </Field>
             <Field label="In Spanish" htmlFor="wb-title-es" hint="For customers whose app is in Spanish. Empty: they get the English one.">

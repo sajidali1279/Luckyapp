@@ -101,11 +101,11 @@ export default function NoticeEditorModal({ mode, stores, isHQ, onClose }: {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22, minWidth: 0 }}>
             <section style={s.section}>
               <h3 style={s.sectionTitle}>Message</h3>
-              <Field label="Title" htmlFor="notice-title" hint={<Counter n={title.length} max={MAX_TITLE} />}>
+              <Field label="Title" htmlFor="notice-title" after={<Counter n={title.length} max={MAX_TITLE} />}>
                 <input id="notice-title" className="ui-input" style={INPUT} value={title} maxLength={MAX_TITLE} autoFocus
                   onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Health inspection tomorrow" />
               </Field>
-              <Field label="Notice text" htmlFor="notice-body" hint={<Counter n={body.length} max={MAX_BODY} />}>
+              <Field label="Notice text" htmlFor="notice-body" after={<Counter n={body.length} max={MAX_BODY} />}>
                 <textarea id="notice-body" className="ui-input" style={{ ...INPUT, minHeight: 96, resize: 'vertical' }} value={body} maxLength={MAX_BODY}
                   onChange={(e) => setBody(e.target.value)} placeholder="What staff need to know, and what to do." />
               </Field>

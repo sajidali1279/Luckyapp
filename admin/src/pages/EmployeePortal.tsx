@@ -213,7 +213,7 @@ function NewRequestTab() {
             onFocus={() => setShowSugg(true)}
             onBlur={() => setTimeout(() => setShowSugg(false), 150)}
             onKeyDown={e => { if (e.key === 'Enter') { if (suggs.length > 0 && showSugg) addFromSugg(suggs[0]); else addManual(); } }}
-            placeholder="Search or type item name…"
+            placeholder="Search or type item name…" aria-label="Search or type item name"
             autoComplete="off"
           />
           {search.trim() && (

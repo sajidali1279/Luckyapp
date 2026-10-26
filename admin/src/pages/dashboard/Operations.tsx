@@ -320,6 +320,8 @@ function ReviewFeed() {
   const pending: any[] = pendingQ.data?.data?.data?.transactions ?? [];
   const latest: any[] = latestQ.data?.data?.data?.transactions ?? [];
   const review = [...flagged, ...pending];
+  const REVIEW_ROWS = 6, LATEST_ROWS = 5;   // the rest are one click away on Transactions
+  const reviewTotal = (flaggedQ.data?.data?.data?.total ?? flagged.length) + (pendingQ.data?.data?.data?.total ?? pending.length);
 
   const done = () => {
     ['feed', 'platform-summary', 'transactions-pending-count', 'all-transactions', 'store-health', 'platform-compare'].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
@@ -379,7 +381,7 @@ function ReviewFeed() {
           {review.length > 0 && (
             <>
               <div style={s.feedGroup}>Needs review ({review.length}{(flaggedQ.data?.data?.data?.total ?? 0) + (pendingQ.data?.data?.data?.total ?? 0) > review.length ? '+' : ''})</div>
-              {review.map((tx: any) => {
+              {review.slice(0, REVIEW_ROWS).map((tx: any) => {
                 const isFlagged = tx.status === 'FLAGGED';
                 const who = tx.customer?.name || tx.customer?.phone || 'the customer';
                 const flags = parseFlags(tx.fraudFlags);
@@ -413,12 +415,17 @@ function ReviewFeed() {
                   </div>
                 );
               })}
+              {reviewTotal > REVIEW_ROWS && (
+                <button onClick={() => navigate('/transactions')} style={{ ...s.sectionLink, display: 'block', padding: '10px 14px' }}>
+                  See all {reviewTotal} waiting on Transactions →
+                </button>
+              )}
             </>
           )}
           <div style={s.feedGroup}>Latest activity</div>
           {latest.length === 0 ? (
             <div style={s.emptyState}>No transactions yet.</div>
-          ) : latest.map((tx: any) => (
+          ) : latest.slice(0, LATEST_ROWS).map((tx: any) => (
             <div key={tx.id} style={{ ...s.recentRow, cursor: 'pointer' }} {...activate(() => navigate('/transactions'))}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={s.recentCustomer}>{tx.customer?.name || tx.customer?.phone || 'Customer'}</div>

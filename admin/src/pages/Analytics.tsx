@@ -595,9 +595,11 @@ const s: Record<string, React.CSSProperties> = {
   todaySwatch: { width: 14, height: 14, borderRadius: 3, background: '#e4e7ec', display: 'inline-block' },
 
   summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14, marginBottom: 28 },
-  summaryCard: { background: '#fff', borderRadius: 12, padding: '18px 20px', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', alignItems: 'center', gap: 14, border: '1px solid #e4e7ec' },
+  summaryCard: { background: '#fff', borderRadius: 12, padding: '18px 20px', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', display: 'flex', alignItems: 'flex-start', gap: 14, border: '1px solid #e4e7ec' },
   summaryIcon: { fontSize: 28, flexShrink: 0 },
-  summaryLabel: { color: TEXT_MUTED, fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 },
+  // every label gets the same two-line slot, its text at the bottom, so the figures line up across the cards whether a label
+  // wraps or not (2026-10-25: they sat at three different heights)
+  summaryLabel: { color: TEXT_MUTED, fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, minHeight: '2.5em', display: 'flex', alignItems: 'flex-end' },
   summaryValue: { fontSize: 22, fontWeight: 700, color: PRIMARY, marginTop: 2 },
   summarySub: { color: TEXT_MUTED, fontSize: 13, marginTop: 2 },
 

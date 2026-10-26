@@ -245,7 +245,7 @@ export default function Chat() {
   );
 
   return (
-    <div style={s.container}>
+    <div style={s.container} className="ui-split">
       <ConfirmModal
         open={showClearConfirm}
         title="Clear Chat"
@@ -259,7 +259,7 @@ export default function Chat() {
           Store Manager is auto-selected above. A Store Manager assigned to
           more than one store still needs this to switch between them. ── */}
       {(!isStoreManager || stores.length > 1) && (
-        <div style={s.sidebar}>
+        <div style={s.sidebar} className="ui-split-list">
           <div style={s.sidebarTop}>
             <div style={s.sidebarTitle}>Messages</div>
             <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>

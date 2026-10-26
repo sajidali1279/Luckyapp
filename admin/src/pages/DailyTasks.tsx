@@ -175,8 +175,8 @@ export default function DailyTasks() {
       {/* Scope filter - StoreManager always sees chain-wide + their own store combined */}
       {!isStoreManager && (
         <div style={s.filterRow}>
-          <label style={s.filterLabel}>Showing tasks for:</label>
-          <select style={s.select} value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
+          <label style={s.filterLabel} htmlFor="dt-scope">Showing tasks for:</label>
+          <select id="dt-scope" style={s.select} value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
             <option value="global">All Stores (Chain-wide)</option>
             {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
           </select>
@@ -337,9 +337,9 @@ const s: Record<string, React.CSSProperties> = {
   seedBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: '#f1f3f6', border: '1.5px solid #d5dae1', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' },
   addBtn: { display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', background: PRIMARY, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer' },
 
-  filterRow: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 },
+  filterRow: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' },
   filterLabel: { fontSize: 14, fontWeight: 600, color: '#374151', flexShrink: 0 },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827', background: '#fff', cursor: 'pointer', minWidth: 220 },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827', background: '#fff', cursor: 'pointer', minWidth: 'min(220px, 100%)' },
 
   empty: { textAlign: 'center', padding: '60px 0', color: TEXT_MUTED, fontSize: 15 },
   emptyState: { textAlign: 'center', padding: '80px 0' },

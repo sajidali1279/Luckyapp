@@ -9,6 +9,9 @@ import { PageHeader } from '../components/kit';
 import Glyph from '../components/Glyph';
 import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
+// Gold, silver and bronze for the top three (2026-10-25: first and third were the same colour)
+const MEDAL = ['#B8860B', '#6B7280', '#A0522D'];
+
 interface Store { id: string; name: string }
 interface CustomerEntry { rank: number; customerId: string; firstName: string; totalPoints: number; isCurrentUser: boolean }
 interface EmployeeEntry { rank: number; employeeId: string; firstName: string; avgRating: number; ratingCount: number; isEmployeeOfMonth: boolean }
@@ -45,7 +48,7 @@ export default function LeaderboardPage() {
   });
   const customers: CustomerEntry[] = custData?.data?.data || [];
 
-  const { data: empData, isLoading: empLoading } = useQuery({
+  const { data: empData, isLoading: empLoading, isError: empError, refetch: refetchEmp } = useQuery({
     queryKey: ['leaderboard-employees', employeeStoreId],
     queryFn: () => leaderboardApi.getEmployees(employeeStoreId),
     enabled: !!employeeStoreId,
@@ -107,7 +110,7 @@ export default function LeaderboardPage() {
                     {customers.map((c, i) => (
                       <TableRow key={c.customerId} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                         <TableCell style={{ ...s.td, width: 60, textAlign: 'center' }}>
-                          {c.rank <= 3 ? <Glyph e="🏅" size={18} color={['#8a5300', '#5a6472', '#8a5300'][c.rank - 1]} style={{ verticalAlign: -4 }} /> : (
+                          {c.rank <= 3 ? <Glyph e="🏅" size={18} color={MEDAL[c.rank - 1]} style={{ verticalAlign: -4 }} /> : (
                             <span style={s.rankNum}>#{c.rank}</span>
                           )}
                         </TableCell>
@@ -169,6 +172,9 @@ export default function LeaderboardPage() {
               </div>
             ) : empLoading ? (
               <TableSkeleton columns={4} />
+            ) : empError ? (
+              // a failed load says so (it said "No ratings yet")
+              <ErrorState onRetry={() => refetchEmp()} />
             ) : employees.length === 0 ? (
               <div style={s.empty}>
                 <div style={{ fontSize: 36 }}><Glyph e="⭐" size={28} color="#5a6472" /></div>
@@ -189,7 +195,7 @@ export default function LeaderboardPage() {
                     {employees.map((e: EmployeeEntry, i: number) => (
                       <TableRow key={e.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                         <TableCell style={{ ...s.td, width: 60, textAlign: 'center' }}>
-                          {e.rank <= 3 ? <Glyph e="🏅" size={18} color={['#8a5300', '#5a6472', '#8a5300'][e.rank - 1]} style={{ verticalAlign: -4 }} /> : (
+                          {e.rank <= 3 ? <Glyph e="🏅" size={18} color={MEDAL[e.rank - 1]} style={{ verticalAlign: -4 }} /> : (
                             <span style={s.rankNum}>#{e.rank}</span>
                           )}
                         </TableCell>
@@ -232,7 +238,7 @@ const s: Record<string, React.CSSProperties> = {
   pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   pageSub: { color: '#5a6472', marginTop: 4, fontSize: 14 },
 
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: 24 },   // one column on a phone
 
   panel: {
     background: '#fff', borderRadius: 12, overflow: 'hidden',

@@ -26,8 +26,9 @@ export default function HealthView() {
   });
 
   const totalStale: number = data?.data?.data?.totalStale ?? 0;
-  const totalStores: number = data?.data?.data?.totalStores ?? 0;
   const storesWithStale: number = data?.data?.data?.storesWithStale ?? 0;
+  // never fewer than the stores behind (a missing total read "4 of 0 stores")
+  const totalStores: number = Math.max(Number(data?.data?.data?.totalStores) || 0, storesWithStale);
   const byStore: StoreHealth[] = data?.data?.data?.byStore ?? [];
   const noPriceItems: number = data?.data?.data?.noPriceItems ?? 0;
 

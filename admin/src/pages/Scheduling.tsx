@@ -236,11 +236,11 @@ export default function Scheduling() {
   const gradient = STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0];
 
   return (
-    <div style={s.page}>
+    <div style={s.page} className="ui-split">
       {/* ── Sidebar - hidden only when there's nothing to pick: a single-store
           manager is auto-selected above. A Store Manager assigned to more
           than one store still needs this to switch between them. ── */}
-      {(!isStoreManager || stores.length > 1) && <div style={s.sidebar}>
+      {(!isStoreManager || stores.length > 1) && <div style={s.sidebar} className="ui-split-list">
         <div style={s.sidebarTop}>
           <div style={s.sidebarTitle}>Scheduling</div>
           <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>

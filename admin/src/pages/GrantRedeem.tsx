@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import { Camera, Search, X, Receipt, Gift, Wallet, Star, PartyPopper, Clock, Plus, Trash2, CheckCircle2, ImagePlus } from 'lucide-react';
 import { counterApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { Page, PageHeader, Card, SectionTitle, Button, Tabs, Badge, Notice, Field, EmptyState, HowItWorks } from '../components/kit';
+import { Page, PageHeader, Card, SectionTitle, Button, Tabs, Badge, Notice, Field, EmptyState, HowItWorks, FieldAction } from '../components/kit';
 import ConfirmModal from '../components/ConfirmModal';
 import { C, FONT, INPUT, RADIUS } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
@@ -565,7 +565,7 @@ function Counter() {
                   const gas = isGasCategory(l.category);
                   const gallons = gas && Number(l.amount) > 0 && Number(l.ppg) > 0 ? (Number(l.amount) / Number(l.ppg)).toFixed(3) : null;
                   return (
-                    <div key={l.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', padding: 12, borderRadius: RADIUS.md, border: `1px solid ${C.border}`, background: done ? C.successTint : C.surface }}>
+                    <div key={l.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap', padding: 12, borderRadius: RADIUS.md, border: `1px solid ${C.border}`, background: done ? C.successTint : C.surface }}>
                       <Field label={`Item ${i + 1}`} htmlFor={`gr-cat-${l.key}`} style={{ flex: '1 1 170px' }}>
                         <select id={`gr-cat-${l.key}`} className="ui-input" style={INPUT} value={l.category} disabled={done || granting} onChange={(e) => setLine(l.key, { category: e.target.value })}>
                           {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -581,10 +581,11 @@ function Counter() {
                             onChange={(e) => setLine(l.key, { ppg: e.target.value.replace(/[^\d.]/g, '') })} />
                         </Field>
                       )}
+                      {/* top-aligned (2026-10-25): the gallons line under the price never pushes the boxes out of line */}
                       {done ? (
-                        <Badge tone="success" style={{ marginBottom: 8 }}>Entered, waiting for the receipt</Badge>
+                        <FieldAction><Badge tone="success">Entered, waiting for the receipt</Badge></FieldAction>
                       ) : lines.length > 1 && (
-                        <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} aria-label={`Remove item ${i + 1}`} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} disabled={granting} style={{ marginBottom: 6 }} />
+                        <FieldAction><Button size="sm" variant="ghost" icon={<Trash2 size={14} />} aria-label={`Remove item ${i + 1}`} onClick={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} disabled={granting} /></FieldAction>
                       )}
                     </div>
                   );

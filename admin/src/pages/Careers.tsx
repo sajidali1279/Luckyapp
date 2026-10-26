@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { failureMessage } from '../lib/apiError';
 import { careersApi, jobOpeningsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { useAdminBadges } from '../hooks/useAdminBadges';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -133,7 +134,9 @@ export default function Careers() {
   // Same "new" definition the sidebar's own Careers badge counts by — shown
   // here too so the Applications tab isn't a blank guess when that badge
   // pointed you at this page.
-  const newAppCount = applications.filter(a => a.status === 'NEW').length;
+  // (2026-10-25) taken from the same badge source, not from the filtered list: filtered by Reviewed, the list has no new ones
+  const { careersNewCount: newAppCount } = useAdminBadges();
+  const filtered = activeTab !== 'ALL' || !!selectedPosition || !!selectedStore;
   const total: number = data?.data?.data?.total ?? 0;
   const stores = storesData?.data?.data ?? [];
   const openings: JobOpening[] = openingsData?.data?.data ?? [];
@@ -219,7 +222,7 @@ export default function Careers() {
       {/* Header */}
       <PageHeader
         title="Careers"
-        description={`${openings.length} opening${openings.length !== 1 ? 's' : ''} · ${total} application${total !== 1 ? 's' : ''}`}
+        description={`${openings.length} opening${openings.length !== 1 ? 's' : ''} · ${total} application${total !== 1 ? 's' : ''}${filtered ? ' match the filters' : ''}`}
         actions={mainTab === 'openings' && (
           <Button variant="primary" icon={<Plus />} onClick={() => { setEditingOpening(null); setOpeningForm(emptyForm); setShowOpeningForm(true); }}>
             Post Opening
@@ -326,7 +329,7 @@ export default function Careers() {
                 return (
                   <TableRow key={app.id} style={s.tr} onClick={() => openApp(app)} aria-label={`Open application from ${app.name}`}>
                     <TableCell style={s.td}>
-                      <div style={s.appName}>{app.name}</div>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); openApp(app); }} style={{ ...s.appName, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit', fontWeight: 700 }} aria-label={`Open the application from ${app.name}`}>{app.name}</button>
                       <div style={s.appPhone}>{app.phone}</div>
                     </TableCell>
                     <TableCell style={s.td}>{POSITION_LABELS[app.position] ?? app.position}</TableCell>

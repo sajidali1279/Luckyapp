@@ -91,7 +91,10 @@ export default function SuperAdminBilling() {
                   >
                     <TableCell style={s.td}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={s.expandBtn}>{expanded === inv.period ? '▼' : '▶'}</span>
+                        {/* a real button, so the breakdown opens with the keyboard too (the row itself only takes a mouse click) */}
+                        <button type="button" style={{ ...s.expandBtn, background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}
+                          aria-expanded={expanded === inv.period} aria-label={`${expanded === inv.period ? 'Hide' : 'Show'} the store breakdown for ${periodLabel(inv.period)}`}
+                          onClick={(e) => { e.stopPropagation(); setExpanded(expanded === inv.period ? null : inv.period); }}>{expanded === inv.period ? '▼' : '▶'}</button>
                         <div>
                           <strong>{periodLabel(inv.period)}</strong>
                           <div style={s.sub}>{inv.stores.length} store{inv.stores.length !== 1 ? 's' : ''}</div>

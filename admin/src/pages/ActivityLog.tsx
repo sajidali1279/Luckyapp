@@ -120,6 +120,32 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   STORE_GOAL_CREATE:          { label: 'Store Goal Created', color: '#1a7f45', bg: '#2DC65318', icon: '🏪' },
   FLASH_DEAL_CREATE:          { label: 'Flash Deal Sent', color: '#a51b28', bg: '#CC293618', icon: '⚡' },
   FLASH_DEAL_END:             { label: 'Flash Deal Ended', color: '#5a6472', bg: '#5a647218', icon: '⚡' },
+  SETTINGS_RULES_UPDATE:          { label: 'Rules Changed', color: '#1D3557', bg: '#0369a118', icon: '⚙️' },
+  SETTINGS_FEATURES_UPDATE:       { label: 'Features Switched', color: '#1D3557', bg: '#0369a118', icon: '🎚️' },
+  SETTINGS_BUSINESS_UPDATE:       { label: 'Contact Details Changed', color: '#1D3557', bg: '#0369a118', icon: '☎️' },
+  SETTINGS_WELCOME_UPDATE:        { label: 'Joining Bonus Changed', color: '#1D3557', bg: '#0369a118', icon: '🎁' },
+  SETTINGS_EXPIRY_UPDATE:         { label: 'Points Expiry Changed', color: '#1D3557', bg: '#0369a118', icon: '⏳' },
+  REFERRAL_SETTINGS_UPDATE:       { label: 'Refer a Friend Changed', color: '#1D3557', bg: '#0369a118', icon: '🤝' },
+  RECEIPT_SCAN_SETTINGS:          { label: 'Receipt Scanning Changed', color: '#1D3557', bg: '#0369a118', icon: '🧾' },
+  RECEIPT_SCAN:                   { label: 'Receipt Scanned', color: '#1D3557', bg: '#0369a118', icon: '🧾' },
+  POINTS_EXPIRED:                 { label: 'Points Expired', color: '#8a5300', bg: '#fdf6e8', icon: '⏳' },
+  POINTS_EXPIRY_SKIPPED:          { label: 'Points Expiry Skipped', color: '#5a6472', bg: '#5a647218', icon: '⏳' },
+  POINTS_EXPIRY_UNDONE:           { label: 'Points Expiry Undone', color: '#1a7f45', bg: '#2DC65318', icon: '↩️' },
+  CANCEL_UNFINISHED_SALES:        { label: 'Unfinished Sales Cancelled', color: '#8a5300', bg: '#fdf6e8', icon: '🧹' },
+  CUSTOMER_UNLOCK:                { label: 'Customer Unlocked', color: '#1a7f45', bg: '#2DC65318', icon: '🔓' },
+  CUSTOMER_NOTE_DELETE:           { label: 'Customer Note Deleted', color: '#5a6472', bg: '#5a647218', icon: '🗒️' },
+  HOT_FOOD_COMBO_CREATE:          { label: 'Hot Food Combo Added', color: '#c2410c', bg: '#c2410c18', icon: '🍱' },
+  HOT_FOOD_COMBO_UPDATE:          { label: 'Hot Food Combo Changed', color: '#c2410c', bg: '#c2410c18', icon: '🍱' },
+  HOT_FOOD_COMBO_DELETE:          { label: 'Hot Food Combo Removed', color: '#a51b28', bg: '#CC293618', icon: '🍱' },
+  HOT_FOOD_MENU_GRID:             { label: 'Hot Food Menus Changed', color: '#c2410c', bg: '#c2410c18', icon: '🍗' },
+  COMBO_IDEAS_RESTORED:           { label: 'Combo Ideas Shown Again', color: '#1D3557', bg: '#0369a118', icon: '💡' },
+  LABEL_PRINTER_FINE_TUNE:        { label: 'Label Printer Adjusted', color: '#1D3557', bg: '#0369a118', icon: '🖨️' },
+  MISSING_PERSON_REQUESTED:       { label: 'Missing Person Poster Requested', color: '#8a5300', bg: '#fdf6e8', icon: '📝' },
+  MISSING_PERSON_REQUEST_DECLINED:{ label: 'Missing Person Request Declined', color: '#a51b28', bg: '#CC293618', icon: '📝' },
+  MISSING_PERSON_ALERT:           { label: 'Missing Person Alert Sent', color: '#a51b28', bg: '#CC293618', icon: '🚨' },
+  MISSING_PERSON_ENDED:           { label: 'Missing Person Poster Ended', color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
+  UPDATE_BANNER:                  { label: 'Banner Changed', color: '#1D3557', bg: '#0369a118', icon: '🖼️' },
+  TEST_PUSH:                      { label: 'Test Push Sent', color: '#5a6472', bg: '#5a647218', icon: '🔔' },
   STORE_GOAL_UPDATE:          { label: 'Store Goal Changed', color: '#1D3557', bg: '#0369a118', icon: '🏪' },
   SETTINGS_THEME_UPDATE:      { label: 'App Theme Changed', color: '#1D3557', bg: '#0369a118', icon: '🎃' },
   ORDER_CATEGORY_DELETED:       { label: 'Order Category Deleted', color: '#c42130', bg: '#E6394618', icon: '🗂️' },
@@ -329,7 +355,7 @@ export default function ActivityLog() {
 
       {/* Filters */}
       <div style={s.filters}>
-        <select style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
+        <select aria-label="Action" style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
           <option value="">All Actions</option>
           <optgroup label="── Points ──">
             {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','WELCOME_GIFT','WINBACK_SEND','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
@@ -403,7 +429,7 @@ export default function ActivityLog() {
           </optgroup>
         </select>
 
-        <select style={s.select} value={actorRole} onChange={(e) => { setActorRole(e.target.value); setPage(1); }}>
+        <select aria-label="Who did it" style={s.select} value={actorRole} onChange={(e) => { setActorRole(e.target.value); setPage(1); }}>
           <option value="">All Roles</option>
           <option value="DEV_ADMIN">Dev Admin</option>
           <option value="SUPER_ADMIN">Super Admin</option>
@@ -412,16 +438,16 @@ export default function ActivityLog() {
           <option value="CUSTOMER">Customer</option>
         </select>
 
-        <select style={s.select} value={storeId} onChange={(e) => { setStoreId(e.target.value); setPage(1); }}>
+        <select aria-label="Store" style={s.select} value={storeId} onChange={(e) => { setStoreId(e.target.value); setPage(1); }}>
           <option value="">All Stores</option>
           {stores.map((s: any) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
 
-        <input style={s.dateInput} type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
+        <input aria-label="From date" style={s.dateInput} type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
         <span style={{ color: TEXT_MUTED, fontSize: 15 }}>to</span>
-        <input style={s.dateInput} type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
+        <input aria-label="To date" style={s.dateInput} type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
 
         <button style={s.clearBtn} onClick={resetFilters}>Clear</button>
 
@@ -457,7 +483,7 @@ export default function ActivityLog() {
 
                 {/* Detail */}
                 <div style={narrow ? { ...s.detail, gridColumn: '1 / -1', order: 4 } : s.detail}>
-                  {detail && <span style={narrow ? { ...s.detailText, whiteSpace: 'normal' } : s.detailText}>{detail}</span>}
+                  {detail && <span style={narrow ? { ...s.detailText, whiteSpace: 'normal' } : s.detailText} title={typeof detail === 'string' ? detail : undefined}>{detail}</span>}
                   {log.storeName && <span style={s.storeTag}>{log.storeName}</span>}
                   {!log.storeName && log.storeId && <span style={s.storeTag}>store</span>}
                 </div>
@@ -528,7 +554,8 @@ const s: Record<string, React.CSSProperties> = {
   roleBadge: { fontSize: 13, fontWeight: 600 },
 
   detail: { display: 'flex', flexDirection: 'column', gap: 3, overflow: 'hidden' },
-  detailText: { fontSize: 15, color: '#374151', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' },
+  // up to three lines, the rest on hover (2026-10-25: one line cut short, so long change summaries could not be read)
+  detailText: { fontSize: 15, color: '#374151', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' },
   storeTag: { fontSize: 13, color: TEXT_MUTED },
 
   time: { fontSize: 14, color: TEXT_MUTED, textAlign: 'right' as const, cursor: 'default', whiteSpace: 'nowrap' as const },

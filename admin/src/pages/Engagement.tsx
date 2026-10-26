@@ -8,7 +8,7 @@ import { engagementApi, challengesApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { addDays, dayLabel, endOfStoreDay, startOfStoreDay, storeToday } from '../lib/storeDates';
-import { Page, PageHeader, Card, Button, Badge, Notice, Field, StatTile, SectionTitle } from '../components/kit';
+import { Page, PageHeader, Card, Button, Badge, Notice, Field, FieldRow, FieldAction, StatTile, SectionTitle } from '../components/kit';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 
@@ -104,6 +104,14 @@ function Feature({ id, emoji, title, blurb, on, onToggle, busy, money, confirmOn
   );
 }
 
+/** What each feature is called in a sentence ("Open the welcome series"); a feature the page does not know reads "Open it". */
+const FEATURE_NAMES: Record<string, string> = {
+  streaks: 'visit streaks', punchCards: 'punch cards', checkIn: 'daily check-in', badges: 'badges', storeGoals: 'store goals', reorder: 'Order your usual',
+  gasAlerts: 'gas price alerts', sharing: 'sharing', ratePrompt: 'Rate the app', welcome: 'the welcome series', birthday: 'the birthday gift',
+  tierUp: 'the tier celebration', weeklyChallenge: 'the challenge of the week', flashDeals: 'flash deals', friendsBoard: 'the friends leaderboard',
+  mascot: 'the mascot', games: 'the prize game', nudges: 'smart nudges', events: 'the event kit',
+};
+
 const row: React.CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' };
 const smallInput: React.CSSProperties = { ...INPUT, width: 96 };
 
@@ -140,7 +148,7 @@ export default function Engagement() {
               <Card key={s.id} padding={16} style={{ borderLeft: `4px solid ${s.tone === 'tip' ? C.primary : C.border}` }}>
                 <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{s.title}</div>
                 <div style={{ fontSize: FONT.small, color: TEXT_MUTED, marginBottom: 8 }}>{s.detail}</div>
-                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {s.feature === 'nudges' ? 'smart nudges' : s.feature === 'storeGoals' ? 'store goals' : s.feature === 'checkIn' ? 'daily check-in' : s.feature === 'events' ? 'the event kit' : s.feature === 'welcome' ? 'the welcome series' : s.feature === 'birthday' ? 'the birthday gift' : s.feature === 'friendsBoard' ? 'the friends leaderboard' : s.feature}</Button>
+                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {FEATURE_NAMES[s.feature] ?? 'it'}</Button>
               </Card>
             ))}
           </div>
@@ -266,8 +274,8 @@ function StreaksEditor({ value, defaults, onSave, busy }: { value: Config['strea
         <div style={{ fontWeight: 700, color: C.text, marginBottom: 6 }}>Bonuses</div>
         {ms.map((m, i) => (
           <div key={i} style={{ ...row, marginBottom: 8 }}>
-            <Field label={i === 0 ? 'Weeks in a row' : ''} htmlFor={`st-w${i}`}><input id={`st-w${i}`} style={smallInput} inputMode="numeric" value={m.weeks} onChange={(e) => setMs((a) => a.map((x, j) => (j === i ? { ...x, weeks: whole(e.target.value) } : x)))} /></Field>
-            <Field label={i === 0 ? 'Bonus (pts)' : ''} htmlFor={`st-p${i}`}><input id={`st-p${i}`} style={smallInput} inputMode="numeric" value={m.pts} onChange={(e) => setMs((a) => a.map((x, j) => (j === i ? { ...x, pts: whole(e.target.value) } : x)))} /></Field>
+            <Field label={i === 0 ? 'Weeks in a row' : ''} htmlFor={`st-w${i}`}><input id={`st-w${i}`} aria-label={`Bonus ${i + 1}: weeks in a row`} style={smallInput} inputMode="numeric" value={m.weeks} onChange={(e) => setMs((a) => a.map((x, j) => (j === i ? { ...x, weeks: whole(e.target.value) } : x)))} /></Field>
+            <Field label={i === 0 ? 'Bonus (pts)' : ''} htmlFor={`st-p${i}`}><input id={`st-p${i}`} aria-label={`Bonus ${i + 1}: points`} style={smallInput} inputMode="numeric" value={m.pts} onChange={(e) => setMs((a) => a.map((x, j) => (j === i ? { ...x, pts: whole(e.target.value) } : x)))} /></Field>
             <span style={{ fontSize: FONT.small, color: TEXT_MUTED, paddingBottom: 10 }}>{Number.isFinite(num(m.pts)) ? usd(num(m.pts)) : ''}</span>
             <Button size="sm" variant="secondary" onClick={() => setMs((a) => a.filter((_, j) => j !== i))} disabled={ms.length <= 1}>Remove</Button>
           </div>
@@ -311,8 +319,8 @@ function CheckInEditor({ value, defaults, onSave, busy }: { value: Config['check
             <div style={{ fontWeight: 700, color: C.text, marginBottom: 6 }}>Prizes (a bigger "chance" number comes up more often)</div>
             {f.mystery.map((p, i) => (
               <div key={i} style={{ ...row, marginBottom: 8 }}>
-                <Field label={i === 0 ? 'Points' : ''} htmlFor={`ci-mp${i}`}><input id={`ci-mp${i}`} style={smallInput} inputMode="numeric" value={p.pts} onChange={(e) => setF((x) => ({ ...x, mystery: x.mystery.map((y, j) => (j === i ? { ...y, pts: whole(e.target.value) } : y)) }))} /></Field>
-                <Field label={i === 0 ? 'Chance' : ''} htmlFor={`ci-mw${i}`}><input id={`ci-mw${i}`} style={smallInput} inputMode="numeric" value={p.weight} onChange={(e) => setF((x) => ({ ...x, mystery: x.mystery.map((y, j) => (j === i ? { ...y, weight: whole(e.target.value) } : y)) }))} /></Field>
+                <Field label={i === 0 ? 'Points' : ''} htmlFor={`ci-mp${i}`}><input id={`ci-mp${i}`} aria-label={`Prize ${i + 1}: points`} style={smallInput} inputMode="numeric" value={p.pts} onChange={(e) => setF((x) => ({ ...x, mystery: x.mystery.map((y, j) => (j === i ? { ...y, pts: whole(e.target.value) } : y)) }))} /></Field>
+                <Field label={i === 0 ? 'Chance' : ''} htmlFor={`ci-mw${i}`}><input id={`ci-mw${i}`} aria-label={`Prize ${i + 1}: chance`} style={smallInput} inputMode="numeric" value={p.weight} onChange={(e) => setF((x) => ({ ...x, mystery: x.mystery.map((y, j) => (j === i ? { ...y, weight: whole(e.target.value) } : y)) }))} /></Field>
                 <span style={{ fontSize: FONT.small, color: TEXT_MUTED, paddingBottom: 10 }}>{totalW ? `${Math.round(((num(p.weight) || 0) / totalW) * 100)}% of days` : ''}</span>
                 <Button size="sm" variant="secondary" disabled={f.mystery.length <= 1} onClick={() => setF((x) => ({ ...x, mystery: x.mystery.filter((_, j) => j !== i) }))}>Remove</Button>
               </div>
@@ -321,11 +329,11 @@ function CheckInEditor({ value, defaults, onSave, busy }: { value: Config['check
             <p style={{ fontSize: FONT.small, color: TEXT_MUTED, margin: '6px 0 0' }}>On average a check-in pays {expected.toFixed(1)} pts. Everyone gets a prize: it is a free daily reveal, not a game of chance with anything at stake.</p>
           </div>
         )}
-      <div style={row}>
+      <FieldRow>
         <Field label="Extra on day 7 (pts)" htmlFor="ci-wk"><input id="ci-wk" style={smallInput} inputMode="numeric" value={f.weekBonusPts} onChange={setN('weekBonusPts')} /></Field>
         <Field label="Most a customer can get a month (pts)" htmlFor="ci-cap" hint={Number.isFinite(n.cap) ? usd(n.cap) : ''}><input id="ci-cap" style={smallInput} inputMode="numeric" value={f.cap} onChange={setN('cap')} /></Field>
         <Field label="Must have bought within (days, 0 = ever)" htmlFor="ci-visit"><input id="ci-visit" style={smallInput} inputMode="numeric" value={f.visit} onChange={setN('visit')} /></Field>
-      </div>
+      </FieldRow>
       <Notice>The most this can cost for one customer in a month is {Number.isFinite(n.cap) ? usd(n.cap) : '...'}, whatever else is set. Paid as a normal bonus line, so it shows in the customer's history and in billing like any cashback.</Notice>
       <div style={row}>
         <Button variant="primary" disabled={bad || busy} onClick={() => onSave({ mode: f.mode, pts: n.pts, weekBonusPts: n.week, monthlyCapPts: n.cap, needVisitDays: n.visit, mystery: prizes })}>Save</Button>
@@ -391,10 +399,10 @@ function WelcomeEditor({ value, defaults, onSave, busy, sent }: { value: Config[
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8 }}>
                 {(['En', 'Es'] as const).map((lang) => (
                   <div key={lang} style={{ display: 'grid', gap: 6 }}>
-                    <Field label={`Title (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`wl-${ch.key}-t${lang}`} hint={`${texts[ch.key][`title${lang}`].length} of ${WELCOME_TITLE_MAX}`}>
+                    <Field label={`Title (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`wl-${ch.key}-t${lang}`} after={`${texts[ch.key][`title${lang}`].length} of ${WELCOME_TITLE_MAX}`}>
                       <input id={`wl-${ch.key}-t${lang}`} style={INPUT} maxLength={WELCOME_TITLE_MAX} value={texts[ch.key][`title${lang}`]} onChange={(e) => setText(ch.key, `title${lang}`, e.target.value)} />
                     </Field>
-                    <Field label={`Message (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`wl-${ch.key}-b${lang}`} hint={`${texts[ch.key][`body${lang}`].length} of ${WELCOME_BODY_MAX}`}>
+                    <Field label={`Message (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`wl-${ch.key}-b${lang}`} after={`${texts[ch.key][`body${lang}`].length} of ${WELCOME_BODY_MAX}`}>
                       <textarea id={`wl-${ch.key}-b${lang}`} style={{ ...INPUT, minHeight: 64, resize: 'vertical' }} maxLength={WELCOME_BODY_MAX} value={texts[ch.key][`body${lang}`]} onChange={(e) => setText(ch.key, `body${lang}`, e.target.value)} />
                     </Field>
                   </div>
@@ -424,10 +432,10 @@ function PushTextFields({ id, value, onChange }: { id: string; value: PushText; 
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8 }}>
       {(['En', 'Es'] as const).map((lang) => (
         <div key={lang} style={{ display: 'grid', gap: 6 }}>
-          <Field label={`Title (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`${id}-t${lang}`} hint={`${value[`title${lang}`].length} of ${PUSH_TITLE_MAX}`}>
+          <Field label={`Title (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`${id}-t${lang}`} after={`${value[`title${lang}`].length} of ${PUSH_TITLE_MAX}`}>
             <input id={`${id}-t${lang}`} style={INPUT} maxLength={PUSH_TITLE_MAX} value={value[`title${lang}`]} onChange={(e) => onChange({ ...value, [`title${lang}`]: e.target.value })} />
           </Field>
-          <Field label={`Message (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`${id}-b${lang}`} hint={`${value[`body${lang}`].length} of ${PUSH_BODY_MAX}`}>
+          <Field label={`Message (${lang === 'En' ? 'English' : 'Spanish'})`} htmlFor={`${id}-b${lang}`} after={`${value[`body${lang}`].length} of ${PUSH_BODY_MAX}`}>
             <textarea id={`${id}-b${lang}`} style={{ ...INPUT, minHeight: 64, resize: 'vertical' }} maxLength={PUSH_BODY_MAX} value={value[`body${lang}`]} onChange={(e) => onChange({ ...value, [`body${lang}`]: e.target.value })} />
           </Field>
         </div>
@@ -531,7 +539,7 @@ function WeeklyEditor({ value, weekly, stores, onSave, busy }: { value: Config['
 
       <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, padding: 12, display: 'grid', gap: 10 }}>
         <div style={{ fontWeight: 700, color: C.text }}>Make a challenge for a week</div>
-        <div style={row}>
+        <FieldRow>
           <Field label="Week" htmlFor="wkn-week"><select id="wkn-week" style={{ ...INPUT, width: 190 }} value={form.weekOf} onChange={(e) => set('weekOf')(e.target.value)}>{weekly.weeks.map((w) => <option key={w} value={w}>Week of {dayLabel(w)}{w === weekly.thisWeek ? ' (this week)' : ''}</option>)}</select></Field>
           <Field label="Kind" htmlFor="wkn-kind"><select id="wkn-kind" style={{ ...INPUT, width: 140 }} value={form.kind} onChange={(e) => set('kind')(e.target.value)}><option value="SPEND">Spend</option><option value="VISITS">Visits</option></select></Field>
           <Field label={form.kind === 'SPEND' ? 'Spend ($)' : 'Purchases'} htmlFor="wkn-target" hint={form.kind === 'SPEND' ? '$1 to $500' : '2 to 12'}><input id="wkn-target" style={smallInput} inputMode="decimal" value={form.target} onChange={(e) => set('target')(e.target.value.replace(/[^0-9.]/g, '').slice(0, 6))} /></Field>
@@ -539,7 +547,7 @@ function WeeklyEditor({ value, weekly, stores, onSave, busy }: { value: Config['
           {form.kind === 'VISITS' && <Field label="Each at least ($)" htmlFor="wkn-min"><input id="wkn-min" style={smallInput} inputMode="decimal" value={form.minPurchase} onChange={(e) => set('minPurchase')(e.target.value.replace(/[^0-9.]/g, '').slice(0, 6))} /></Field>}
           <Field label="On" htmlFor="wkn-cat"><select id="wkn-cat" style={{ ...INPUT, width: 150 }} value={form.category} onChange={(e) => set('category')(e.target.value)}>{CHALLENGE_CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</select></Field>
           <Field label="Where" htmlFor="wkn-store"><select id="wkn-store" style={{ ...INPUT, width: 170 }} value={form.storeId} onChange={(e) => set('storeId')(e.target.value)}><option value="">Every store</option>{stores.map((st) => <option key={st.id} value={st.id}>{st.name}</option>)}</select></Field>
-        </div>
+        </FieldRow>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 8 }}>
           <Field label="Title (English)" htmlFor="wkn-title" hint={`Blank: "${suggested}"`}><input id="wkn-title" style={INPUT} maxLength={100} value={form.title} onChange={(e) => set('title')(e.target.value)} /></Field>
           <Field label="Title (Spanish)" htmlFor="wkn-titleEs"><input id="wkn-titleEs" style={INPUT} maxLength={100} value={form.titleEs} onChange={(e) => set('titleEs')(e.target.value)} /></Field>
@@ -594,17 +602,19 @@ function FlashEditor({ value, stores, onSave, busy }: { value: Config['flashDeal
   const m = num(max);
   return (
     <>
-      <div style={row}>
+      <FieldRow>
         <Field label="At most this many a week" htmlFor="fl-max" hint="1 to 14"><input id="fl-max" style={smallInput} inputMode="numeric" value={max} onChange={(e) => setMax(whole(e.target.value))} /></Field>
-        <Button variant="secondary" disabled={!(Number.isInteger(m) && m >= 1 && m <= 14) || m === value.maxPerWeek || busy} onClick={() => onSave({ maxPerWeek: m })}>Save</Button>
-        {list.data && <span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>This week: {list.data.thisWeek} of {list.data.maxPerWeek}</span>}
-      </div>
+        <FieldAction>
+          <Button variant="secondary" disabled={!(Number.isInteger(m) && m >= 1 && m <= 14) || m === value.maxPerWeek || busy} onClick={() => onSave({ maxPerWeek: m })}>Save</Button>
+          {list.data && <span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>This week: {list.data.thisWeek} of {list.data.maxPerWeek}</span>}
+        </FieldAction>
+      </FieldRow>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, alignItems: 'start' }}>
         <div style={{ display: 'grid', gap: 8 }}>
-          <Field label="Title (English)" htmlFor="fl-title" hint={`${f.title.length} of 60`}><input id="fl-title" style={INPUT} maxLength={60} value={f.title} onChange={(e) => set('title')(e.target.value)} placeholder="Double points on hot food" /></Field>
-          <Field label="Message (English)" htmlFor="fl-body" hint={`${f.body.length} of 160`}><textarea id="fl-body" style={{ ...INPUT, minHeight: 56, resize: 'vertical' }} maxLength={160} value={f.body} onChange={(e) => set('body')(e.target.value)} placeholder="Until 2 PM at every Lucky Stop." /></Field>
-          <Field label="Title (Spanish, optional)" htmlFor="fl-titleEs" hint={`${f.titleEs.length} of 60`}><input id="fl-titleEs" style={INPUT} maxLength={60} value={f.titleEs} onChange={(e) => set('titleEs')(e.target.value)} /></Field>
-          <Field label="Message (Spanish, optional)" htmlFor="fl-bodyEs" hint={`${f.bodyEs.length} of 160`}><textarea id="fl-bodyEs" style={{ ...INPUT, minHeight: 56, resize: 'vertical' }} maxLength={160} value={f.bodyEs} onChange={(e) => set('bodyEs')(e.target.value)} /></Field>
+          <Field label="Title (English)" htmlFor="fl-title" after={`${f.title.length} of 60`}><input id="fl-title" style={INPUT} maxLength={60} value={f.title} onChange={(e) => set('title')(e.target.value)} placeholder="Double points on hot food" /></Field>
+          <Field label="Message (English)" htmlFor="fl-body" after={`${f.body.length} of 160`}><textarea id="fl-body" style={{ ...INPUT, minHeight: 56, resize: 'vertical' }} maxLength={160} value={f.body} onChange={(e) => set('body')(e.target.value)} placeholder="Until 2 PM at every Lucky Stop." /></Field>
+          <Field label="Title (Spanish, optional)" htmlFor="fl-titleEs" after={`${f.titleEs.length} of 60`}><input id="fl-titleEs" style={INPUT} maxLength={60} value={f.titleEs} onChange={(e) => set('titleEs')(e.target.value)} /></Field>
+          <Field label="Message (Spanish, optional)" htmlFor="fl-bodyEs" after={`${f.bodyEs.length} of 160`}><textarea id="fl-bodyEs" style={{ ...INPUT, minHeight: 56, resize: 'vertical' }} maxLength={160} value={f.bodyEs} onChange={(e) => set('bodyEs')(e.target.value)} /></Field>
           <div style={row}>
             <Field label="A tap opens" htmlFor="fl-link"><select id="fl-link" style={{ ...INPUT, width: 200 }} value={f.link} onChange={(e) => set('link')(e.target.value)}>{FLASH_LINKS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select></Field>
             <Field label="Who" htmlFor="fl-aud"><select id="fl-aud" style={{ ...INPUT, width: 190 }} value={f.audience} onChange={(e) => set('audience')(e.target.value)}><option value="ALL">Every customer</option><option value="STORE">One store's customers</option><option value="TIER">A tier and above</option></select></Field>
@@ -665,11 +675,11 @@ function GamesEditor({ value, onSave, busy }: { value: Config['games']; onSave: 
   const pct = (w: number) => (total > 0 ? `${((w / total) * 100).toFixed(w / total < 0.01 ? 2 : 1)}%` : '...');
   return (
     <>
-      <div style={row}>
+      <FieldRow>
         <Field label="The game" htmlFor="gm-game"><select id="gm-game" style={{ ...INPUT, width: 190 }} value={game} onChange={(e) => setGame(e.target.value as GameKind)}>{(Object.keys(GAME_NAMES) as GameKind[]).map((k) => <option key={k} value={k}>{GAME_NAMES[k]}</option>)}</select></Field>
         <Field label="Monthly budget (pts)" htmlFor="gm-budget" hint={Number.isFinite(b) ? `${usd(b)} a month, a hard cap` : '0 to 200000'}><input id="gm-budget" style={smallInput} inputMode="numeric" value={budget} onChange={(e) => setBudget(whole(e.target.value))} /></Field>
         <Field label="Last day (optional)" htmlFor="gm-end"><input id="gm-end" type="date" style={{ ...INPUT, width: 170 }} value={endsOn} onChange={(e) => setEndsOn(e.target.value)} /></Field>
-      </div>
+      </FieldRow>
       <div style={{ display: 'grid', gap: 6 }}>
         <div style={{ fontWeight: 700, color: C.text }}>Prizes and their chances</div>
         {rows.map((r, i) => (
@@ -709,7 +719,7 @@ function MascotEditor({ value, onSave, busy }: { value: Config['mascot']; onSave
   );
   return (
     <>
-      <Field label="The mascot's name" htmlFor="ma-name" hint={`${Array.from(n).length} of 20. The app shows it everywhere, with no new app version.`}>
+      <Field label="The mascot's name" htmlFor="ma-name" hint="The app shows it everywhere, with no new app version." after={`${Array.from(n).length} of 20`}>
         <input id="ma-name" style={{ ...INPUT, width: 220 }} maxLength={20} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
       {box('ma-home', home, setHome, 'A tip on Home', `"${who} says": a reward that is ready, one nearly there, or an everyday tip (show your code, order hot food, invite a friend, tiers, the leaderboard). A customer can hide it until the next day.`)}
@@ -731,12 +741,12 @@ function FriendsEditor({ value, onSave, busy }: { value: Config['friendsBoard'];
   const changed = metric !== value.metric || period !== value.period || mn !== value.minMembers || rn !== value.maxRows;
   return (
     <>
-      <div style={row}>
+      <FieldRow>
         <Field label="Rank by" htmlFor="fr-metric"><select id="fr-metric" style={{ ...INPUT, width: 210 }} value={metric} onChange={(e) => setMetric(e.target.value as 'VISITS' | 'POINTS')}><option value="VISITS">Days with a purchase</option><option value="POINTS">Points from purchases</option></select></Field>
         <Field label="Over" htmlFor="fr-period"><select id="fr-period" style={{ ...INPUT, width: 150 }} value={period} onChange={(e) => setPeriod(e.target.value as 'WEEK' | 'MONTH')}><option value="WEEK">A week</option><option value="MONTH">A month</option></select></Field>
         <Field label="Opens when this many joined" htmlFor="fr-min" hint="3 to 20, the inviter counts"><input id="fr-min" style={smallInput} inputMode="numeric" value={min} onChange={(e) => setMin(whole(e.target.value))} /></Field>
         <Field label="Rows shown" htmlFor="fr-rows" hint="5 to 50"><input id="fr-rows" style={smallInput} inputMode="numeric" value={rows} onChange={(e) => setRows(whole(e.target.value))} /></Field>
-      </div>
+      </FieldRow>
       <Notice>Days with a purchase counts each store day once, however many sales; points count only what purchases earned, never bonuses. Customers see this week and last week (or month). The board shows a rank, a name or 'A friend' and that number: never a phone, a store, a time or money. Closed, restricted, staff and test accounts never show. Before you switch it on, add it to the privacy policy: friends in a circle see each other's first name and last initial and how often they buy.</Notice>
       <div style={row}><Button variant="primary" disabled={bad || !changed || busy} onClick={() => onSave({ metric, period, minMembers: mn, maxRows: rn })}>Save</Button></div>
     </>
@@ -767,7 +777,7 @@ function SharingEditor({ value, onSave, busy }: { value: Config['sharing']; onSa
   useEffect(() => { setM(value.message); }, [value.message]);
   return (
     <>
-      <Field label="The message people send (the app link follows it)" htmlFor="sh-msg" hint={`${m.length} of 140`}>
+      <Field label="The message people send (the app link follows it)" htmlFor="sh-msg" after={`${m.length} of 140`}>
         <input id="sh-msg" style={{ ...INPUT, maxWidth: 560 }} maxLength={140} value={m} onChange={(e) => setM(e.target.value)} />
       </Field>
       <div style={row}><Button variant="primary" disabled={!m.trim() || m.trim() === value.message || busy} onClick={() => onSave(m.trim())}>Save</Button></div>
@@ -852,17 +862,17 @@ function GoalsEditor({ goals, stores }: { goals: Goal[]; stores: Hq['stores'] })
         </div>
       )}
       <div style={{ fontWeight: 700, color: C.text }}>New goal</div>
-      <div style={row}>
+      <FieldRow>
         <Field label="Title" htmlFor="gl-title"><input id="gl-title" style={{ ...INPUT, width: 260 }} maxLength={80} value={f.title} placeholder="Hit 200 sales this week" onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
         <Field label="Store" htmlFor="gl-store"><select id="gl-store" style={{ ...INPUT, width: 200 }} value={f.storeId} onChange={(e) => setF({ ...f, storeId: e.target.value })}><option value="">Every store (each on its own)</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
         <Field label="Count" htmlFor="gl-metric"><select id="gl-metric" style={{ ...INPUT, width: 190 }} value={f.metric} onChange={(e) => setF({ ...f, metric: e.target.value })}><option value="SALES">Sales (purchases)</option><option value="CUSTOMERS">Different customers</option></select></Field>
-      </div>
-      <div style={row}>
+      </FieldRow>
+      <FieldRow>
         <Field label="Target" htmlFor="gl-target"><input id="gl-target" style={smallInput} inputMode="numeric" value={f.target} onChange={(e) => setF({ ...f, target: whole(e.target.value) })} /></Field>
         <Field label="Reward for each customer (pts)" htmlFor="gl-rew" hint={Number.isFinite(reward) ? usd(reward) : ''}><input id="gl-rew" style={smallInput} inputMode="numeric" value={f.rewardPoints} onChange={(e) => setF({ ...f, rewardPoints: whole(e.target.value) })} /></Field>
         <Field label="Starts" htmlFor="gl-start"><input id="gl-start" type="datetime-local" style={{ ...INPUT, width: 200 }} value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} /></Field>
         <Field label="Ends" htmlFor="gl-end"><input id="gl-end" type="datetime-local" style={{ ...INPUT, width: 200 }} value={f.endDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} /></Field>
-      </div>
+      </FieldRow>
       <Notice>When the goal ends, if the store reached the target, every customer who bought there during the goal gets {Number.isFinite(reward) ? `${reward} pts (${usd(reward)})` : 'the reward'}, once. If it was not reached, nobody is paid. A goal runs for at most about two months.</Notice>
       <div style={row}><Button variant="primary" disabled={make.isPending || !f.title.trim() || !(Number(f.target) >= 1) || !(reward >= 1 && reward <= 500)} onClick={() => make.mutate()}>{make.isPending ? 'Creating…' : 'Create goal'}</Button></div>
     </>
@@ -883,13 +893,13 @@ function PunchCardMaker() {
   const ok = f.title.trim() && Number(f.stamps) >= 2 && Number(f.stamps) <= 12 && Number(f.pts) >= 1 && Number(f.pts) <= 1000;
   return (
     <>
-      <div style={row}>
+      <FieldRow>
         <Field label="Name" htmlFor="pc-title"><input id="pc-title" style={{ ...INPUT, width: 240 }} maxLength={100} value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></Field>
         <Field label="Counts" htmlFor="pc-cat"><select id="pc-cat" style={{ ...INPUT, width: 170 }} value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>{CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
         <Field label="Stamps to fill (2 to 12)" htmlFor="pc-stamps"><input id="pc-stamps" style={smallInput} inputMode="numeric" value={f.stamps} onChange={(e) => setF({ ...f, stamps: whole(e.target.value) })} /></Field>
         <Field label="A purchase counts from ($)" htmlFor="pc-min"><input id="pc-min" style={smallInput} inputMode="decimal" value={f.min} onChange={(e) => setF({ ...f, min: e.target.value.replace(/[^0-9.]/g, '') })} /></Field>
         <Field label="Reward (pts)" htmlFor="pc-pts" hint={Number(f.pts) ? usd(Number(f.pts)) : ''}><input id="pc-pts" style={smallInput} inputMode="numeric" value={f.pts} onChange={(e) => setF({ ...f, pts: whole(e.target.value) })} /></Field>
-      </div>
+      </FieldRow>
       <Notice>The reward is paid each time the card is filled, and it starts over. It runs for a year; end it any time on Offers, Challenges.</Notice>
       <div style={row}><Button variant="primary" disabled={!ok || make.isPending} onClick={() => { if (window.confirm(`Start "${f.title}": every ${f.stamps}th purchase pays ${f.pts} pts?`)) make.mutate(); }}>{make.isPending ? 'Creating…' : 'Start this punch card'}</Button></div>
     </>
@@ -905,11 +915,11 @@ const KIT: { name: string; title: string; kind: 'VISITS' | 'SPEND'; target: numb
   { name: 'Back to school', title: 'Back to school stock-up', kind: 'SPEND', target: 25, pts: 100, line: 'Spend $25' },
 ];
 function EventKit({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
-  const [ends, setEnds] = useState(() => { const d = new Date(); d.setDate(d.getDate() + 14); return d.toISOString().slice(0, 10); });
+  const [ends, setEnds] = useState(() => addDays(storeToday(), 14));   // a store date, two weeks out
   const make = useMutation({
     mutationFn: (k: (typeof KIT)[number]) => challengesApi.create({
       kind: k.kind, title: k.title, category: k.category, target: k.target, reward: k.pts / 100, repeats: false, minPurchase: k.kind === 'VISITS' ? 2 : undefined,
-      startDate: new Date().toISOString(), endDate: new Date(`${ends}T23:59:00`).toISOString(),
+      startDate: new Date().toISOString(), endDate: endOfStoreDay(ends).toISOString(),   // the end of that day at the stores
     }),
     onSuccess: (_r, k) => toast.success(`"${k.title}" started. Customers are told, and it ends ${ends}.`),
     onError: (e) => toast.error(serverMessage(e, 'Could not start it.')),

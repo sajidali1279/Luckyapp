@@ -123,7 +123,8 @@ export default function Transactions() {
 
   const [selectedStore, setSelectedStore] = useState<string>(() => paramOr('store', ''));
   // Managers too open on Needs review: the held sales they are pushed about (2026-10-18; they opened on Pending, which hid them)
-  const [statusFilter, setStatusFilter] = useState<string>(() => paramOr('status', 'NEEDS_REVIEW'));
+  // 'ALL' in the address is All statuses (an empty filter), so a refresh or a shared link keeps it instead of falling back to Needs review
+  const [statusFilter, setStatusFilter] = useState<string>(() => { const v = paramOr('status', 'NEEDS_REVIEW'); return v === 'ALL' ? '' : v; });
   const [categoryFilter, setCategoryFilter] = useState<string>(() => paramOr('category', ''));
   const [from, setFrom] = useState<string>(() => paramOr('from', monthAgoStr()));
   const [to, setTo] = useState<string>(() => paramOr('to', todayStr()));
@@ -155,7 +156,7 @@ export default function Transactions() {
   useEffect(() => {
     const next = new URLSearchParams();
     if (selectedStore) next.set('store', selectedStore);
-    if (statusFilter) next.set('status', statusFilter);
+    next.set('status', statusFilter || 'ALL');
     if (categoryFilter) next.set('category', categoryFilter);
     if (from) next.set('from', from);
     if (to) next.set('to', to);
@@ -206,7 +207,10 @@ export default function Transactions() {
     }
   }, [storesData, user, selectedStore, isSuperAdmin]);
 
-  const badRange = !!from && !!to && from > to;
+  // Needs review is a queue: everything still waiting, whatever its date (the sidebar badge counts it that way), so it ignores the
+  // date range; with a range, held sales older than a month were counted on the badge but never listed (2026-10-25)
+  const datesApply = statusFilter !== 'NEEDS_REVIEW';
+  const badRange = datesApply && !!from && !!to && from > to;
   const badAmounts = !!minAmount && !!maxAmount && Number(minAmount) > Number(maxAmount);
 
   // SuperAdmin: use all-transactions endpoint. Dates travel as plain store dates (YYYY-MM-DD).
@@ -214,8 +218,8 @@ export default function Transactions() {
   if (selectedStore)   allTxParams.storeId  = selectedStore;
   if (statusFilter)    allTxParams.status   = statusFilter;
   if (categoryFilter)  allTxParams.category = categoryFilter;
-  if (from)             allTxParams.from    = from;
-  if (to)               allTxParams.to      = to;
+  if (from && datesApply) allTxParams.from    = from;
+  if (to && datesApply)   allTxParams.to      = to;
   if (search)           allTxParams.search  = search;
   if (minAmount)        allTxParams.minAmount = minAmount;
   if (maxAmount)        allTxParams.maxAmount = maxAmount;
@@ -361,10 +365,11 @@ export default function Transactions() {
   }, [isLoading, isError, transactions.length, page]);
 
   function resetFilters() {
-    setSelectedStore(''); setStatusFilter(''); setCategoryFilter('');
+    // back to how the page opens (Needs review), every filter off, including the add-ons one hidden under More filters
+    setSelectedStore(''); setStatusFilter('NEEDS_REVIEW'); setCategoryFilter('');
     setFrom(monthAgoStr()); setTo(todayStr());
     setSearchInput(''); setSearch(''); setMinAmountInput(''); setMaxAmountInput(''); setMinAmount(''); setMaxAmount('');
-    setIncludeTestData(false); setPage(1);
+    setIncludeTestData(false); setOnlyAddOns(false); setPage(1);
   }
 
   // ── Keyboard queue: J/K move a highlighted row, Enter opens its details panel, A approves and R rejects
@@ -418,8 +423,8 @@ export default function Transactions() {
       if (selectedStore)  params.storeId  = selectedStore;
       if (statusFilter)   params.status   = statusFilter;
       if (categoryFilter) params.category = categoryFilter;
-      if (from) params.from = from;
-      if (to)   params.to   = to;
+      if (from && datesApply) params.from = from;
+      if (to && datesApply)   params.to   = to;
       if (search)          params.search  = search;
       if (minAmount)       params.minAmount = minAmount;
       if (maxAmount)       params.maxAmount = maxAmount;
@@ -771,13 +776,15 @@ export default function Transactions() {
           </select>
         )}
 
-        {isSuperAdmin && (
+        {isSuperAdmin && (datesApply ? (
           <>
             <input aria-label="From date" style={s.dateInput} type="date" value={from} onChange={(e) => changeFrom(e.target.value)} />
             <span style={{ color: TEXT_MUTED, fontSize: 15 }}>to</span>
             <input aria-label="To date" style={s.dateInput} type="date" value={to} onChange={(e) => changeTo(e.target.value)} />
           </>
-        )}
+        ) : (
+          <span style={{ color: TEXT_MUTED, fontSize: 14 }} title="Needs review lists every sale still waiting, whatever its date">All dates (the whole queue)</span>
+        ))}
 
         {isSuperAdmin && (
           <input

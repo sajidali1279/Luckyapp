@@ -354,8 +354,11 @@
 .ui-tab:focus-visible { outline: 2px solid #1D3557; outline-offset: 2px; border-radius: 4px; }
 .ui-tab-count { font-size: 12px; font-weight: 600; color: #5a6472; background: #f1f3f6; border-radius: 999px; padding: 1px 7px; }
 .ui-tab[aria-selected="true"] .ui-tab-count, .ui-tab[aria-pressed="true"] .ui-tab-count { color: #1D3557; background: #eef2f7; }
-/* On a phone every tab shows: the row wraps instead of hiding the last tabs past the edge (the scrollbar is hidden) */
-@media (max-width: 640px) { .ui-tabs { flex-wrap: wrap; column-gap: 16px; overflow-x: visible; } }
+/* Tabs stay on one line and swipe sideways when they do not fit (2026-10-25: on a phone they wrapped into rows with big gaps and the
+   line under the last row only). While more tabs are past the right edge it fades (Tabs sets data-more), so none are hidden unseen,
+   and the chosen tab is scrolled into view. */
+.ui-tabs[data-more] { -webkit-mask-image: linear-gradient(to right, #000 80%, transparent); mask-image: linear-gradient(to right, #000 80%, transparent); }
+@media (max-width: 640px) { .ui-tabs { column-gap: 16px; } }
 
 .ui-chip {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px;
@@ -457,3 +460,12 @@
 .ui-how > summary::-webkit-details-marker { display: none; }
 .ui-how > summary:focus-visible { outline: 2px solid #1D3557; outline-offset: 2px; border-radius: 4px; }
 .ui-how[open] > summary { margin-bottom: 2px; }
+
+/* A store list beside its panel (Scheduling, Requests, Chat): on a phone the list stacks on top, a third of the screen at most and
+   scrolling on its own, and the panel fills the rest with its own scrolling (2026-10-25: side by side, the list took 70% of the
+   screen and the panel was squeezed to about 118 px). The !important wins over the pages' inline widths. */
+@media (max-width: 720px) {
+  .ui-split { flex-direction: column !important; }
+  .ui-split-list { width: 100% !important; max-height: 34vh; flex-shrink: 0; overflow-y: auto; border-right: none !important; border-bottom: 1px solid #e4e7ec; }
+  .ui-split > :not(.ui-split-list) { min-height: 0; flex: 1 1 auto; }
+}

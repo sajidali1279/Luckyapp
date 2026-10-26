@@ -131,7 +131,8 @@ function scheduleSummary(s: { isClosed: boolean; isOpen24Hours: boolean; openTim
 }
 
 function categoryEnabled(store: Pick<Store, 'enabledCategories'>, category: 'GAS' | 'DIESEL'): boolean {
-  return store.enabledCategories.length === 0 || store.enabledCategories.includes(category);
+  const cats = store.enabledCategories ?? [];   // missing on a partial reply: all categories, never a crash (2026-10-25)
+  return cats.length === 0 || cats.includes(category);
 }
 
 const DAY_MS = 86_400_000;
@@ -779,7 +780,7 @@ export default function Stores() {
                 <div style={s.catSectionLabel}>Available Categories</div>
                 <div style={s.catPillRow}>
                   {ALL_CATEGORIES.map(cat => {
-                    const enabled = store.enabledCategories.length === 0 || store.enabledCategories.includes(cat.value);
+                    const enabled = (store.enabledCategories ?? []).length === 0 || (store.enabledCategories ?? []).includes(cat.value);
                     return (
                       <span key={cat.value} style={{ ...s.catPill, ...(enabled ? s.catPillOn : s.catPillOff) }}>
                         <Glyph e={cat.icon} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{cat.label}
@@ -817,9 +818,12 @@ export default function Stores() {
                       </div>
                     );
                   })}
+                  {/* an invisible label line above the button, the height of the boxes' labels, so it sits level with the boxes */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+                  <span aria-hidden="true" style={{ ...s.gasLabel, visibility: 'hidden' }}>&nbsp;</span>
                   <button
                     style={{
-                      ...s.gasUpdateBtn,
+                      ...s.gasUpdateBtn, alignSelf: 'auto', marginBottom: 0,
                       ...(gasFormDirty(store) && !gasProblem(store) ? s.gasUpdateBtnActive : {}),
                     }}
                     aria-label={`Update prices at ${store.name}`}
@@ -828,6 +832,7 @@ export default function Stores() {
                   >
                     {gasMutation.isPending ? '…' : 'Update'}
                   </button>
+                  </div>
                 </div>
                 {gasProblem(store) && <div role="alert" style={s.gasError}>{gasProblem(store)}</div>}
 
@@ -1339,7 +1344,8 @@ const s: Record<string, React.CSSProperties> = {
 
   gasSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   gasUpdatedAt: { fontSize: 12, fontWeight: 500, color: TEXT_MUTED, textTransform: 'none' as const, letterSpacing: 0 },
-  gasRow: { display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 4 },
+  // top-aligned (2026-10-25): the Updated / Never set line under each price box pushed the bottom-aligned Update button below the boxes
+  gasRow: { display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 },
   gasField: { flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 },
   gasLabel: { fontSize: 13, fontWeight: 600, color: '#374151' },
   gasInput: { border: '1.5px solid #e4e7ec', borderRadius: 8, padding: '7px 10px', fontSize: 14, fontWeight: 700, color: '#111827', outline: 'none', width: '100%' },

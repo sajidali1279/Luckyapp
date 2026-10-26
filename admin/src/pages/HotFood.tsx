@@ -51,8 +51,11 @@ function timeAgo(d: string) {
   return `${Math.floor(m / 60)}h ${m % 60}m ago`;
 }
 
+/** Capitalises the first letter of each word and leaves the rest as typed (2026-10-25): it lower-cased everything first, so
+ *  'BBQ Wings' was saved as 'Bbq Wings'. A name typed all in capitals is still tidied ('CHICKEN TENDERS' to 'Chicken Tenders'). */
 function toTitleCase(s: string) {
-  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+  const shouting = s === s.toUpperCase() && /[A-Z]{2}/.test(s) && s.trim().split(/\s+/).length > 1;
+  return (shouting ? s.toLowerCase() : s).replace(/(^|\s)(\p{L})/gu, (_m, sp: string, c: string) => sp + c.toUpperCase());
 }
 
 const STATUS_CFG: Record<OrderStatus, { label: string; color: string; bg: string }> = {
@@ -694,7 +697,7 @@ export default function HotFood() {
               <Search size={15} style={pg.searchIcon} color="#5a6472" />
               <input
                 style={pg.searchInput}
-                placeholder="Search catalog…"
+                placeholder="Search catalog…" aria-label="Search catalog"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -736,6 +739,8 @@ export default function HotFood() {
                     key={item.id}
                     style={pg.tile}
                     onClick={() => setAssignItem(item)}
+                    role="button" tabIndex={0} aria-label={`Choose the stores for ${item.name}`}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAssignItem(item); } }}
                     onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'}
                     onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.transform = 'none'}
                     title="Click to manage store assignment"
@@ -817,6 +822,7 @@ export default function HotFood() {
                     style={{ ...pg.availToggle, ...(store.hotFoodEnabled ? pg.availToggleOn : pg.availToggleOff) }}
                     onClick={() => toggleHotFood(store)}
                     disabled={togglingHotFood === store.id}
+                    role="switch" aria-checked={!!store.hotFoodEnabled} aria-label={`Hot food at ${store.name}`}
                   >
                     {togglingHotFood === store.id ? '…' : store.hotFoodEnabled ? 'ON' : 'OFF'}
                   </button>

@@ -70,7 +70,7 @@ export default function Staff() {
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>('list');
   // A compact list (the default) or the cards; remembered in this browser (2026-10-12)
-  const [view, setView] = useState<'list' | 'cards'>(() => readSetting('staff-view', ['list', 'cards'] as const, 'list'));
+  const [view, setView] = useState<'list' | 'cards'>(() => readSetting('staff-view', ['list', 'cards'] as const, typeof window !== 'undefined' && window.innerWidth < 640 ? 'cards' : 'list'));
   const [search, setSearch] = useState(() => searchParams.get('search') ?? '');
 
   // Create form state

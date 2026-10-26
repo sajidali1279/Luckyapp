@@ -1,7 +1,7 @@
 // The admin's shared building blocks (the calm, professional look chosen 2026-09-29). Pages use these instead of
 // their own header, tab, button, card and badge styles, so every page looks like the same product.
 // Colours and sizes come from lib/theme.ts; hover and focus come from the .ui-* classes in index.css.
-import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import { ChevronDown, Info } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
@@ -82,8 +82,22 @@ export type TabItem<T extends string> = { value: T; label: ReactNode; count?: nu
 export function Tabs<T extends string>({ tabs, value, onChange, ariaLabel, style, asButtons }: {
   tabs: TabItem<T>[]; value: T; onChange: (v: T) => void; ariaLabel: string; style?: CSSProperties; asButtons?: boolean;
 }) {
+  // One line that swipes sideways when it does not fit (2026-10-25; on a phone it wrapped into gappy rows): a fade on the right
+  // edge shows while more tabs are past it, and the chosen tab is brought into view (sideways only, the page never jumps)
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  const check = () => { const el = ref.current; if (el) setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 2); };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const on = el.querySelector<HTMLElement>('[aria-selected="true"], [aria-pressed="true"]');
+    if (on && el.scrollWidth > el.clientWidth) el.scrollLeft = Math.max(0, on.offsetLeft - el.offsetLeft - (el.clientWidth - on.offsetWidth) / 2);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [value, tabs.length]);   // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div role={asButtons ? 'group' : 'tablist'} aria-label={ariaLabel} className="ui-tabs" style={{ marginBottom: 20, ...style }}>
+    <div ref={ref} onScroll={check} data-more={more ? '' : undefined} role={asButtons ? 'group' : 'tablist'} aria-label={ariaLabel} className="ui-tabs" style={{ marginBottom: 20, ...style }}>
       {tabs.map((t) => (
         <button key={t.value} type="button" className="ui-tab" onClick={() => onChange(t.value)}
           {...(asButtons ? { 'aria-pressed': value === t.value } : { role: 'tab', 'aria-selected': value === t.value })}>
@@ -179,16 +193,43 @@ export function EmptyState({ icon, title, description, action }: { icon?: ReactN
 // ─── Forms ───────────────────────────────────────────────────────────────────
 
 /** A labelled form field. The label sits above in sentence case, the hint below in gray. */
-export function Field({ label, htmlFor, hint, required, children, style }: {
-  label: ReactNode; htmlFor?: string; hint?: ReactNode; required?: boolean; children: ReactNode; style?: CSSProperties;
+/** A label, the box, then an optional hint (guidance: a range, what the number is in dollars) and an optional `after` line (a live
+ *  counter, "12 of 60"). Both sit under the box, and screen readers hear them with it (aria-describedby). Fields side by side go in a
+ *  FieldRow, which lines them up at the top, so a hint under one box never pushes the boxes beside it out of line (2026-10-25). */
+export function Field({ label, htmlFor, hint, after, required, children, style }: {
+  label: ReactNode; htmlFor?: string; hint?: ReactNode; after?: ReactNode; required?: boolean; children: ReactNode; style?: CSSProperties;
 }) {
+  const hintId = hint && htmlFor ? `${htmlFor}-hint` : undefined;
+  const afterId = after && htmlFor ? `${htmlFor}-after` : undefined;
+  const describedBy = [hintId, afterId].filter(Boolean).join(' ');
+  const box = describedBy && isValidElement(children) && !(children.props as Record<string, unknown>)['aria-describedby']
+    ? cloneElement(children as ReactElement<Record<string, unknown>>, { 'aria-describedby': describedBy })
+    : children;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, ...style }}>
       <label htmlFor={htmlFor} style={{ fontSize: FONT.small, fontWeight: 600, color: C.text2 }}>
         {label}{required && <span style={{ color: C.muted, fontWeight: 400 }}> (required)</span>}
       </label>
-      {children}
-      {hint && <div style={{ fontSize: FONT.caption, color: C.muted, lineHeight: 1.5 }}>{hint}</div>}
+      {box}
+      {hint && <div id={hintId} style={{ fontSize: FONT.caption, color: C.muted, lineHeight: 1.5 }}>{hint}</div>}
+      {after && <div id={afterId} style={{ fontSize: FONT.caption, color: C.muted, lineHeight: 1.5 }}>{after}</div>}
+    </div>
+  );
+}
+
+/** Fields side by side, lined up at the top: labels in one line, boxes in one line, each hint hanging under its own box. Wraps on
+ *  narrow screens. Put a button that belongs to the row in a FieldAction so it lines up with the boxes. */
+export function FieldRow({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  return <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap', ...style }}>{children}</div>;
+}
+
+/** A button or a short note inside a FieldRow: an empty label line above it, so it sits level with the boxes beside it. */
+export function FieldAction({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, ...style }}>
+      <span aria-hidden="true" style={{ fontSize: FONT.small, fontWeight: 600, visibility: 'hidden' }}>&nbsp;</span>
+      {/* as tall as a text box (39 px), so a button, a badge or a note is centred on the boxes beside it */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', minHeight: 39 }}>{children}</div>
     </div>
   );
 }

@@ -1064,7 +1064,7 @@ export default function Labels() {
                   style={s.searchInput}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Search by product name or barcode…"
+                  placeholder="Search by product name or barcode…" aria-label="Search by product name or barcode"
                 />
                 {(noPriceCount > 0 || onlyNoPrice) && (
                   <button

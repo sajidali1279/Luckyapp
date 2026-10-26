@@ -52,7 +52,7 @@ export default function WelcomeBonusSettings() {
   });
 
   if (q.isLoading) return <Card padding={18}><div style={{ color: TEXT_MUTED }}>Loading…</div></Card>;
-  if (q.isError || !saved) return <Card padding={18}><Notice tone="danger">Could not load the joining bonus settings.</Notice></Card>;
+  if (q.isError || !saved) return <Card padding={18}><Notice tone="danger">Could not load the joining bonus settings. <button type="button" onClick={() => q.refetch()} style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', font: 'inherit', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer' }}>Try again</button></Notice></Card>;
 
   const d = Number(days);
   const daysOk = Number.isInteger(d) && d >= saved.minDays && d <= saved.maxDays;

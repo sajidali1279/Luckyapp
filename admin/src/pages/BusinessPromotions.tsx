@@ -352,13 +352,15 @@ function FeaturedAdsSetting() {
   });
   if (isError) return <div style={s.featured}><span style={{ color: '#a51b28' }}>Could not load the featured-ads setting.</span> <button type="button" style={s.featuredLink} onClick={() => refetch()}>Try again</button></div>;
   if (!settings) return null;
-  const featured = Math.min(settings.live, settings.featuredLimit);
+  // numbers even when the reply misses one (it printed "NaN of undefined live ads")
+  const live = Number(settings.live) || 0;
+  const featured = Math.min(live, Number(settings.featuredLimit) || 0);
   return (
     <div style={s.featured} role="group" aria-label="Featured ads in the app">
       <div style={{ flex: '1 1 260px' }}>
         <div style={s.featuredTitle}>Featured in the app</div>
         <div style={s.featuredSub}>
-          The newest ads are featured; the rest are listed under All Businesses. Right now {featured} of {settings.live} live {settings.live === 1 ? 'ad is' : 'ads are'} featured.
+          The newest ads are featured; the rest are listed under All Businesses. Right now {featured} of {live} live {live === 1 ? 'ad is' : 'ads are'} featured.
         </div>
       </div>
       <label style={s.featuredField}>
@@ -462,6 +464,7 @@ export default function BusinessPromotions() {
           <button
             key={st}
             style={{ ...s.filterBtn, ...(statusFilter === st ? s.filterBtnActive : {}) }}
+            aria-pressed={statusFilter === st}
             onClick={() => setStatusFilter(st)}
           >
             {st === '' ? 'All' : st.charAt(0) + st.slice(1).toLowerCase()}
@@ -633,7 +636,7 @@ const s: Record<string, React.CSSProperties> = {
   statNum: { fontSize: 28, fontWeight: 700, lineHeight: 1, marginTop: 2 },
   statLabel: { fontSize: 14, fontWeight: 600, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  filterRow: { display: 'flex', gap: 8, marginBottom: 20 },
+  filterRow: { display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' },   // wraps on a phone instead of pushing the page sideways
   filterBtn: {
     padding: '7px 16px', borderRadius: 20, border: '1.5px solid #e4e7ec',
     background: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 600,

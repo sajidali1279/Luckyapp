@@ -44,7 +44,10 @@ export default function ReferralsPanel({ part = 'list' }: { part?: 'list' | 'dea
   });
 
   if (q.isError) return <ErrorState onRetry={q.refetch} />;
-  if (q.isLoading || !d || !form) return <CardSkeleton count={3} />;
+  if (q.isLoading || !d) return <CardSkeleton count={3} />;
+  // a reply without the settings says so (it left the loading boxes up for good, 2026-10-25)
+  if (!d.settings) return <ErrorState message="The refer-a-friend settings did not load." onRetry={q.refetch} />;
+  if (!form) return <CardSkeleton count={3} />;
   const t = d.totals, by = t.byStatus as Record<string, number>;
   const set = (k: keyof ReferralSettings, v: string) => setForm((f) => ({ ...f!, [k]: v.replace(/[^0-9.]/g, '') }));
   const s = d.settings as ReferralSettings;

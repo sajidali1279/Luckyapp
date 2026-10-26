@@ -125,6 +125,7 @@ export default function AttentionInbox() {
   const loading = platformQ.isLoading && healthQ.isLoading && items.length === 0;
   if (loading) return <SkeletonBox h={92} mb={22} />;
 
+  const anySnooze = items.some((x) => x.snoozable);
   const row = (i: Item, dim = false) => (
     <div key={i.id} style={{ display: 'flex', alignItems: 'center', borderTop: '1px solid #f6f0e8', opacity: dim ? 0.6 : 1 }}>
       <button style={{ ...s.inboxRow, borderTop: 'none' }} onClick={() => (i.onClick ? i.onClick() : navigate(i.to!))}>
@@ -136,11 +137,14 @@ export default function AttentionInbox() {
         {i.count > 0 && <span style={{ ...s.inboxCount, background: SEV_COLOR[i.sev] }}>{formatInteger(i.count)}</span>}
         <span aria-hidden="true" style={{ color: '#5a6472', fontWeight: 700 }}>→</span>
       </button>
-      {i.snoozable && (
-        <button style={{ ...s.inboxSnooze, marginRight: 14 }} onClick={() => (dim ? unsnooze(i.id) : snooze(i.id))}
+      {i.snoozable ? (
+        <button style={{ ...s.inboxSnooze, marginRight: 14, minWidth: 92 }} onClick={() => (dim ? unsnooze(i.id) : snooze(i.id))}
           title={dim ? 'Show this again' : 'Hide this for 7 days'}>
           {dim ? 'Unsnooze' : 'Snooze 7d'}
         </button>
+      ) : anySnooze && (
+        // the same width as the Snooze button, so every row's count and arrow sit in one column (2026-10-25)
+        <span aria-hidden="true" style={{ ...s.inboxSnooze, marginRight: 14, minWidth: 92, visibility: 'hidden' }}>Unsnooze</span>
       )}
     </div>
   );

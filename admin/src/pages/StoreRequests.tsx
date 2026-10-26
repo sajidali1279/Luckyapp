@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Package } from 'lucide-react';
+import { Package, Store } from 'lucide-react';
 import { storeRequestApi, productRequestApi, employeeRequestApi, chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
@@ -197,6 +197,9 @@ export default function StoreRequests() {
 
   // "All Stores" is a Stock-tab-only view (Alerts/Products have no all-stores backend route).
   const isAllStores = effectiveStoreId === ALL_STORES_ID;
+  // However All Stores was chosen (picked for HQ on opening, remembered from last time, or a link), the tab follows: on the
+  // disabled Alerts tab the page said "Nothing here" while the sidebar badge counted requests waiting (2026-10-25)
+  useEffect(() => { if (isAllStores && activeTab !== 'stock') setActiveTab('stock'); }, [isAllStores]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: requestsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['store-requests', effectiveStoreId, statusFilter],
@@ -365,7 +368,7 @@ export default function StoreRequests() {
   const headerName = isAllStores ? 'All Stores' : (selectedStore?.name ?? 'Store');
 
   return (
-    <div style={s.page}>
+    <div style={s.page} className="ui-split">
       <ConfirmModal
         open={!!confirmAcceptTarget}
         title="Accept Request"
@@ -378,7 +381,7 @@ export default function StoreRequests() {
           a single-store Store Manager is auto-selected above. A Store
           Manager with multiple stores still needs this to choose one. ── */}
       {(!isStoreManager || stores.length > 1) && (
-        <div style={s.sidebar}>
+        <div style={s.sidebar} className="ui-split-list">
           <div style={s.sidebarTop}>
             <div style={s.sidebarTitle}>Requests</div>
             <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
@@ -391,8 +394,8 @@ export default function StoreRequests() {
                 style={{ ...s.storeBtn, ...(selectedStoreId === ALL_STORES_ID ? s.storeBtnActive : {}) }}
                 onClick={() => { setSelectedStoreId(ALL_STORES_ID); setActiveTab('stock'); }}
               >
-                <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #5a6472)', fontSize: 18 }}>
-                  
+                <div style={{ ...s.storeAvatar, background: 'linear-gradient(135deg, #374151, #5a6472)', fontSize: 18 }} aria-hidden="true">
+                  <Store size={18} color="#fff" />
                 </div>
                 <div style={s.storeBtnInfo}>
                   <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? PRIMARY : '#111827' }}>All Stores</div>
