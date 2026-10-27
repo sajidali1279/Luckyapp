@@ -32,3 +32,12 @@ export function canonicalBarcode(barcode: string): string {
 export function sameBarcode(a: string | null | undefined, b: string | null | undefined): boolean {
   return !!a && !!b && barcodeKey(a) === barcodeKey(b);
 }
+
+/** The GS1 check digit for the digits before it (a UPC-A's first 11): from the right, every other digit counts three times. A digit
+ *  misread anywhere in a printed UPC almost always shows up as a check digit that no longer matches. NaN unless given digits only. */
+export function gs1CheckDigit(digits: string): number {
+  if (!DIGITS.test(digits)) return NaN;
+  let sum = 0;
+  for (let i = digits.length - 1, weight = 3; i >= 0; i--, weight = 4 - weight) sum += Number(digits[i]) * weight;
+  return (10 - (sum % 10)) % 10;
+}
