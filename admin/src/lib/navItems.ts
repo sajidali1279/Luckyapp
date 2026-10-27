@@ -5,7 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard, TrendingUp, Package, Tag, Image, Gift, MessageSquare, Calendar, Users, UserCircle,
   ClipboardList, ShoppingCart, Briefcase, Trophy, Percent, Megaphone, Receipt, Activity, Store, CreditCard,
-  Bell, Headphones, FileText, ClipboardCheck, ListChecks, Barcode, Printer, Flame, User, Pin, ScanLine, UserSearch, Sparkles,
+  Bell, Headphones, FileText, ClipboardCheck, ListChecks, Barcode, Printer, Flame, User, Pin, ScanLine, UserSearch, Sparkles, ReceiptText,
 } from 'lucide-react';
 import type { BadgeKey } from '../hooks/useAdminBadges';
 
@@ -43,6 +43,7 @@ export const NAV_ITEMS: NavEntry[] = [
   { to: '/order-list', label: 'Order List', icon: ShoppingCart, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'], badgeKey: 'categoriesPendingCount' },
   { to: '/scanned-products', label: 'Scanned Products', icon: Barcode, group: 'People' },
   { to: '/labels', label: 'Labels', icon: Printer, group: 'People' },
+  { to: '/pdi-invoices', label: 'Invoices to PDI', icon: ReceiptText, group: 'People' },
   { to: '/careers', label: 'Careers', icon: Briefcase, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'], badgeKey: 'careersNewCount' },
 
   { to: '/transactions', label: 'Transactions', icon: Receipt, group: 'Reports', badgeKey: 'transactionsPendingCount' },

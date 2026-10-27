@@ -74,10 +74,12 @@ export const FEATURES = {
   hotFoodCombos: { label: 'Hot food combos', help: 'Off: no combo deals in the app; the combos are kept.' },
   challenges: { label: 'Challenges', help: 'Off: customers do not see challenges and no challenge rewards are paid.' },
   hotFoodNoShowPointsBack: { label: 'Points back for a hot food order not picked up', help: 'An order paid with points that nobody picks up is closed; on: its points go back to the customer; off: the store keeps them (the food was made).' },
+  // 2026-10-27: off until the reading has been checked on real invoices and the owner has seen what it costs
+  pdiInvoices: { label: 'Invoices to PDI', help: 'Photos of a vendor invoice read into the file PDI imports (the Invoices to PDI page). Off: the page reads nothing; invoices already done can still be opened and downloaded.', def: false },
 } as const;
 export type FeatureKey = keyof typeof FEATURES;
-/** Every feature is on until HQ switches it off (one list, so a new one cannot be missed in one place) */
-const featureDefaults = () => Object.fromEntries(Object.keys(FEATURES).map((k) => [k, true])) as Record<FeatureKey, boolean>;
+/** Every feature is on until HQ switches it off (one list, so a new one cannot be missed in one place), unless it says otherwise */
+const featureDefaults = () => Object.fromEntries(Object.entries(FEATURES).map(([k, m]) => [k, 'def' in m ? m.def : true])) as Record<FeatureKey, boolean>;
 
 export interface BusinessInfo { supportPhone: string; supportEmail: string; supportHours: string }
 

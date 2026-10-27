@@ -805,4 +805,24 @@ export const adminApi = {
   setNotificationsRead: (ids: string[], read = true) => api.post('/admin/notifications/read', { ids, read }),
 };
 
+// Invoices to PDI (2026-10-27): a vendor invoice's photos read into the file PDI imports (pages/PdiInvoices.tsx, pages/PdiInvoice.tsx)
+export const pdiInvoicesApi = {
+  meta: () => api.get('/pdi-invoices/meta'),
+  list: (params: { storeId?: string; supplier?: string; page?: number }) => api.get('/pdi-invoices', { params }),
+  /** The photos in the order the person put them; the reading starts on the server and the page asks until it is done. */
+  create: (storeId: string, supplier: string, photos: Blob[]) => {
+    const fd = new FormData();
+    fd.append('storeId', storeId);
+    fd.append('supplier', supplier);
+    photos.forEach((p, i) => fd.append('photos', p, `photo${i + 1}.jpg`));
+    return api.post('/pdi-invoices', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 120_000 });
+  },
+  get: (id: string) => api.get(`/pdi-invoices/${id}`),
+  update: (id: string, body: { paper?: unknown; check?: { key: string; on: boolean }[]; units?: { upc: string; unitsPerCase: number; description?: string }[] }) =>
+    api.patch(`/pdi-invoices/${id}`, body),
+  read: (id: string) => api.post(`/pdi-invoices/${id}/read`),
+  file: (id: string) => api.get(`/pdi-invoices/${id}/file`, { responseType: 'blob' }),
+  remove: (id: string) => api.delete(`/pdi-invoices/${id}`),
+};
+
 export default api;

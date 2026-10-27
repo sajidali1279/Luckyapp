@@ -45,6 +45,7 @@ import {
   Bell,
   Headphones,
   FileText,
+  ReceiptText,
   ClipboardCheck,
   ListChecks,
   LogOut,
@@ -353,6 +354,7 @@ export function AppSidebar() {
               )}
               <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned Products" />
               <SidebarNavItem to="/labels" icon={<Printer size={16} />} label="Labels" />
+              <SidebarNavItem to="/pdi-invoices" icon={<ReceiptText size={16} />} label="Invoices to PDI" />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}

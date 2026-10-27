@@ -72,7 +72,8 @@ export function findPaper(rgb: Buffer, w: number, h: number): { l: number; t: nu
 }
 
 /** The receipt photo ready for the reader: cut to the paper when that is clear, turned upright, and no bigger than the reader uses. */
-export async function cropForReading(input: Buffer, mediaType: string): Promise<CropResult> {
+/** maxPixelsCut: invoices (utils/pdiRead.ts) keep more of the cut paper than a till receipt, for their denser print. */
+export async function cropForReading(input: Buffer, mediaType: string, maxPixelsCut = MAX_PIXELS_CUT): Promise<CropResult> {
   try {
     const upright = await sharp(input).rotate().toBuffer({ resolveWithObject: true });
     const W = upright.info.width, H = upright.info.height;
@@ -86,7 +87,7 @@ export async function cropForReading(input: Buffer, mediaType: string): Promise<
       h = Math.max(1, Math.min(H - top, Math.ceil((box.b - box.t) * H)));
       img = img.extract({ left, top, width: w, height: h });
     }
-    const scale = Math.min(1, MAX_SIDE / Math.max(w, h), Math.sqrt((box ? MAX_PIXELS_CUT : MAX_PIXELS) / (w * h)));
+    const scale = Math.min(1, MAX_SIDE / Math.max(w, h), Math.sqrt((box ? maxPixelsCut : MAX_PIXELS) / (w * h)));
     const outW = Math.max(1, Math.round(w * scale)), outH = Math.max(1, Math.round(h * scale));
     const buffer = await img.resize({ width: outW, height: outH }).jpeg({ quality: 82 }).toBuffer();
     return { buffer, mediaType: 'image/jpeg', cropped: !!box, from: { w: W, h: H }, to: { w: outW, h: outH } };

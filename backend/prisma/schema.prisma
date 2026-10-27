@@ -396,6 +396,7 @@ model Store {
   dailyTasks            DailyTask[]
   adminNotices          AdminNotice[]
   rewardItems           RedemptionCatalogItem[]
+  pdiInvoices           PdiInvoice[]
   // Store hours: regular weekly schedule (StoreHours) plus date-specific
   // overrides for holidays etc. (StoreHoliday), see both models below.
   storeHours            StoreHours[]
@@ -2126,4 +2127,53 @@ model FlashDeal {
 
   @@index([startsAt, endsAt])
   @@map("flash_deals")
+}
+
+// ─── Invoices to PDI ─────────────────────────────────────────────────────────
+
+// A vendor's paper invoice turned into the file PDI imports (2026-10-27, utils/pdiInvoice.ts and utils/pdiRead.ts): the photos, what the
+// AI read, a person's corrections, the file. `paper` holds the lines as read and then corrected; the problems are worked out from it each
+// time it is opened, so a fix or a confirmed units-per-case shows at once.
+model PdiInvoice {
+  id             String    @id @default(uuid())
+  storeId        String
+  supplier       String                          // the supplier's code in PDI: FRITO | EFDINC | PEPSIC
+  status         String                          // READING | READ | FAILED | DONE (the file was downloaded)
+  photoIds       String[]  @default([])          // Cloudinary ids (private), in the order they were added
+  invoiceNumber  String?                         // as read, digits: the duplicate warning matches on supplier and this
+  invoiceDate    String?                         // YYYY-MM-DD, as read
+  totalCents     Int?
+  paper          Json?                           // the PaperInvoice: what was read, then corrected
+  checked        String[]  @default([])          // problems a person looked at and accepted: "line|field|message"
+  readModel      String?
+  readUsage      Json?                           // input and output tokens of the last reading, for its cost
+  readError      String?
+  readStartedAt  DateTime?
+  createdById    String
+  updatedById    String?
+  downloadedAt   DateTime?
+  downloadedById String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@index([supplier, invoiceNumber])
+  @@map("pdi_invoices")
+}
+
+// Units per case each product comes in, by supplier (Ed F. Davis prints none on its invoices): learned from an old Deep Water file, or
+// confirmed by a person on the review page (a confirmed one is never overwritten by a learned one). Keyed by the full 12-digit UPC.
+model PdiProductUnits {
+  supplier     String
+  upc          String                            // 12 digits (pdiInvoice.ts fullUpc)
+  unitsPerCase Int
+  source       String                            // LEARNED | CONFIRMED
+  description  String?
+  updatedById  String?
+  updatedAt    DateTime  @updatedAt
+
+  @@id([supplier, upc])
+  @@map("pdi_product_units")
 }

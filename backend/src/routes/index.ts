@@ -83,6 +83,8 @@ import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.control
 import { getRestockInsights, getDemandInsights, getRewardsHotFoodInsights } from '../controllers/inventoryInsights.controller';
 import { getAppVersion, updateAppVersions } from '../controllers/appVersion.controller';
 import { hqReadReceipt, hqLinkReceipt } from '../controllers/hqReceipt.controller';
+import { pdiMeta, listPdiInvoices, createPdiInvoice, getPdiInvoice, updatePdiInvoice, rereadPdiInvoice, downloadPdiFile, deletePdiInvoice } from '../controllers/pdiInvoice.controller';
+import { MAX_PHOTOS as PDI_MAX_PHOTOS } from '../utils/pdiRead';
 import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
 import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards, testUserPush } from '../controllers/customerProfile.controller';
@@ -322,6 +324,17 @@ router.get('/points/hq/staff/:storeId', authenticate, requireRole(Role.SUPER_ADM
 // Receipt auto-fill on that page (2026-10-16): the AI reads the receipt photo and checks it was not used before; link = HQ granted from it
 router.post('/points/hq/receipt-read', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), hqReadReceipt);
 router.post('/points/hq/receipt-read/:id/link', authenticate, requireRole(Role.SUPER_ADMIN), hqLinkReceipt);
+
+// Invoices to PDI (2026-10-27): a vendor invoice's photos read into the file PDI imports. HQ for any store, a manager for their own
+// (checked in the controller); off until HQ switches it on.
+router.get('/pdi-invoices/meta', authenticate, requireRole(Role.STORE_MANAGER), pdiMeta);
+router.get('/pdi-invoices', authenticate, requireRole(Role.STORE_MANAGER), listPdiInvoices);
+router.post('/pdi-invoices', authenticate, requireRole(Role.STORE_MANAGER), upload.array('photos', PDI_MAX_PHOTOS), createPdiInvoice);
+router.get('/pdi-invoices/:id', authenticate, requireRole(Role.STORE_MANAGER), getPdiInvoice);
+router.patch('/pdi-invoices/:id', authenticate, requireRole(Role.STORE_MANAGER), updatePdiInvoice);
+router.post('/pdi-invoices/:id/read', authenticate, requireRole(Role.STORE_MANAGER), rereadPdiInvoice);
+router.get('/pdi-invoices/:id/file', authenticate, requireRole(Role.STORE_MANAGER), downloadPdiFile);
+router.delete('/pdi-invoices/:id', authenticate, requireRole(Role.STORE_MANAGER), deletePdiInvoice);
 // Win-back gifts (2026-10-16): a few points with a push for customers who have not been back, and how many came back
 router.get('/winback/preview', authenticate, requireRole(Role.SUPER_ADMIN), previewWinBack);
 router.get('/winback', authenticate, requireRole(Role.SUPER_ADMIN), listWinBacks);
