@@ -128,7 +128,7 @@ export function readPrompt(supplier: PdiSupplier, photoCount: number): string {
 
 // ── The answer, as the checks take it ────────────────────────────────────────
 
-const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null);   // nothing on an invoice is longer
 const int = (v: unknown) => (typeof v === 'number' && Number.isSafeInteger(v) ? v : null);
 
 /** The reader's JSON as a PaperInvoice; anything of the wrong kind becomes null, which the checks then name. */

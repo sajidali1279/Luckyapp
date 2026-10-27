@@ -99,19 +99,23 @@ async function knownUnitsFor(supplier: string): Promise<(upc: string) => KnownUn
   return (upc) => byUpc.get(fullUpc(upc));
 }
 
-/** What the page shows: each problem with a key (to accept it), whether it may be accepted (the file can still be made), and whether it is. */
+/** What the page shows: each problem with a key (to accept it), whether it may be accepted (not blocking, and the file can still be
+ *  made), and whether it is. */
 function review(row: Row, known: (upc: string) => KnownUnits | undefined) {
   const paper = row.paper as unknown as PaperInvoice | null;
   if (!paper) return null;
   const conv = convertInvoice(row.supplier as PdiSupplier, paper, { knownUnits: known, today: storeDateKey() });
   const checked = new Set(row.checked);
   const blocking = new Set(headerProblems(conv.header).map((p) => p.field));
-  const mark = (key: string, p: Problem, canCheck: boolean) => ({ ...p, key, canCheck, checked: canCheck && checked.has(key) });
+  const mark = (key: string, p: Problem, fileable: boolean) => {
+    const canCheck = fileable && !p.blocking;
+    return { ...p, key, canCheck, checked: canCheck && checked.has(key) };
+  };
   const lines = conv.lines.map((c, i) => {
     const fileable = lineProblems(c.line).length === 0;
     return { line: c.line, unitsFrom: c.unitsFrom, problems: c.problems.map((p) => mark(`${i}|${p.field}|${p.message}`, p, fileable)) };
   });
-  const problems = conv.problems.map((p) => mark(`-|${p.field}|${p.message}`, p, !blocking.has(p.field) && !(p.field === 'lines' && !lines.length)));
+  const problems = conv.problems.map((p) => mark(`-|${p.field}|${p.message}`, p, !blocking.has(p.field) && lines.length > 0));
   const open = [...problems, ...lines.flatMap((l) => l.problems)].filter((p) => !p.checked).length;
   return {
     header: conv.header, lines, problems, open,
