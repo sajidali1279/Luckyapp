@@ -1,6 +1,7 @@
 import { Component, CSSProperties, ReactNode } from 'react';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import Glyph from '../components/Glyph';
+import { isNewReleaseError } from '../lib/newRelease';
 
 // Without this, one page that receives something it did not expect blanks the whole app, sidebar included.
 // Placed around a page, the sidebar stays and the person gets a way out. Placed at the very top, it is the last resort.
@@ -48,6 +49,23 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.error) return this.props.children;
+    // A page file from an older release (it reloads once by itself, lib/newRelease.ts; this shows only if that did not help).
+    // "Try again" cannot fix it, React remembers the failed load: only a full reload fetches the new release.
+    if (isNewReleaseError(this.state.error)) {
+      return (
+        <div style={s.wrap} role="alert">
+          <div style={s.card}>
+            <div style={s.icon} aria-hidden="true"><Glyph e="🔄" size={30} color={PRIMARY} /></div>
+            <h1 style={s.title}>The admin was updated</h1>
+            <p style={s.text}>This tab still has the older version. Reload the page to get the new one. If it still does not open, check your internet connection.</p>
+            <div style={s.buttons}>
+              <button type="button" style={s.primary} onClick={() => window.location.reload()}>Reload the page</button>
+              <button type="button" style={s.secondary} onClick={this.copyDetails}>{this.state.copied ? 'Copied' : 'Copy details'}</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={s.wrap} role="alert">
         <div style={s.card}>
