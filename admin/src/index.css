@@ -468,6 +468,18 @@
 .ui-sticky-end { position: sticky; right: 0; z-index: 1; background-color: #fff; box-shadow: inset 1px 0 0 #e4e7ec; }
 tr:hover > .ui-sticky-end { background-image: linear-gradient(rgb(241 243 246 / 0.5), rgb(241 243 246 / 0.5)); }
 
+/* Every shared table (2026-10-28): a last column that holds buttons or fields stays pinned at the right edge the same way, so they
+   are never pushed off screen on a laptop or a phone (measured: Billing and Labels lost them at 1280 px, Customers and HQ billing at
+   1024 px). A row with its own background keeps it in that cell. Tables on such a page must not set overflow: hidden. */
+[data-slot="table-container"] tbody tr > td:last-child:has(button, input, select, [role="button"]),
+[data-slot="table-container"]:has(tbody tr > td:last-child :is(button, input, select, [role="button"])) thead tr > th:last-child {
+  position: sticky; right: 0; z-index: 1; background-color: #fff; box-shadow: inset 1px 0 0 #e4e7ec;
+}
+[data-slot="table-container"] tbody tr[style*="background"] > td:last-child:has(button, input, select, [role="button"]) { background-color: inherit; }
+[data-slot="table-container"] tbody tr:hover > td:last-child:has(button, input, select, [role="button"]) {
+  background-image: linear-gradient(rgb(241 243 246 / 0.5), rgb(241 243 246 / 0.5));
+}
+
 /* A store list beside its panel (Scheduling, Requests, Chat): on a phone the list stacks on top, a third of the screen at most and
    scrolling on its own, and the panel fills the rest with its own scrolling (2026-10-25: side by side, the list took 70% of the
    screen and the panel was squeezed to about 118 px). The !important wins over the pages' inline widths. */

@@ -1260,7 +1260,8 @@ const s: Record<string, React.CSSProperties> = {
   },
 
   // Table
-  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  // no overflow: hidden on the table: it stops the Actions column pinning (index.css)
+  table: { width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 12, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
   th: { background: '#f7f8fa', padding: '12px 16px', textAlign: 'left', fontSize: 14, color: TEXT_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 },
   td: { padding: '12px 16px', borderBottom: '1px solid #e4e7ec', fontSize: 14, verticalAlign: 'middle' },
   rowExpanded: { background: '#eef2f7' },
