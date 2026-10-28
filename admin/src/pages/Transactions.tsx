@@ -515,14 +515,6 @@ export default function Transactions() {
         >
           #{tx.id.slice(0, 8)}
         </button>
-        <button
-          type="button"
-          style={s.detailsBtn}
-          aria-label={`Details for ${fmt$(tx.purchaseAmount)} sale for ${who}`}
-          onClick={() => { setFocusedIndex(i); setPanelId(tx.id); }}
-        >
-          Details
-        </button>
       </TableCell>
       <TableCell style={s.td}>
         <div style={{ fontWeight: 600 }}>{tx.customer?.name || ' - '}</div>
@@ -572,37 +564,58 @@ export default function Transactions() {
           <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span>
         ) : ' - '}
       </TableCell>
+      {/* Every row has its actions here (2026-10-28: approved rows showed an empty column, Void was only in the details panel) */}
       <TableCell className="ui-sticky-end" style={{ ...s.td, backgroundColor: rowBg }}>
-        {tx.status === 'PENDING' && (
-          <button
-            style={s.rejectBtn}
-            aria-label={`Reject ${fmt$(tx.purchaseAmount)} transaction for ${who}`}
-            onClick={() => setDecision({ kind: 'REJECT_PENDING', tx })}
-          >
-            Reject
-          </button>
-        )}
-        {tx.status === 'FLAGGED' && (
-          <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
-            <button
-              style={{ ...s.rejectBtn, ...s.approveBtn, ...(hasReceipt ? {} : s.approveOff) }}
-              disabled={!hasReceipt}
-              title={hasReceipt ? undefined : 'A receipt must be uploaded before this sale can be approved'}
-              aria-label={`Approve ${fmt$(tx.purchaseAmount)} sale for ${who}`}
-              onClick={() => setDecision({ kind: 'APPROVE_FLAGGED', tx })}
-            >
-              ✓ Approve
-            </button>
+        <div style={s.actionCol}>
+          {tx.status === 'PENDING' && (
             <button
               style={s.rejectBtn}
-              aria-label={`Reject ${fmt$(tx.purchaseAmount)} sale for ${who}`}
-              onClick={() => setDecision({ kind: 'REJECT_FLAGGED', tx })}
+              aria-label={`Reject ${fmt$(tx.purchaseAmount)} transaction for ${who}`}
+              onClick={() => setDecision({ kind: 'REJECT_PENDING', tx })}
             >
-              ✕ Reject
+              Reject
             </button>
-            {!hasReceipt && <div style={s.actionNote}>Waiting for the cashier's receipt</div>}
-          </div>
-        )}
+          )}
+          {tx.status === 'FLAGGED' && (
+            <>
+              <button
+                style={{ ...s.rejectBtn, ...s.approveBtn, ...(hasReceipt ? {} : s.approveOff) }}
+                disabled={!hasReceipt}
+                title={hasReceipt ? undefined : 'A receipt must be uploaded before this sale can be approved'}
+                aria-label={`Approve ${fmt$(tx.purchaseAmount)} sale for ${who}`}
+                onClick={() => setDecision({ kind: 'APPROVE_FLAGGED', tx })}
+              >
+                ✓ Approve
+              </button>
+              <button
+                style={s.rejectBtn}
+                aria-label={`Reject ${fmt$(tx.purchaseAmount)} sale for ${who}`}
+                onClick={() => setDecision({ kind: 'REJECT_FLAGGED', tx })}
+              >
+                ✕ Reject
+              </button>
+              {!hasReceipt && <div style={s.actionNote}>Waiting for the cashier's receipt</div>}
+            </>
+          )}
+          {tx.status === 'APPROVED' && isSuperAdmin && (
+            <button
+              style={s.voidRowBtn}
+              title="Take the points back from the customer (asks for a reason first)"
+              aria-label={`Void ${tx.challengeId ? 'challenge reward' : `${fmt$(tx.purchaseAmount)} sale`} for ${who}`}
+              onClick={() => setDecision({ kind: 'VOID', tx })}
+            >
+              ↩️ Void
+            </button>
+          )}
+          <button
+            type="button"
+            style={s.rowBtn}
+            aria-label={`Details for ${tx.challengeId ? 'challenge reward' : `${fmt$(tx.purchaseAmount)} sale`} for ${who}`}
+            onClick={() => { setFocusedIndex(i); setPanelId(tx.id); }}
+          >
+            Details
+          </button>
+        </div>
       </TableCell>
     </TableRow>
     );
@@ -631,7 +644,6 @@ export default function Transactions() {
             <div style={s.oneLine}>{storeDay(first.createdAt)}{first.isTestData && <span style={s.testBadge} title="Marked as test data">TEST</span>}</div>
             <div style={{ fontSize: 13, color: TEXT_MUTED, ...s.oneLine }}>{storeTime(first.createdAt)}</div>
             <div style={{ fontSize: 12, fontWeight: 700, color: PRIMARY, marginTop: 2 }}>One sale · {lines.length} lines</div>
-            <button type="button" style={s.detailsBtn} aria-expanded={open} onClick={() => toggleSale(e.saleId)}>{open ? 'Hide lines ▴' : 'Show lines ▾'}</button>
           </TableCell>
           <TableCell style={s.td}>
             <div style={{ fontWeight: 600 }}>{first.customer?.name || ' - '}</div>
@@ -669,25 +681,31 @@ export default function Transactions() {
             {receipt ? <a href={receipt} target="_blank" rel="noopener noreferrer" style={s.link}>View</a> : one === 'FLAGGED' ? <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span> : ' - '}
           </TableCell>
           <TableCell className="ui-sticky-end" style={{ ...s.td, backgroundColor: saleBg }}>
-            {one === 'PENDING' && (
-              <button style={s.rejectBtn} aria-label={`Reject the whole ${fmt$(amount)} sale for ${who}`} onClick={() => setDecision({ kind: 'REJECT_SALE_PENDING', tx: first, lines })}>Reject sale</button>
-            )}
-            {one === 'FLAGGED' && (
-              <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
-                <button
-                  style={{ ...s.rejectBtn, ...s.approveBtn, ...(allReceipts ? {} : s.approveOff) }}
-                  disabled={!allReceipts}
-                  title={allReceipts ? undefined : 'A receipt must be uploaded before this sale can be approved'}
-                  aria-label={`Approve the whole ${fmt$(amount)} sale for ${who}`}
-                  onClick={() => setDecision({ kind: 'APPROVE_SALE', tx: first, lines })}
-                >
-                  ✓ Approve sale
-                </button>
-                <button style={s.rejectBtn} aria-label={`Reject the whole ${fmt$(amount)} sale for ${who}`} onClick={() => setDecision({ kind: 'REJECT_SALE', tx: first, lines })}>✕ Reject sale</button>
-                {!allReceipts && <div style={s.actionNote}>Waiting for the cashier's receipt</div>}
-              </div>
-            )}
-            {!one && <div style={s.actionNote}>Lines differ: open the lines to decide each one</div>}
+            <div style={s.actionCol}>
+              {one === 'PENDING' && (
+                <button style={s.rejectBtn} aria-label={`Reject the whole ${fmt$(amount)} sale for ${who}`} onClick={() => setDecision({ kind: 'REJECT_SALE_PENDING', tx: first, lines })}>Reject sale</button>
+              )}
+              {one === 'FLAGGED' && (
+                <>
+                  <button
+                    style={{ ...s.rejectBtn, ...s.approveBtn, ...(allReceipts ? {} : s.approveOff) }}
+                    disabled={!allReceipts}
+                    title={allReceipts ? undefined : 'A receipt must be uploaded before this sale can be approved'}
+                    aria-label={`Approve the whole ${fmt$(amount)} sale for ${who}`}
+                    onClick={() => setDecision({ kind: 'APPROVE_SALE', tx: first, lines })}
+                  >
+                    ✓ Approve sale
+                  </button>
+                  <button style={s.rejectBtn} aria-label={`Reject the whole ${fmt$(amount)} sale for ${who}`} onClick={() => setDecision({ kind: 'REJECT_SALE', tx: first, lines })}>✕ Reject sale</button>
+                  {!allReceipts && <div style={s.actionNote}>Waiting for the cashier's receipt</div>}
+                </>
+              )}
+              {!one && <div style={s.actionNote}>Lines differ: open the lines to decide each one</div>}
+              {/* each line has its own Details (and Void for HQ) once the lines are open */}
+              <button type="button" style={s.rowBtn} aria-expanded={open} aria-label={`${open ? 'Hide' : 'Show'} the ${lines.length} lines of the ${fmt$(amount)} sale for ${who}`} onClick={() => toggleSale(e.saleId)}>
+                {open ? 'Hide lines ▴' : 'Show lines ▾'}
+              </button>
+            </div>
           </TableCell>
         </TableRow>
         {open && e.lines.map((l) => lineRow(l.tx, l.i, true))}
@@ -1074,6 +1092,9 @@ const s: Record<string, React.CSSProperties> = {
   voidBtn: { flex: 1, background: 'none', border: '1px solid #4f6d8f', color: '#4f6d8f', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   approveOff: { background: '#e4e7ec', border: '1px solid #ced4da', color: '#5a6472', cursor: 'not-allowed' },
   actionNote: { fontSize: 12, color: TEXT_MUTED, maxWidth: 130 },
+  actionCol: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6 },
+  rowBtn: { background: '#fff', border: '1px solid #c9d2de', color: PRIMARY, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit' },
+  voidRowBtn: { background: 'none', border: '1px solid #4f6d8f', color: '#4f6d8f', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit' },
   dialogFlags: { textAlign: 'left', color: '#a51b28', fontSize: 13, fontWeight: 600, margin: '8px auto 0', paddingLeft: 20, maxWidth: 320 },
   empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60 },
 
@@ -1086,7 +1107,6 @@ const s: Record<string, React.CSSProperties> = {
   amountInput: { width: 100, padding: '8px 10px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, boxSizing: 'border-box' },
   testDataLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, color: TEXT_MUTED, fontWeight: 600, cursor: 'pointer' },
   testBadge: { marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#8a5300', background: '#fdf6e8', borderRadius: 4, padding: '1px 5px', letterSpacing: 0.3 },
-  detailsBtn: { display: 'block', background: 'none', border: 'none', padding: 0, marginTop: 3, fontSize: 12, color: PRIMARY, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, textDecoration: 'underline', whiteSpace: 'nowrap' },
 
   keyboardHint: { fontSize: 13, color: TEXT_MUTED, margin: '-6px 0 12px' },
   kbd: { fontSize: 11, fontWeight: 700, color: TEXT_MUTED, background: '#f1f3f6', border: '1px solid #e4e7ec', borderRadius: 4, padding: '1px 5px' },
