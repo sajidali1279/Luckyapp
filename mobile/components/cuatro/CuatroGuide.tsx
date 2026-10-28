@@ -22,7 +22,8 @@ import { useAppSettings } from '../../hooks/useAppSettings';
 import { haptic } from '../../utils/haptics';
 import { useShellBar } from '../DrawerShell';
 import CuatroRig, { Part, useRigValues, about, type Extras } from './CuatroRig';
-import { ASPECT, FEET, PIVOT, DROP, star, type Face, type Glove } from './art';
+import { ASPECT, FEET, PIVOT, DROP, VIEWBOX, COSTUMES, COSTUME_RISE, star, type Costume, type Face, type Glove } from './art';
+import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGuideCovered } from './guideCover';
 import { tips, answer, TOPICS, type Ctx, type Line, type Topic } from './guideTips';
 
@@ -60,7 +61,7 @@ function remember(patch: Partial<Saved>) {
   AsyncStorage.setItem(keyFor(savedFor), JSON.stringify(saved)).catch(() => {});
 }
 // Where he was this app run, so leaving a screen and coming back puts him back there
-const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0 };
+const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
@@ -149,6 +150,11 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const reduce = useReduceMotion();
   const rig = useRigValues();
   const tabRig = useRigValues();
+  // HQ's seasonal theme (admin Settings > App) dresses him up: a witch hat for Halloween, and so on (2026-10-28)
+  const preset = useAppTheme().preset;
+  const costume: Costume | null = (COSTUMES as string[]).includes(preset) ? (preset as Costume) : null;
+  const costumeRef = useRef(costume);
+  costumeRef.current = costume;
   // where he is (his box's top left), his spin about his middle, his lean and squash about his feet
   const x = useRef(new Animated.Value(-SIZE * 3)).current;
   const y = useRef(new Animated.Value(h)).current;
@@ -228,7 +234,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const openBubble = (b: Bubble) => {
     const p = pos.current, { w: ww, h: hh } = dims.current;
     bubbleRef.current = b;
-    setBubbleState({ ...b, id: ++bubbleSeq.current, at: { x: clamp(p.x + SIZE / 2, 22, ww - 22), bottom: hh - p.y + 2 } });
+    const hat = costumeRef.current ? COSTUME_RISE[costumeRef.current] * (SIZE / VIEWBOX.w) : 0;   // the bubble clears his hat
+    setBubbleState({ ...b, id: ++bubbleSeq.current, at: { x: clamp(p.x + SIZE / 2, 22, ww - 22), bottom: hh - p.y + 2 + hat } });
     const text = b.kind === 'hint' || b.kind === 'say' ? b.text : b.kind === 'line' ? b.line.text : b.kind === 'intro' ? t(`guide.intro${b.step + 1}`, { name }) : t('guide.helpTitle');
     AccessibilityInfo.announceForAccessibility(text);
     talk(text);
@@ -347,8 +354,15 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     pos.current = { x: tx, y: ty };
     if (!(await land(my))) return;
     setFace('happy'); setMode('bar'); run.where = 'bar';
-    if (saved?.introduced) run.nextTipAt = Math.max(run.nextTipAt, Date.now() + 30_000);
-    else later(900, () => { if (modeRef.current === 'bar' && !bubbleRef.current) say(t('guide.tapAgain'), 4000); });
+    if (saved?.introduced) {
+      run.nextTipAt = Math.max(run.nextTipAt, Date.now() + 30_000);
+      // in costume: a holiday hello, once each time the app is opened
+      const c = costumeRef.current;
+      if (c && !run.greeted) {
+        run.greeted = true;
+        later(600, () => { if (modeRef.current === 'bar' && !bubbleRef.current) { setFace('joy'); say(t(`guide.greet_${c}`), 3400); later(3500, () => { if (modeRef.current === 'bar') setFace('happy'); }); } });
+      }
+    } else later(900, () => { if (modeRef.current === 'bar' && !bubbleRef.current) say(t('guide.tapAgain'), 4000); });
   };
 
   /** From a peek (or the tab) onto the bar, where he waits. */
@@ -728,7 +742,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
           }}
           style={{ width: SIZE, height: H, transform: [{ rotate: deg(spin) }, ...about(PIVOT.feet, SIZE, { rotate: deg(lean) }, { scaleX: sx }, { scaleY: Animated.multiply(sy, breath) })] }}
         >
-          <CuatroRig size={SIZE} face={face} gloves={gloves} v={rig} extras={fx} />
+          <CuatroRig size={SIZE} face={face} gloves={gloves} v={rig} extras={fx} costume={costume} />
           {bits.stars ? <DizzyStars /> : null}
           {bits.drops ? <Drops /> : null}
           {bits.steam ? <Steam /> : null}
@@ -793,9 +807,10 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       {/* his tab on the left edge, only while he is off the screen */}
       <Animated.View pointerEvents={inTab ? 'box-none' : 'none'} style={[s.tab, { top: Math.max(dims.current.top, h * 0.56 - TAB_H / 2), transform: [{ translateX: tabX }] }]}>
         <Pressable onPress={() => { if (modeRef.current === 'tab') comeBack(); }} style={s.tabInner} accessibilityRole="button" accessibilityLabel={t('guide.a11yTab', { name })} hitSlop={{ top: 6, bottom: 6, right: 10 }}>
+          {/* in costume he sits lower in the tab so his hat shows */}
           {tabUp ? (
-            <View style={s.tabPeek} pointerEvents="none">
-              <CuatroRig size={60} face={tabFace} gloves={['fist', 'fist']} v={tabRig} extras={tabMood === 'sad' ? { tears: 'sad' } : tabMood === 'mad' ? { anger: true } : undefined} id="t" />
+            <View style={[s.tabPeek, costume ? { top: 2 + COSTUME_RISE[costume] * (60 / VIEWBOX.w) } : null]} pointerEvents="none">
+              <CuatroRig size={60} face={tabFace} gloves={['fist', 'fist']} v={tabRig} extras={tabMood === 'sad' ? { tears: 'sad' } : tabMood === 'mad' ? { anger: true } : undefined} costume={costume} id="t" />
             </View>
           ) : null}
         </Pressable>

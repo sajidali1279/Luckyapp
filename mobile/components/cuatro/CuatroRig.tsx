@@ -5,8 +5,8 @@ import { memo, useRef, type ReactElement } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import Svg, { Path, Ellipse, Circle, Rect, Polygon, G, Defs, LinearGradient, RadialGradient, Stop, ClipPath } from 'react-native-svg';
 import {
-  VIEWBOX, ASPECT, PIVOT, BODY, SPROUT, CHEEKS, CHEEKS_MAD, ANGER, SWEAT, arm, leg, eyeWhites, pupils, lids, otherEyes, brows, mouth, tears,
-  type Layer, type Shape, type Def, type Face, type Glove,
+  VIEWBOX, ASPECT, PIVOT, BODY, SPROUT, CHEEKS, CHEEKS_MAD, ANGER, SWEAT, COSTUME_BOX, arm, leg, eyeWhites, pupils, lids, otherEyes, brows, mouth,
+  tears, costume as costumeLayer, type Layer, type Shape, type Def, type Face, type Glove, type Costume,
 } from './art';
 
 const VB = `${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`;
@@ -86,9 +86,11 @@ export function about(p: readonly number[], w: number, ...t: any[]): any[] {
 
 export interface Extras { tears?: 'sad' | 'cry'; anger?: boolean; sweat?: boolean }
 
-/** Cuatro, `size` wide. `face` and the gloves pick the drawings; `v` moves them. */
-export default function CuatroRig({ size, face, gloves, v, extras, id = 'c' }: {
-  size: number; face: Face; gloves: [Glove, Glove]; v: RigValues; extras?: Extras; id?: string;
+const COSTUME_VB = `${COSTUME_BOX.x} ${COSTUME_BOX.y} ${COSTUME_BOX.w} ${COSTUME_BOX.h}`;
+
+/** Cuatro, `size` wide. `face` and the gloves pick the drawings; `v` moves them. `costume`: a seasonal hat (it sits above his box). */
+export default function CuatroRig({ size, face, gloves, v, extras, costume, id = 'c' }: {
+  size: number; face: Face; gloves: [Glove, Glove]; v: RigValues; extras?: Extras; costume?: Costume | null; id?: string;
 }) {
   const w = size, h = size * ASPECT;
   const layer = (style: any, l: Layer, key: string) => (
@@ -103,7 +105,7 @@ export default function CuatroRig({ size, face, gloves, v, extras, id = 'c' }: {
       {layer({ transform: about(PIVOT.armR, w, { rotate: deg(v.armR, -1) }) }, once(`armR${gloves[1]}`, () => arm('R', gloves[1])), 'ar')}
       {layer({ transform: about(PIVOT.legL, w, { rotate: deg(v.legL) }) }, once('legL', () => leg('L')), 'll')}
       {layer({ transform: about(PIVOT.legR, w, { rotate: deg(v.legR, -1) }) }, once('legR', () => leg('R')), 'lr')}
-      {layer({ transform: about(PIVOT.sprout, w, { rotate: deg(v.sprout) }) }, SPROUT, 'sp')}
+      {costume ? null : layer({ transform: about(PIVOT.sprout, w, { rotate: deg(v.sprout) }) }, SPROUT, 'sp')}
       {layer(null, BODY, 'bd')}
       {layer(null, face === 'mad' ? CHEEKS_MAD : CHEEKS, 'ck')}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { transform: about(PIVOT.eyes, w, { scaleY: v.blink }) }]}>
@@ -114,6 +116,12 @@ export default function CuatroRig({ size, face, gloves, v, extras, id = 'c' }: {
       </Animated.View>
       {layer(null, once(`br${face}`, () => brows(face)), 'br')}
       {layer({ transform: about(PIVOT.mouth, w, { scaleY: v.talk }) }, once(`mo${face}`, () => mouth(face)), 'mo')}
+      {costume ? (
+        // the hat's own taller picture, lined up so its units match his: it starts (VIEWBOX.y - COSTUME_BOX.y) units above his box
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: -(VIEWBOX.y - COSTUME_BOX.y) * scale, width: w, height: COSTUME_BOX.h * scale }}>
+          <Part layer={once(`co${costume}`, () => costumeLayer(costume))} w={w} pre={`${id}co_`} box={COSTUME_VB} />
+        </View>
+      ) : null}
       {extras?.tears ? layer(null, once(`te${extras.tears}`, () => tears(extras.tears!)), 'te') : null}
       {extras?.anger ? layer(null, ANGER, 'an') : null}
       {extras?.sweat ? layer(null, SWEAT, 'sw') : null}

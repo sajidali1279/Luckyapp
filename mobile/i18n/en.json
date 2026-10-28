@@ -3660,6 +3660,10 @@
     "backSad": "*sniff* You came back for me? 🥹",
     "backMad": "Hmph. Fine, I'm back. Still mad, though. 😤",
     "backForgive": "Okay, okay, I forgive you! Tap me if you need anything.",
-    "backHi": "Hi again! 👋 Tap me if you need anything."
+    "backHi": "Hi again! 👋 Tap me if you need anything.",
+    "greet_HALLOWEEN": "Happy Halloween! 🎃 Like my hat?",
+    "greet_THANKSGIVING": "Happy Thanksgiving! 🦃 Like my hat?",
+    "greet_CHRISTMAS": "Merry Christmas! 🎄 Ho ho ho!",
+    "greet_GAME_DAY": "It's game day! 🏈 Like my cap?"
   }
 }

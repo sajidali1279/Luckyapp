@@ -3660,6 +3660,10 @@
     "backSad": "*snif* ¿Volviste por mí? 🥹",
     "backMad": "Hmph. Bueno, ya volví. Pero sigo enojado. 😤",
     "backForgive": "¡Ya, ya, te perdono! Tócame si necesitas algo.",
-    "backHi": "¡Hola otra vez! 👋 Tócame si necesitas algo."
+    "backHi": "¡Hola otra vez! 👋 Tócame si necesitas algo.",
+    "greet_HALLOWEEN": "¡Feliz Halloween! 🎃 ¿Te gusta mi sombrero?",
+    "greet_THANKSGIVING": "¡Feliz Día de Acción de Gracias! 🦃 ¿Te gusta mi sombrero?",
+    "greet_CHRISTMAS": "¡Feliz Navidad! 🎄 ¡Jo, jo, jo!",
+    "greet_GAME_DAY": "¡Hoy hay partido! 🏈 ¿Te gusta mi gorra?"
   }
 }

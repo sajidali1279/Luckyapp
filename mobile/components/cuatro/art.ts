@@ -392,6 +392,59 @@ export function star(fill = GOLD): Layer {
 }
 export const STAR_BOX = { x: -32, y: -32, w: 64, h: 64 };
 
+// ------------------------------------------------------------------ costumes (2026-10-28)
+// A hat for each of HQ's seasonal themes (admin Settings > App), worn while that theme is on. Hats rise above the box, so they are
+// drawn in COSTUME_BOX: the same units, taller at the top; CuatroRig lines it up with the rest. The sprout is hidden under a hat.
+export type Costume = 'HALLOWEEN' | 'THANKSGIVING' | 'CHRISTMAS' | 'GAME_DAY';
+export const COSTUMES: Costume[] = ['HALLOWEEN', 'THANKSGIVING', 'CHRISTMAS', 'GAME_DAY'];
+export const COSTUME_BOX = { x: -290, y: -390, w: 580, h: 698 };
+/** How far each hat rises above the box's top, in drawing units (for the speech bubble and the tab). */
+export const COSTUME_RISE: Record<Costume, number> = { HALLOWEEN: 108, THANKSGIVING: 82, CHRISTMAS: 92, GAME_DAY: 34 };
+const ORANGE = '#FF8A1F';
+
+export function costume(kind: Costume): Layer {
+  if (kind === 'HALLOWEEN') {
+    // a bent witch hat: purple, orange band, gold buckle
+    return { shapes: [{ k: 'g', tf: 'rotate(-7 0 -200)', kids: [
+      { k: 'ellipse', cx: 6, cy: -198, rx: 130, ry: 26, fill: '#2A1A40', stroke: INK, sw: 9 },
+      { k: 'path', d: 'M-66 -206 C-48 -250 -20 -300 6 -332 C22 -350 52 -362 90 -352 C62 -342 46 -324 42 -302 C50 -272 62 -238 74 -210 Q4 -222 -66 -206Z', fill: '#3D2560', stroke: INK, sw: 9 },
+      { k: 'path', d: 'M-40 -236 C-26 -264 -10 -292 4 -312', stroke: '#7A5BA8', sw: 7, op: 0.7 },
+      { k: 'path', d: 'M-60 -224 Q6 -242 70 -228 L74 -210 Q4 -224 -66 -206Z', fill: ORANGE, stroke: INK, sw: 6 },
+      { k: 'rect', x: -6, y: -242, w: 30, h: 24, rx: 4, fill: GOLD, stroke: INK, sw: 5 },
+      { k: 'rect', x: 3, y: -236, w: 12, h: 12, rx: 2, fill: ORANGE },
+      { k: 'g', tf: 'translate(40 -280) scale(0.42)', kids: [{ k: 'polygon', points: '0,-28 7,-9 27,-9 11,3 17,22 0,10 -17,22 -11,3 -27,-9 -7,-9', fill: GOLD, stroke: INK, sw: 6 }] },
+    ] }] };
+  }
+  if (kind === 'THANKSGIVING') {
+    // a tall pilgrim hat with a buckle
+    return { shapes: [{ k: 'g', tf: 'rotate(-5 0 -200)', kids: [
+      { k: 'ellipse', cx: 0, cy: -198, rx: 124, ry: 24, fill: '#1F1F24', stroke: INK, sw: 9 },
+      { k: 'path', d: 'M-70 -206 L-56 -326 Q0 -340 56 -326 L70 -206 Q0 -222 -70 -206Z', fill: '#2B2B33', stroke: INK, sw: 9 },
+      { k: 'path', d: 'M-44 -306 L-54 -236', stroke: '#5B5B68', sw: 7, op: 0.8 },
+      { k: 'path', d: 'M-66 -240 Q0 -254 66 -240 L68 -212 Q0 -226 -68 -212Z', fill: '#7A4E2D', stroke: INK, sw: 6 },
+      { k: 'rect', x: -20, y: -250, w: 40, h: 34, rx: 4, fill: GOLD, stroke: INK, sw: 6 },
+      { k: 'rect', x: -10, y: -242, w: 20, h: 18, rx: 2, fill: '#7A4E2D' },
+    ] }] };
+  }
+  if (kind === 'CHRISTMAS') {
+    // a Santa hat flopping to the side, white trim and pompom
+    return { shapes: [{ k: 'g', tf: 'rotate(-6 0 -200)', kids: [
+      { k: 'path', d: 'M-86 -214 C-62 -292 -4 -344 58 -336 C102 -330 124 -298 120 -266 C106 -286 82 -298 58 -292 C42 -272 60 -238 86 -212Z', fill: '#D7263D', stroke: INK, sw: 9 },
+      { k: 'path', d: 'M-40 -264 C-20 -298 10 -320 42 -324', stroke: '#FF6B7A', sw: 7, op: 0.6 },
+      { k: 'path', d: 'M-112 -228 Q0 -250 114 -228 Q124 -212 114 -196 Q0 -218 -112 -196 Q-122 -212 -112 -228Z', fill: '#FFFFFF', stroke: INK, sw: 8 },
+      { k: 'circle', cx: 122, cy: -262, r: 26, fill: '#FFFFFF', stroke: INK, sw: 8 },
+    ] }] };
+  }
+  // GAME_DAY: a red cap with a white star
+  return { shapes: [{ k: 'g', tf: 'rotate(-6 0 -200)', kids: [
+    { k: 'path', d: 'M-20 -210 C40 -224 112 -216 146 -198 C112 -184 40 -190 -20 -200Z', fill: '#A61E2B', stroke: INK, sw: 8 },
+    { k: 'path', d: 'M-96 -206 C-94 -292 94 -292 96 -206 Q0 -222 -96 -206Z', fill: RED, stroke: INK, sw: 9 },
+    { k: 'path', d: 'M0 -282 L0 -214', stroke: '#8E1A25', sw: 5 },
+    { k: 'circle', cx: 0, cy: -282, r: 11, fill: '#A61E2B', stroke: INK, sw: 6 },
+    { k: 'g', tf: 'translate(-44 -240) scale(0.8)', kids: [{ k: 'polygon', points: '0,-28 7,-9 27,-9 11,3 17,22 0,10 -17,22 -11,3 -27,-9 -7,-9', fill: '#FFFFFF', stroke: INK, sw: 5 }] },
+  ] }] };
+}
+
 /** A falling tear drop, in its own little box. */
 export const DROP: Layer = {
   shapes: [{ k: 'path', d: 'M0 -18 C8 -6 12 2 12 7 A12 12 0 0 1 -12 7 C-12 2 -8 -6 0 -18Z', fill: TEAR, stroke: INK, sw: 3 }],
