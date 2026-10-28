@@ -8,6 +8,7 @@ import DrawerShell, { NavGroup, NavItem } from '../../components/DrawerShell';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import TierUpHost from '../../components/engagement/TierUpHost';
+import CuatroGuide from '../../components/cuatro/CuatroGuide';
 import {
   HomeIcon, StarIcon, ClockIcon, MegaphoneIcon, TrophyIcon,
   BriefcaseIcon, ShoppingBagIcon, BellIcon, FlameIcon,
@@ -66,7 +67,8 @@ export default function CustomerLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-    <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.primary}>
+    {/* Cuatro, the on-screen guide (2026-10-27, HQ switch in admin > Engagement > Cuatro): over the screens, under the side menu */}
+    <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.primary} floating={<CuatroGuide />}>
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
         <Tabs.Screen name="scan-receipt" options={{ href: null }} />

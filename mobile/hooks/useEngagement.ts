@@ -20,7 +20,7 @@ export interface EngagementFlags {
   weeklyChallenge: boolean;
   flashDeals: boolean;
   friendsBoard?: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH' };
-  mascot?: { home: boolean; empty: boolean; name: string };   // Cuatro (2026-10-25): the Home tip card and the empty screens
+  mascot?: { home: boolean; empty: boolean; name: string; guide?: boolean };   // Cuatro (2026-10-25): the Home tip card and the empty screens; guide: on screen (2026-10-27)
   games?: boolean;   // the prize game (2026-10-25)
 }
 export interface Streak { weeks: number; current: boolean; atRisk: boolean; endsOn: string | null; best: number; minPurchase: number; next: { weeks: number; pts: number } | null; milestones: { weeks: number; pts: number; reached: boolean; paid: boolean }[] }

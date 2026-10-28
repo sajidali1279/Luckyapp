@@ -56,7 +56,8 @@ export interface EngagementConfig {
   tierUp: { enabled: boolean };
   // Cuatro, the mascot (2026-10-25): a "Cuatro says" tip card on Home, Cuatro in the empty screens, and (pushVoice) the mascot's name in
   // front of the automated pushes ("Cuatro: 🎁 So close!", utils/mascot.ts). name: what the app calls it, so a new name needs no build.
-  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean };
+  // guide (2026-10-27): the animated Cuatro on the customer's main screens, who introduces himself, gives tips and can be thrown away.
+  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide: boolean };
   // Prize game (2026-10-25): spin the wheel, a scratch card or a lucky number (utils/engagementGames.ts). One free play per customer per
   // store day, no purchase needed, the same odds for everyone; prizes are points inside a hard monthly budget, and the game closes for the
   // month once what is left could not pay the top prize. since: set by the server when HQ switches it on; endsOn: an optional last day.
@@ -100,7 +101,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
   flashDeals: { enabled: false, maxPerWeek: 3 },
   friendsBoard: { enabled: false, metric: 'VISITS', period: 'WEEK', minMembers: 3, maxRows: 15 },
   tierUp: { enabled: false },
-  mascot: { enabled: false, name: 'Cuatro', homeCard: true, emptyStates: true, pushVoice: false },
+  mascot: { enabled: false, name: 'Cuatro', homeCard: true, emptyStates: true, pushVoice: false, guide: true },
   games: { enabled: false, game: 'SPIN', prizes: [{ pts: 0, weight: 400 }, { pts: 2, weight: 300 }, { pts: 5, weight: 180 }, { pts: 10, weight: 90 }, { pts: 25, weight: 25 }, { pts: 100, weight: 5 }], monthlyBudgetPts: 20000, since: null, endsOn: null },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
@@ -238,7 +239,7 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     mascot: (() => {
       const m = isObj(s.mascot) ? s.mascot : {};
       return { enabled: bool(m.enabled, false), name: text(m.name, L.mascotName, d.mascot.name), homeCard: bool(m.homeCard, d.mascot.homeCard),
-        emptyStates: bool(m.emptyStates, d.mascot.emptyStates), pushVoice: bool(m.pushVoice, d.mascot.pushVoice) };
+        emptyStates: bool(m.emptyStates, d.mascot.emptyStates), pushVoice: bool(m.pushVoice, d.mascot.pushVoice), guide: bool(m.guide, d.mascot.guide) };
     })(),
     games: (() => {
       const g = isObj(s.games) ? s.games : {};
@@ -282,7 +283,7 @@ export function publicEngagement(c: EngagementConfig) {
     weeklyChallenge: c.weeklyChallenge.enabled,
     flashDeals: c.flashDeals.enabled,
     friendsBoard: { enabled: c.friendsBoard.enabled, metric: c.friendsBoard.metric, period: c.friendsBoard.period },
-    mascot: { home: c.mascot.enabled && c.mascot.homeCard, empty: c.mascot.enabled && c.mascot.emptyStates, name: c.mascot.name },
+    mascot: { home: c.mascot.enabled && c.mascot.homeCard, empty: c.mascot.enabled && c.mascot.emptyStates, name: c.mascot.name, guide: c.mascot.enabled && c.mascot.guide },
     games: c.games.enabled,   // the app asks GET /engagement/games for the rest (the odds, and whether this customer has played today)
   };
 }

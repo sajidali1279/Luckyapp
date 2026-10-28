@@ -13,7 +13,7 @@ import { Text } from './ScaledText';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePathname, router } from 'expo-router';
-import { useRef, useState, ReactNode, useCallback, useEffect } from 'react';
+import { useRef, useState, ReactNode, useCallback, useEffect, useMemo, createContext, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/authStore';
 import { COLORS } from '../constants';
@@ -45,9 +45,15 @@ interface Props {
   bottomItems: [NavItem, NavItem];
   groups: NavGroup[];
   headerColor?: string;
+  /** Drawn over the screens and the bottom bar but under the side menu: the customer app's Cuatro (2026-10-27). */
+  floating?: ReactNode;
 }
 
-export default function DrawerShell({ children, bottomItems, groups, headerColor }: Props) {
+/** The bottom bar as the floating layer sees it: its height, whether this screen hides it, and whether the side menu is open. */
+const ShellBarContext = createContext({ height: 0, hidden: true, menuOpen: false });
+export const useShellBar = () => useContext(ShellBarContext);
+
+export default function DrawerShell({ children, bottomItems, groups, headerColor, floating }: Props) {
   const { user, logout } = useAuthStore();
   const { t } = useTranslation();
   const pathname = usePathname();
@@ -110,6 +116,8 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
   }
 
   const isFullscreen = FULLSCREEN_ROUTES.some((r) => pathname.endsWith(r));
+  const [barH, setBarH] = useState(0);
+  const barInfo = useMemo(() => ({ height: barH, hidden: isFullscreen, menuOpen: open }), [barH, isFullscreen, open]);
 
   return (
     <View style={s.root}>
@@ -117,7 +125,8 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
 
       {/* Bottom mini bar */}
       {!isFullscreen && (
-      <View style={[s.bottomBar, { paddingBottom: insets.bottom + 6 }]}>
+      <View style={[s.bottomBar, { paddingBottom: insets.bottom + 6 }]}
+        onLayout={(e) => { const hh = Math.round(e.nativeEvent.layout.height); setBarH((v) => (v === hh ? v : hh)); }}>
         {bottomItems.map((item) => {
           const active = isActive(item.route);
           return (
@@ -161,6 +170,8 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
         </TouchableOpacity>
       </View>
       )}
+
+      {floating ? <ShellBarContext.Provider value={barInfo}>{floating}</ShellBarContext.Provider> : null}
 
       {/* Drawer overlay + panel */}
       {open && (

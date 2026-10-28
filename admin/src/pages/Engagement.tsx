@@ -31,7 +31,7 @@ interface Config {
   weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
   flashDeals: { enabled: boolean; maxPerWeek: number };
   tierUp: { enabled: boolean };
-  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean };
+  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide?: boolean };
   games: { enabled: boolean; game: GameKind; prizes: { pts: number; weight: number }[]; monthlyBudgetPts: number; since: string | null; endsOn: string | null };
   friendsBoard: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH'; minMembers: number; maxRows: number };
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
@@ -231,7 +231,7 @@ export default function Engagement() {
 
         <Feature id="mascot" emoji="🍀" title={`${c.mascot.name}, the mascot`} blurb={`Lucky Stop's clover mascot in the app: a short tip of the day on customers' Home (a reward that is ready, one nearly there, or an everyday tip), ${c.mascot.name} in place of the plain icon on empty screens, and if you like, ${c.mascot.name}'s name in front of the automated pushes. It costs nothing.`}
           on={c.mascot.enabled} onToggle={toggle('mascot')} busy={save.isPending} open={!!open.mascot} setOpen={(v) => setOpen((o) => ({ ...o, mascot: v }))}
-          summary={[c.mascot.homeCard && 'A tip on Home', c.mascot.emptyStates && 'empty screens', c.mascot.pushVoice && 'signs the automated pushes'].filter(Boolean).join(', ') || 'Nothing picked: open Settings'}>
+          summary={[c.mascot.guide !== false && 'On-screen guide', c.mascot.homeCard && 'a tip on Home', c.mascot.emptyStates && 'empty screens', c.mascot.pushVoice && 'signs the automated pushes'].filter(Boolean).join(', ') || 'Nothing picked: open Settings'}>
           <MascotEditor value={c.mascot} onSave={(v) => save.mutate({ mascot: v })} busy={save.isPending} />
         </Feature>
 
@@ -707,10 +707,11 @@ function MascotEditor({ value, onSave, busy }: { value: Config['mascot']; onSave
   const [home, setHome] = useState(value.homeCard);
   const [empty, setEmpty] = useState(value.emptyStates);
   const [voice, setVoice] = useState(value.pushVoice);
-  useEffect(() => { setName(value.name); setHome(value.homeCard); setEmpty(value.emptyStates); setVoice(value.pushVoice); }, [value.name, value.homeCard, value.emptyStates, value.pushVoice]);
+  const [guide, setGuide] = useState(value.guide !== false);
+  useEffect(() => { setName(value.name); setHome(value.homeCard); setEmpty(value.emptyStates); setVoice(value.pushVoice); setGuide(value.guide !== false); }, [value.name, value.homeCard, value.emptyStates, value.pushVoice, value.guide]);
   const n = name.trim().replace(/\s+/g, ' ');
   const who = n || 'Cuatro';
-  const changed = n !== value.name || home !== value.homeCard || empty !== value.emptyStates || voice !== value.pushVoice;
+  const changed = n !== value.name || home !== value.homeCard || empty !== value.emptyStates || voice !== value.pushVoice || guide !== (value.guide !== false);
   const box = (id: string, on: boolean, set: (v: boolean) => void, label: string, hint: string) => (
     <label htmlFor={id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer', color: C.text }}>
       <input id={id} type="checkbox" checked={on} onChange={(e) => set(e.target.checked)} style={{ marginTop: 3 }} />
@@ -722,10 +723,11 @@ function MascotEditor({ value, onSave, busy }: { value: Config['mascot']; onSave
       <Field label="The mascot's name" htmlFor="ma-name" hint="The app shows it everywhere, with no new app version." after={`${Array.from(n).length} of 20`}>
         <input id="ma-name" style={{ ...INPUT, width: 220 }} maxLength={20} value={name} onChange={(e) => setName(e.target.value)} />
       </Field>
+      {box('ma-guide', guide, setGuide, 'On-screen guide', `${who} moves around the customer's main screens (Home, Rewards, History and a few more, never over a form, the camera or ordering). He peeks in and waves, introduces himself on a tap, now and then points out an offer, a challenge, a deal or a feature, and answers from a small help menu. Customers can carry him around or throw him off the screen; he then waits in a small tab on the left edge until they tap it. Needs app version 1.8.0 or newer.`)}
       {box('ma-home', home, setHome, 'A tip on Home', `"${who} says": a reward that is ready, one nearly there, or an everyday tip (show your code, order hot food, invite a friend, tiers, the leaderboard). A customer can hide it until the next day.`)}
       {box('ma-empty', empty, setEmpty, 'Empty screens', `${who} in place of the plain icon when a customer's history, alerts, chat or ads are empty.`)}
       {box('ma-voice', voice, setVoice, 'Signs the automated pushes', `The smart nudges, the welcome series, the birthday push and the challenge of the week start with "${who}: ". Pushes about a sale, an order or an alert the customer set up never do.`)}
-      <div style={row}><Button variant="primary" disabled={!n || !changed || busy} onClick={() => onSave({ name: n, homeCard: home, emptyStates: empty, pushVoice: voice })}>Save</Button></div>
+      <div style={row}><Button variant="primary" disabled={!n || !changed || busy} onClick={() => onSave({ name: n, homeCard: home, emptyStates: empty, pushVoice: voice, guide })}>Save</Button></div>
     </>
   );
 }

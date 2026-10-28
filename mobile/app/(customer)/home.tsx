@@ -35,6 +35,7 @@ import ChallengesSection from '../../components/ChallengesSection';
 import EngagementHome from '../../components/engagement/EngagementHome';
 import FlashDealBanner from '../../components/engagement/FlashDealBanner';
 import CuatroCard from '../../components/engagement/CuatroCard';
+import { useGuideCover } from '../../components/cuatro/guideCover';
 import PrizeGameCard from '../../components/engagement/games/PrizeGameCard';
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi } from '../../services/api';
@@ -298,6 +299,7 @@ function InlineModal({
   children: React.ReactNode;
 }) {
   const progress = useRef(new Animated.Value(0)).current;
+  useGuideCover();   // Cuatro steps away while this is open (he walks on a layer above the screen)
   useEffect(() => {
     Animated.timing(progress, { toValue: 1, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, []);
