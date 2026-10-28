@@ -35,8 +35,9 @@ two photos show the same lines, use them once; never drop a line that only one p
 
 Copy what is printed, character for character, digit for digit. Do not correct, round, add up or guess anything: the numbers are checked
 afterwards against each other. Thermal paper fades; read small digits with care (0 and 8, 1 and 7, 3 and 8, 5 and 6 look alike) and compare
-with the same digit elsewhere on the paper. When a value cannot be read, give null for it and say what and where in "unreadable"; never
-invent one. Money is given as printed with its decimals ("25.15", "1.9500"); quantities are whole numbers. Dates are YYYY-MM-DD.`;
+with the same digit elsewhere on the paper. Every value is text: when a value is not printed, give an empty string ""; when it is printed
+but cannot be read, give "" and say what and where in "unreadable". Never invent a value. Money is given as printed with its decimals
+("25.15", "1.9500"); quantities and units as the whole numbers printed ("2", "24"). Dates are YYYY-MM-DD.`;
 
 const LAYOUTS: Record<PdiSupplier, string> = {
   FRITO: `Frito-Lay route invoice (thermal printer).
@@ -44,19 +45,19 @@ const LAYOUTS: Record<PdiSupplier, string> = {
 - Item rows have the columns QTY EACH, UPC, DESCRIPTION, ITEM, EACH COST, TOTAL AMOUNT, RETAIL AMOUNT, TAX. The UPC column holds only the
   last digits of the UPC (for example 25955, 3422 or 78): copy them as printed. ITEM is 8 digits; on some rows it is printed on the row
   below, next to case-pack text such as "1 5REG" (ignore that text).
-- quantity = QTY EACH; price = EACH COST (4 decimals, for example 1.9500); amount = TOTAL AMOUNT; item = ITEM; units = null; group = null.
+- quantity = QTY EACH; price = EACH COST (4 decimals, for example 1.9500); amount = TOTAL AMOUNT; item = ITEM; units = ""; group = "".
 - The rows sit under section titles "**SALES**" and "**RETURNS**", each under a line "MANUFACTURER: 28400 FRITOLAY": give that 5-digit
   number as manufacturer on every row of its section. A row under RETURNS has isReturn true, with its quantity as printed (positive).
-- summary.units = TOTAL EXTENDED EACHES SOLD; summary.cases = null. groups: none (an empty list).`,
+- summary.units = TOTAL EXTENDED EACHES SOLD; summary.cases = "". groups: none (an empty list).`,
   EFDINC: `Ed F. Davis, Inc. beer invoice (dot-matrix print).
 - Header: Invoice is the invoice number; Date (the year may be cut off, like "08/04/202": give the full date you can tell and say so in
   "unreadable"); Total Sale is the total.
 - Columns: ID (6 digits), QTY, PRODUCT, UPC (like 0-18200-20038-0), PRICE, DEP, DISC, NET, TOTAL.
 - A long product name can run into the UPC column: "BDL CHELADA 24/12oz. 2/10-18200-20351-0" is the product "BDL CHELADA 24/12oz. 2/1" and
   the UPC "0-18200-20351-0". The UPC is always the last 0-00000-00000-0 group right before the price.
-- item = ID; quantity = QTY; price = NET (the price after the discount); amount = TOTAL; units = null; manufacturer = null; group = null;
+- item = ID; quantity = QTY; price = NET (the price after the discount); amount = TOTAL; units = ""; manufacturer = ""; group = "";
   isReturn false.
-- summary.cases = the quantity printed after "Totals"; summary.units = null. groups: none (an empty list).`,
+- summary.cases = the quantity printed after "Totals"; summary.units = "". groups: none (an empty list).`,
   PEPSIC: `PepsiCo Beverages invoice (thermal printer).
 - Header: INVOICE # is the invoice number (a leading digit may be faint: read it with care); the date like 08/19/2026 becomes 2026-08-19;
   Amount Due is the total.
@@ -65,36 +66,38 @@ const LAYOUTS: Record<PdiSupplier, string> = {
 - Each item takes two printed lines: first "DESCRIPTION UPC" (the UPC like 0-48500-20603-4 or 8-10063-71107-8), then
   "Whlsl Cases Units Net Amount", for example "33.00  1  12 25.15  25.15". Units and Net can print run together, like "1225.15": that is
   units 12 and net 25.15.
-- quantity = Cases; units = Units; price = Net; amount = Amount; item = null; manufacturer = null; isReturn false.
+- quantity = Cases; units = Units; price = Net; amount = Amount; item = ""; manufacturer = ""; isReturn false.
 - Each group ends with "SUBTOTAL cases units amount": give one entry in groups per package header, in order, with its subtotal.
 - summary.cases and summary.units: Cases and Total Units in the SALES SUMMARY near the top.`,
 };
 
-const nullable = (type: 'string' | 'integer') => ({ anyOf: [{ type }, { type: 'null' }] });
+// Every value is text ("" when not printed or unreadable): the API allows at most 16 fields that may be one type or another (anyOf, or
+// "type": [..., "null"]) in a schema, and a schema over that is refused with a 400 before any photo is read (2026-10-27, 17 such fields)
+const text = (description = '') => (description ? { type: 'string', description } : { type: 'string' }) as { type: 'string'; description?: string };
 
-/** The shape of the answer (the API holds the reader to it). */
+/** The shape of the answer (the API holds the reader to it). No field may be null and none is optional: see `text` above. */
 export const READ_SCHEMA = {
   type: 'object',
   properties: {
-    invoiceNumber: { ...nullable('string'), description: 'the invoice number as printed, digits only' },
-    date: { ...nullable('string'), description: 'the invoice date, YYYY-MM-DD' },
-    total: { ...nullable('string'), description: 'the amount due as printed, for example 3778.20' },
+    invoiceNumber: text('the invoice number as printed'),
+    date: text('the invoice date, YYYY-MM-DD'),
+    total: text('the amount due as printed, for example 3778.20'),
     lines: {
       type: 'array',
       description: 'every item line, in the order printed, each once',
       items: {
         type: 'object',
         properties: {
-          upc: { ...nullable('string'), description: 'as printed, with its dashes' },
-          description: nullable('string'),
-          item: { ...nullable('string'), description: "the supplier's item number or ID, as printed" },
-          quantity: nullable('integer'),
-          units: nullable('integer'),
-          price: nullable('string'),
-          amount: nullable('string'),
+          upc: text('as printed, with its dashes'),
+          description: text(),
+          item: text("the vendor's item number or ID, as printed"),
+          quantity: text('the whole number printed'),
+          units: text('the units printed, if the invoice prints them'),
+          price: text(),
+          amount: text(),
           isReturn: { type: 'boolean' },
-          manufacturer: nullable('string'),
-          group: nullable('string'),
+          manufacturer: text(),
+          group: text(),
         },
         required: ['upc', 'description', 'item', 'quantity', 'units', 'price', 'amount', 'isReturn', 'manufacturer', 'group'],
         additionalProperties: false,
@@ -104,14 +107,14 @@ export const READ_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        properties: { name: { type: 'string' }, cases: nullable('integer'), units: nullable('integer'), amount: nullable('string') },
+        properties: { name: text(), cases: text(), units: text(), amount: text() },
         required: ['name', 'cases', 'units', 'amount'],
         additionalProperties: false,
       },
     },
     summary: {
       type: 'object',
-      properties: { cases: nullable('integer'), units: nullable('integer') },
+      properties: { cases: text(), units: text() },
       required: ['cases', 'units'],
       additionalProperties: false,
     },
@@ -129,7 +132,8 @@ export function readPrompt(supplier: PdiSupplier, photoCount: number): string {
 // ── The answer, as the checks take it ────────────────────────────────────────
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 200) : null);   // nothing on an invoice is longer
-const int = (v: unknown) => (typeof v === 'number' && Number.isSafeInteger(v) ? v : null);
+/** A whole number given as a number (the page) or as the digits printed (the reader); anything else is null. */
+const int = (v: unknown) => (typeof v === 'number' && Number.isSafeInteger(v) ? v : typeof v === 'string' && /^\s*-?\d{1,9}\s*$/.test(v) ? Number(v.trim()) : null);
 
 /** The reader's JSON as a PaperInvoice; anything of the wrong kind becomes null, which the checks then name. */
 export function paperFromRead(raw: any): { paper: PaperInvoice; unreadable: string[] } {
@@ -151,6 +155,25 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; unreadable: stri
   };
 }
 
+/** For a request without the answer format: the same shape, as plain JSON. */
+const JSON_ONLY = `Answer with only one JSON object, no other text, with exactly these keys: invoiceNumber, date, total, lines (each with upc,
+description, item, quantity, units, price, amount, isReturn, manufacturer, group), groups (each with name, cases, units, amount),
+summary (cases, units) and unreadable (a list of strings). Every value is a string ("" when not printed), except isReturn (true or false).`;
+
+/** What the API said, in its own words (shown to the person, and logged): never the request, never the key. */
+function apiMessage(e: any): string {
+  const said = e?.error?.error?.message ?? e?.error?.message ?? e?.message ?? 'no message';
+  return String(said).replace(/\s+/g, ' ').slice(0, 300);
+}
+
+/** The JSON object in an answer: the whole text, or what sits between its first { and last } (a ```json fence around it). */
+function jsonIn(text: string): unknown {
+  for (const candidate of [text, text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)]) {
+    try { return JSON.parse(candidate); } catch { /* the next way */ }
+  }
+  return undefined;
+}
+
 // ── Reading ──────────────────────────────────────────────────────────────────
 
 /** Reads one invoice from its photos. `client` is for tests; the server's key is used otherwise. */
@@ -169,32 +192,44 @@ export async function readInvoice(supplier: PdiSupplier, photos: InvoicePhoto[],
   });
   content.push({ type: 'text', text: readPrompt(supplier, photos.length) });
 
+  // The answer is held to READ_SCHEMA. Should the API refuse that format (400), the same model is asked again for plain JSON and its
+  // answer parsed, as the receipt reader does; a model this account does not have (404) is skipped for the next one.
+  const ask = (model: string, schema: boolean) => api.messages.stream({
+    model,
+    max_tokens: MAX_OUTPUT,
+    thinking: { type: 'adaptive' },
+    output_config: schema ? { effort: 'high', format: jsonSchemaOutputFormat(READ_SCHEMA as any) } : { effort: 'high' },
+    messages: [{ role: 'user', content: schema ? content : [...content, { type: 'text', text: JSON_ONLY }] }],
+  }).finalMessage();
   let message: Anthropic.Message | null = null;
   let model = PDI_READ_MODELS[0];
-  for (const candidate of PDI_READ_MODELS) {
+  let refused: string | null = null;
+  models: for (const candidate of PDI_READ_MODELS) {
     model = candidate;
-    try {
-      message = await api.messages.stream({
-        model,
-        max_tokens: MAX_OUTPUT,
-        thinking: { type: 'adaptive' },
-        output_config: { effort: 'high', format: jsonSchemaOutputFormat(READ_SCHEMA as any) },
-        messages: [{ role: 'user', content }],
-      }).finalMessage();
-      break;
-    } catch (e) {
-      if (e instanceof AnthropicClient.NotFoundError && candidate !== PDI_READ_MODELS[PDI_READ_MODELS.length - 1]) continue; // not on this account
-      if (e instanceof AnthropicClient.RateLimitError || e instanceof AnthropicClient.InternalServerError) throw new PdiReadError('The reader is busy right now. Try again in a minute.');
-      if (e instanceof AnthropicClient.APIError) throw new PdiReadError(`The reader could not take these photos (${e.status ?? 'no answer'}). Try again, or with fewer photos.`);
-      throw e;
+    for (const schema of [true, false]) {
+      try {
+        message = await ask(candidate, schema);
+        break models;
+      } catch (e) {
+        if (e instanceof AnthropicClient.NotFoundError) continue models;                       // not on this account
+        if (e instanceof AnthropicClient.RateLimitError || e instanceof AnthropicClient.InternalServerError) throw new PdiReadError('The reader is busy right now. Try again in a minute.');
+        if (e instanceof AnthropicClient.BadRequestError) {
+          refused = apiMessage(e);
+          console.error(`[pdi-read] ${candidate} refused the request${schema ? ' (with the answer format)' : ''}: ${refused}`);
+          if (schema) continue;                                                                  // once more, without the format
+          continue models;
+        }
+        if (e instanceof AnthropicClient.APIError) { console.error(`[pdi-read] ${candidate}: ${apiMessage(e)}`); throw new PdiReadError(`The reader could not take these photos (${e.status ?? 'no answer'}: ${apiMessage(e)}). Try again.`); }
+        throw e;
+      }
     }
   }
-  if (!message) throw new PdiReadError('The reader did not answer. Try again.');
+  if (!message) throw new PdiReadError(refused ? `The reader refused the request: ${refused}` : 'The reader did not answer. Try again.');
   if (message.stop_reason === 'refusal') throw new PdiReadError('The reader would not read these photos. Check they show the invoice.');
   if (message.stop_reason === 'max_tokens') throw new PdiReadError('The invoice is too long to read in one go. Split it: read the photos in two invoices.');
   const text = message.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
-  let raw: unknown;
-  try { raw = JSON.parse(text); } catch { throw new PdiReadError('The reader\'s answer could not be understood. Try again.'); }
+  const raw = jsonIn(text);
+  if (raw === undefined) throw new PdiReadError('The answer from the reader could not be understood. Try again.');
   const { paper, unreadable } = paperFromRead(raw);
   const inputTokens = message.usage.input_tokens + (message.usage.cache_read_input_tokens ?? 0) + (message.usage.cache_creation_input_tokens ?? 0);
   const outputTokens = message.usage.output_tokens;
