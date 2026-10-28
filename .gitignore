@@ -6,6 +6,9 @@ dist/
 
 # Claude Code internal
 .claude/
+# Notes for Claude sessions: local only, they hold private details (the repo is public)
+CLAUDE.md
+CLAUDE.local.md
 
 # Mobile
 mobile/.expo/
