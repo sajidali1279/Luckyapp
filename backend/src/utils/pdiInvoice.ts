@@ -1,6 +1,7 @@
 // Invoices to PDI (2026-10-27). PDI, the stores' back-office software, takes a vendor invoice as a fixed-width text file. Until now an
 // outside company (Deep Water) typed each paper invoice into one; this makes the same file from the invoice's lines. The layout was worked
-// out from three invoices the owner confirmed against Deep Water's files (Frito-Lay, Ed F. Davis, PepsiCo):
+// out from three invoices the owner confirmed against Deep Water's files (Frito-Lay, Ed F. Davis, PepsiCo); since 2026-10-28 any vendor's
+// invoice is read, with what the file needs to know about the vendor kept per vendor (VendorRules, utils/pdiVendors.ts):
 //   A line, 35 characters:  "A" + supplier code 6 + invoice number 10 + date MMDDYYYY 8 + total in cents 10
 //   B line, 67 characters, one per item in invoice order:  "B" + UPC 11 (without its check digit) + description 25
 //     + item number 6 (spaces when the supplier has none) + price in cents 6 + "CA" + units per case 6 + quantity 5 + "00000"
@@ -216,31 +217,36 @@ export function parsePdiFile(content: string): ParsedPdiInvoice[] {
   return out;
 }
 
-// ── Suppliers: how each one's paper invoice becomes file lines ──────────────
+// ── Vendors: how a vendor's paper invoice becomes file lines ────────────────
 
-export type PdiSupplier = 'FRITO' | 'EFDINC' | 'PEPSIC';
-export const PDI_SUPPLIERS: { code: PdiSupplier; name: string }[] = [
-  { code: 'FRITO', name: 'Frito-Lay' },
-  { code: 'EFDINC', name: 'Ed F. Davis' },
-  { code: 'PEPSIC', name: 'PepsiCo' },
-];
+/** What the file needs to know about a vendor (pdi_vendors), set once per vendor by a person or from its Deep Water files. */
+export interface VendorRules {
+  code: string;                              // its code in PDI ("FRITO"); "" until someone sets it
+  name: string;
+  sellsBy: 'EACH' | 'CASE';                  // what its quantities count: single items (Frito-Lay) or cases
+  itemDigits: 'FIRST6' | 'LAST6' | 'NONE';   // its item numbers in the file's 6 places (Frito-Lay prints 8: the first 6), or none printed
+  itemLength?: number | null;                // how many digits its item numbers have, to catch a misread (Frito-Lay 8, Ed F. Davis 6)
+}
+
+/** Until a person says which vendor an invoice is from, its lines are shown with these (and the file waits for the vendor). */
+export const UNKNOWN_VENDOR: VendorRules = { code: '', name: '', sellsBy: 'EACH', itemDigits: 'NONE' };
 
 /** One item line as printed on the paper invoice. Printed values stay text (leading zeros matter); null where it could not be read. */
 export interface PaperLine {
-  upc: string | null;           // Frito-Lay's short code ("25955") or a full UPC as printed ("0-18200-20038-0")
+  upc: string | null;           // a full UPC as printed ("0-18200-20038-0"), or only its last digits under a manufacturer number (Frito-Lay)
   description: string | null;
-  item?: string | null;         // Frito-Lay: the 8-digit ITEM; Ed F. Davis: the 6-digit ID; PepsiCo: none
-  quantity: number | null;      // Frito-Lay: each; Ed F. Davis and PepsiCo: cases. Above 0; a return says so below
-  units?: number | null;        // PepsiCo also prints the units (cases x units per case)
-  price: string | number | null;  // Frito-Lay: EACH COST; Ed F. Davis: NET; PepsiCo: Net
+  item?: string | null;         // the vendor's own item number or ID
+  quantity: number | null;      // what the vendor counts (single items or cases). Above 0; a return says so below
+  units?: number | null;        // the units, when the invoice prints them (PepsiCo: cases x units per case)
+  price: string | number | null;  // the price of one of what is counted, after discounts (Frito-Lay EACH COST, Ed F. Davis NET)
   amount: string | number | null; // the line's printed total
-  isReturn?: boolean;           // Frito-Lay's RETURNS section
-  manufacturer?: string | null; // Frito-Lay: the MANUFACTURER number of the line's section (28400)
-  group?: string | null;        // PepsiCo: the package header the line is under ("11OZ PL 1/12 TBG")
+  isReturn?: boolean;           // a return or credit line
+  manufacturer?: string | null; // a manufacturer number printed over a section of short UPCs (Frito-Lay: 28400)
+  group?: string | null;        // the package or section header the line is under ("11OZ PL 1/12 TBG")
 }
 
-/** Where a line's units per case came from: one item (Frito-Lay), the paper (PepsiCo units / cases), a learned or a person-confirmed
- *  value for the product, or a guess from its name. */
+/** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
+ *  learned or a person-confirmed value for the product, or a guess from its name. */
 export type UnitsFrom = 'each' | 'paper' | 'learned' | 'confirmed' | 'guess';
 export interface ConvertedLine { line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null }
 
@@ -277,8 +283,9 @@ const SEPARATORS = /[\s.\p{Pd}]/gu;   // spaces, dots and dashes between the dig
 const SEPARATOR = /[\s.\p{Pd}]/u;
 
 /** The file's 11 UPC digits from a UPC as printed. A full UPC's 12th digit is its check digit, dropped once it is shown to match.
- *  Frito-Lay prints only the item's last 5 digits; the rest is 0 and the manufacturer number of the section the line is in. */
-export function fileUpc(printed: string | null | undefined, supplier: PdiSupplier, manufacturer?: string | number | null): { upc: string | null; problems: Problem[] } {
+ *  A vendor that prints only an item's last digits (Frito-Lay: up to 5) prints its manufacturer number over the section: the rest is 0
+ *  and that number. */
+export function fileUpc(printed: string | null | undefined, manufacturer?: string | number | null): { upc: string | null; problems: Problem[] } {
   const no = (message: string, upc: string | null = null, blocking = upc === null) => ({ upc, problems: [{ field: 'upc' as const, message, ...(blocking ? { blocking } : {}) }] });
   if (typeof printed !== 'string' || !printed.trim()) return no('The UPC could not be read.');
   let d = printed.replace(SEPARATORS, '');
@@ -286,13 +293,13 @@ export function fileUpc(printed: string | null | undefined, supplier: PdiSupplie
   if (/[A-Za-z]/.test(d)) return no(`The UPC "${printed}" has a letter in it: a digit was probably misread.`);
   if (/\D/.test(d)) return no(`The UPC "${printed}" has a character that is not a digit.`);
   if (/^0+$/.test(d)) return no(`The UPC "${printed}" is all zeros, which is not a product: compare it with the paper.`);
-  if (supplier === 'FRITO' && d.length <= 5) {
+  if (d.length <= 5) {
     const m = String(manufacturer ?? '').replace(/\D/g, '');
-    if (m.length !== 5) return no(`Which manufacturer section is this line in? Frito-Lay's short code ${printed} needs its 5-digit MANUFACTURER number.`);
+    if (m.length !== 5) return no(`Only the last digits of the UPC were read (${printed}): which 5-digit manufacturer number goes before them? Type the whole UPC.`);
     return { upc: '0' + m + d.padStart(5, '0'), problems: [] };
   }
-  // an EAN-13 or GTIN-14 of a UPC is shortened only when printed as bare digits: these suppliers print UPCs with dashes, so a dashed
-  // UPC with a 13th digit is more likely a digit read twice than an EAN-13
+  // an EAN-13 or GTIN-14 of a UPC is shortened only when printed as bare digits: vendors print UPCs with dashes, so a dashed UPC with a
+  // 13th digit is more likely a digit read twice than an EAN-13
   if (d.length > 12 && !SEPARATOR.test(printed.trim()) && /^0+$/.test(d.slice(0, d.length - 12))) d = d.slice(d.length - 12);
   if (d.length === 12) {
     if (gs1CheckDigit(d.slice(0, 11)) !== Number(d[11])) return no(`The UPC ${printed} does not check out (its last digit is a check digit), so a digit is probably misread.`, d.slice(0, 11));
@@ -305,7 +312,7 @@ export function fileUpc(printed: string | null | undefined, supplier: PdiSupplie
   return no(`The UPC "${printed}" has ${d.length} digits; a full UPC has 12.`);
 }
 
-/** A guess at units per case from a beer's name, for a product the app has not seen (Ed F. Davis prints no units):
+/** A guess at units per case from a product's name, for a vendor that counts cases without printing the units (Ed F. Davis):
  *  "24/12oz 2/12 C" -> 2 (two 12-packs), "24/12oz 4/6 B" -> 4, "4/6/12oz" -> 4, "12/24oz B" -> 12 and "12/695ML" -> 12 (big singles),
  *  "18/12oz C" -> 1 (one 18-pack), "24/355ML" -> 1. Null when the name does not say ("MODELO CHELADA NEGRA"), its pack is cut off
  *  ("24/12 2"), or the can is 13 to 18 oz with no pack (singles and packs both happen). An L is litres only for a bottle of 5 L or less
@@ -317,7 +324,7 @@ export function guessUnitsPerCase(description: string): number | null {
     .map((m) => {
       const b = +m[2];
       let unit = m[4] ?? '';
-      if (/^L/.test(unit) && b > 5) unit = '';        // 12 L is not a beer: a cut-off word
+      if (/^L/.test(unit) && b > 5) unit = '';        // 12 L is not a drink: a cut-off word
       if (unit === 'ML' && b < 100) unit = '';
       return { a: +m[1], b, triple: m[3] !== undefined, unit, end: (m.index ?? 0) + m[0].length };
     });
@@ -334,7 +341,7 @@ export function guessUnitsPerCase(description: string): number | null {
   return ounces <= 12.05 ? 1 : null;
 }
 
-/** PepsiCo's package header gives units per case: "11OZ PL 1/12 TBG" -> 12, "12OZ CN 12/2 FM" -> 2 (two 12-packs), "5G BIB" -> 1,
+/** A package header's units per case: "11OZ PL 1/12 TBG" -> 12, "12OZ CN 12/2 FM" -> 2 (two 12-packs), "5G BIB" -> 1,
  *  "1/2 GAL PL 1/6" -> 6 (the last count, not a size like 1/2 GAL). */
 export function unitsFromPackage(group: string | null | undefined): number | null {
   if (!group) return null;
@@ -346,17 +353,16 @@ export function unitsFromPackage(group: string | null | undefined): number | nul
 
 export interface KnownUnits { units: number; from: 'learned' | 'confirmed' }
 export interface ConvertContext {
-  knownUnits?: (upc: string) => KnownUnits | undefined; // what the app remembers for a product (Ed F. Davis), by its 11 file digits
+  knownUnits?: (upc: string) => KnownUnits | undefined; // what the app remembers for a product of this vendor, by its 11 file digits
   today?: string;                                        // YYYY-MM-DD, to question a date far from it
 }
 
 /** One paper line as the file's line, with what a person should look at. */
-export function convertPaperLine(supplier: PdiSupplier, p: PaperLine, ctx: ConvertContext = {}): ConvertedLine {
+export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: ConvertContext = {}): ConvertedLine {
   const problems: Problem[] = [];
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
-  const known = PDI_SUPPLIERS.some((s) => s.code === supplier);
-  if (!known) say('supplier', `There are no rules for the supplier "${supplier}" yet.`, true);
-  const u = fileUpc(p.upc, supplier, p.manufacturer);
+  const who = vendor.name || 'This vendor';
+  const u = fileUpc(p.upc, p.manufacturer);
   problems.push(...u.problems);
   const description = typeof p.description === 'string' ? p.description : '';
   const price = printedCents(p.price);
@@ -366,33 +372,41 @@ export function convertPaperLine(supplier: PdiSupplier, p: PaperLine, ctx: Conve
   } else if (price < 0) say('price', 'The price is below zero: mark a return as a return and keep the printed price.', true);
   const qty = typeof p.quantity === 'number' && Number.isSafeInteger(p.quantity) && p.quantity > 0 ? p.quantity : null;
   if (qty === null) say('quantity', `The quantity "${p.quantity ?? ''}" should be a whole number above 0.`, true);
-  const itemDigits = typeof p.item === 'string' ? p.item.replace(SEPARATORS, '') : '';
+
+  // the vendor's item number, in the file's 6 places
   let item: string | null = null;
+  if (vendor.itemDigits !== 'NONE') {
+    const digits = typeof p.item === 'string' ? p.item.replace(SEPARATORS, '') : '';
+    if (!digits) say('item', `No item number was read for this line, and ${who} prints them: type it in.`, true);
+    else if (/\D/.test(digits)) say('item', `The item number "${p.item}" has a character that is not a digit.`, true);
+    else if (vendor.itemLength && digits.length !== vendor.itemLength) say('item', `${who}'s item numbers have ${vendor.itemLength} digits, not "${p.item}".`, true);
+    else item = vendor.itemDigits === 'LAST6' ? digits.slice(-6) : digits.slice(0, 6);
+  }
+
+  // units per case: one, for a vendor that counts items; else as printed, from the package header, remembered, or guessed from the name
   let units = 0;
   let unitsFrom: UnitsFrom | null = null;
-  if (supplier === 'FRITO') {
-    // the file has room for 6 of Frito-Lay's 8 digits; Deep Water keeps the first 6
-    if (/^\d{8}$/.test(itemDigits)) item = itemDigits.slice(0, 6);
-    else say('item', `Frito-Lay's item number should be 8 digits, not "${p.item ?? ''}".`, true);
-    units = 1; unitsFrom = 'each';
-  } else if (supplier === 'EFDINC') {
-    if (/^\d{6}$/.test(itemDigits)) item = itemDigits;
-    else say('item', `Ed F. Davis's product ID should be 6 digits, not "${p.item ?? ''}".`, true);
-    const remembered = u.upc && /^\d{11}$/.test(u.upc) ? ctx.knownUnits?.(u.upc) : undefined;
-    const guess = remembered ? null : guessUnitsPerCase(description);
-    if (remembered) { units = remembered.units; unitsFrom = remembered.from; }
-    else if (guess) { units = guess; unitsFrom = 'guess'; say('units', `Units per case (${guess}) is a guess from the name: check it once and it is remembered.`); }
-    else say('units', 'Units per case is not known for this product yet: enter it once and it is remembered.', true);
-  } else if (supplier === 'PEPSIC') {
-    const printedUnits = typeof p.units === 'number' && Number.isSafeInteger(p.units) && p.units > 0 ? p.units : null;
+  if (vendor.sellsBy === 'EACH') { units = 1; unitsFrom = 'each'; }
+  else {
     const pack = unitsFromPackage(p.group);
-    if (printedUnits === null) say('units', typeof p.units === 'number' ? `The units (${p.units}) must be above 0.` : `The units "${p.units ?? ''}" could not be read.`, true);
-    else if (qty === null) say('units', 'Units per case comes from the cases, which could not be read.', true);
-    else if (printedUnits % qty === 0) {
-      units = printedUnits / qty; unitsFrom = 'paper';
-      if (pack !== null && pack !== units) say('units', `${count(printedUnits, 'unit', 'units')} in ${count(qty, 'case', 'cases')} is ${units} a case, but the package header (${p.group}) says ${pack}.`);
-    } else say('units', `The units (${printedUnits}) do not divide evenly by the cases (${qty}).`, true);
+    const remembered = u.upc && /^\d{11}$/.test(u.upc) ? ctx.knownUnits?.(u.upc) : undefined;
+    if (typeof p.units === 'number') {
+      const printedUnits = Number.isSafeInteger(p.units) && p.units > 0 ? p.units : null;
+      if (printedUnits === null) say('units', `The units (${p.units}) must be above 0.`, true);
+      else if (qty === null) say('units', 'Units per case comes from the cases, which could not be read.', true);
+      else if (printedUnits % qty === 0) {
+        units = printedUnits / qty; unitsFrom = 'paper';
+        if (pack !== null && pack !== units) say('units', `${count(printedUnits, 'unit', 'units')} in ${count(qty, 'case', 'cases')} is ${units} a case, but the package header (${p.group}) says ${pack}.`);
+      } else say('units', `The units (${printedUnits}) do not divide evenly by the cases (${qty}).`, true);
+    } else if (remembered) { units = remembered.units; unitsFrom = remembered.from; }
+    else if (pack !== null) { units = pack; unitsFrom = 'paper'; }
+    else {
+      const guess = guessUnitsPerCase(description);
+      if (guess) { units = guess; unitsFrom = 'guess'; say('units', `Units per case (${guess}) is a guess from the name: check it once and it is remembered.`); }
+      else say('units', 'Units per case is not known for this product yet: enter it once and it is remembered.', true);
+    }
   }
+
   const amount = printedCents(p.amount);
   if (amount === null) say('amount', `The line total "${p.amount ?? ''}" could not be read, so the line cannot be checked: compare it with the paper.`);
   else if (amount < 0 && !p.isReturn) say('amount', 'The line total is below zero: is this a return?');
@@ -408,7 +422,8 @@ export function convertPaperLine(supplier: PdiSupplier, p: PaperLine, ctx: Conve
   return { line, problems, unitsFrom };
 }
 
-/** What the paper prints besides its lines, to check them against: subtotals per package group (in order) and the whole invoice's counts. */
+/** What the paper prints besides its lines, to check them against: subtotals per package group (in order), the whole invoice's counts, and
+ *  charges that are not item lines (a deposit, a fuel surcharge, a tax). */
 export interface PaperInvoice {
   invoiceNumber: string | null;
   date: string | null;              // YYYY-MM-DD
@@ -416,13 +431,18 @@ export interface PaperInvoice {
   lines: PaperLine[];
   groups?: { name: string; cases?: number; units?: number; amount?: string }[];
   summary?: { cases?: number; units?: number };
+  charges?: { name: string; amount: string | null }[];
 }
 
-/** A whole paper invoice as the file's header and lines, with every line's problems and the invoice's own. */
-export function convertInvoice(supplier: PdiSupplier, paper: PaperInvoice, ctx: ConvertContext = {}) {
-  const lines = paper.lines.map((p) => convertPaperLine(supplier, p, ctx));
+/** A whole paper invoice as the file's header and lines, with every line's problems and the invoice's own. `vendor` is null until a
+ *  person says which vendor the invoice is from. */
+export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, ctx: ConvertContext = {}) {
+  const rules = vendor ?? UNKNOWN_VENDOR;
+  const lines = paper.lines.map((p) => convertPaperLine(rules, p, ctx));
   const problems: Problem[] = [];
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
+  if (!vendor) say('supplier', 'Which vendor is this invoice from? Choose it, or add it as a new vendor.', true);
+  else if (!vendor.code) say('supplier', `Set ${vendor.name}'s code in PDI to make the file.`, true);
   const printedNumber = typeof paper.invoiceNumber === 'string' ? paper.invoiceNumber.trim() : '';
   const digits = printedNumber.replace(/[\s\p{Pd}]/gu, '');
   const invoiceNumber = digits.replace(/^0+(?=\d)/, '');
@@ -434,7 +454,7 @@ export function convertInvoice(supplier: PdiSupplier, paper: PaperInvoice, ctx: 
   const totalCents = printedCents(paper.total);
   if (totalCents === null) say('total', partCent(paper.total) ? `The invoice total ${paper.total} has part of a cent: type it in whole cents.` : `The invoice total "${paper.total ?? ''}" could not be read: type it in.`, true);
   const header: PdiHeader = {
-    supplierCode: supplier, invoiceNumber, date: typeof paper.date === 'string' ? paper.date.trim() : '', totalCents: totalCents ?? 0,
+    supplierCode: rules.code, invoiceNumber, date: typeof paper.date === 'string' ? paper.date.trim() : '', totalCents: totalCents ?? 0,
   };
   for (const hp of headerProblems(header)) if (!problems.some((x) => x.field === hp.field)) problems.push(hp);
   if (ctx.today && !problems.some((x) => x.field === 'date') && (header.date > addStoreDays(ctx.today, 7) || header.date < addStoreDays(ctx.today, -400))) {
@@ -442,12 +462,27 @@ export function convertInvoice(supplier: PdiSupplier, paper: PaperInvoice, ctx: 
   }
   if (!lines.length) say('lines', 'No item lines were found.', true);
   const fileLines = lines.map((c) => c.line);
-  const unreadable = fileLines.filter((l) => l.quantity === 0 || (supplier === 'PEPSIC' && l.unitsPerCase === 0)).length;
+  const unreadable = fileLines.filter((l) => l.quantity === 0 || l.unitsPerCase === 0).length;
+  // units per case depend on the vendor (cases or single items): until it is known, only cases and money are checked
+  const unitsKnown = !!vendor;
+
+  // the total: the lines, or the lines and the charges printed besides them (the file carries the lines and the printed total)
   const sum = linesTotalCents(fileLines);
-  if (totalCents !== null && sum !== totalCents) say('total', `The lines come to ${money(sum)}, but the invoice total is ${money(totalCents)}.`);
+  const charges = (paper.charges ?? []).filter((c) => c && typeof c.name === 'string').map((c) => ({ name: c.name.trim(), cents: printedCents(c.amount) }));
+  for (const c of charges) if (c.cents === null) say('total', `The charge "${c.name}" could not be read: compare it with the paper.`);
+  const chargeCents = charges.reduce((n, c) => n + (c.cents ?? 0), 0);
+  const chargeList = charges.filter((c) => c.cents).map((c) => `${c.name} ${money(c.cents!)}`).join(', ');
+  if (totalCents !== null && sum !== totalCents) {
+    if (chargeCents && sum + chargeCents === totalCents) {
+      say('total', `The total includes charges besides the lines (${chargeList}). The file carries the lines and the printed total: check how PDI should get these charges.`);
+    } else {
+      say('total', `The lines come to ${money(sum)}${chargeCents ? ` (and the charges ${money(chargeCents)})` : ''}, but the invoice total is ${money(totalCents)}.`);
+    }
+  }
 
   // printed subtotals, matched in order to the runs of lines under each package header; a header read wrong, or a subtotal missing,
   // is named once and the rest still line up
+  const grouped = paper.lines.some((p) => typeof p.group === 'string' && p.group.trim());
   if (paper.groups?.length) {
     const runs: { name: string | null; start: number; end: number }[] = [];
     paper.lines.forEach((p, i) => {
@@ -475,22 +510,22 @@ export function convertInvoice(supplier: PdiSupplier, paper: PaperInvoice, ctx: 
       if (g.amount !== undefined && amount === null) say('group', `${g.name}: the subtotal "${g.amount}" could not be read.`);
       const off: string[] = [];
       if (g.cases !== undefined && cases !== g.cases) off.push(`${count(cases, 'case', 'cases')} where the subtotal says ${g.cases}`);
-      if (g.units !== undefined && units !== g.units) off.push(`${count(units, 'unit', 'units')} where it says ${g.units}`);
+      if (unitsKnown && g.units !== undefined && units !== g.units) off.push(`${count(units, 'unit', 'units')} where it says ${g.units}`);
       if (amount !== null && cents !== amount) off.push(`${money(cents)} where it says ${money(amount)}`);
       if (off.length) say('group', `${g.name}: the lines come to ${off.join(', and ')}.`);
     }
     runs.slice(at).forEach(unmatched);
-  } else if (supplier === 'PEPSIC' && lines.length) {
-    say('group', 'No package subtotals were read, so the lines cannot be checked against them: compare a few lines with the paper.');
+  } else if (grouped) {
+    say('group', 'Package headers were read but no subtotals, so the lines cannot be checked against them: compare a few lines with the paper.');
   }
   const sales = fileLines.filter((l) => l.quantity > 0);
   const salesCases = sales.reduce((n, l) => n + l.quantity, 0);
   const salesUnits = sales.reduce((n, l) => n + l.quantity * l.unitsPerCase, 0);
   const why = unreadable ? `: ${count(unreadable, 'line', 'lines')} could not be read in full` : ': is a line missing or read twice?';
   if (paper.summary?.cases !== undefined && salesCases !== paper.summary.cases) say('lines', `The lines hold ${count(salesCases, 'case', 'cases')}, but the invoice says ${paper.summary.cases}${why}`);
-  if (paper.summary?.units !== undefined && salesUnits !== paper.summary.units) say('lines', `The lines hold ${count(salesUnits, 'unit', 'units')}, but the invoice says ${paper.summary.units}${why}`);
-  if (supplier === 'PEPSIC' && lines.length && paper.summary?.units === undefined) {
-    say('lines', 'The total units in the SALES SUMMARY were not read, so the units cannot be checked against it: compare it with the paper.');
+  if (unitsKnown && paper.summary?.units !== undefined && salesUnits !== paper.summary.units) say('lines', `The lines hold ${count(salesUnits, 'unit', 'units')}, but the invoice says ${paper.summary.units}${why}`);
+  if (unitsKnown && lines.some((c) => c.unitsFrom === 'paper') && !paper.groups?.length && paper.summary?.units === undefined) {
+    say('lines', 'The units per case could not be checked: no subtotals or total units were read. Compare a few lines with the paper.');
   }
   return { header, lines, problems };
 }

@@ -2137,10 +2137,11 @@ model FlashDeal {
 model PdiInvoice {
   id             String    @id @default(uuid())
   storeId        String
-  supplier       String                          // the supplier's code in PDI: FRITO | EFDINC | PEPSIC
+  vendorId       String?                         // whose invoice it is (null until the vendor read off it is matched or chosen)
+  vendorRead     String?                         // the vendor's name as read off the invoice
   status         String                          // READING | READ | FAILED | DONE (the file was downloaded)
   photoIds       String[]  @default([])          // Cloudinary ids (private), in the order they were added
-  invoiceNumber  String?                         // as read, digits: the duplicate warning matches on supplier and this
+  invoiceNumber  String?                         // as read, digits: the duplicate warning matches on vendor and this
   invoiceDate    String?                         // YYYY-MM-DD, as read
   totalCents     Int?
   paper          Json?                           // the PaperInvoice: what was read, then corrected
@@ -2156,17 +2157,18 @@ model PdiInvoice {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store  Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  vendor PdiVendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
 
   @@index([storeId, createdAt])
-  @@index([supplier, invoiceNumber])
+  @@index([vendorId, invoiceNumber])
   @@map("pdi_invoices")
 }
 
-// Units per case each product comes in, by supplier (Ed F. Davis prints none on its invoices): learned from an old Deep Water file, or
+// Units per case each product comes in, by vendor (Ed F. Davis prints none on its invoices): learned from an old Deep Water file, or
 // confirmed by a person on the review page (a confirmed one is never overwritten by a learned one). Keyed by the full 12-digit UPC.
 model PdiProductUnits {
-  supplier     String
+  vendorId     String
   upc          String                            // 12 digits (pdiInvoice.ts fullUpc)
   unitsPerCase Int
   source       String                            // LEARNED | CONFIRMED
@@ -2174,6 +2176,30 @@ model PdiProductUnits {
   updatedById  String?
   updatedAt    DateTime  @updatedAt
 
-  @@id([supplier, upc])
+  vendor PdiVendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@id([vendorId, upc])
   @@map("pdi_product_units")
+}
+
+// A vendor whose invoices are read for PDI (2026-10-28): the vendor is read off the invoice and matched by its names (utils/pdiVendors.ts),
+// so there is no vendor list to pick from. What the file needs to know about it is set once, by a person or from its Deep Water files.
+model PdiVendor {
+  id          String   @id @default(uuid())
+  name        String                       // as people know it ("Frito-Lay")
+  pdiCode     String?  @unique             // its code in PDI ("FRITO"), up to 6 letters or digits; null until someone sets it
+  aliases     String[] @default([])        // names it was printed as, compared as pdiVendors.ts vendorKey writes them
+  sellsBy     String   @default("CASE")    // CASE | EACH: what its quantities count
+  itemDigits  String   @default("FIRST6")  // its item numbers in the file's 6 places: FIRST6 | LAST6 | NONE (it prints none)
+  itemLength  Int?                         // how many digits its item numbers have, to catch a misread (Frito-Lay 8)
+  readerNotes String?                      // how its invoices are laid out, for the reader (pdiRead.ts)
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoices PdiInvoice[]
+  units    PdiProductUnits[]
+
+  @@map("pdi_vendors")
 }

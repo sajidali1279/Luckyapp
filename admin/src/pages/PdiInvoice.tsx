@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle2, Download, ReceiptText, Loader2, MoreHorizontal, RefreshCw, Save, Trash2 } from 'lucide-react';
-import { pdiInvoicesApi } from '../services/api';
+import { pdiInvoicesApi, PdiVendorInput } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { Page, PageHeader, Button, Card, Badge, Notice, MenuButton, StatTile } from '../components/kit';
 import Modal from '../components/Modal';
@@ -12,11 +12,12 @@ import ErrorState from '../components/ErrorState';
 import { useUnsaved, useAnyUnsaved } from '../lib/unsaved';
 import { storeDayTime } from '../lib/storeDates';
 import { C, FONT, RADIUS, TEXT_MUTED } from '../lib/theme';
-import { dollars, STATUS } from './PdiInvoices';
+import { dollars, STATUS, SELLS_BY, VendorForm, useVendors } from './PdiInvoices';
 
 // One vendor invoice for PDI (2026-10-27): the photos beside every line read from them, and what to look at, field by field (worked out on
 // the server by utils/pdiInvoice.ts each time). A misread value is corrected in its cell and saved; a units per case is confirmed once and
 // remembered for the product; a problem that is right as printed is accepted after a look. The file downloads once nothing is left open.
+// The vendor is read off the invoice (2026-10-28): one seen for the first time is chosen or added here, once.
 
 interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean }
 interface FileLine { upc: string; description: string; itemNumber: string | null; priceCents: number; unitsPerCase: number; quantity: number }
@@ -31,7 +32,9 @@ interface PaperLine {
 }
 interface Paper { invoiceNumber: string | null; date: string | null; total: string | null; lines: PaperLine[]; groups?: unknown[]; summary?: unknown }
 interface Invoice {
-  id: string; store: { id: string; name: string }; supplier: string; supplierName: string; status: string; readError: string | null;
+  id: string; store: { id: string; name: string }; status: string; readError: string | null;
+  vendor: { id: string; name: string; pdiCode: string | null; sellsBy: string; itemDigits: string; itemLength: number | null } | null;
+  vendorRead: string | null; vendorPrinted: { name: string | null; address: string | null; phone: string | null } | null;
   readModel: string | null; readUsage: { inputTokens: number; outputTokens: number; costCents: number | null; unreadable?: string[] } | null;
   createdAt: string; createdBy: string | null; updatedAt: string; updatedBy: string | null; downloadedAt: string | null; downloadedBy: string | null;
   photos: { url: string; thumbUrl: string }[]; paper: Paper | null; review: Review | null;
@@ -124,11 +127,18 @@ export default function PdiInvoice() {
   if (q.isError) return <Page><ErrorState onRetry={() => q.refetch()} /></Page>;
   if (!inv) return <Page><div style={s.center}><Loader2 style={{ animation: 'spin 0.8s linear infinite' }} /> Loading...</div></Page>;
 
-  const sup = inv.supplier;
-  const title = `${inv.supplierName}${review?.header.invoiceNumber ? ` invoice ${review.header.invoiceNumber}` : ' invoice'}`;
+  const vendor = inv.vendor;
+  const caseVendor = vendor?.sellsBy === 'CASE';   // units per case is confirmed per product for these (unless the invoice prints them)
+  const vendorName = vendor?.name ?? inv.vendorRead ?? 'Vendor';
+  const title = `${vendorName}${review?.header.invoiceNumber ? ` invoice ${review.header.invoiceNumber}` : ' invoice'}`;
   const totalsMatch = review && review.header.totalCents === review.linesTotalCents;
   const guesses = review ? review.lines.map((l, i) => ({ l, i })).filter(({ l }) => l.unitsFrom === 'guess') : [];
-  const cols = 7 + (sup === 'PEPSIC' ? 2 : 1) + (sup === 'FRITO' ? 1 : 0);   // for the line's problems, the width of the table
+  // the columns this invoice prints
+  const showPackage = !!shown?.lines.some((l) => l.group);
+  const showItem = vendor ? vendor.itemDigits !== 'NONE' : !!shown?.lines.some((l) => l.item);
+  const showUnits = !!shown?.lines.some((l) => l.units != null);
+  const showReturn = vendor?.sellsBy === 'EACH' || !!shown?.lines.some((l) => l.isReturn);   // a vendor that counts items has a returns section
+  const cols = 7 + (showPackage ? 1 : 0) + (showItem ? 1 : 0) + (showUnits ? 1 : 0) + (showReturn ? 1 : 0);   // for the line's problems, the width of the table
   const rows = review && shown ? review.lines.map((l, i) => ({ l, p: shown.lines[i], i })).filter(({ i }) => !onlyOpen || openLines.includes(i)) : [];
 
   return (
@@ -161,7 +171,7 @@ export default function PdiInvoice() {
       )}
       {inv.duplicates.length > 0 && (
         <Notice tone="warning" style={{ marginBottom: 16 }}>
-          This invoice number from {inv.supplierName} was done before: {inv.duplicates.map((d, i) => (
+          This invoice number from {vendorName} was done before: {inv.duplicates.map((d, i) => (
             <span key={d.id}>{i > 0 && ', '}<Link to={`/pdi-invoices/${d.id}`} style={s.link}>{d.storeName}, {storeDayTime(d.createdAt)} ({STATUS[d.status]?.label ?? d.status})</Link></span>
           ))}. Make sure it is not imported into PDI twice.
         </Notice>
@@ -169,6 +179,7 @@ export default function PdiInvoice() {
       {inv.status === 'DONE' && inv.downloadedAt && (
         <Notice tone="success" style={{ marginBottom: 16 }}>The file was downloaded {storeDayTime(inv.downloadedAt)}{inv.downloadedBy ? ` by ${inv.downloadedBy}` : ''}. Import it into PDI for {inv.store.name} if that is not done yet.</Notice>
       )}
+      {review && <VendorBar inv={inv} hq={hq} onChanged={(data) => qc.setQueryData(['pdi-invoice', id], data)} />}
       {!!inv.readUsage?.unreadable?.length && (
         <Notice tone="info" style={{ marginBottom: 16 }}>The reader could not make out: {inv.readUsage.unreadable.join('; ')}</Notice>
       )}
@@ -217,7 +228,7 @@ export default function PdiInvoice() {
 
               <div style={s.tableTools}>
                 <label style={s.toggle}><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} /> Only lines to look at ({openLines.length})</label>
-                {sup === 'EFDINC' && guesses.length > 0 && (
+                {caseVendor && guesses.length > 0 && (
                   <Button size="sm" onClick={() => confirmUnits(guesses.map(({ l, i }) => ({ i, units: l.line.unitsPerCase })))} disabled={busy === 'units'}>
                     Confirm the {guesses.length} guessed units per case as shown
                   </Button>
@@ -230,15 +241,15 @@ export default function PdiInvoice() {
                     <thead>
                       <tr>
                         <th style={s.th}>#</th>
-                        {sup === 'PEPSIC' && <th style={s.th}>Package</th>}
+                        {showPackage && <th style={s.th}>Package</th>}
                         <th style={s.th}>UPC</th>
                         <th style={s.th}>Description</th>
-                        {sup !== 'PEPSIC' && <th style={s.th}>{sup === 'FRITO' ? 'Item' : 'ID'}</th>}
-                        <th style={s.th}>{sup === 'FRITO' ? 'Qty' : 'Cases'}</th>
-                        {sup === 'PEPSIC' && <th style={s.th}>Units</th>}
-                        <th style={s.th}>{sup === 'FRITO' ? 'Each cost' : 'Net'}</th>
+                        {showItem && <th style={s.th}>Item</th>}
+                        <th style={s.th}>{vendor?.sellsBy === 'EACH' ? 'Qty' : caseVendor ? 'Cases' : 'Qty'}</th>
+                        {showUnits && <th style={s.th}>Units</th>}
+                        <th style={s.th}>Price</th>
                         <th style={s.th}>Amount</th>
-                        {sup === 'FRITO' && <th style={s.th}>Return</th>}
+                        {showReturn && <th style={s.th}>Return</th>}
                         <th style={{ ...s.th, minWidth: 170 }}>Units per case</th>
                       </tr>
                     </thead>
@@ -254,17 +265,17 @@ export default function PdiInvoice() {
                           <Fragment key={i}>
                           <tr style={open ? s.rowOpen : undefined}>
                             <td style={s.tdNo}>{i + 1}</td>
-                            {sup === 'PEPSIC' && <td style={s.tdSmall}>{p.group ?? ''}</td>}
-                            <td style={s.td}><input aria-label={`Line ${i + 1} UPC`} style={{ ...cell('upc'), width: 150 }} value={p.upc ?? ''} onChange={(e) => editLine(i, { upc: e.target.value })} /></td>
-                            <td style={s.td}><input aria-label={`Line ${i + 1} description`} style={{ ...cell('description'), width: 190 }} value={p.description ?? ''} onChange={(e) => editLine(i, { description: e.target.value })} /></td>
-                            {sup !== 'PEPSIC' && <td style={s.td}><input aria-label={`Line ${i + 1} item`} style={{ ...cell('item'), width: 92 }} value={p.item ?? ''} onChange={(e) => editLine(i, { item: e.target.value })} /></td>}
+                            {showPackage && <td style={s.tdSmall}>{p.group ?? ''}</td>}
+                            <td style={s.td}><input aria-label={`Line ${i + 1} UPC`} style={{ ...cell('upc'), width: 138 }} value={p.upc ?? ''} onChange={(e) => editLine(i, { upc: e.target.value })} /></td>
+                            <td style={s.td}><input aria-label={`Line ${i + 1} description`} style={{ ...cell('description'), width: 170 }} value={p.description ?? ''} onChange={(e) => editLine(i, { description: e.target.value })} /></td>
+                            {showItem && <td style={s.td}><input aria-label={`Line ${i + 1} item`} style={{ ...cell('item'), width: 84 }} value={p.item ?? ''} onChange={(e) => editLine(i, { item: e.target.value })} /></td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} quantity`} style={{ ...cell('quantity'), width: 58 }} inputMode="numeric" value={p.quantity ?? ''} onChange={(e) => editLine(i, { quantity: e.target.value === '' ? null : Number(e.target.value) })} /></td>
-                            {sup === 'PEPSIC' && <td style={s.td}><input aria-label={`Line ${i + 1} units`} style={{ ...cell('units'), width: 58 }} inputMode="numeric" value={p.units ?? ''} onChange={(e) => editLine(i, { units: e.target.value === '' ? null : Number(e.target.value) })} /></td>}
-                            <td style={s.td}><input aria-label={`Line ${i + 1} price`} style={{ ...cell('price'), width: 80 }} inputMode="decimal" value={p.price ?? ''} onChange={(e) => editLine(i, { price: e.target.value })} /></td>
-                            <td style={s.td}><input aria-label={`Line ${i + 1} amount`} style={{ ...cell('amount'), width: 80 }} inputMode="decimal" value={p.amount ?? ''} onChange={(e) => editLine(i, { amount: e.target.value })} /></td>
-                            {sup === 'FRITO' && <td style={{ ...s.td, textAlign: 'center' }}><input type="checkbox" aria-label={`Line ${i + 1} is a return`} checked={!!p.isReturn} onChange={(e) => editLine(i, { isReturn: e.target.checked })} /></td>}
+                            {showUnits && <td style={s.td}><input aria-label={`Line ${i + 1} units`} style={{ ...cell('units'), width: 58 }} inputMode="numeric" value={p.units ?? ''} onChange={(e) => editLine(i, { units: e.target.value === '' ? null : Number(e.target.value) })} /></td>}
+                            <td style={s.td}><input aria-label={`Line ${i + 1} price`} style={{ ...cell('price'), width: 74 }} inputMode="decimal" value={p.price ?? ''} onChange={(e) => editLine(i, { price: e.target.value })} /></td>
+                            <td style={s.td}><input aria-label={`Line ${i + 1} amount`} style={{ ...cell('amount'), width: 74 }} inputMode="decimal" value={p.amount ?? ''} onChange={(e) => editLine(i, { amount: e.target.value })} /></td>
+                            {showReturn && <td style={{ ...s.td, textAlign: 'center' }}><input type="checkbox" aria-label={`Line ${i + 1} is a return`} checked={!!p.isReturn} onChange={(e) => editLine(i, { isReturn: e.target.checked })} /></td>}
                             <td style={s.td}>
-                              {sup === 'EFDINC' ? (
+                              {caseVendor && l.unitsFrom !== 'paper' ? (
                                 <div style={s.unitsCell}>
                                   <input aria-label={`Line ${i + 1} units per case`} style={{ ...cell('units'), width: 54 }} inputMode="numeric"
                                     value={units[i] ?? (l.line.unitsPerCase || '')} onChange={(e) => setUnits((u) => ({ ...u, [i]: e.target.value }))} />
@@ -275,7 +286,8 @@ export default function PdiInvoice() {
                                   {l.unitsFrom && units[i] === undefined && <span style={s.from}>{UNITS_FROM[l.unitsFrom] ?? l.unitsFrom}</span>}
                                 </div>
                               ) : (
-                                <span>{l.line.unitsPerCase || '-'} <span style={s.from}>{l.unitsFrom ? UNITS_FROM[l.unitsFrom] ?? l.unitsFrom : ''}</span></span>
+                                vendor ? <span>{l.line.unitsPerCase || '-'} <span style={s.from}>{l.unitsFrom ? UNITS_FROM[l.unitsFrom] ?? l.unitsFrom : ''}</span></span>
+                                  : <span style={s.from}>once the vendor is set</span>
                               )}
                             </td>
                           </tr>
@@ -287,7 +299,7 @@ export default function PdiInvoice() {
                                 <ul style={s.lineProblems}>{l.problems.map((x) => (
                                   <ProblemItem key={x.key} p={x} busy={busy === x.key} onAccept={accept}
                                     // a beer's units per case is confirmed (and remembered for the next invoice), not just accepted for this one
-                                    hint={sup === 'EFDINC' && x.field === 'units' ? 'Confirm the units per case above' : undefined} />
+                                    hint={caseVendor && x.field === 'units' && (l.unitsFrom === 'guess' || !l.unitsFrom) ? 'Confirm the units per case above' : undefined} />
                                 ))}</ul>
                               </td>
                             </tr>
@@ -331,10 +343,81 @@ export default function PdiInvoice() {
   );
 }
 
+/** Which vendor the invoice is from: the one found by the name read off it (changeable), or, for a vendor seen for the first time, a choice
+ *  among the vendors or a new one set up here; either way the printed name is remembered for the next invoice. */
+function VendorBar({ inv, hq, onChanged }: { inv: Invoice; hq: boolean; onChanged: (data: Invoice) => void }) {
+  const qc = useQueryClient();
+  const vendorsQ = useVendors();
+  const [pick, setPick] = useState('');
+  const [mode, setMode] = useState<'change' | 'new' | null>(null);
+  const [busy, setBusy] = useState(false);
+  const lines = inv.paper?.lines ?? [];
+  const printed = [inv.vendorPrinted?.address, inv.vendorPrinted?.phone].filter(Boolean).join(' · ');
+  const done = () => { qc.invalidateQueries({ queryKey: ['pdi-vendors'] }); qc.invalidateQueries({ queryKey: ['pdi-invoices'] }); setMode(null); setPick(''); };
+  async function choose() {
+    if (!pick) return;
+    setBusy(true);
+    try {
+      const r = await pdiInvoicesApi.update(inv.id, { vendorId: pick });
+      onChanged(r.data.data); done();
+      toast.success('Vendor set. The name printed on this invoice is remembered for next time.');
+    } catch (e: any) { toast.error(e?.response?.data?.error ?? 'It could not be saved.'); } finally { setBusy(false); }
+  }
+  async function create(input: PdiVendorInput) {
+    setBusy(true);
+    try {
+      await pdiInvoicesApi.createVendor({ ...input, invoiceId: inv.id });
+      const r = await pdiInvoicesApi.get(inv.id);
+      onChanged(r.data.data); done();
+      toast.success(`${input.name} added. Its next invoices are found by themselves.`);
+    } catch (e: any) { toast.error(e?.response?.data?.error ?? 'It could not be saved.'); } finally { setBusy(false); }
+  }
+  const picker = (
+    <div style={s.vendorPick}>
+      <select aria-label="Vendor" style={{ ...s.input, width: 'auto', minWidth: 'min(240px, 100%)' }} value={pick} onChange={(e) => setPick(e.target.value)}>
+        <option value="">Choose a vendor</option>
+        {vendorsQ.data?.filter((v) => v.id !== inv.vendor?.id).map((v) => <option key={v.id} value={v.id}>{v.name}{v.pdiCode ? ` (${v.pdiCode})` : ''}</option>)}
+      </select>
+      <Button size="sm" variant="primary" onClick={choose} disabled={!pick || busy}>Use this vendor</Button>
+    </div>
+  );
+  return (
+    <>
+      {inv.vendor ? (
+        <Card padding={12} style={{ marginBottom: 16 }}>
+          <div style={s.vendorRow}>
+            <span>Vendor: <strong>{inv.vendor.name}</strong></span>
+            <span>Code in PDI: {inv.vendor.pdiCode ? <strong>{inv.vendor.pdiCode}</strong> : <Badge tone="warning">Not set</Badge>}</span>
+            <span>Quantities: {SELLS_BY[inv.vendor.sellsBy] ?? inv.vendor.sellsBy}</span>
+            {inv.vendorRead && inv.vendorRead !== inv.vendor.name && <span style={{ color: TEXT_MUTED }}>Printed as "{inv.vendorRead}"</span>}
+            <Button size="sm" variant="ghost" onClick={() => setMode(mode === 'change' ? null : 'change')}>{mode === 'change' ? 'Cancel' : 'Not this vendor?'}</Button>
+          </div>
+          {mode === 'change' && <div style={{ marginTop: 10 }}>{picker}</div>}
+          {!inv.vendor.pdiCode && <div style={{ ...s.usage, marginTop: 8 }}>{hq ? 'Set its code in PDI on the Vendors tab.' : 'HQ can set its code in PDI.'}</div>}
+        </Card>
+      ) : (
+        <Card padding={16} style={{ marginBottom: 16, borderColor: C.warning, background: C.warningTint }}>
+          <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>Which vendor is this invoice from?</div>
+          <div style={{ fontSize: FONT.small, color: C.text2, marginBottom: 10 }}>
+            Read as <strong>{inv.vendorRead ?? 'no name'}</strong>{printed ? ` · ${printed}` : ''}. No vendor has this name yet: choose it if it is one of yours,
+            or add it once. The name is remembered, so its next invoices are found by themselves.
+          </div>
+          {picker}
+          <div style={{ marginTop: 10 }}><Button size="sm" onClick={() => setMode('new')} disabled={busy}>Add it as a new vendor</Button></div>
+        </Card>
+      )}
+      {mode === 'new' && (
+        <VendorForm title="Add a vendor" hq={hq} busy={busy} onClose={() => setMode(null)} onSave={create}
+          suggest={{ name: inv.vendorRead ?? '', sellsBy: 'CASE', itemDigits: lines.some((l) => l.item) ? 'FIRST6' : 'NONE' }} />
+      )}
+    </>
+  );
+}
+
 function ProblemItem({ p, busy, onAccept, hint }: { p: Problem; busy: boolean; onAccept: (p: Problem, on: boolean) => void; hint?: string }) {
   return (
     <li style={{ ...s.problem, ...(p.checked ? s.problemDone : {}) }}>
-      <span>{p.message}</span>
+      <span style={{ flex: '1 1 260px', minWidth: 0 }}>{p.message}</span>
       {hint ? <span style={s.mustFix}>{hint}</span> : p.canCheck ? (
         <label style={s.acceptLabel}><input type="checkbox" checked={p.checked} disabled={busy} onChange={(e) => onAccept(p, e.target.checked)} /> Looked at: it is right</label>
       ) : <span style={s.mustFix}>Correct this to continue</span>}
@@ -348,7 +431,9 @@ const s: Record<string, React.CSSProperties> = {
   inlineBtn: { background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 700, color: 'inherit', textDecoration: 'underline', cursor: 'pointer' },
   link: { color: C.primary, fontWeight: 600 },
   layout: { display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' },
-  photos: { width: 132, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 12 },
+  vendorRow: { display: 'flex', alignItems: 'center', gap: '6px 18px', flexWrap: 'wrap', fontSize: FONT.small, color: C.text2 },
+  vendorPick: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  photos: { width: 112, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 12 },
   photosTitle: { fontSize: FONT.small, fontWeight: 700, color: TEXT_MUTED },
   thumb: { position: 'relative', border: `1px solid ${C.border}`, borderRadius: RADIUS.md, padding: 0, background: C.subtle, cursor: 'zoom-in', overflow: 'hidden', aspectRatio: '3 / 4' },
   thumbImg: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
