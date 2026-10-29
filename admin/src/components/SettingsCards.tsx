@@ -1,6 +1,6 @@
 // The Settings page's own cards (2026-10-12): a group of rules (drawn from the server's list: words, range, value), the feature switches,
 // the business details the app shows, the history of every settings change, and the "Last changed" line every card carries.
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { settingsApi } from '../services/api';
@@ -9,7 +9,7 @@ import { storeDay, storeTime } from '../lib/storeDates';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { Button, Card, Badge, EmptyState, Field, Notice, Chip } from './kit';
 import ConfirmModal from './ConfirmModal';
-import { useUnsaved } from '../lib/unsaved';
+import { useDraft, useUnsaved } from '../lib/unsaved';
 
 export type RuleGroup = 'hotFood' | 'review' | 'receipts' | 'offers' | 'perks' | 'care' | 'staff';
 type Rule = { key: string; group: RuleGroup; label: string; help: string; unit: string; def: number; min: number; max: number; int: boolean; value: number; section?: string };
@@ -54,9 +54,11 @@ export function RulesCard({ group, title, intro }: { group: RuleGroup; title: st
   const qc = useQueryClient();
   const q = useSettings();
   const rules: Rule[] = useMemo(() => (Array.isArray(q.data?.data?.data?.rules) ? q.data!.data.data.rules : []).filter((r: Rule) => r.group === group), [q.data, group]);
-  const [form, setForm] = useState<Record<string, string>>({});
-  useEffect(() => { setForm(Object.fromEntries(rules.map((r) => [r.key, String(r.value)]))); }, [rules]);
-  const edited = (r: Rule) => form[r.key] !== undefined && form[r.key].trim() !== String(r.value);
+  const savedForm = useMemo(() => Object.fromEntries(rules.map((r) => [r.key, String(r.value)])) as Record<string, string>, [rules]);
+  const draft = useDraft(savedForm);
+  const form = draft.form;
+  // "30.0" typed for a saved 30 is not an edit: the same number test as `changed`, so the amber mark and Save always agree
+  const edited = (r: Rule) => form[r.key] !== undefined && (form[r.key].trim() === '' || Number(form[r.key]) !== r.value);
   const changed = rules.filter((r) => form[r.key] !== undefined && form[r.key].trim() !== '' && Number(form[r.key]) !== r.value);
   useUnsaved(`rules-${group}`, rules.some(edited));
   const wrong = rules.find((r) => {
@@ -66,8 +68,13 @@ export function RulesCard({ group, title, intro }: { group: RuleGroup; title: st
     return v.trim() === '' || !Number.isFinite(n) || n < r.min || n > r.max || (r.int && !Number.isInteger(n));
   });
   const save = useMutation({
-    mutationFn: () => settingsApi.saveRules(Object.fromEntries(changed.map((r) => [r.key, Number(form[r.key])]))),
-    onSuccess: () => { toast.success('Saved. It applies within a minute everywhere.'); qc.invalidateQueries({ queryKey: ['settings'] }); qc.invalidateQueries({ queryKey: ['settings-history'] }); },
+    mutationFn: (values: Record<string, number>) => settingsApi.saveRules(values),
+    onSuccess: async (_d, values) => {
+      toast.success('Saved. It applies within a minute everywhere.');
+      qc.invalidateQueries({ queryKey: ['settings-history'] });
+      await qc.invalidateQueries({ queryKey: ['settings'] });
+      draft.settle(values, (typed, sent) => Number(typed) === sent);
+    },
     onError: (e) => toast.error(serverMessage(e, 'Could not save.')),
   });
   const sections = [...new Set(rules.map((r) => r.section ?? ''))];
@@ -87,11 +94,11 @@ export function RulesCard({ group, title, intro }: { group: RuleGroup; title: st
           {r.unit === '$' && <span style={{ color: TEXT_MUTED }}>$</span>}
           <input id={id} style={{ ...INPUT, maxWidth: 140, ...(isEdited ? { borderColor: C.warning ?? '#b45309', boxShadow: '0 0 0 2px #fde68a' } : {}) }}
             inputMode={r.int ? 'numeric' : 'decimal'} value={form[r.key] ?? ''}
-            onChange={(e) => setForm((f) => ({ ...f, [r.key]: e.target.value.replace(/[^0-9.]/g, '') }))} />
+            onChange={(e) => draft.set(r.key, e.target.value.replace(/[^0-9.]/g, ''))} />
           {r.unit !== '$' && <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}>{r.unit}</span>}
           {!atDefault && (
-            <button type="button" onClick={() => setForm((f) => ({ ...f, [r.key]: String(r.def) }))}
-              style={{ background: 'none', border: 'none', color: C.primary, fontSize: FONT.small, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+            <button type="button" onClick={() => draft.set(r.key, String(r.def))}
+              style={{ background: 'none', border: 'none', color: C.primary, fontSize: FONT.small, fontWeight: 600, cursor: 'pointer', padding: '6px 4px' }}>
               Use the default ({fmt(r, r.def)})
             </button>
           )}
@@ -118,10 +125,10 @@ export function RulesCard({ group, title, intro }: { group: RuleGroup; title: st
           </div>
           {wrong && <div role="alert" style={{ fontSize: FONT.small, color: C.danger, marginTop: 10 }}>"{wrong.label}" must be {wrong.int ? 'a whole number ' : ''}from {fmt(wrong, wrong.min)} to {fmt(wrong, wrong.max)}.</div>}
           <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Button variant="primary" disabled={changed.length === 0 || !!wrong || save.isPending} onClick={() => save.mutate()}>
+            <Button variant="primary" disabled={changed.length === 0 || !!wrong || save.isPending} onClick={() => save.mutate(Object.fromEntries(changed.map((r) => [r.key, Number(form[r.key])])))}>
               {save.isPending ? 'Saving…' : changed.length > 1 ? `Save ${changed.length} changes` : 'Save'}
             </Button>
-            {rules.some(edited) && <Button variant="secondary" disabled={save.isPending} onClick={() => setForm(Object.fromEntries(rules.map((r) => [r.key, String(r.value)])))}>Undo changes</Button>}
+            {rules.some(edited) && <Button variant="secondary" disabled={save.isPending} onClick={draft.reset}>Undo changes</Button>}
           </div>
           <LastChanged actions={['SETTINGS_RULES_UPDATE']} keys={rules.map((r) => r.key)} />
         </>
@@ -178,32 +185,41 @@ export function FeaturesCard() {
   );
 }
 
+type Business = { supportPhone: string; supportEmail: string; supportHours: string };
+const NO_BUSINESS: Business = { supportPhone: '', supportEmail: '', supportHours: '' };
+
 /** What the app's Help screen shows customers: phone, email, hours. Empty hides the line. */
 export function BusinessCard() {
   const qc = useQueryClient();
   const q = useSettings();
-  const saved = q.data?.data?.data?.business as { supportPhone: string; supportEmail: string; supportHours: string } | undefined;
-  const [f, setF] = useState({ supportPhone: '', supportEmail: '', supportHours: '' });
-  useEffect(() => { if (saved) setF(saved); }, [q.data]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const changed = !!saved && (f.supportPhone !== saved.supportPhone || f.supportEmail !== saved.supportEmail || f.supportHours !== saved.supportHours);
+  const saved = q.data?.data?.data?.business as Business | undefined;
+  const draft = useDraft(saved ?? NO_BUSINESS);
+  const f = draft.form;
+  const changed = !!saved && (Object.keys(NO_BUSINESS) as (keyof Business)[]).some((k) => f[k] !== saved[k]);
   useUnsaved('business', changed);
   const save = useMutation({
-    mutationFn: () => settingsApi.saveBusiness(f),
-    onSuccess: () => { toast.success('Saved. The app shows it on its Help screen.'); qc.invalidateQueries({ queryKey: ['settings'] }); qc.invalidateQueries({ queryKey: ['settings-history'] }); },
+    mutationFn: (values: Business) => settingsApi.saveBusiness(values),
+    onSuccess: async (_d, values) => {
+      toast.success('Saved. The app shows it on its Help screen.');
+      qc.invalidateQueries({ queryKey: ['settings-history'] });
+      await qc.invalidateQueries({ queryKey: ['settings'] });
+      draft.settle(values);
+    },
     onError: (e) => toast.error(serverMessage(e, 'Could not save.')),
   });
   return (
-    <Card padding={18}>
-      <div id="business-row" data-setting="business" style={{ fontSize: FONT.section, fontWeight: 700, color: C.text, marginBottom: 4 }}>Contact details in the app</div>
+    // the id is on the whole card, so "Find a setting" outlines the card and puts the cursor in its first box
+    <Card id="business-row" padding={18}>
+      <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text, marginBottom: 4 }}>Contact details in the app</div>
       <p style={{ fontSize: FONT.small, color: TEXT_MUTED, margin: '0 0 12px' }}>Shown to customers on the app's Help screen, with a button to call or email. Leave a line empty to hide it.</p>
       <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <Field label="Support phone" htmlFor="b-phone"><input id="b-phone" style={INPUT} inputMode="tel" placeholder="(281) 555-0100" value={f.supportPhone} maxLength={30} onChange={(e) => setF((p) => ({ ...p, supportPhone: e.target.value }))} /></Field>
-        <Field label="Support email" htmlFor="b-email"><input id="b-email" style={INPUT} inputMode="email" placeholder="help@example.com" value={f.supportEmail} maxLength={120} onChange={(e) => setF((p) => ({ ...p, supportEmail: e.target.value }))} /></Field>
-        <Field label="Hours someone answers" htmlFor="b-hours"><input id="b-hours" style={INPUT} placeholder="Mon to Fri, 9 AM to 5 PM" value={f.supportHours} maxLength={120} onChange={(e) => setF((p) => ({ ...p, supportHours: e.target.value }))} /></Field>
+        <Field label="Support phone" htmlFor="b-phone"><input id="b-phone" style={INPUT} inputMode="tel" placeholder="(281) 555-0100" value={f.supportPhone} maxLength={30} onChange={(e) => draft.set('supportPhone', e.target.value)} /></Field>
+        <Field label="Support email" htmlFor="b-email"><input id="b-email" style={INPUT} inputMode="email" placeholder="help@example.com" value={f.supportEmail} maxLength={120} onChange={(e) => draft.set('supportEmail', e.target.value)} /></Field>
+        <Field label="Hours someone answers" htmlFor="b-hours"><input id="b-hours" style={INPUT} placeholder="Mon to Fri, 9 AM to 5 PM" value={f.supportHours} maxLength={120} onChange={(e) => draft.set('supportHours', e.target.value)} /></Field>
       </div>
       <div style={{ marginTop: 14 }}>
-        <Button variant="primary" disabled={!changed || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save'}</Button>
-        {changed && <Button variant="secondary" style={{ marginLeft: 10 }} disabled={save.isPending} onClick={() => saved && setF(saved)}>Undo changes</Button>}
+        <Button variant="primary" disabled={!changed || save.isPending} onClick={() => save.mutate(f)}>{save.isPending ? 'Saving…' : 'Save'}</Button>
+        {changed && <Button variant="secondary" style={{ marginLeft: 10 }} disabled={save.isPending} onClick={draft.reset}>Undo changes</Button>}
       </div>
       <LastChanged actions={['SETTINGS_BUSINESS_UPDATE']} />
     </Card>

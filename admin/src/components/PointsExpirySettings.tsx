@@ -1,7 +1,7 @@
 // Settings > Rewards & offers > Points expiry (2026-10-17). Off until HQ switches it on: then points expire a number of days after they were
 // earned, oldest first, and every clock starts no earlier than the day it was switched on. Before switching on, HQ sees what would expire
 // and when, and confirms that the terms have been updated and customers told. Customers' expired points can be given back on their profile.
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { settingsApi } from '../services/api';
@@ -11,7 +11,7 @@ import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { Button, Card, Badge, Field, Notice } from './kit';
 import ConfirmModal from './ConfirmModal';
 import { useSettings, LastChanged } from './SettingsCards';
-import { useUnsaved } from '../lib/unsaved';
+import { useDraft, useUnsaved } from '../lib/unsaved';
 
 interface Expiry { enabled: boolean; startedAt: string | null; days: number; warnDays: number; limits: { days: { min: number; max: number; def: number }; warnDays: { min: number; max: number; def: number } } }
 interface Preview { byDate: { date: string; customers: number; points: number }[]; customers: number; points: number; mismatched: number; days: number; from: string }
@@ -23,11 +23,11 @@ export default function PointsExpirySettings() {
   const qc = useQueryClient();
   const q = useSettings();
   const saved = q.data?.data?.data?.expiry as Expiry | undefined;
-  const [days, setDays] = useState('90');
-  const [warn, setWarn] = useState('7');
+  const savedForm = useMemo(() => ({ days: saved ? String(saved.days) : '90', warnDays: saved ? String(saved.warnDays) : '7' }), [saved]);
+  const draft = useDraft(savedForm);
+  const { days, warnDays: warn } = draft.form;
   const [asking, setAsking] = useState<'on' | 'off' | null>(null);
   const [told, setTold] = useState(false);
-  useEffect(() => { if (saved) { setDays(String(saved.days)); setWarn(String(saved.warnDays)); } }, [q.data]);   // eslint-disable-line react-hooks/exhaustive-deps
   const d = Number(days), w = Number(warn);
   const lim = saved?.limits;
   const daysOk = !!lim && Number.isInteger(d) && d >= lim.days.min && d <= lim.days.max;
@@ -45,10 +45,15 @@ export default function PointsExpirySettings() {
   const raw = preview.data?.data?.data;
   const p = raw && Array.isArray(raw.byDate) ? (raw as Preview) : undefined;   // an odd answer shows no preview rather than breaking the card
 
-  const done = (msg: string) => { toast.success(msg); qc.invalidateQueries({ queryKey: ['settings'] }); qc.invalidateQueries({ queryKey: ['settings-history'] }); qc.invalidateQueries({ queryKey: ['points-expiry-preview'] }); };
   const save = useMutation({
     mutationFn: (body: { enabled?: boolean; days?: number; warnDays?: number }) => settingsApi.savePointsExpiry(body),
-    onSuccess: (_r, body) => { setAsking(null); setTold(false); done(body.enabled === true ? 'Points expiry is on. Clocks start today.' : body.enabled === false ? 'Points expiry is off. No points expire.' : 'Saved.'); },
+    onSuccess: async (_r, body) => {
+      setAsking(null); setTold(false);
+      toast.success(body.enabled === true ? 'Points expiry is on. Clocks start today.' : body.enabled === false ? 'Points expiry is off. No points expire.' : 'Saved.');
+      qc.invalidateQueries({ queryKey: ['settings-history'] }); qc.invalidateQueries({ queryKey: ['points-expiry-preview'] });
+      await qc.invalidateQueries({ queryKey: ['settings'] });
+      draft.settle(body, (typed, sent) => Number(typed) === sent);
+    },
     onError: (e) => { setAsking(null); toast.error(serverMessage(e, 'Could not save.')); },
   });
 
@@ -57,9 +62,10 @@ export default function PointsExpirySettings() {
 
   const firstDate = p?.byDate[0]?.date;
   return (
-    <Card padding={18}>
+    // the id is on the whole card, so "Find a setting" outlines the card and puts the cursor in its first box
+    <Card id="points-expiry" padding={18}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-        <div id="points-expiry" style={{ fontSize: FONT.section, fontWeight: 700, color: C.text }}>Points expiry</div>
+        <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text }}>Points expiry</div>
         <Badge tone={saved.enabled ? 'warning' : 'neutral'}>{saved.enabled ? 'On' : 'Off'}</Badge>
         <div style={{ marginLeft: 'auto' }}>
           <Button size="sm" variant={saved.enabled ? 'secondary' : 'primary'} disabled={save.isPending || (!saved.enabled && (!daysOk || !warnOk))} onClick={() => setAsking(saved.enabled ? 'off' : 'on')}>
@@ -81,13 +87,13 @@ export default function PointsExpirySettings() {
       <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginTop: 12 }}>
         <Field label={`Points expire after (${lim.days.min} to ${lim.days.max} days)`} htmlFor="pe-days" hint={`Default ${lim.days.def} days.`}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input id="pe-days" style={{ ...INPUT, maxWidth: 120 }} inputMode="numeric" value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, '').slice(0, 3))} />
+            <input id="pe-days" style={{ ...INPUT, maxWidth: 120 }} inputMode="numeric" value={days} onChange={(e) => draft.set('days', e.target.value.replace(/\D/g, '').slice(0, 3))} />
             <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}>days</span>
           </div>
         </Field>
         <Field label={`Warning push before (${lim.warnDays.min} to ${lim.warnDays.max} days)`} htmlFor="pe-warn" hint="One push per batch of points. 0: no push.">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input id="pe-warn" style={{ ...INPUT, maxWidth: 120 }} inputMode="numeric" value={warn} onChange={(e) => setWarn(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+            <input id="pe-warn" style={{ ...INPUT, maxWidth: 120 }} inputMode="numeric" value={warn} onChange={(e) => draft.set('warnDays', e.target.value.replace(/\D/g, '').slice(0, 2))} />
             <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}>days</span>
           </div>
         </Field>
@@ -124,7 +130,7 @@ export default function PointsExpirySettings() {
       {saved.enabled && (
         <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <Button variant="primary" disabled={!changed || !daysOk || !warnOk || save.isPending} onClick={() => save.mutate({ days: d, warnDays: w })}>{save.isPending ? 'Saving…' : 'Save'}</Button>
-          {changed && <Button variant="secondary" onClick={() => { setDays(String(saved.days)); setWarn(String(saved.warnDays)); }}>Undo changes</Button>}
+          {changed && <Button variant="secondary" onClick={draft.reset}>Undo changes</Button>}
         </div>
       )}
       <LastChanged actions={['SETTINGS_EXPIRY_UPDATE']} />

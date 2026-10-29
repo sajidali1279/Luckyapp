@@ -50,7 +50,7 @@ const FIXED: Hit[] = [
   { label: 'Points expiry: on or off, days, warning push', words: 'expire expiry expiring points days old balance warning', tab: 'rewards', target: 'points-expiry', where: 'Rewards & offers' },
   { label: 'History of settings changes', words: 'history log who changed audit', tab: 'history', where: 'History' },
   { label: 'Joining bonus: free items for new customers', words: 'welcome joining bonus free item new customer days', href: '/offers?tab=welcome', where: 'Offers page' },
-  { label: 'Cashback rates, tiers, gas cents per gallon, category bonuses', words: 'cashback rate tier bronze silver gold diamond platinum gas cents gallon bonus points', href: '/rates', where: 'Cashback Rates page' },
+  { label: 'Cashback rates, tiers, gas cents per gallon, category bonuses', words: 'cashback rate tier bronze silver gold diamond platinum gas cents gallon bonus points', href: '/rates', where: 'Cashback rates page' },
 ];
 
 export default function Settings() {
@@ -111,7 +111,7 @@ export default function Settings() {
         <input
           aria-label="Find a setting"
           type="search"
-          placeholder="Find a setting (e.g. receipt, refill, cancel, support phone)"
+          placeholder="Find a setting, e.g. receipt or refill"
           value={find}
           onChange={(e) => setFind(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && hits[0]) open(hits[0]); if (e.key === 'Escape') setFind(''); }}
@@ -159,8 +159,8 @@ export default function Settings() {
         <div style={narrow}>
           <Card padding={16}>
             <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text, marginBottom: 6 }}>Set on other pages</div>
-            <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 4, fontSize: FONT.body, color: C.text2 }}>
-              <li><Link to="/rates" style={{ color: PRIMARY, fontWeight: 700 }}>Cashback Rates</Link>: tier cashback, gas cents per gallon, points to reach a tier, category bonuses</li>
+            <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 4, fontSize: FONT.body, color: C.text2 }}>
+              <li><Link to="/rates" style={{ color: PRIMARY, fontWeight: 700 }}>Cashback rates</Link>: tier cashback, gas cents per gallon, points to reach a tier, category bonuses</li>
               <li><Link to="/offers?tab=welcome" style={{ color: PRIMARY, fontWeight: 700 }}>Offers › Joining bonus</Link>: free items for new customers</li>
               <li><Link to="/offers" style={{ color: PRIMARY, fontWeight: 700 }}>Offers</Link>: promotions, deals and challenges themselves</li>
             </ul>

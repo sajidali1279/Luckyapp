@@ -118,11 +118,11 @@ export function Chip({ selected, children, role, ...rest }: ButtonHTMLAttributes
 
 // ─── Surfaces ────────────────────────────────────────────────────────────────
 
-export function Card({ children, style, padding = 20, muted, className }: {
-  children: ReactNode; style?: CSSProperties; padding?: number | string; muted?: boolean; className?: string;
+export function Card({ children, style, padding = 20, muted, className, id }: {
+  children: ReactNode; style?: CSSProperties; padding?: number | string; muted?: boolean; className?: string; id?: string;
 }) {
   return (
-    <div className={className} style={{
+    <div id={id} className={className} style={{
       background: muted ? C.subtle : C.surface, border: `1px solid ${C.border}`, borderRadius: RADIUS.lg,
       boxShadow: muted ? 'none' : SHADOW.card, padding, ...style,
     }}>{children}</div>

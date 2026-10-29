@@ -1,6 +1,6 @@
 // Transactions (HQ): receipt scanning, in testing (2026-10-11). Who can scan (off, test phones only, everyone) and the latest scans with
 // what the AI read, to check how well it reads before anyone else gets it. Approving a scan is the usual review of held sales below.
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { receiptScanApi } from '../services/api';
@@ -10,8 +10,10 @@ import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { Badge, Button, Card, Chip, Field, HowItWorks, Notice } from './kit';
 import ConfirmModal from './ConfirmModal';
 import { FRAUD_FLAG_LABELS } from '../pages/dashboard/shared';
+import { useDraft, useUnsaved } from '../lib/unsaved';
 
 type Mode = 'OFF' | 'TEST' | 'ALL';
+type Form = { mode: Mode; phones: string };
 const MODES: [Mode, string][] = [['OFF', 'Off'], ['TEST', 'Test accounts only'], ['ALL', 'Everyone']];
 const MODE_WORD: Record<Mode, string> = { OFF: 'Off', TEST: 'Testing', ALL: 'On for everyone' };
 
@@ -36,19 +38,25 @@ export default function ReceiptScanPanel() {
   const recent = useQuery({ queryKey: ['receipt-scan-recent'], queryFn: () => receiptScanApi.recent(30), enabled: open });
   const raw = q.data?.data?.data;
   const saved = raw && typeof raw.mode === 'string' && Array.isArray(raw.testPhones) ? raw as { mode: Mode; testPhones: string[] } : null;
-  const [mode, setMode] = useState<Mode>('OFF');
-  const [phones, setPhones] = useState('');
+  const savedPhones = saved ? saved.testPhones.map(showPhone).join('\n') : '';
+  const savedForm = useMemo<Form>(() => ({ mode: saved?.mode ?? 'OFF', phones: savedPhones }), [saved?.mode, savedPhones]);
+  const draft = useDraft(savedForm);
+  const { mode, phones } = draft.form;
   const [confirmAll, setConfirmAll] = useState(false);
   const [readOf, setReadOf] = useState<string | null>(null);
-  useEffect(() => { if (saved) { setMode(saved.mode); setPhones(saved.testPhones.map(showPhone).join('\n')); } }, [q.data]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const save = useMutation({
-    mutationFn: () => receiptScanApi.saveSettings({ mode, testPhones: phoneList(phones) }),
-    onSuccess: () => { toast.success('Saved. Phones see it the next time the app opens.'); qc.invalidateQueries({ queryKey: ['receipt-scan-settings'] }); setConfirmAll(false); },
+    mutationFn: (f: Form) => receiptScanApi.saveSettings({ mode: f.mode, testPhones: phoneList(f.phones) }),
+    onSuccess: async (_d, f) => {
+      toast.success('Saved. Phones see it the next time the app opens.');
+      setConfirmAll(false);
+      await qc.invalidateQueries({ queryKey: ['receipt-scan-settings'] });
+      draft.settle(f);
+    },
     onError: (e) => { toast.error(serverMessage(e, 'Could not save.')); setConfirmAll(false); },
   });
-  const savedPhones = saved ? saved.testPhones.map(showPhone).join('\n') : '';
   const changed = !!saved && (saved.mode !== mode || savedPhones !== phoneList(phones).join('\n'));
+  useUnsaved('receipt-scan', changed);
   const scans: any[] = Array.isArray(recent.data?.data?.data) ? recent.data!.data.data : [];
 
   return (
@@ -72,11 +80,11 @@ export default function ReceiptScanPanel() {
           {q.isLoading ? <div style={{ color: TEXT_MUTED }}>Loading…</div> : q.isError || !saved ? <Notice tone="danger">Could not load the receipt scanning settings.</Notice> : (
             <>
               <div role="radiogroup" aria-label="Who can scan receipts" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-                {MODES.map(([m, label]) => <Chip key={m} role="radio" selected={mode === m} onClick={() => setMode(m)}>{label}</Chip>)}
+                {MODES.map(([m, label]) => <Chip key={m} role="radio" selected={mode === m} onClick={() => draft.set('mode', m)}>{label}</Chip>)}
               </div>
               {mode !== 'OFF' && (
                 <Field label="Test phones" htmlFor="rs-phones" hint={mode === 'ALL' ? 'Not needed while it is on for everyone; kept for later.' : 'One per line. Only these customer accounts see the scanner. Staff accounts never do.'}>
-                  <textarea id="rs-phones" style={{ ...INPUT, minHeight: 84, resize: 'vertical' }} value={phones} onChange={(e) => setPhones(e.target.value)} placeholder={'(281) 555-0101\n(832) 555-0199'} />
+                  <textarea id="rs-phones" style={{ ...INPUT, minHeight: 84, resize: 'vertical' }} value={phones} onChange={(e) => draft.set('phones', e.target.value)} placeholder={'(281) 555-0101\n(832) 555-0199'} />
                 </Field>
               )}
               {mode === 'ALL' && saved.mode !== 'ALL' && (
@@ -84,9 +92,12 @@ export default function ReceiptScanPanel() {
                   Before turning it on for everyone, update the privacy policy: receipt photos are read by an AI service (Anthropic).
                 </Notice>
               )}
-              <Button variant="primary" disabled={!changed || save.isPending} onClick={() => (mode === 'ALL' && saved.mode !== 'ALL' ? setConfirmAll(true) : save.mutate())}>
-                {save.isPending ? 'Saving…' : 'Save'}
-              </Button>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Button variant="primary" disabled={!changed || save.isPending} onClick={() => (mode === 'ALL' && saved.mode !== 'ALL' ? setConfirmAll(true) : save.mutate(draft.form))}>
+                  {save.isPending ? 'Saving…' : 'Save'}
+                </Button>
+                {changed && <Button variant="secondary" disabled={save.isPending} onClick={draft.reset}>Undo changes</Button>}
+              </div>
 
               <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text, margin: '22px 0 8px' }}>Latest scans</div>
               {recent.isLoading ? <div style={{ color: TEXT_MUTED }}>Loading…</div> : recent.isError ? <Notice tone="danger">Could not load the scans.</Notice>
@@ -146,7 +157,7 @@ export default function ReceiptScanPanel() {
           <p style={{ margin: '0 0 8px' }}>Every customer with an app version that has the scanner will see it the next time the app opens.</p>
           <p style={{ margin: 0 }}>Scans are still held for review, so the store managers and HQ will have more sales to approve.</p>
         </>}
-        onConfirm={() => save.mutate()}
+        onConfirm={() => save.mutate(draft.form)}
         onCancel={() => setConfirmAll(false)}
       />
     </Card>
