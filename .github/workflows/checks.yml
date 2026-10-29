@@ -1,0 +1,76 @@
+name: Checks
+
+# Type checks for the server, the admin site and the phone app, and a full admin build, on every push to main (and on a pull
+# request). A red X on a commit means one of them broke. Nothing here deploys, uses a secret or reaches a database.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# A newer push to the same branch makes the older run pointless
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Server types
+    runs-on: ubuntu-latest
+    env:
+      # npm ci runs prisma generate, which only reads the schema; an address nobody listens on, so nothing can reach a database
+      DATABASE_URL: postgresql://x:x@127.0.0.1:1/none
+      DIRECT_URL: postgresql://x:x@127.0.0.1:1/none
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install
+        working-directory: ./backend
+        run: npm ci
+      - name: Type check
+        working-directory: ./backend
+        run: npx tsc --noEmit -p tsconfig.json
+
+  admin:
+    name: Admin types and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+      - name: Install
+        working-directory: ./admin
+        run: npm ci
+      - name: Type check and build
+        working-directory: ./admin
+        run: npm run build
+
+  mobile:
+    name: App types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Install
+        working-directory: ./mobile
+        run: npm ci
+      - name: Type check
+        working-directory: ./mobile
+        run: npx tsc --noEmit
