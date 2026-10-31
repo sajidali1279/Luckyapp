@@ -2,7 +2,7 @@
 // (no part payments): the points are taken when the order is placed, go back when the order is declined, cancelled or not accepted, and
 // count as a redemption at that store when it is picked up. Balances are dollars of credit; 100 points = $1.
 import prisma from '../config/prisma';
-import { lockCustomer } from './moneyGuards';
+import { lockCustomer, coversInPoints, amountToTake } from './moneyGuards';
 import { useLots, restoreLots } from './pointLots';
 
 export const pts = (dollars: number) => Math.round(dollars * 100);
@@ -13,7 +13,7 @@ export const pts = (dollars: number) => Math.round(dollars * 100);
  * total taken there too, in the same transaction that creates the order.
  */
 export async function placeOrderHeld<T, R>(
-  customerId: string, pointsTotal: number | null, check: (tx: any) => Promise<R | null>, create: (tx: any) => Promise<T>,
+  customerId: string, pointsTotal: number | null, check: (tx: any) => Promise<R | null>, create: (tx: any, pointsTaken?: number) => Promise<T>,
 ): Promise<{ refused: R } | { short: true; balance: number } | { order: T; balance?: number }> {
   return prisma.$transaction(async (tx) => {
     await lockCustomer(tx, customerId);
@@ -21,11 +21,14 @@ export async function placeOrderHeld<T, R>(
     if (refused) return { refused };
     if (pointsTotal == null) return { order: await create(tx) };
     const { pointsBalance } = await tx.user.findUniqueOrThrow({ where: { id: customerId }, select: { pointsBalance: true } });
-    if (pts(pointsBalance) < pts(pointsTotal)) return { short: true as const, balance: pointsBalance };
-    await tx.user.update({ where: { id: customerId }, data: { pointsBalance: { decrement: pointsTotal } } });
-    const order = await create(tx);
-    await useLots(tx, customerId, pointsTotal, 'HOT_FOOD', (order as any)?.id ?? null);   // oldest points first (utils/pointLots.ts)
-    return { order, balance: pointsBalance - pointsTotal };
+    if (!coversInPoints(pointsBalance, pointsTotal)) return { short: true as const, balance: pointsBalance };
+    // Short by part of a point: the whole balance is taken (it used to go to -0.0025), and the order records what was taken, so a refund
+    // gives back exactly that
+    const take = amountToTake(pointsBalance, pointsTotal);
+    await tx.user.update({ where: { id: customerId }, data: { pointsBalance: { decrement: take } } });
+    const order = await create(tx, take);
+    await useLots(tx, customerId, take, 'HOT_FOOD', (order as any)?.id ?? null);   // oldest points first (utils/pointLots.ts)
+    return { order, balance: pointsBalance - take };
   });
 }
 

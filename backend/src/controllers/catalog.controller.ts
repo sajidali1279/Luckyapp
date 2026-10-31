@@ -9,7 +9,7 @@ import { AuthRequest } from '../types';
 import { sendPushToUser } from '../utils/push';
 import { redemptionUrl } from '../utils/notificationRoutes';
 import { audit } from '../utils/audit';
-import { lockCustomer, settlePendingRedemption } from '../utils/moneyGuards';
+import { lockCustomer, settlePendingRedemption, coversInPoints, amountToTake } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { usableStoreIds } from '../utils/storeAccess';
 import { pointsForPrice } from '../utils/rewardPoints';
@@ -232,9 +232,10 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
   const outcome = await prisma.$transaction(async (tx) => {
     await lockCustomer(tx, customer.id);
     const fresh = await tx.user.findUniqueOrThrow({ where: { id: customer.id }, select: { pointsBalance: true } });
-    if (fresh.pointsBalance < costInDollars) {
+    if (!coversInPoints(fresh.pointsBalance, costInDollars)) {
       return { ok: false as const, status: 400, body: { success: false, error: `Not enough points. Need ${item.pointsCost} pts, you have ${Math.round(fresh.pointsBalance * 100)} pts` } };
     }
+    const take = amountToTake(fresh.pointsBalance, costInDollars);
     const existing = await tx.catalogRedemption.findFirst({
       where: { customerId: customer.id, catalogItemId, status: 'PENDING', expiresAt: { gt: new Date() } },
     });
@@ -248,7 +249,7 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
     if (activePendingCount >= 5) {
       return { ok: false as const, status: 429, body: { success: false, error: 'You have too many active redemptions. Cancel one or wait for them to expire before starting another.' } };
     }
-    await tx.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: costInDollars } } });
+    await tx.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: take } } });
     const created = await tx.catalogRedemption.create({
       data: {
         customerId: customer.id,
@@ -260,8 +261,8 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
       },
       include: { catalogItem: true },
     });
-    await useLots(tx, customer.id, costInDollars, 'CATALOG', created.id);   // oldest points first (utils/pointLots.ts)
-    return { ok: true as const, redemption: created, balance: fresh.pointsBalance - costInDollars };
+    await useLots(tx, customer.id, take, 'CATALOG', created.id);   // oldest points first (utils/pointLots.ts)
+    return { ok: true as const, redemption: created, balance: fresh.pointsBalance - take };
   });
   if (!outcome.ok) {
     res.status(outcome.status).json(outcome.body);

@@ -663,7 +663,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     if (recent && sameLines(recent.items) === sameLines(orderLines)) return { duplicate: recent };
     return open >= rule('hotFoodMaxOpenOrders') ? { open } : null;
   };
-  const r = await placeOrderHeld(customerId, payWithPoints ? totalAmount : null, check, (tx) => tx.hotFoodOrder.create({ data, include }));
+  const r = await placeOrderHeld(customerId, payWithPoints ? totalAmount : null, check, (tx, taken) => tx.hotFoodOrder.create({ data: taken != null ? { ...data, pointsAmount: taken } : data, include }));
   if ('refused' in r) {
     if ('duplicate' in r.refused) { res.status(200).json({ success: true, data: r.refused.duplicate, duplicate: true }); return; }
     res.status(429).json({ success: false, code: 'TOO_MANY_OPEN_ORDERS', error: `You already have ${r.refused.open} orders open. Pick them up or cancel one before ordering again.` });

@@ -20,6 +20,16 @@ export async function lockCustomer(tx: Tx, userId: string): Promise<void> {
 }
 
 /**
+ * Whether a balance covers a cost the way the customer sees both (2026-10-31): balances keep 4 decimals, but the app shows whole points
+ * (rounded), so a balance of 0.4599 showed "46 points" and a 46-point reward was refused. Compared in whole points instead.
+ */
+export const coversInPoints = (balance: number, cost: number) => Math.round(balance * 100) >= Math.round(cost * 100);
+
+/** What to take for a cost that coversInPoints allowed: the cost, or the whole balance when it is short by part of a point (a balance
+ *  never goes below zero). */
+export const amountToTake = (balance: number, cost: number) => Math.max(0, Math.min(cost, balance));
+
+/**
  * Moves a catalog redemption out of PENDING only if it is still PENDING, and refunds its points when asked, in one transaction. Returns
  * true when this call made the change; false when something else (the cashier, the customer, the expiry job) already settled it.
  */

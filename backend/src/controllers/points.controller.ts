@@ -27,7 +27,7 @@ import { emailHQ } from '../utils/adminEmail';
 import { COMPARE_RANGES, CompareRange, compareWindows, summarize } from '../utils/dashboardWindows';
 import { classifyCashbackRatio } from './billing.controller';
 import { transactionSearchWhere } from '../utils/transactionSearch';
-import { lockCustomer, REPEAT_WINDOW_MS } from '../utils/moneyGuards';
+import { lockCustomer, REPEAT_WINDOW_MS, coversInPoints, amountToTake } from '../utils/moneyGuards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { computeSaleCashback } from '../utils/saleCashback';
 import { rule } from '../utils/appSettings';
@@ -483,7 +483,8 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
   const outcome = await prisma.$transaction(async (tx) => {
     await lockCustomer(tx, customer.id);
     const fresh = await tx.user.findUniqueOrThrow({ where: { id: customer.id }, select: { pointsBalance: true } });
-    if (fresh.pointsBalance < amount) return { kind: 'short' as const, balance: fresh.pointsBalance };
+    if (!coversInPoints(fresh.pointsBalance, amount)) return { kind: 'short' as const, balance: fresh.pointsBalance };
+    const take = amountToTake(fresh.pointsBalance, amount);
     const repeat = await tx.creditRedemption.findFirst({
       where: { customerId: customer.id, storeId, amount, processedBy: employee.id, createdAt: { gte: new Date(Date.now() - REPEAT_WINDOW_MS) } },
       select: { id: true },
@@ -491,13 +492,13 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     if (repeat) return { kind: 'repeat' as const };
     const updatedCustomer = await tx.user.update({
       where: { id: customer.id },
-      data: { pointsBalance: { decrement: amount } },
+      data: { pointsBalance: { decrement: take } },
       select: { id: true, name: true, phone: true, pointsBalance: true },
     });
     const redemption = await tx.creditRedemption.create({
       data: { customerId: customer.id, storeId, amount, devCut: 0, processedBy: employee.id },
     });
-    await useLots(tx, customer.id, amount, 'CREDIT_REDEMPTION', redemption.id);   // oldest points first (utils/pointLots.ts)
+    await useLots(tx, customer.id, take, 'CREDIT_REDEMPTION', redemption.id);   // oldest points first (utils/pointLots.ts)
     return { kind: 'done' as const, updated: updatedCustomer };
   });
   if (outcome.kind === 'short') {
@@ -1297,18 +1298,19 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
   const outcome = await prisma.$transaction(async (tx) => {
     await lockCustomer(tx, customer.id);
     const fresh = await tx.user.findUniqueOrThrow({ where: { id: customer.id }, select: { pointsBalance: true } });
-    if (fresh.pointsBalance < costInDollars) return { kind: 'short' as const, balance: fresh.pointsBalance };
+    if (!coversInPoints(fresh.pointsBalance, costInDollars)) return { kind: 'short' as const, balance: fresh.pointsBalance };
+    const take = amountToTake(fresh.pointsBalance, costInDollars);
     const repeat = await tx.catalogRedemption.findFirst({
       where: { customerId: customer.id, catalogItemId, storeId, processedById: req.user!.id, createdAt: { gte: new Date(Date.now() - REPEAT_WINDOW_MS) } },
       select: { id: true },
     });
     if (repeat) return { kind: 'repeat' as const, balance: fresh.pointsBalance };
-    await tx.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: costInDollars } } });
+    await tx.user.update({ where: { id: customer.id }, data: { pointsBalance: { decrement: take } } });
     const given = await tx.catalogRedemption.create({
       data: { customerId: customer.id, catalogItemId, pointsSpent: item.pointsCost, storeId, processedById: req.user!.id },
     });
-    await useLots(tx, customer.id, costInDollars, 'CATALOG', given.id);
-    return { kind: 'done' as const, balance: fresh.pointsBalance - costInDollars };
+    await useLots(tx, customer.id, take, 'CATALOG', given.id);
+    return { kind: 'done' as const, balance: fresh.pointsBalance - take };
   });
   if (outcome.kind === 'short') {
     res.status(400).json({ success: false, error: `Insufficient points. Need ${item.pointsCost} pts, have ${Math.round(outcome.balance * 100)} pts` });
