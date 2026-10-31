@@ -101,6 +101,14 @@ export async function attachReferral(db: Db, friendId: string, code: string, now
   const friend = await db.user.findUnique({ where: { id: friendId }, select: { role: true, createdAt: true, referredBy: { select: { id: true } } } });
   if (!friend || friend.role !== Role.CUSTOMER) return { ok: false, error: 'Only customer accounts can use an invite code.' };
   if (friend.referredBy) return { ok: false, error: 'An invite code is already on your account.' };
+  // No loops: a code from someone this customer invited (or from anyone further down their invite chain) would pay both sides for
+  // the same pair of people. Walk up from the code's owner; the chain is short, and the cap stops a bad row from looping forever.
+  for (let at = referrer.id, steps = 0; steps < 50; steps++) {
+    const up = await db.referral.findUnique({ where: { friendId: at }, select: { referrerId: true } });
+    if (!up) break;
+    if (up.referrerId === friendId) return { ok: false, error: 'You cannot use the code of someone you invited.' };
+    at = up.referrerId;
+  }
   if (lateClaim) {
     if (now.getTime() - friend.createdAt.getTime() > claimLateDays() * DAY) return { ok: false, error: claimLateDays() > 0 ? `An invite code can only be added in the first ${claimLateDays()} days after signing up.` : 'An invite code can only be added while signing up.' };
     const bought = await db.pointsTransaction.count({ where: { customerId: friendId, status: TransactionStatus.APPROVED, challengeId: null, referralId: null } });
@@ -146,6 +154,9 @@ export async function creditReferral(db: Db, saleId: string, now: Date = new Dat
     db.user.findUnique({ where: { id: ref.referrerId }, select: { id: true, name: true, isActive: true, phone: true } }),
     db.user.findUnique({ where: { id: ref.friendId }, select: { id: true, name: true } }),
   ]);
+  // Hold the sharer's row until this transaction ends, so two friends finishing at the same moment both see the other's payment
+  // and cannot slip past the monthly limit together
+  await db.$queryRaw`SELECT id FROM "users" WHERE id = ${ref.referrerId} FOR UPDATE`;
   const paidThisMonth = await db.referral.count({ where: { referrerId: ref.referrerId, referrerRewarded: true, rewardedAt: { gte: monthStart(now) } } });
   const referrerOk = !!referrer && referrer.isActive && !referrer.phone.startsWith('deleted-') && paidThisMonth < settings.monthlyLimit;
 
