@@ -1,16 +1,20 @@
-﻿import { useEffect, useState } from 'react';
+﻿import { useEffect, useId, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { Particles } from '../components/ui/particles';
+import { useDialog } from '../hooks/useDialog';
 
 export default function Login() {
   const [phone, setPhone] = useState('');
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForgot, setShowForgot] = useState(false);
+  const forgotRef = useRef<HTMLDivElement>(null);
+  const forgotTitleId = useId();
+  useDialog(showForgot, forgotRef, () => setShowForgot(false), false);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -53,7 +57,7 @@ export default function Login() {
     <div style={{ position: 'relative', minHeight: '100vh', background: '#0c0e12', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <Particles className="absolute inset-0" color="#444444" ease={30} quantity={100} staticity={60} />
 
-      <div style={{ position: 'relative', zIndex: 10, width: '100%', margin: '0 16px' }}>
+      <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 380, margin: '0 16px' }}>
         {/* Logo mark */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 32 }}>
           <div style={{
@@ -94,8 +98,9 @@ export default function Login() {
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={labelStyle}>Phone Number</label>
+              <label htmlFor="login-phone" style={labelStyle}>Phone number</label>
               <input
+                id="login-phone"
                 type="tel"
                 placeholder="(555) 000-0000"
                 value={phone}
@@ -108,8 +113,9 @@ export default function Login() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <label style={labelStyle}>4-Digit PIN</label>
+              <label htmlFor="login-pin" style={labelStyle}>4-digit PIN</label>
               <input
+                id="login-pin"
                 type="password"
                 placeholder="••••"
                 value={pin}
@@ -153,7 +159,7 @@ export default function Login() {
                   }} />
                   Signing in…
                 </>
-              ) : 'Sign In'}
+              ) : 'Sign in'}
             </button>
           </form>
 
@@ -185,13 +191,16 @@ export default function Login() {
           onClick={() => setShowForgot(false)}
         >
           <div
-            style={{ background: '#161920', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, width: '100%', padding: '24px 24px 28px' }}
+            ref={forgotRef} role="dialog" aria-modal="true" aria-labelledby={forgotTitleId} tabIndex={-1}
+            style={{ background: '#161920', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, width: '100%', maxWidth: 380, padding: '24px 24px 28px', outline: 'none' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ color: '#fff', fontSize: 17, fontWeight: 700, margin: 0 }}>Forgot PIN?</h3>
+              <h2 id={forgotTitleId} style={{ color: '#fff', fontSize: 17, fontWeight: 700, margin: 0 }}>Forgot PIN?</h2>
               <button
+                type="button"
                 onClick={() => setShowForgot(false)}
+                aria-label="Close"
                 style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: 4 }}
               >
                 ✕
@@ -202,10 +211,11 @@ export default function Login() {
                 PINs can only be reset by an administrator.
               </p>
               <ul style={{ color: 'rgba(255,255,255,0.45)', fontSize: 15, margin: 0, paddingLeft: 18, lineHeight: 1.65 }}>
-                <li><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Employees & Managers</span> - ask your store manager or a Super Admin to reset your PIN from the Staff page.</li>
-                <li style={{ marginTop: 8 }}><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Super Admins</span> - contact your Lucky Stop developer to reset your PIN.</li>
+                <li><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Employees and managers:</span> ask your store manager or a Super Admin to reset your PIN from the Staff page.</li>
+                <li style={{ marginTop: 8 }}><span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Super Admins:</span> contact your Lucky Stop developer to reset your PIN.</li>
               </ul>
               <button
+                type="button"
                 onClick={() => setShowForgot(false)}
                 style={{
                   marginTop: 8, background: 'rgba(255,255,255,0.08)', color: '#fff',

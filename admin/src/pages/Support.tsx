@@ -5,8 +5,9 @@ import { supportApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
-import { TEXT_MUTED } from '../lib/theme';
-import { PageHeader, Button } from '../components/kit';
+import Modal from '../components/Modal';
+import { TEXT_MUTED, INPUT } from '../lib/theme';
+import { Page, PageHeader, Button, Field } from '../components/kit';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -55,14 +56,14 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: stri
 const CATEGORY_CONFIG: Record<Category, { label: string; emoji: string; color: string }> = {
   BILLING:         { label: 'Billing',         emoji: '💳', color: '#4f6d8f' },
   TECHNICAL:       { label: 'Technical',       emoji: '⚙️', color: '#3c6e8f' },
-  FEATURE_REQUEST: { label: 'Feature Request', emoji: '✨', color: '#1a7f45' },
+  FEATURE_REQUEST: { label: 'Feature request', emoji: '✨', color: '#1a7f45' },
   ACCESS:          { label: 'Access',          emoji: '🔑', color: '#c42130' },
   OTHER:           { label: 'Other',           emoji: '💬', color: TEXT_MUTED },
 };
 
 const CANNED_REPLIES = [
   "Thank you for reaching out! I'll look into this shortly.",
-  "This has been noted - I'll update you once it's resolved.",
+  "This has been noted. I'll update you once it's resolved.",
   "Can you provide more details so I can assist better?",
   "The issue has been fixed. Please let me know if anything else comes up.",
   "This is a known issue we're working on. Expected resolution: within 48 hours.",
@@ -198,356 +199,346 @@ export default function Support() {
   const threads = threadsQ.data || [];
 
   return (
-    <div style={s.page}>
-      <div style={s.inner}>
-        {/* Header */}
-        <PageHeader
-          title="Support"
-          description={isDevAdmin ? 'Manage support requests from store admins.' : 'Contact the developer team for help.'}
-          actions={!isDevAdmin && <Button variant="primary" icon={<Plus />} onClick={() => setShowNewModal(true)}>New Request</Button>}
-        />
+    <Page>
+      {/* Header */}
+      <PageHeader
+        title="Support"
+        description={isDevAdmin ? 'Manage support requests from store admins.' : 'Contact the developer team for help.'}
+        actions={!isDevAdmin && <Button variant="primary" icon={<Plus />} onClick={() => setShowNewModal(true)}>New request</Button>}
+      />
 
-        {/* DevAdmin Stats Banner */}
-        {isDevAdmin && statsQ.data && (
-          <div style={s.statsBanner}>
-            {[
-              { val: statsQ.data.openCount,       label: 'Open Tickets',       color: '#1D3557' },
-              { val: statsQ.data.urgentCount,      label: 'Urgent',             color: '#c42130' },
-              { val: statsQ.data.resolvedThisWeek, label: 'Resolved This Week', color: '#1a7f45' },
-              {
-                val: statsQ.data.avgResponseHours != null ? `${statsQ.data.avgResponseHours}h` : ' - ',
-                label: 'Avg Response Time', color: '#4f6d8f',
-              },
-            ].map((sc, i) => (
-              <div key={i} style={s.statCard}>
-                <div style={{ ...s.statVal, color: sc.color }}>{sc.val}</div>
-                <div style={s.statLabel}>{sc.label}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Filter Bar */}
-        <div style={s.filterBar}>
-          <input
-            style={s.filterInput}
-            placeholder="Search by subject…" aria-label="Search by subject"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-          <select style={s.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-            <option value="">All status</option>
-            <option value="OPEN">Open</option>
-            <option value="RESOLVED">Resolved</option>
-          </select>
-          <select style={s.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-            <option value="">All categories</option>
-            {(Object.keys(CATEGORY_CONFIG) as Category[]).map(c => (
-              <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
-            ))}
-          </select>
-          <select style={s.filterSelect} value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
-            <option value="">All priorities</option>
-            {(Object.keys(PRIORITY_CONFIG) as Priority[]).map(p => (
-              <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
-            ))}
-          </select>
-          {hasActiveFilters && (
-            <button
-              style={{ ...s.btn, ...s.btnGhost, ...s.btnSm }}
-              onClick={() => { setStatusFilter(''); setCategoryFilter(''); setPriorityFilter(''); setSearchTerm(''); }}
-            >
-              Clear
-            </button>
-          )}
-        </div>
-
-        {/* Two-panel layout */}
-        <div style={s.layout}>
-          {/* Thread List */}
-          <div style={s.listPanel}>
-            <div style={s.listHeader}>
-              {threads.length} thread{threads.length !== 1 ? 's' : ''}
+      {/* DevAdmin Stats Banner */}
+      {isDevAdmin && statsQ.data && (
+        <div style={s.statsBanner}>
+          {[
+            { val: statsQ.data.openCount,       label: 'Open tickets',       color: '#1D3557' },
+            { val: statsQ.data.urgentCount,      label: 'Urgent',             color: '#c42130' },
+            { val: statsQ.data.resolvedThisWeek, label: 'Resolved this week', color: '#1a7f45' },
+            {
+              val: statsQ.data.avgResponseHours != null ? `${statsQ.data.avgResponseHours}h` : 'None',
+              label: 'Avg response time', color: statsQ.data.avgResponseHours != null ? '#4f6d8f' : TEXT_MUTED,
+            },
+          ].map((sc, i) => (
+            <div key={i} style={s.statCard}>
+              <div style={{ ...s.statVal, color: sc.color }}>{sc.val}</div>
+              <div style={s.statLabel}>{sc.label}</div>
             </div>
-            <div style={s.listBody}>
-              {threadsQ.isError ? (
-                <ErrorState onRetry={threadsQ.refetch} />
-              ) : threadsQ.isLoading ? (
-                <div style={s.empty}><div style={s.emptyIco}><Glyph e="⏳" size={28} color="#5a6472" /></div>Loading…</div>
-              ) : threads.length === 0 ? (
-                <div style={s.empty}>
-                  <div style={s.emptyIco}><Glyph e="💬" size={28} color="#5a6472" /></div>
-                  {hasActiveFilters ? 'No matches. Try clearing filters.' : 'No support threads yet.'}
-                </div>
-              ) : threads.map((t) => {
-                const pConf = PRIORITY_CONFIG[t.priority] || PRIORITY_CONFIG.NORMAL;
-                const cConf = CATEGORY_CONFIG[t.category] || CATEGORY_CONFIG.OTHER;
-                const isActive = activeThread?.id === t.id;
-                const unread = t._count?.messages || 0;
-                return (
-                  <div
-                    key={t.id}
-                    style={{
-                      ...s.threadItem,
-                      ...(isActive ? s.threadItemAct : {}),
-                      borderLeft: `3px solid ${pConf.border}`,
-                    }}
-                    onClick={() => setActiveThread(t)}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
-                      <div style={{ ...s.threadSubj, maxWidth: 220 }}>{t.subject}</div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                        {unread > 0 && <span style={s.badge}>{unread}</span>}
-                        <span style={s.threadTime}>{timeAgo(t.updatedAt)}</span>
-                      </div>
-                    </div>
-                    <div style={s.threadMeta}>
-                      <span style={{ ...s.chip, color: pConf.color, background: pConf.bg, borderColor: pConf.border }}>
-                        {pConf.label}
-                      </span>
-                      <span style={{ ...s.chip, color: cConf.color, background: '#f7f8fa', borderColor: '#e4e7ec' }}>
-                        <Glyph e={cConf.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{cConf.label}
-                      </span>
-                      <span style={{ ...s.chip, color: t.status === 'OPEN' ? '#1a7f45' : '#5a6472', background: t.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: t.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
-                        {t.status === 'OPEN' ? '● Open' : '✓ Resolved'}
-                      </span>
-                      {isDevAdmin && <span style={{ fontSize: 12, color: TEXT_MUTED }}>{t.fromName}</span>}
+          ))}
+        </div>
+      )}
+
+      {/* Filter Bar */}
+      <div style={s.filterBar}>
+        <input
+          style={s.filterInput}
+          placeholder="Search by subject…" aria-label="Search by subject"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+        />
+        <select style={s.filterSelect} aria-label="Status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="">All statuses</option>
+          <option value="OPEN">Open</option>
+          <option value="RESOLVED">Resolved</option>
+        </select>
+        <select style={s.filterSelect} aria-label="Category" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+          <option value="">All categories</option>
+          {(Object.keys(CATEGORY_CONFIG) as Category[]).map(c => (
+            <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
+          ))}
+        </select>
+        <select style={s.filterSelect} aria-label="Priority" value={priorityFilter} onChange={e => setPriorityFilter(e.target.value)}>
+          <option value="">All priorities</option>
+          {(Object.keys(PRIORITY_CONFIG) as Priority[]).map(p => (
+            <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
+          ))}
+        </select>
+        {hasActiveFilters && (
+          <button
+            style={{ ...s.btn, ...s.btnGhost, ...s.btnSm }}
+            onClick={() => { setStatusFilter(''); setCategoryFilter(''); setPriorityFilter(''); setSearchTerm(''); }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Two-panel layout */}
+      <div style={s.layout}>
+        {/* Thread List */}
+        <div style={s.listPanel}>
+          <div style={s.listHeader}>
+            {threads.length} thread{threads.length !== 1 ? 's' : ''}
+          </div>
+          <div style={s.listBody}>
+            {threadsQ.isError ? (
+              <ErrorState onRetry={threadsQ.refetch} />
+            ) : threadsQ.isLoading ? (
+              <div style={s.empty}><div style={s.emptyIco}><Glyph e="⏳" size={28} color="#5a6472" /></div>Loading…</div>
+            ) : threads.length === 0 ? (
+              <div style={s.empty}>
+                <div style={s.emptyIco}><Glyph e="💬" size={28} color="#5a6472" /></div>
+                {hasActiveFilters ? 'No matches. Try clearing filters.' : 'No support threads yet.'}
+              </div>
+            ) : threads.map((t) => {
+              const pConf = PRIORITY_CONFIG[t.priority] || PRIORITY_CONFIG.NORMAL;
+              const cConf = CATEGORY_CONFIG[t.category] || CATEGORY_CONFIG.OTHER;
+              const isActive = activeThread?.id === t.id;
+              const unread = t._count?.messages || 0;
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    ...s.threadItem,
+                    ...(isActive ? s.threadItemAct : {}),
+                    borderLeft: `3px solid ${pConf.border}`,
+                  }}
+                  onClick={() => setActiveThread(t)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+                    <div style={{ ...s.threadSubj, maxWidth: 220 }}>{t.subject}</div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                      {unread > 0 && <span style={s.badge}>{unread}</span>}
+                      <span style={s.threadTime}>{timeAgo(t.updatedAt)}</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                  <div style={s.threadMeta}>
+                    <span style={{ ...s.chip, color: pConf.color, background: pConf.bg, borderColor: pConf.border }}>
+                      {pConf.label}
+                    </span>
+                    <span style={{ ...s.chip, color: cConf.color, background: '#f7f8fa', borderColor: '#e4e7ec' }}>
+                      <Glyph e={cConf.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{cConf.label}
+                    </span>
+                    <span style={{ ...s.chip, color: t.status === 'OPEN' ? '#1a7f45' : '#5a6472', background: t.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: t.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
+                      {t.status === 'OPEN' ? '● Open' : '✓ Resolved'}
+                    </span>
+                    {isDevAdmin && <span style={{ fontSize: 12, color: TEXT_MUTED }}>{t.fromName}</span>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
+        </div>
 
-          {/* Thread Detail */}
-          {activeThread ? (
-            <div style={s.detailPanel}>
-              {threadDetailQ.isError ? (
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <ErrorState onRetry={threadDetailQ.refetch} />
-                </div>
-              ) : threadDetailQ.isLoading && !detail ? (
-                <div style={{ ...s.empty, flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={s.emptyIco}><Glyph e="⏳" size={28} color="#5a6472" /></div>Loading…
-                </div>
-              ) : detail ? (
-                <>
-                  <div style={s.detailHeader}>
-                    <div style={s.detailSubj}>{detail.subject}</div>
-                    <div style={s.detailMeta}>
-                      {isDevAdmin ? (
-                        <select
-                          value={detail.priority}
-                          onChange={e => setPriority.mutate(e.target.value)}
-                          style={{
-                            ...s.filterSelect,
-                            width: 'auto',
-                            fontSize: 12,
-                            padding: '4px 10px',
-                            color: PRIORITY_CONFIG[detail.priority]?.color || '#111827',
-                            borderColor: PRIORITY_CONFIG[detail.priority]?.border || '#e4e7ec',
-                            background: PRIORITY_CONFIG[detail.priority]?.bg || '#fff',
-                          }}
+        {/* Thread Detail */}
+        {activeThread ? (
+          <div style={s.detailPanel}>
+            {threadDetailQ.isError ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ErrorState onRetry={threadDetailQ.refetch} />
+              </div>
+            ) : threadDetailQ.isLoading && !detail ? (
+              <div style={{ ...s.empty, flex: 1, display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center' }}>
+                <div style={s.emptyIco}><Glyph e="⏳" size={28} color="#5a6472" /></div>Loading…
+              </div>
+            ) : detail ? (
+              <>
+                <div style={s.detailHeader}>
+                  <div style={s.detailSubj}>{detail.subject}</div>
+                  <div style={s.detailMeta}>
+                    {isDevAdmin ? (
+                      <select
+                        value={detail.priority}
+                        onChange={e => setPriority.mutate(e.target.value)}
+                        style={{
+                          ...s.filterSelect,
+                          width: 'auto',
+                          fontSize: 12,
+                          padding: '4px 10px',
+                          color: PRIORITY_CONFIG[detail.priority]?.color || '#111827',
+                          borderColor: PRIORITY_CONFIG[detail.priority]?.border || '#e4e7ec',
+                          background: PRIORITY_CONFIG[detail.priority]?.bg || '#fff',
+                        }}
+                      >
+                        {(Object.keys(PRIORITY_CONFIG) as Priority[]).map(p => (
+                          <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{ ...s.chip, color: PRIORITY_CONFIG[detail.priority]?.color || '#111827', background: PRIORITY_CONFIG[detail.priority]?.bg || '#f7f8fa', borderColor: PRIORITY_CONFIG[detail.priority]?.border || '#e4e7ec' }}>
+                        {PRIORITY_CONFIG[detail.priority]?.label || detail.priority}
+                      </span>
+                    )}
+                    <span style={{ ...s.chip, color: CATEGORY_CONFIG[detail.category]?.color || '#5a6472', background: '#f7f8fa', borderColor: '#e4e7ec' }}>
+                      <Glyph e={CATEGORY_CONFIG[detail.category]?.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{CATEGORY_CONFIG[detail.category]?.label || detail.category}
+                    </span>
+                    <span style={{ ...s.chip, color: detail.status === 'OPEN' ? '#1a7f45' : '#5a6472', background: detail.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: detail.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
+                      {detail.status === 'OPEN' ? '● Open' : '✓ Resolved'}
+                    </span>
+                    <span style={{ fontSize: 12, color: TEXT_MUTED }}>opened {timeAgo(detail.createdAt)}</span>
+                  </div>
+                  {isDevAdmin && (
+                    <div style={s.detailActions}>
+                      {detail.status === 'OPEN' ? (
+                        <button
+                          style={{ ...s.btn, ...s.btnGhost, ...s.btnSm, color: '#1a7f45', borderColor: '#c8e6d2' }}
+                          onClick={() => resolveThread.mutate('RESOLVED')}
+                          disabled={resolveThread.isPending}
                         >
-                          {(Object.keys(PRIORITY_CONFIG) as Priority[]).map(p => (
-                            <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
-                          ))}
-                        </select>
+                          ✓ Mark resolved
+                        </button>
                       ) : (
-                        <span style={{ ...s.chip, color: PRIORITY_CONFIG[detail.priority]?.color || '#111827', background: PRIORITY_CONFIG[detail.priority]?.bg || '#f7f8fa', borderColor: PRIORITY_CONFIG[detail.priority]?.border || '#e4e7ec' }}>
-                          {PRIORITY_CONFIG[detail.priority]?.label || detail.priority}
-                        </span>
+                        <button
+                          style={{ ...s.btn, ...s.btnGhost, ...s.btnSm }}
+                          onClick={() => resolveThread.mutate('OPEN')}
+                          disabled={resolveThread.isPending}
+                        >
+                          ↺ Reopen
+                        </button>
                       )}
-                      <span style={{ ...s.chip, color: CATEGORY_CONFIG[detail.category]?.color || '#5a6472', background: '#f7f8fa', borderColor: '#e4e7ec' }}>
-                        <Glyph e={CATEGORY_CONFIG[detail.category]?.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{CATEGORY_CONFIG[detail.category]?.label || detail.category}
-                      </span>
-                      <span style={{ ...s.chip, color: detail.status === 'OPEN' ? '#1a7f45' : '#5a6472', background: detail.status === 'OPEN' ? '#edf7f0' : '#f7f8fa', borderColor: detail.status === 'OPEN' ? '#c8e6d2' : '#e4e7ec' }}>
-                        {detail.status === 'OPEN' ? '● Open' : '✓ Resolved'}
-                      </span>
-                      <span style={{ fontSize: 12, color: TEXT_MUTED }}>opened {timeAgo(detail.createdAt)}</span>
                     </div>
+                  )}
+                </div>
+
+                <div style={s.messages}>
+                  {detail.messages.map((msg) => {
+                    const isMe = isDevAdmin ? msg.senderRole === 'DEV_ADMIN' : msg.senderRole !== 'DEV_ADMIN';
+                    return (
+                      <div key={msg.id} style={{ ...s.msgRow, flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                        <div style={{ ...s.msgBubble, ...(isMe ? s.msgMe : s.msgFrom) }}>
+                          <div style={{ ...s.msgName, opacity: isMe ? .8 : 1 }}>{msg.senderName}</div>
+                          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{msg.body}</div>
+                          <div style={s.msgTime}>{timeAgo(msg.createdAt)}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {(detail.status === 'OPEN' || isDevAdmin) && (
+                  <div style={s.replyBar}>
                     {isDevAdmin && (
-                      <div style={s.detailActions}>
-                        {detail.status === 'OPEN' ? (
-                          <button
-                            style={{ ...s.btn, ...s.btnGhost, ...s.btnSm, color: '#1a7f45', borderColor: '#c8e6d2' }}
-                            onClick={() => resolveThread.mutate('RESOLVED')}
-                            disabled={resolveThread.isPending}
-                          >
-                            ✓ Mark Resolved
-                          </button>
-                        ) : (
-                          <button
-                            style={{ ...s.btn, ...s.btnGhost, ...s.btnSm }}
-                            onClick={() => resolveThread.mutate('OPEN')}
-                            disabled={resolveThread.isPending}
-                          >
-                            ↺ Reopen
-                          </button>
+                      <div style={{ marginBottom: 8, position: 'relative' }}>
+                        <button
+                          style={{ ...s.btn, ...s.btnGhost, ...s.btnSm }}
+                          onClick={() => setShowCannedMenu(v => !v)}
+                        >
+                          Quick replies
+                        </button>
+                        {showCannedMenu && (
+                          <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.1)', zIndex: 10, minWidth: 340 }}>
+                            {CANNED_REPLIES.map((r, i) => (
+                              <div
+                                key={i}
+                                onClick={() => { setReplyBody(r); setShowCannedMenu(false); }}
+                                style={{ padding: '10px 16px', fontSize: 13, cursor: 'pointer', borderBottom: i < CANNED_REPLIES.length - 1 ? '1px solid #f1f3f6' : 'none', color: '#374151' }}
+                                onMouseEnter={e => (e.currentTarget.style.background = '#f7f8fa')}
+                                onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
+                              >
+                                {r}
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                     )}
+                    <form onSubmit={handleSendReply} style={s.replyForm}>
+                      <div style={{ flex: 1 }}>
+                        <textarea
+                          style={s.replyInput}
+                          placeholder="Type your message…"
+                          value={replyBody}
+                          onChange={e => setReplyBody(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSendReply(e as any);
+                          }}
+                        />
+                        <div style={s.charCount}>{replyBody.length}/2000 · Ctrl+Enter to send</div>
+                      </div>
+                      <button
+                        type="submit"
+                        style={{ ...s.btn, ...s.btnPrimary, alignSelf: 'flex-end' }}
+                        disabled={!replyBody.trim() || sendReply.isPending}
+                      >
+                        Send
+                      </button>
+                    </form>
                   </div>
-
-                  <div style={s.messages}>
-                    {detail.messages.map((msg) => {
-                      const isMe = isDevAdmin ? msg.senderRole === 'DEV_ADMIN' : msg.senderRole !== 'DEV_ADMIN';
-                      return (
-                        <div key={msg.id} style={{ ...s.msgRow, flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                          <div style={{ ...s.msgBubble, ...(isMe ? s.msgMe : s.msgFrom) }}>
-                            <div style={{ ...s.msgName, opacity: isMe ? .8 : 1 }}>{msg.senderName}</div>
-                            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{msg.body}</div>
-                            <div style={s.msgTime}>{timeAgo(msg.createdAt)}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
+                )}
+                {detail.status === 'RESOLVED' && !isDevAdmin && (
+                  <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f3f6', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 }}>
+                    This thread is resolved. Contact support to reopen.
                   </div>
-
-                  {(detail.status === 'OPEN' || isDevAdmin) && (
-                    <div style={s.replyBar}>
-                      {isDevAdmin && (
-                        <div style={{ marginBottom: 8, position: 'relative' }}>
-                          <button
-                            style={{ ...s.btn, ...s.btnGhost, ...s.btnSm }}
-                            onClick={() => setShowCannedMenu(v => !v)}
-                          >
-                            Quick replies
-                          </button>
-                          {showCannedMenu && (
-                            <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, background: '#fff', border: '1px solid #e4e7ec', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,.1)', zIndex: 10, minWidth: 340 }}>
-                              {CANNED_REPLIES.map((r, i) => (
-                                <div
-                                  key={i}
-                                  onClick={() => { setReplyBody(r); setShowCannedMenu(false); }}
-                                  style={{ padding: '10px 16px', fontSize: 13, cursor: 'pointer', borderBottom: i < CANNED_REPLIES.length - 1 ? '1px solid #f1f3f6' : 'none', color: '#374151' }}
-                                  onMouseEnter={e => (e.currentTarget.style.background = '#f7f8fa')}
-                                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
-                                >
-                                  {r}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <form onSubmit={handleSendReply} style={s.replyForm}>
-                        <div style={{ flex: 1 }}>
-                          <textarea
-                            style={s.replyInput}
-                            placeholder="Type your message…"
-                            value={replyBody}
-                            onChange={e => setReplyBody(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleSendReply(e as any);
-                            }}
-                          />
-                          <div style={s.charCount}>{replyBody.length}/2000 · Ctrl+Enter to send</div>
-                        </div>
-                        <button
-                          type="submit"
-                          style={{ ...s.btn, ...s.btnPrimary, alignSelf: 'flex-end' }}
-                          disabled={!replyBody.trim() || sendReply.isPending}
-                        >
-                          Send
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                  {detail.status === 'RESOLVED' && !isDevAdmin && (
-                    <div style={{ padding: '16px 24px', borderTop: '1px solid #f1f3f6', textAlign: 'center', color: TEXT_MUTED, fontSize: 14 }}>
-                      This thread is resolved. Contact support to reopen.
-                    </div>
-                  )}
-                </>
-              ) : null}
+                )}
+              </>
+            ) : null}
+          </div>
+        ) : (
+          <div style={{ ...s.detailPanel, justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+            <div style={s.empty}>
+              <div style={s.emptyIco}><Glyph e="💬" size={28} color="#5a6472" /></div>
+              <div>Select a thread to view the conversation</div>
             </div>
-          ) : (
-            <div style={{ ...s.detailPanel, justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-              <div style={s.empty}>
-                <div style={s.emptyIco}><Glyph e="💬" size={28} color="#5a6472" /></div>
-                <div>Select a thread to view the conversation</div>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* New Thread Modal */}
       {showNewModal && (
-        <div style={s.overlay} onClick={e => e.target === e.currentTarget && setShowNewModal(false)}>
-          <div style={s.modal}>
-            <div style={s.modalTitle}>New Support Request</div>
-
-            <div style={s.formGroup}>
-              <label style={s.label}>Subject <span style={{ color: '#c42130' }}>*</span></label>
+        <Modal title="New support request" onClose={() => setShowNewModal(false)} busy={createThread.isPending} maxWidth={540}>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Field label="Subject" htmlFor="sup-subject" required>
               <input
-                style={s.input}
+                id="sup-subject"
+                className="ui-input"
+                style={INPUT}
                 placeholder="Brief summary of your issue"
                 value={newSubject}
                 onChange={e => setNewSubject(e.target.value)}
                 maxLength={200}
               />
-            </div>
+            </Field>
 
-            <div style={{ ...s.formGroup, ...s.row2 }}>
-              <div>
-                <label style={s.label}>Category <span style={{ color: '#c42130' }}>*</span></label>
-                <select style={s.select} value={newCategory} onChange={e => setNewCategory(e.target.value as Category)}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+              <Field label="Category" htmlFor="sup-category" required>
+                <select id="sup-category" className="ui-input" style={INPUT} value={newCategory} onChange={e => setNewCategory(e.target.value as Category)}>
                   {(Object.keys(CATEGORY_CONFIG) as Category[]).map(c => (
                     <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label style={s.label}>Priority</label>
-                <select style={s.select} value={newPriority} onChange={e => setNewPriority(e.target.value as Priority)}>
+              </Field>
+              <Field label="Priority" htmlFor="sup-priority">
+                <select id="sup-priority" className="ui-input" style={INPUT} value={newPriority} onChange={e => setNewPriority(e.target.value as Priority)}>
                   {(Object.keys(PRIORITY_CONFIG) as Priority[]).map(p => (
                     <option key={p} value={p}>{PRIORITY_CONFIG[p].label}</option>
                   ))}
                 </select>
-              </div>
+              </Field>
             </div>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>Message <span style={{ color: '#c42130' }}>*</span></label>
+            <Field label="Message" htmlFor="sup-message" required after={`${newMessage.length}/2000`}>
               <textarea
-                style={s.textarea}
+                id="sup-message"
+                className="ui-input"
+                style={{ ...INPUT, resize: 'vertical', minHeight: 100 }}
                 placeholder="Describe your issue in detail…"
                 value={newMessage}
                 onChange={e => setNewMessage(e.target.value)}
                 maxLength={2000}
               />
-              <div style={{ ...s.charCount, marginTop: 4 }}>{newMessage.length}/2000</div>
-            </div>
+            </Field>
 
-            <div style={s.modalFooter}>
-              <button style={{ ...s.btn, ...s.btnGhost }} onClick={() => setShowNewModal(false)}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button onClick={() => setShowNewModal(false)} disabled={createThread.isPending}>
                 Cancel
-              </button>
-              <button
-                style={{ ...s.btn, ...s.btnPrimary }}
+              </Button>
+              <Button
+                variant="primary"
                 disabled={!newSubject.trim() || !newMessage.trim() || createThread.isPending}
                 onClick={() => createThread.mutate()}
               >
-                {createThread.isPending ? 'Sending…' : 'Send Request'}
-              </button>
+                {createThread.isPending ? 'Sending…' : 'Send request'}
+              </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page:         { minHeight: '100vh', background: 'var(--background)' },
-  inner:        { maxWidth: 1280, margin: '0 auto', padding: '32px 24px' },
-  header:       { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  title:        { fontSize: 26, fontWeight: 700, color: '#111827' },
-  subtitle:     { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
-  btn:          { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
+  btn:         { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   btnPrimary:   { background: 'linear-gradient(135deg,#c42130,#c42130)', color: '#fff' },
   btnGhost:     { background: '#fff', color: '#374151', border: '1px solid #e4e7ec' },
   btnSm:        { padding: '6px 12px', fontSize: 13, borderRadius: 6 },
@@ -587,14 +578,4 @@ const s: Record<string, React.CSSProperties> = {
   charCount:    { fontSize: 11, color: TEXT_MUTED, textAlign: 'right' },
   empty:        { textAlign: 'center', padding: '60px 20px', color: TEXT_MUTED },
   emptyIco:     { fontSize: 40, marginBottom: 12 },
-  overlay:      { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal:        { background: '#fff', borderRadius: 12, padding: '28px 32px', width: 540, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto' },
-  modalTitle:   { fontSize: 20, fontWeight: 700, color: '#111827', marginBottom: 20 },
-  formGroup:    { marginBottom: 16 },
-  label:        { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 },
-  input:        { width: '100%', padding: '10px 12px', border: '1px solid #d5dae1', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' },
-  select:       { width: '100%', padding: '10px 12px', border: '1px solid #d5dae1', borderRadius: 8, fontSize: 14, background: '#fff', outline: 'none', boxSizing: 'border-box' },
-  textarea:     { width: '100%', padding: '10px 12px', border: '1px solid #d5dae1', borderRadius: 8, fontSize: 14, resize: 'vertical', minHeight: 100, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' },
-  row2:         { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
-  modalFooter:  { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 },
 };

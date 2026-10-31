@@ -11,6 +11,7 @@ import { CheckCircle2, Printer, Sparkles, Wrench, Link2, Lightbulb, RotateCcw } 
 import { Link } from 'react-router-dom';
 import { labelsApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
+import { useUnsaved } from '../lib/unsaved';
 import { C, FONT, RADIUS } from '../lib/theme';
 import { Button, Card, Badge, Notice, EmptyState, SectionTitle, Chip, HowItWorks } from './kit';
 import ConfirmModal from './ConfirmModal';
@@ -440,6 +441,7 @@ export function DealLimitsCard() {
   const saved: Limits | undefined = data?.data?.data?.limits;
   const cats: string[] = data?.data?.data?.categories ?? [];
   const [draft, setDraft] = useState<{ defaultPct: string; pct: Record<string, string>; out: Set<string> } | null>(null);
+  useUnsaved('deal-limits', draft !== null);
   const d = draft ?? (saved ? {
     defaultPct: String(saved.defaultPct),
     pct: Object.fromEntries(cats.map((c) => [c.toLowerCase(), saved.categories[c.toLowerCase()] != null ? String(saved.categories[c.toLowerCase()]) : ''])),

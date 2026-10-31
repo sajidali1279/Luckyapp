@@ -9,7 +9,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import SendPushPanel from '../components/SendPushPanel';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader, Button } from '../components/kit';
+import { Page, PageHeader, Button } from '../components/kit';
 import { CheckCheck, RefreshCw } from 'lucide-react';
 import Glyph from '../components/Glyph';
 import { serverMessage } from '../lib/apiError';
@@ -140,7 +140,7 @@ export default function Notifications() {
   });
   const stores: { id: string; name: string; city: string }[] = storesData?.data?.data ?? [];
 
-  // Normalize notifications — derive category from type if backend hasn't deployed yet
+  // Normalize notifications: derive category from type if backend hasn't deployed yet
   const rawNotifications: Notification[] = (notifData?.data?.data ?? []).map((n: any) => ({
     ...n,
     category: n.category ?? deriveCategory(n),
@@ -199,7 +199,7 @@ export default function Notifications() {
     { key: 'disputes',     label: 'Disputes' },
     { key: 'requests',     label: 'Requests' },
     { key: 'scheduling',   label: 'Scheduling' },
-    { key: 'send',         label: 'Send Push' },
+    { key: 'send',         label: 'Send push' },
   ];
   const DEV_TABS: { key: TabKey; label: string }[] = [
     { key: 'all',          label: 'All' },
@@ -209,14 +209,14 @@ export default function Notifications() {
     { key: 'disputes',     label: 'Disputes' },
     { key: 'requests',     label: 'Requests' },
     { key: 'scheduling',   label: 'Scheduling' },
-    { key: 'send',         label: 'Send Push' },
+    { key: 'send',         label: 'Send push' },
   ];
   const TABS = isDevAdmin ? DEV_TABS : SUPER_TABS;
 
   const EMPTY_STATES: Record<TabKey, { icon: string; title: string; text: string }> = {
     all:          { icon: '✅', title: 'All clear!',              text: 'No notifications right now. Billing alerts and activity updates will appear here.' },
     billing:      { icon: '💳', title: 'No billing alerts',       text: 'All invoices are settled and up to date.' },
-    transactions: { icon: '🧾', title: 'No transaction alerts',   text: 'No rejected transactions to review - everything looks good.' },
+    transactions: { icon: '🧾', title: 'No transaction alerts',   text: 'No rejected transactions to review. Everything looks good.' },
     scheduling:   { icon: '📅', title: 'No pending requests',     text: 'No pending time-off or fill-in requests from employees.' },
     customers:    { icon: '🏪', title: 'No customer alerts',      text: 'Customer activity updates will appear here.' },
     disputes:     { icon: '⚠️', title: 'No missing-points reports', text: 'Customer disputes will appear here when someone reports missing points.' },
@@ -225,7 +225,7 @@ export default function Notifications() {
   };
 
   return (
-    <div style={s.page}>
+    <Page>
 
       {/* ── Header ── */}
       <PageHeader
@@ -260,7 +260,7 @@ export default function Notifications() {
         })}
       </div>
 
-      {/* ── Inline Filters (hidden on Send Push tab) ── */}
+      {/* ── Inline Filters (hidden on Send push tab) ── */}
       {activeTab !== 'send' && (
         <div style={s.filterBar}>
           <div style={s.filterGroup}>
@@ -364,7 +364,7 @@ export default function Notifications() {
                       <span style={{ ...s.categoryChip, color: cat.color, background: cat.bg }}>
                         {cat.label}
                         {n.type === 'SCHEDULE' && n.requestType && (
-                          <> · {n.requestType === 'TIME_OFF' ? 'Time Off' : 'Extra Shift'}</>
+                          <> · {n.requestType === 'TIME_OFF' ? 'Time off' : 'Extra shift'}</>
                         )}
                       </span>
                     </div>
@@ -403,13 +403,11 @@ export default function Notifications() {
           })}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '32px 24px' },
-
   header: {
     display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10,
     marginBottom: 24,

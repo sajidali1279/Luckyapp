@@ -1,6 +1,8 @@
+import { useId, useRef } from 'react';
 import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from './ui/table';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
+import { useDialog } from '../hooks/useDialog';
 
 // periodStart/periodEnd are plain 'YYYY-MM-DD' calendar dates (the server's periodFirstDay/periodLastDay) — the date already IS the
 // store's day, with no time or zone attached, so it must be read literally (noon-UTC anchor, shown in UTC — the same technique
@@ -12,8 +14,15 @@ const CHICAGO = 'America/Chicago';
 const dayKeyShort = (key: string) => { const [y, m, d] = key.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); };
 const dayKeyShortYear = (key: string) => { const [y, m, d] = key.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }); };
 const longDayYear = (d: Date) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: CHICAGO });
+// 'HOT_FOODS' -> 'Hot foods'
+const categoryName = (c: string) => { const t = String(c ?? '').replace(/_/g, ' ').toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
 
 export default function InvoiceModal({ record, period, onClose }: { record: any; period: string; onClose: () => void }) {
+  const titleId = useId();
+  const numId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  useDialog(true, ref, onClose, false);
+
   // Manual/CUSTOM charges store `{ description }` in notes, not the full
   // compound BillNotes breakdown — keep both shapes straight so we don't
   // read categories/txCount/etc. off a record that never had them.
@@ -25,7 +34,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
   const invNum = `INV-${period.replace('-', '')}-${record.id.slice(-6).toUpperCase()}`;
 
   const periodLabel = n?.periodStart && n?.periodEnd
-    ? `${dayKeyShort(n.periodStart)} – ${dayKeyShortYear(n.periodEnd)}`
+    ? `${dayKeyShort(n.periodStart)} to ${dayKeyShortYear(n.periodEnd)}`
     : period;
 
   // Fixed the moment the bill was made (record.createdAt never changes), not derived from "now" or from periodEnd — so re-opening
@@ -70,7 +79,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
 
   return (
     <div style={inv.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={inv.paper}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={`${titleId} ${numId}`} tabIndex={-1} style={inv.paper}>
         {/* Header */}
         <div style={inv.header}>
           <div>
@@ -78,8 +87,8 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
             <div style={inv.headerSub}>Gas Station Loyalty Platform</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={inv.invTitle}>INVOICE</div>
-            <div style={inv.invNum}>{invNum}</div>
+            <h2 id={titleId} style={inv.invTitle}>Invoice</h2>
+            <div id={numId} style={inv.invNum}>{invNum}</div>
           </div>
         </div>
 
@@ -93,24 +102,24 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
           {/* Bill To / Invoice Details */}
           <div style={inv.metaRow}>
             <div style={inv.metaBox}>
-              <div style={inv.metaLabel}>Bill To</div>
-              <div style={inv.metaValue}>{store?.name || (record.storeId ? 'Store' : 'All Stores (Chain-wide)')}</div>
+              <div style={inv.metaLabel}>Bill to</div>
+              <div style={inv.metaValue}>{store?.name || (record.storeId ? 'Store' : 'All stores (chain-wide)')}</div>
               {store?.city && <div style={inv.metaSub}>{store.city}</div>}
               {store?.address && <div style={inv.metaSub}>{store.address}</div>}
             </div>
             <div style={inv.metaBox}>
-              <div style={inv.metaLabel}>Invoice Details</div>
+              <div style={inv.metaLabel}>Invoice details</div>
               <div style={inv.metaDetail}><span>Invoice #</span><strong style={{ fontFamily: 'monospace' }}>{invNum}</strong></div>
-              <div style={inv.metaDetail}><span>Issue Date</span><span>{issueDate}</span></div>
-              <div style={inv.metaDetail}><span>Billing Period</span><span>{periodLabel}</span></div>
+              <div style={inv.metaDetail}><span>Issue date</span><span>{issueDate}</span></div>
+              <div style={inv.metaDetail}><span>Billing period</span><span>{periodLabel}</span></div>
               <div style={inv.metaDetail}>
                 <span>Status</span>
                 <span style={record.isPaid ? inv.paidTag : inv.unpaidTag}>
-                  {record.isPaid ? '✓ PAID' : 'UNPAID'}
+                  {record.isPaid ? '✓ Paid' : 'Unpaid'}
                 </span>
               </div>
               {record.isPaid && record.paidAt && (
-                <div style={inv.metaDetail}><span>Payment Date</span><span>{new Date(record.paidAt).toLocaleDateString()}</span></div>
+                <div style={inv.metaDetail}><span>Payment date</span><span>{new Date(record.paidAt).toLocaleDateString()}</span></div>
               )}
             </div>
           </div>
@@ -121,26 +130,26 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
               <TableRow>
                 <TableHead style={inv.tableTh}>Description</TableHead>
                 <TableHead style={{ ...inv.tableTh, textAlign: 'right' }}>Transactions</TableHead>
-                <TableHead style={{ ...inv.tableTh, textAlign: 'right' }}>Purchase Volume</TableHead>
+                <TableHead style={{ ...inv.tableTh, textAlign: 'right' }}>Purchase volume</TableHead>
                 <TableHead style={{ ...inv.tableTh, textAlign: 'right' }}>Amount</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {n?.subscriptionFee != null && n.subscriptionFee > 0 && (
                 <TableRow>
-                  <TableCell style={inv.tableTd}>Monthly Subscription Fee</TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: TEXT_MUTED }}> - </TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: TEXT_MUTED }}> - </TableCell>
+                  <TableCell style={inv.tableTd}>Monthly subscription fee</TableCell>
+                  <TableCell style={inv.tableTd}></TableCell>
+                  <TableCell style={inv.tableTd}></TableCell>
                   <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n.subscriptionFee)}</TableCell>
                 </TableRow>
               )}
               {isManualCharge && (
                 <TableRow>
                   <TableCell style={inv.tableTd}>
-                    <div style={{ fontWeight: 600 }}>{manualDescription || 'Manual Charge'}</div>
+                    <div style={{ fontWeight: 600 }}>{manualDescription || 'Manual charge'}</div>
                   </TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: TEXT_MUTED }}> - </TableCell>
-                  <TableCell style={{ ...inv.tableTd, textAlign: 'right', color: TEXT_MUTED }}> - </TableCell>
+                  <TableCell style={inv.tableTd}></TableCell>
+                  <TableCell style={inv.tableTd}></TableCell>
                   <TableCell style={{ ...inv.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(record.amount)}</TableCell>
                 </TableRow>
               )}
@@ -151,7 +160,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
                 ? n.categories.map((cat) => (
                     <TableRow key={cat.category}>
                       <TableCell style={inv.tableTd}>
-                        <div style={{ fontWeight: 600 }}>Platform Fee - {cat.category}</div>
+                        <div style={{ fontWeight: 600 }}>Platform fee: {categoryName(cat.category)}</div>
                         <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>
                           {fmtPct(n.effectiveDevCutRate)} of the {fmt$(cat.cashbackIssued)} cashback this category issued
                         </div>
@@ -164,7 +173,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
                 : n && (
                     <TableRow>
                       <TableCell style={inv.tableTd}>
-                        <div style={{ fontWeight: 600 }}>Platform Fee</div>
+                        <div style={{ fontWeight: 600 }}>Platform fee</div>
                         <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>
                           {fmtPct(n.effectiveDevCutRate)} of the {fmt$(n.cashbackIssued)} cashback issued, across {n.txCount} transactions
                         </div>
@@ -182,7 +191,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
                 <TableCell style={{ ...inv.tableTd, fontWeight: 700 }}>{fmt$(totalAmount)}</TableCell>
               </TableRow>
               <TableRow style={{ background: PRIMARY }}>
-                <TableCell colSpan={3} style={{ ...inv.tableTd, fontWeight: 700, color: '#fff', textAlign: 'right', fontSize: 15 }}>Total Amount Owed</TableCell>
+                <TableCell colSpan={3} style={{ ...inv.tableTd, fontWeight: 700, color: '#fff', textAlign: 'right', fontSize: 15 }}>Total amount owed</TableCell>
                 <TableCell style={{ ...inv.tableTd, fontWeight: 700, color: '#fff', fontSize: 15 }}>{fmt$(totalAmount)}</TableCell>
               </TableRow>
             </TableFooter>
@@ -191,20 +200,20 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
           {/* Summary box */}
           {isManualCharge && (
             <div style={inv.notesBox}>
-              <div style={inv.notesTitle}>Charge Reason</div>
+              <div style={inv.notesTitle}>Charge reason</div>
               <div style={inv.noteRow}><span>{manualDescription || 'No reason provided'}</span></div>
             </div>
           )}
           {n && (
             <div style={inv.notesBox}>
-              <div style={inv.notesTitle}>Bill Breakdown</div>
-              <div style={inv.noteRow}><span>Purchase Volume</span><strong>{fmt$(n.purchaseVolume)}</strong></div>
-              <div style={inv.noteRow}><span>Total Transactions Processed</span><strong>{n.txCount}</strong></div>
-              {n.subscriptionFee > 0 && <div style={inv.noteRow}><span>Subscription Fee</span><strong>{fmt$(n.subscriptionFee)}</strong></div>}
-              <div style={inv.noteRow}><span>Platform Fee ({fmtPct(n.effectiveDevCutRate)} of the cashback issued, not of the purchase volume)</span><strong style={{ color: '#a51b28' }}>{fmt$(n.devCutEarned)}</strong></div>
-              <div style={inv.noteRow}><span>Customer Cashback Covered ({fmtPct(n.effectiveCashbackRate)} of volume)</span><strong style={{ color: '#8a5300' }}>{fmt$(n.customerCashback)}</strong></div>
+              <div style={inv.notesTitle}>Bill breakdown</div>
+              <div style={inv.noteRow}><span>Purchase volume</span><strong>{fmt$(n.purchaseVolume)}</strong></div>
+              <div style={inv.noteRow}><span>Total transactions processed</span><strong>{n.txCount}</strong></div>
+              {n.subscriptionFee > 0 && <div style={inv.noteRow}><span>Subscription fee</span><strong>{fmt$(n.subscriptionFee)}</strong></div>}
+              <div style={inv.noteRow}><span>Platform fee ({fmtPct(n.effectiveDevCutRate)} of the cashback issued, not of the purchase volume)</span><strong style={{ color: '#a51b28' }}>{fmt$(n.devCutEarned)}</strong></div>
+              <div style={inv.noteRow}><span>Customer cashback covered ({fmtPct(n.effectiveCashbackRate)} of volume)</span><strong style={{ color: '#8a5300' }}>{fmt$(n.customerCashback)}</strong></div>
               <div style={{ ...inv.noteRow, fontWeight: 700, fontSize: 14, borderBottom: 'none', paddingTop: 8 }}>
-                <span>Total Amount Owed</span><strong style={{ color: PRIMARY }}>{fmt$(n.totalAmountOwed)}</strong>
+                <span>Total amount owed</span><strong style={{ color: PRIMARY }}>{fmt$(n.totalAmountOwed)}</strong>
               </div>
             </div>
           )}
@@ -214,7 +223,7 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
             <div style={{ background: '#edf7f0', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}>✓</span>
               <div>
-                <div style={{ fontWeight: 700, color: '#17663a', fontSize: 15 }}>Payment Confirmed</div>
+                <div style={{ fontWeight: 700, color: '#17663a', fontSize: 15 }}>Payment confirmed</div>
                 {record.paidAt && <div style={{ fontSize: 15, color: '#047857', marginTop: 2 }}>
                   Paid on {new Date(record.paidAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                 </div>}
@@ -229,8 +238,8 @@ export default function InvoiceModal({ record, period, onClose }: { record: any;
 
         {/* Action buttons */}
         <div style={inv.actions}>
-          <button style={inv.printBtn} onClick={handlePrint}>Print / Save PDF</button>
-          <button style={inv.closeBtn} onClick={onClose}>✕ Close</button>
+          <button type="button" style={inv.printBtn} onClick={handlePrint}>Print or save as PDF</button>
+          <button type="button" style={inv.closeBtn} onClick={onClose} aria-label="Close">✕ Close</button>
         </div>
       </div>
     </div>
@@ -241,24 +250,25 @@ const inv: Record<string, React.CSSProperties> = {
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
     zIndex: 300, display: 'flex', alignItems: 'flex-start',
-    justifyContent: 'center', padding: '32px 20px', overflowY: 'auto',
+    justifyContent: 'center', padding: 'clamp(16px, 4vw, 32px) clamp(12px, 3vw, 20px)', overflowY: 'auto',
   },
   paper: {
     background: '#fff', borderRadius: 12, width: '100%',
-    boxShadow: '0 24px 64px rgba(0,0,0,0.28)', padding: '40px',
-    position: 'relative', flexShrink: 0,
+    boxShadow: '0 24px 64px rgba(0,0,0,0.28)', padding: 'clamp(16px, 4vw, 40px)',
+    position: 'relative', flexShrink: 0, outline: 'none', boxSizing: 'border-box',
   },
   header: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12,
     marginBottom: 32, paddingBottom: 24, borderBottom: '2px solid #1D3557',
   },
   headerBrand: { fontSize: 22, fontWeight: 700, color: PRIMARY },
   headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
-  invTitle: { fontSize: 32, fontWeight: 700, color: PRIMARY, letterSpacing: 2 },
+  invTitle: { margin: 0, fontSize: 32, fontWeight: 700, color: PRIMARY, letterSpacing: 2, textTransform: 'uppercase' },
   invNum: { fontSize: 15, color: TEXT_MUTED, marginTop: 4, fontFamily: 'monospace' },
 
-  metaRow: { display: 'flex', gap: 20, marginBottom: 28 },
-  metaBox: { flex: 1, background: '#f7f8fa', borderRadius: 10, padding: '16px 20px' },
+  // the two boxes sit side by side, and stack on a phone
+  metaRow: { display: 'flex', flexWrap: 'wrap', gap: 20, marginBottom: 28 },
+  metaBox: { flex: '1 1 240px', minWidth: 0, background: '#f7f8fa', borderRadius: 10, padding: '16px 20px' },
   metaLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
   metaValue: { fontSize: 17, fontWeight: 700, color: PRIMARY },
   metaSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
@@ -274,7 +284,7 @@ const inv: Record<string, React.CSSProperties> = {
   notesTitle: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
   noteRow: { display: 'flex', justifyContent: 'space-between', fontSize: 15, color: '#374151', padding: '5px 0', borderBottom: '1px solid #e4e7ec' },
 
-  actions: { display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e4e7ec' },
+  actions: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e4e7ec' },
   printBtn: { padding: '10px 22px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   closeBtn: { padding: '10px 22px', background: '#e4e7ec', color: '#374151', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
 };

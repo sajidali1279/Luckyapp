@@ -131,7 +131,7 @@ function CashbackHealthCard() {
 
   return (
     <div>
-      <SectionHeader title="Cashback Health" subtitle="Cashback paid out vs. sales, trailing 30 days. Warn above 7.5%, critical above 9%." />
+      <SectionHeader title="Cashback health" subtitle="Cashback paid out vs. sales, trailing 30 days. Warn above 7.5%, critical above 9%." />
       {isLoading ? (
         <SkeletonBox h={64} />
       ) : isError ? (
@@ -214,9 +214,9 @@ export default function BusinessView() {
       {/* ── Revenue ── */}
       <div className="dash-fade-in" style={{ animationDelay: '0ms' }}>
         <SectionHeader
-          title="Revenue Overview"
+          title="Revenue overview"
           subtitle={`${PERIOD_LABEL[revPeriod]}. Approved transactions only; subscriptions are what was collected in the period.`}
-          action={{ label: 'View Billing', to: '/billing' }}
+          action={{ label: 'View billing', to: '/billing' }}
           right={<Segmented value={revPeriod} onChange={pickPeriod} label="Revenue period" options={PERIODS.map((p) => ({ id: p, label: PERIOD_LABEL[p] }))} />}
         />
         {revenueQ.isLoading ? (
@@ -232,11 +232,11 @@ export default function BusinessView() {
           )}
           <div style={s.statsGrid}>
             <StatCard icon="🧾" label="Transactions" value={formatInteger(revenue.totalTransactions)} to="/transactions" />
-            <StatCard icon="💵" label="Purchase Volume" value={fmt$(revenue.totalPurchaseVolume)} />
-            <StatCard icon="⭐" label="Cashback Issued" value={fmt$(revenue.totalPointsAwarded)} />
-            <StatCard icon="🎁" label="Credits Redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
-            <StatCard icon="💰" label="Dev Cut" value={fmt$(revenue.totalDevCut)} valueColor="#1a7f45" to="/billing" />
-            <StatCard icon="📋" label="Subscriptions Collected" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#1a7f45" to="/billing" />
+            <StatCard icon="💵" label="Purchase volume" value={fmt$(revenue.totalPurchaseVolume)} />
+            <StatCard icon="⭐" label="Cashback issued" value={fmt$(revenue.totalPointsAwarded)} />
+            <StatCard icon="🎁" label="Credits redeemed" value={fmt$(revenue.totalRedeemedAmount)} />
+            <StatCard icon="💰" label="Platform fee" value={fmt$(revenue.totalDevCut)} valueColor="#1a7f45" to="/billing" />
+            <StatCard icon="📋" label="Subscriptions collected" value={fmt$(revenue.totalSubscriptionRevenue)} valueColor="#1a7f45" to="/billing" />
           </div>
           </>
         )}
@@ -249,7 +249,7 @@ export default function BusinessView() {
 
       {/* ── Analytics Charts ── */}
       <div className="dash-fade-in" style={{ animationDelay: '60ms' }}>
-        <SectionHeader title="Last 30 Days - Activity" subtitle="Approved transactions by day, Central-time calendar." action={{ label: 'Full Analytics', to: '/analytics' }} />
+        <SectionHeader title="Last 30 days of activity" subtitle="Approved transactions by day, Central-time calendar." action={{ label: 'Full analytics', to: '/analytics' }} />
         {analyticsQ.isLoading ? (
           <SkeletonBox h={250} />
         ) : analyticsQ.isError || !analytics ? (
@@ -260,7 +260,7 @@ export default function BusinessView() {
           <>
             <div style={s.chartsRow}>
               <div style={s.chartBox}>
-                <div style={s.chartTitle}>Daily Transactions</div>
+                <div style={s.chartTitle}>Daily transactions</div>
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: -10 }}>
                     <defs>
@@ -278,7 +278,7 @@ export default function BusinessView() {
                 </ResponsiveContainer>
               </div>
               <div style={s.chartBox}>
-                <div style={s.chartTitle}>Daily Purchase Volume ($)</div>
+                <div style={s.chartTitle}>Daily purchase volume ($)</div>
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={analytics.daily} margin={{ top: 4, right: 8, bottom: 0, left: 6 }}>
                     <defs>
@@ -299,7 +299,7 @@ export default function BusinessView() {
 
             {analytics.byCategory?.length > 0 && (
               <>
-                <SectionHeader title="Purchase Volume by Category" />
+                <SectionHeader title="Purchase volume by category" />
                 <div style={s.chartBoxFull}>
                   <ResponsiveContainer width="100%" height={Math.max(220, analytics.byCategory.length * 38)}>
                     <BarChart data={analytics.byCategory} layout="vertical" margin={{ left: 8, right: 84 }}>
@@ -322,9 +322,9 @@ export default function BusinessView() {
       {/* ── Live Cashback Rates ── */}
       <div className="dash-fade-in" style={{ animationDelay: '90ms' }}>
         <SectionHeader
-          title="Live Cashback Rates Today"
+          title="Live cashback rates today"
           subtitle="What each tier earns per category right now: tier base + category bonus + the active chain-wide promotion."
-          action={{ label: 'Edit Rates', to: '/rates' }}
+          action={{ label: 'Edit rates', to: '/rates' }}
         />
         {ratesQ.isLoading || tierRatesQ.isLoading || offersQ.isLoading ? (
           <SkeletonBox h={300} />

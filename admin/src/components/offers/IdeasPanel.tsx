@@ -9,6 +9,7 @@ import { Badge, Button, Card, Notice, SectionTitle } from '../kit';
 import CardSkeleton from '../CardSkeleton';
 import ErrorState from '../ErrorState';
 import { hoursLabel } from './HappyHours';
+import { categoryLabel } from '../../lib/categories';
 import { storeDayLong, startOfStoreDay } from '../../lib/storeDates';
 
 export type IdeaOffer = {
@@ -24,7 +25,6 @@ type Idea = {
 };
 
 const KIND: Record<Idea['kind'], string> = { SLOW_HOURS: 'Slow hours', FALLING_CATEGORY: 'Falling category', SLOW_STORE: 'Store falling behind', WIN_BACK: 'Win-back' };
-const CAT: Record<string, string> = { GROCERIES: 'Groceries', FROZEN_FOODS: 'Frozen', FRESH_FOODS: 'Fresh', GAS: 'Gas', DIESEL: 'Diesel', HOT_FOODS: 'Hot Foods', OTHER: 'Other' };
 /** 'Oct 6, 2026' for a store day (YYYY-MM-DD) */
 const dayLong = (key: string) => storeDayLong(startOfStoreDay(key));
 const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -76,7 +76,7 @@ function IdeaCard({ idea, onUse }: { idea: Idea; onUse: () => void }) {
         <div style={{ fontSize: FONT.small, color: C.text2, marginTop: 2 }}>{o.description}</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
           <Badge tone="info">{bonus(o)}</Badge>
-          <Badge>{o.category ? CAT[o.category] ?? o.category : 'Store-wide'}</Badge>
+          <Badge>{categoryLabel(o.category)}</Badge>
           <Badge icon={<MapPin size={12} />}>{o.storeName ?? 'All stores'}</Badge>
           {when && <Badge icon={<Clock size={12} />}>{when}</Badge>}
           {o.audience === 'LAPSED' && <Badge icon={<Users size={12} />}>Not bought in {o.audienceDays} days</Badge>}

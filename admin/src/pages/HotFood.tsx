@@ -9,14 +9,15 @@ import {
   Plus, Pencil, Trash2, Building2, Search, ImageIcon, Upload,
 } from 'lucide-react';
 import ConfirmModal from '../components/ConfirmModal';
+import Modal from '../components/Modal';
 import HotFoodHoursModal, { hotFoodNowText, HotFoodNow } from '../components/HotFoodHoursModal';
 import HotFoodImportModal from '../components/HotFoodImportModal';
 import HotFoodCombosPanel from '../components/HotFoodCombosPanel';
 import HotFoodMenuGrid from '../components/HotFoodMenuGrid';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader, Button, Tabs } from '../components/kit';
+import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
+import { Page, PageHeader, Button, Tabs, Field } from '../components/kit';
 import Glyph from '../components/Glyph';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -137,7 +138,7 @@ function OrderCard({ order, onUpdate, updatingId }: {
           <>
             <button style={{ ...oc.btn, background: '#8a5300', flex: 1, opacity: busy ? 0.6 : 1 }}
               onClick={() => onUpdate(order.id, 'ACCEPTED')} disabled={busy}>
-              {busy ? 'Updating…' : 'Accept Order'}
+              {busy ? 'Updating…' : 'Accept order'}
             </button>
             {/* Decline a new order: the customer is told why and does not wait for the 20-minute cancel */}
             <button style={{ ...oc.cancelBtn, opacity: busy ? 0.6 : 1 }}
@@ -150,7 +151,7 @@ function OrderCard({ order, onUpdate, updatingId }: {
           <>
             <button style={{ ...oc.btn, background: '#3c6e8f', flex: 1, opacity: busy ? 0.6 : 1 }}
               onClick={() => onUpdate(order.id, 'READY')} disabled={busy}>
-              {busy ? 'Updating…' : 'Mark Ready'}
+              {busy ? 'Updating…' : 'Mark ready'}
             </button>
             <button style={{ ...oc.cancelBtn, opacity: busy ? 0.6 : 1 }}
               onClick={() => onUpdate(order.id, 'CANCELLED')} disabled={busy} title="Cancel order" aria-label={`Cancel order ${order.orderNumber}`}>
@@ -249,66 +250,63 @@ function AddEditModal({ item, onClose, onSaved }: {
   }
 
   return (
-    <div style={md.overlay} onClick={onClose}>
-      <div style={{ ...md.panel, maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-        <div style={md.head}>
-          <span style={md.headTitle}>{item ? 'Edit Item' : 'New Catalog Item'}</span>
-          <button style={md.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        <div style={md.body}>
-          {/* Image picker */}
-          <div
-            style={md.imgWrap}
-            onClick={() => fileRef.current?.click()}
-            title="Click to change image"
-          >
-            {imgPreview ? (
-              <img src={imgPreview} alt="" style={md.imgPreview} />
-            ) : (
-              <div style={md.imgPlaceholder}>
-                <ImageIcon size={32} color="#d5dae1" strokeWidth={1.5} />
-                <span style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 6 }}>Click to add photo</span>
-              </div>
-            )}
-            <div style={md.imgBadge}>
-              <ImageIcon size={11} color="#fff" />
+    <Modal title={item ? 'Edit item' : 'New item'} onClose={onClose} busy={saving} maxWidth={440}>
+      <div style={md.form}>
+        {/* Image picker */}
+        <div
+          style={md.imgWrap}
+          onClick={() => fileRef.current?.click()}
+          role="button" tabIndex={0} aria-label={imgPreview ? 'Change the photo' : 'Add a photo'}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current?.click(); } }}
+          title="Click to change image"
+        >
+          {imgPreview ? (
+            <img src={imgPreview} alt="" style={md.imgPreview} />
+          ) : (
+            <div style={md.imgPlaceholder}>
+              <ImageIcon size={32} color="#d5dae1" strokeWidth={1.5} />
+              <span style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 6 }}>Click to add photo</span>
             </div>
+          )}
+          <div style={md.imgBadge}>
+            <ImageIcon size={11} color="#fff" />
           </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
 
-          <label style={f.label} htmlFor="hf-name">Item Name *</label>
-          <input id="hf-name" style={f.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Corn Dog" autoCapitalize="words" />
+        <Field label="Item name" htmlFor="hf-name" required>
+          <input id="hf-name" className="ui-input" style={INPUT} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Corn Dog" autoCapitalize="words" />
+        </Field>
 
-          <label style={f.label} htmlFor="hf-category">Category</label>
-          <input id="hf-category" style={f.input} list="hf-categories" value={category} maxLength={40} onChange={e => setCategory(e.target.value)} placeholder="e.g. Wings, Sides, Family Meals" />
-          <datalist id="hf-categories">{HOT_FOOD_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
-          <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: -6, marginBottom: 10 }}>The app's menu is grouped by it. Pick one or type your own.</div>
+        <Field label="Category" htmlFor="hf-category" hint="The app's menu is grouped by it. Pick one or type your own.">
+          <input id="hf-category" className="ui-input" style={INPUT} list="hf-categories" value={category} maxLength={40} onChange={e => setCategory(e.target.value)} placeholder="e.g. Wings, Sides, Family Meals" />
+        </Field>
+        <datalist id="hf-categories">{HOT_FOOD_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
 
-          <label style={f.label} htmlFor="hf-desc">Description</label>
-          <textarea id="hf-desc" style={{ ...f.input, minHeight: 60, resize: 'vertical' }} value={desc}
+        <Field label="Description" htmlFor="hf-desc">
+          <textarea id="hf-desc" className="ui-input" style={{ ...INPUT, minHeight: 60, resize: 'vertical' }} value={desc}
             onChange={e => setDesc(e.target.value)} placeholder="Brief description (optional)" />
+        </Field>
 
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1 }}>
-              <label style={f.label}>Price ($) *</label>
-              <input style={f.input} type="number" min="0" step="0.01" value={price}
-                onChange={e => setPrice(e.target.value)} placeholder="2.99" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={f.label}>Est. wait (mins)</label>
-              <input style={f.input} type="number" min="1" value={estMins}
-                onChange={e => setEstMins(e.target.value)} placeholder="10" />
-            </div>
-          </div>
+        <div style={md.pair}>
+          <Field label="Price ($)" htmlFor="hf-price" required>
+            <input id="hf-price" className="ui-input" style={INPUT} type="number" min="0" step="0.01" value={price}
+              onChange={e => setPrice(e.target.value)} placeholder="2.99" />
+          </Field>
+          <Field label="Est. wait (mins)" htmlFor="hf-wait">
+            <input id="hf-wait" className="ui-input" style={INPUT} type="number" min="1" value={estMins}
+              onChange={e => setEstMins(e.target.value)} placeholder="10" />
+          </Field>
         </div>
+
         <div style={md.footer}>
-          <button style={f.cancelBtn} onClick={onClose} disabled={saving}>Cancel</button>
-          <button style={{ ...f.primaryBtn, opacity: saving ? 0.6 : 1 }} onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : item ? 'Save Changes' : 'Add to Catalog'}
-          </button>
+          <Button onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : item ? 'Save changes' : 'Add to catalog'}
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -389,17 +387,18 @@ function AssignModal({ item, stores, onClose, onEdit }: {
   const noneOn = localSelected.size === 0;
 
   return (
-    <div style={md.overlay} onClick={onClose}>
+    <>
       <ConfirmModal
         open={confirmDelete}
-        title="Remove from Catalog"
+        title="Remove from catalog"
         message={`Remove "${item.name}" from the catalog? It will be unassigned from all stores.`}
         confirmLabel="Remove"
         danger
         onConfirm={() => { setConfirmDelete(false); handleDelete(); }}
         onCancel={() => setConfirmDelete(false)}
       />
-      <div style={{ ...md.panel, maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+      <Modal title={item.name} subtitle={item.description || undefined} onClose={onClose} busy={saving} maxWidth={440}>
+      <div style={md.form}>
         {/* Item row */}
         <div style={am.itemRow}>
           {item.imageUrl ? (
@@ -409,25 +408,22 @@ function AssignModal({ item, stores, onClose, onEdit }: {
               <span style={{ fontSize: 26, fontWeight: 700, color: 'rgba(0,0,0,0.15)' }}>{item.name.charAt(0).toUpperCase()}</span>
             </div>
           )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={am.itemName}>{item.name}</div>
-            {item.description && <div style={am.itemDesc}>{item.description}</div>}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-              <span style={am.price}>${Number(item.price).toFixed(2)}</span>
-              {item.estimatedMinutes && (
-                <span style={am.est}><Clock size={10} color="#5a6472" /> ~{item.estimatedMinutes} min</span>
-              )}
-            </div>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={am.price}>${Number(item.price).toFixed(2)}</span>
+            {item.estimatedMinutes && (
+              <span style={am.est}><Clock size={10} color="#5a6472" /> ~{item.estimatedMinutes} min</span>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <button style={am.iconBtn} onClick={onEdit} title="Edit item"><Pencil size={14} color="#1D3557" /></button>
-            <button style={{ ...am.iconBtn, background: '#fdf2f2' }} onClick={() => setConfirmDelete(true)} title="Delete item"><Trash2 size={14} color="#c42130" /></button>
+            <button type="button" style={am.iconBtn} onClick={onEdit} title="Edit item" aria-label="Edit item"><Pencil size={14} color="#1D3557" /></button>
+            <button type="button" style={{ ...am.iconBtn, background: '#fdf2f2' }} onClick={() => setConfirmDelete(true)} title="Delete item" aria-label="Delete item"><Trash2 size={14} color="#c42130" /></button>
           </div>
         </div>
 
         {/* Assign section */}
+        <div>
         <div style={am.sectionHead}>
-          <span style={am.sectionTitle}>Assign to Stores</span>
+          <span style={am.sectionTitle}>Assign to stores</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button style={{ ...am.bulk, ...(allOn  ? am.bulkOn : {}) }} onClick={() => setLocalSelected(new Set(stores.map(s => s.id)))}>All</button>
             <button style={{ ...am.bulk, ...(noneOn ? am.bulkOn : {}) }} onClick={() => setLocalSelected(new Set())}>None</button>
@@ -458,19 +454,17 @@ function AssignModal({ item, stores, onClose, onEdit }: {
             })}
           </div>
         )}
+        </div>
 
-        <div style={am.footer}>
-          <button style={f.cancelBtn} onClick={onClose}>Cancel</button>
-          <button
-            style={{ ...f.primaryBtn, opacity: (!hasChanges || saving) ? 0.5 : 1, cursor: (!hasChanges || saving) ? 'default' : 'pointer' }}
-            onClick={handleSave}
-            disabled={!hasChanges || saving}
-          >
+        <div style={md.footer}>
+          <Button onClick={onClose} disabled={saving}>Cancel</Button>
+          <Button variant="primary" onClick={handleSave} disabled={!hasChanges || saving}>
             {saving ? 'Saving…' : hasChanges ? `Save · ${localSelected.size} store${localSelected.size !== 1 ? 's' : ''}` : 'No changes'}
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+      </Modal>
+    </>
   );
 }
 
@@ -589,7 +583,7 @@ export default function HotFood() {
   const pendingCount = orderCounts.PENDING;
 
   return (
-    <div style={pg.container}>
+    <Page>
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <ConfirmModal
         open={!!declineId}
@@ -605,7 +599,7 @@ export default function HotFood() {
         onCancel={() => setDeclineId(null)}
       />
       <PageHeader
-        title="Hot Food"
+        title="Hot food"
         description={view === 'orders'
           ? pendingCount > 0 ? `${pendingCount} pending order${pendingCount !== 1 ? 's' : ''} · auto-refreshes every 20s` : 'Live order board · auto-refreshes every 20s'
           : view === 'catalog'
@@ -618,7 +612,7 @@ export default function HotFood() {
         ) : view === 'catalog' ? (
           <>
             <Button icon={<Upload />} onClick={() => setShowImport(true)}>Import items</Button>
-            <Button variant="primary" icon={<Plus />} onClick={() => { setEditItem(null); setShowAddEdit(true); }}>Add Item</Button>
+            <Button variant="primary" icon={<Plus />} onClick={() => { setEditItem(null); setShowAddEdit(true); }}>Add item</Button>
           </>
         ) : null}
       />
@@ -824,7 +818,7 @@ export default function HotFood() {
                     disabled={togglingHotFood === store.id}
                     role="switch" aria-checked={!!store.hotFoodEnabled} aria-label={`Hot food at ${store.name}`}
                   >
-                    {togglingHotFood === store.id ? '…' : store.hotFoodEnabled ? 'ON' : 'OFF'}
+                    {togglingHotFood === store.id ? '…' : store.hotFoodEnabled ? 'On' : 'Off'}
                   </button>
                 </div>
               ))}
@@ -863,7 +857,7 @@ export default function HotFood() {
           }}
         />
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -876,7 +870,6 @@ const pg: Record<string, React.CSSProperties> = {
   availNowClosed: { background: '#fdf6e8', color: '#8a5300' },
   availToday: { fontSize: 12.5, color: TEXT_MUTED },
   availHoursBtn: { border: '1.5px solid #e4e7ec', background: '#fff', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 700, color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap', marginRight: 8 },
-  container:    { padding: '24px 28px', minHeight: '100%' },
   header:       { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 },
   iconWrap:     { width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg, #8a5300, #8a5300)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   title:        { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
@@ -960,44 +953,30 @@ const oc: Record<string, React.CSSProperties> = {
 };
 
 const md: Record<string, React.CSSProperties> = {
-  overlay:   { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 },
-  panel:     { background: '#fff', borderRadius: 12, width: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' },
-  head:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 14px', borderBottom: '1px solid #f1f3f6' },
-  headTitle: { fontWeight: 700, fontSize: 16, color: '#111827' },
-  closeBtn:  { background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1 },
-  body:      { padding: '16px 20px 0' },
-  footer:    { display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid #f1f3f6', marginTop: 16 },
-  imgWrap:   { position: 'relative', width: 140, height: 140, borderRadius: 12, overflow: 'hidden', margin: '0 auto 18px', border: '2px dashed #e4e7ec', cursor: 'pointer', background: '#f7f8fa', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  form:      { display: 'grid', gap: 12 },
+  pair:      { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 },
+  footer:    { display: 'flex', gap: 8, justifyContent: 'flex-end' },
+  imgWrap:   { position: 'relative', width: 140, height: 140, borderRadius: 12, overflow: 'hidden', margin: '0 auto 6px', border: '2px dashed #e4e7ec', cursor: 'pointer', background: '#f7f8fa', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   imgPreview:{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
   imgPlaceholder:{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' },
   imgBadge:  { position: 'absolute', bottom: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: '#8a5300', display: 'flex', alignItems: 'center', justifyContent: 'center' },
 };
 
 const am: Record<string, React.CSSProperties> = {
-  itemRow:   { display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px 20px', borderBottom: '1px solid #f1f3f6' },
+  itemRow:   { display: 'flex', alignItems: 'center', gap: 12 },
   thumb:     { width: 64, height: 64, borderRadius: 12, objectFit: 'cover', flexShrink: 0 },
-  itemName:  { fontSize: 16, fontWeight: 700, color: '#111827' },
-  itemDesc:  { fontSize: 12, color: TEXT_MUTED, marginTop: 3, lineHeight: '1.4' },
   price:     { fontSize: 13, fontWeight: 700, color: '#8a5300' },
   est:       { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: TEXT_MUTED },
   iconBtn:   { width: 30, height: 30, borderRadius: 8, border: 'none', background: '#eef2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
-  sectionHead:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: '#f7f8fa', borderBottom: '1px solid #f1f3f6' },
+  sectionHead:{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: '10px 10px 0 0' },
   sectionTitle:{ fontSize: 11, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: '0.06em' },
   bulk:      { padding: '4px 10px', borderRadius: 6, border: '1px solid #e4e7ec', background: '#f1f3f6', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: '#5a6472' },
   bulkOn:    { background: PRIMARY, border: '1px solid #1D3557', color: '#fff' },
   count:     { fontSize: 13, fontWeight: 700, color: '#1D3557', minWidth: 40, textAlign: 'right' },
-  storeList: { maxHeight: 240, overflowY: 'auto' },
-  storeRow:  { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: '1px solid #f7f8fa', cursor: 'pointer', transition: 'background 100ms' },
+  storeList: { maxHeight: 240, overflowY: 'auto', border: '1px solid #e4e7ec', borderTop: 'none', borderRadius: '0 0 10px 10px' },
+  storeRow:  { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderBottom: '1px solid #f7f8fa', cursor: 'pointer', transition: 'background 100ms' },
   storeRowOn:{ background: '#edf7f0' },
   checkbox:  { width: 18, height: 18, borderRadius: 4, border: '2px solid #d5dae1', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   checkboxOn:{ background: '#1a7f45', borderColor: '#1a7f45' },
   storeName: { fontSize: 14, color: '#374151', fontWeight: 500 },
-  footer:    { display: 'flex', gap: 10, padding: '14px 20px' },
-};
-
-const f: Record<string, React.CSSProperties> = {
-  label:      { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 4, marginTop: 12 },
-  input:      { width: '100%', border: '1px solid #e4e7ec', borderRadius: 8, padding: '9px 12px', fontSize: 14, color: '#111827', outline: 'none', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit' },
-  cancelBtn:  { flex: 1, background: '#f1f3f6', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' },
-  primaryBtn: { flex: 1, background: '#1D3557', border: 'none', borderRadius: 8, padding: '10px 0', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#fff' },
 };

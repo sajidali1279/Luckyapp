@@ -15,7 +15,7 @@ import { storeToday, addDays, storeDay, storeTime } from '../lib/storeDates';
 import { badgeInk } from './dashboard/shared';
 import { serverMessage } from '../lib/apiError';
 import { useDialog } from '../hooks/useDialog';
-import { PageHeader, HeaderStat, Button } from '../components/kit';
+import { Page, PageHeader, HeaderStat, Button, StatTile } from '../components/kit';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -112,7 +112,7 @@ export default function Transactions() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [saleBusy, setSaleBusy] = useState(false);   // a whole sale being decided, line by line
 
-  // Filters live in the URL (so a view — a store's flagged sales, a customer's last month — can be bookmarked
+  // Filters live in the URL (so a view, a store's flagged sales or a customer's last month, can be bookmarked
   // or shared) and are only READ from it once, on the first render; after that, this state is the source of
   // truth and a dedicated effect below keeps the URL in sync with it, one direction, so typing never fights
   // with the address bar. Platform admins open on "Needs review": flagged sales first, then sales still
@@ -257,7 +257,7 @@ export default function Transactions() {
     mutationFn: ({ id, action, reason }: { id: string; action: 'APPROVE' | 'REJECT'; reason?: string }) =>
       pointsApi.reviewFlagged(id, action, reason),
     onSuccess: (_res, { action }) => {
-      toast.success(action === 'APPROVE' ? 'Transaction approved - points credited' : 'Flagged transaction rejected');
+      toast.success(action === 'APPROVE' ? 'Transaction approved: points credited' : 'Flagged transaction rejected');
     },
     onError: (e: any) => toast.error(serverMessage(e, 'Failed to review transaction')),
     onSettled: refreshLists,
@@ -268,7 +268,7 @@ export default function Transactions() {
     onSuccess: (res: any) => {
       toast.success(
         res?.data?.data?.customerBalanceWentNegative
-          ? 'Sale voided - the customer had already spent some of it, so their balance is now negative'
+          ? 'Sale voided. The customer had already spent some of it, so their balance is now negative'
           : 'Sale voided and the points clawed back'
       );
     },
@@ -517,7 +517,7 @@ export default function Transactions() {
         </button>
       </TableCell>
       <TableCell style={s.td}>
-        <div style={{ fontWeight: 600 }}>{tx.customer?.name || ' - '}</div>
+        <div style={{ fontWeight: 600 }}>{tx.customer?.name || ''}</div>
         <div style={{ fontSize: 13, color: TEXT_MUTED }}>{tx.customer?.phone}</div>
       </TableCell>
       <TableCell style={s.td}>{tx.challengeId
@@ -536,13 +536,13 @@ export default function Transactions() {
         </span>
       </TableCell>
       {isSuperAdmin && (
-        <TableCell style={s.td}><span style={{ fontSize: 15, color: PRIMARY, fontWeight: 600 }}>{tx.store?.name || ' - '}</span></TableCell>
+        <TableCell style={s.td}><span style={{ fontSize: 15, color: PRIMARY, fontWeight: 600 }}>{tx.store?.name || ''}</span></TableCell>
       )}
       <TableCell style={s.td}>
-        <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || ' - '}</span>
+        <span style={s.catBadge}>{tx.category?.replace(/_/g, ' ') || ''}</span>
         {tx.addOn && <div style={{ fontSize: 11, color: '#8a5300', fontWeight: 700, marginTop: 3 }} title="The cashier added this receipt to the customer's sale after they left (no QR scan)">Added after customer left</div>}
       </TableCell>
-      <TableCell style={s.td}>{flags.includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : tx.servedBy ? <span title={`Entered by HQ (${tx.grantedBy?.name || 'HQ'})`}>{tx.servedBy.name || tx.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : tx.grantedBy?.name || tx.grantedBy?.phone || ' - '}</TableCell>
+      <TableCell style={s.td}>{flags.includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : tx.servedBy ? <span title={`Entered by HQ (${tx.grantedBy?.name || 'HQ'})`}>{tx.servedBy.name || tx.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : tx.grantedBy?.name || tx.grantedBy?.phone || ''}</TableCell>
       <TableCell style={s.td}>
         <div>
           <span style={{ ...s.badge, background: badgeBg, color: badgeInk(badgeBg) }}>
@@ -562,7 +562,7 @@ export default function Transactions() {
           <a href={tx.receiptImageUrl} target="_blank" rel="noopener noreferrer" style={s.link}>View</a>
         ) : tx.status === 'FLAGGED' ? (
           <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span>
-        ) : ' - '}
+        ) : ''}
       </TableCell>
       {/* Every row has its actions here (2026-10-28: approved rows showed an empty column, Void was only in the details panel) */}
       <TableCell className="ui-sticky-end" style={{ ...s.td, backgroundColor: rowBg }}>
@@ -646,7 +646,7 @@ export default function Transactions() {
             <div style={{ fontSize: 12, fontWeight: 700, color: PRIMARY, marginTop: 2 }}>One sale · {lines.length} lines</div>
           </TableCell>
           <TableCell style={s.td}>
-            <div style={{ fontWeight: 600 }}>{first.customer?.name || ' - '}</div>
+            <div style={{ fontWeight: 600 }}>{first.customer?.name || ''}</div>
             <div style={{ fontSize: 13, color: TEXT_MUTED }}>{first.customer?.phone}</div>
           </TableCell>
           <TableCell style={s.td}><strong>{fmt$(amount)}</strong></TableCell>
@@ -661,13 +661,13 @@ export default function Transactions() {
               </span>
             )}
           </TableCell>
-          {isSuperAdmin && <TableCell style={s.td}><span style={{ fontSize: 15, color: PRIMARY, fontWeight: 600 }}>{first.store?.name || ' - '}</span></TableCell>}
+          {isSuperAdmin && <TableCell style={s.td}><span style={{ fontSize: 15, color: PRIMARY, fontWeight: 600 }}>{first.store?.name || ''}</span></TableCell>}
           <TableCell style={s.td}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {lines.map((t) => <span key={t.id} style={s.catBadge}>{t.category?.replace(/_/g, ' ') || ' - '} {fmt$(t.purchaseAmount)}</span>)}
+              {lines.map((t) => <span key={t.id} style={s.catBadge}>{t.category?.replace(/_/g, ' ') || 'Sale'} {fmt$(t.purchaseAmount)}</span>)}
             </div>
           </TableCell>
-          <TableCell style={s.td}>{parseFlags(first.fraudFlags).includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : first.servedBy ? <span title={`Entered by HQ (${first.grantedBy?.name || 'HQ'})`}>{first.servedBy.name || first.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : first.grantedBy?.name || first.grantedBy?.phone || ' - '}</TableCell>
+          <TableCell style={s.td}>{parseFlags(first.fraudFlags).includes('RECEIPT_SCAN') ? <span style={{ fontWeight: 600 }}>Customer's own scan</span> : first.servedBy ? <span title={`Entered by HQ (${first.grantedBy?.name || 'HQ'})`}>{first.servedBy.name || first.servedBy.phone}<span style={{ color: TEXT_MUTED, fontSize: 11 }}> · by HQ</span></span> : first.grantedBy?.name || first.grantedBy?.phone || ''}</TableCell>
           <TableCell style={s.td}>
             <span style={{ ...s.badge, background: badgeBg, color: badgeInk(badgeBg) }}>{one ? statusLabel(one) : 'Mixed'}</span>
             {!one && <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>{statuses.map((st) => `${lines.filter((t) => t.status === st).length} ${statusLabel(st).toLowerCase()}`).join(', ')}</div>}
@@ -678,7 +678,7 @@ export default function Transactions() {
             )}
           </TableCell>
           <TableCell style={s.td}>
-            {receipt ? <a href={receipt} target="_blank" rel="noopener noreferrer" style={s.link}>View</a> : one === 'FLAGGED' ? <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span> : ' - '}
+            {receipt ? <a href={receipt} target="_blank" rel="noopener noreferrer" style={s.link}>View</a> : one === 'FLAGGED' ? <span style={{ fontSize: 13, color: '#a51b28', fontWeight: 600 }}>None yet</span> : ''}
           </TableCell>
           <TableCell className="ui-sticky-end" style={{ ...s.td, backgroundColor: saleBg }}>
             <div style={s.actionCol}>
@@ -714,7 +714,7 @@ export default function Transactions() {
   };
 
   return (
-    <div style={s.container}>
+    <Page>
       <ConfirmModal
         open={!!decision && !!dCopy}
         title={dCopy?.title ?? ''}
@@ -740,7 +740,7 @@ export default function Transactions() {
         busy={busy}
         // The page's own heading is the h1 above the filter bar, with no h2 anywhere on the page: ConfirmModal's
         // default h3 skipped straight from h1, an axe heading-order finding present since before this batch
-        // (confirmed via git stash — not something T2 introduced) and now fixed while this dialog is already
+        // (confirmed via git stash, not something T2 introduced) and now fixed while this dialog is already
         // being extended for Void, the same headingLevel prop LB3 used to fix the identical pattern elsewhere.
         headingLevel="h2"
         withInput={decision?.kind === 'REJECT_PENDING' || decision?.kind === 'REJECT_FLAGGED' || decision?.kind === 'VOID' || decision?.kind === 'REJECT_SALE' || decision?.kind === 'REJECT_SALE_PENDING'}
@@ -769,7 +769,7 @@ export default function Transactions() {
       <div style={s.filterBar}>
         {isSuperAdmin && (
           <select aria-label="Store" style={s.select} value={selectedStore} onChange={(e) => changeStore(e.target.value)}>
-            <option value="">All Stores</option>
+            <option value="">All stores</option>
             {stores.map((store: any) => (
               <option key={store.id} value={store.id}>{store.name}</option>
             ))}
@@ -778,7 +778,7 @@ export default function Transactions() {
 
         <select aria-label="Status" style={s.select} value={statusFilter} onChange={(e) => changeStatus(e.target.value)}>
           <option value="NEEDS_REVIEW">Needs review</option>
-          <option value="">All Statuses</option>
+          <option value="">All statuses</option>
           <option value="PENDING">Pending</option>
           <option value="FLAGGED">Flagged</option>
           <option value="APPROVED">✓ Approved</option>
@@ -789,7 +789,7 @@ export default function Transactions() {
 
         {isSuperAdmin && (
           <select aria-label="Category" style={s.select} value={categoryFilter} onChange={(e) => changeCategory(e.target.value)}>
-            <option value="">All Categories</option>
+            <option value="">All categories</option>
             {CATEGORIES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
             ))}
@@ -848,21 +848,10 @@ export default function Transactions() {
       {/* ── Summary bar (SuperAdmin) ── */}
       {isSuperAdmin && summary && !badRange && (
         <>
-          <div style={s.summaryBar}>
-            <div style={s.summaryItem}>
-              <span style={s.summaryLabel}>Approved Volume</span>
-              <span style={s.summaryValue}>{fmt$(summary.purchaseVolume)}</span>
-            </div>
-            <div style={s.summaryDivider} />
-            <div style={s.summaryItem}>
-              <span style={s.summaryLabel}>Cashback Issued</span>
-              <span style={{ ...s.summaryValue, color: APPROVED_TEXT }}>{fmt$(summary.cashbackIssued)}</span>
-            </div>
-            <div style={s.summaryDivider} />
-            <div style={s.summaryItem}>
-              <span style={s.summaryLabel}>Showing</span>
-              <span style={s.summaryValue}>{total.toLocaleString()} records</span>
-            </div>
+          <div style={s.summaryGrid}>
+            <StatTile label="Approved volume" value={fmt$(summary.purchaseVolume)} />
+            <StatTile label="Cashback issued" value={<span style={{ color: APPROVED_TEXT }}>{fmt$(summary.cashbackIssued)}</span>} />
+            <StatTile label="Showing" value={`${total.toLocaleString()} records`} />
           </div>
           {statusFilter && statusFilter !== 'APPROVED' && (
             <p style={s.summaryNote}>Approved volume and cashback always count approved sales for the store, category and dates chosen, whatever status is selected.</p>
@@ -1045,12 +1034,11 @@ export default function Transactions() {
           </div>
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 },
   title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, marginBottom: 0 },
@@ -1060,21 +1048,12 @@ const s: Record<string, React.CSSProperties> = {
     display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
     marginBottom: 16, padding: '14px 16px', background: '#f7f8fa', borderRadius: 12,
   },
-  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, background: '#fff', cursor: 'pointer' },
-  dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15 },
+  select: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, background: '#fff', cursor: 'pointer', flex: '1 1 150px', minWidth: 0 },
+  dateInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, flex: '1 1 130px', minWidth: 0 },
   clearBtn: { padding: '8px 16px', borderRadius: 8, border: '1px solid #e4e7ec', background: '#fff', cursor: 'pointer', fontSize: 15, color: TEXT_MUTED, fontWeight: 600 },
   exportBtn: { padding: '8px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: PRIMARY, color: '#fff', cursor: 'pointer', fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' as const },
 
-  summaryBar: {
-    display: 'flex', gap: 0, background: '#fff',
-    borderRadius: 12, marginBottom: 20,
-    boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
-    overflow: 'hidden',
-  },
-  summaryItem: { flex: 1, padding: '14px 20px', display: 'flex', flexDirection: 'column', gap: 2 },
-  summaryDivider: { width: 1, background: '#e4e7ec' },
-  summaryLabel: { fontSize: 13, color: TEXT_MUTED, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 },
-  summaryValue: { fontSize: 20, fontWeight: 700, color: PRIMARY },
+  summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 },
   summaryNote: { fontSize: 13, color: TEXT_MUTED, margin: '-12px 0 16px' },
 
   // no overflow: hidden on the table: it stops the Actions column pinning to the right edge (ui-sticky-end)
@@ -1098,7 +1077,7 @@ const s: Record<string, React.CSSProperties> = {
   dialogFlags: { textAlign: 'left', color: '#a51b28', fontSize: 13, fontWeight: 600, margin: '8px auto 0', paddingLeft: 20, maxWidth: 320 },
   empty: { color: TEXT_MUTED, textAlign: 'center', padding: 60 },
 
-  searchInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, minWidth: 240, flex: '1 1 240px' },
+  searchInput: { padding: '8px 12px', borderRadius: 8, border: '1px solid #e4e7ec', fontSize: 15, minWidth: 0, flex: '1 1 240px' },
   moreFiltersBar: {
     display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
     marginTop: -8, marginBottom: 16, padding: '12px 16px', background: '#f7f8fa', borderRadius: 12,

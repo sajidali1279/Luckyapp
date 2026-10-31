@@ -9,7 +9,7 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader, Button, HeaderStat, Badge, Chip, Field, Notice } from '../components/kit';
+import { Page, PageHeader, Button, HeaderStat, Badge, Chip, Field, Notice } from '../components/kit';
 import Modal from '../components/Modal';
 import { INPUT } from '../lib/theme';
 import { Plus } from 'lucide-react';
@@ -42,12 +42,12 @@ interface CatalogItem {
 type StoreOption = { id: string; name: string; city?: string };
 
 const CATEGORY_OPTIONS = [
-  { value: 'IN_STORE',     label: 'In-Store',     desc: 'General in-store items' },
+  { value: 'IN_STORE',     label: 'In-store',     desc: 'General in-store items' },
   { value: 'GAS',          label: 'Gas',           desc: 'Fuel & pump rewards' },
-  { value: 'HOT_FOODS',    label: 'Hot Foods',     desc: 'Hot food items (select locations)' },
+  { value: 'HOT_FOODS',    label: 'Hot foods',     desc: 'Hot food items (select locations)' },
   { value: 'GROCERIES',    label: 'Groceries',    desc: 'Grocery & packaged goods' },
-  { value: 'FROZEN_FOODS', label: 'Frozen Foods',  desc: 'Frozen food items' },
-  { value: 'FRESH_FOODS',  label: 'Fresh Foods',   desc: 'Fresh produce & deli items' },
+  { value: 'FROZEN_FOODS', label: 'Frozen foods',  desc: 'Frozen food items' },
+  { value: 'FRESH_FOODS',  label: 'Fresh foods',   desc: 'Fresh produce & deli items' },
 ];
 
 const KNOWN_CHAINS = ['Lucky Stop'];
@@ -161,7 +161,7 @@ function CatalogModal({
           <select id="reward-store" className="ui-input" style={INPUT} value={storeId} onChange={e => setStoreId(e.target.value)}>
             {isHQ && <option value="">Every store</option>}
             {!isHQ && stores.length > 1 && !storeId && <option value="">Pick one of your stores</option>}
-            {stores.map(st => <option key={st.id} value={st.id}>{st.name}{st.city ? ` - ${st.city}` : ''}</option>)}
+            {stores.map(st => <option key={st.id} value={st.id}>{st.name}{st.city ? `, ${st.city}` : ''}</option>)}
           </select>
         </Field>
 
@@ -286,7 +286,7 @@ function ChainSection({
           <Table style={cs.table}>
             <TableHeader>
               <TableRow>
-                {['', 'Title', 'Where', 'Category', 'Description', 'Points Cost', 'Value', 'Redeemed', 'Status', 'Actions'].map(h => (
+                {['', 'Title', 'Where', 'Category', 'Description', 'Points cost', 'Value', 'Redeemed', 'Status', 'Actions'].map(h => (
                   <TableHead key={h} style={cs.th}>{h}</TableHead>
                 ))}
               </TableRow>
@@ -307,7 +307,7 @@ function ChainSection({
                       {CATEGORY_OPTIONS.find((c) => c.value === item.category)?.label || item.category}
                     </span>
                   </TableCell>
-                  <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description || ' - '}</span></TableCell>
+                  <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description}</span></TableCell>
                   <TableCell style={cs.td}>
                     <span style={cs.ptsBadge}>{item.pointsCost.toLocaleString()} pts</span>
                     {item.label && (
@@ -420,13 +420,13 @@ export default function CatalogPage() {
   const visibleItems = items.filter(i => isDevAdmin || i.chain === 'Lucky Stop');
   const activeCount = visibleItems.filter(i => i.isActive).length;
 
-  if (isError) return <div style={{ padding: 32 }}><ErrorState message="Failed to load catalog." onRetry={refetch} /></div>;
+  if (isError) return <Page><ErrorState message="Failed to load catalog." onRetry={refetch} /></Page>;
 
   return (
-    <div style={s.page}>
+    <Page>
       <ConfirmModal
         open={!!confirmItem}
-        title="Deactivate Item"
+        title="Deactivate item"
         message={`Deactivate "${confirmItem?.title}"? It will be hidden from customers but not permanently deleted.`}
         confirmLabel="Deactivate"
         danger
@@ -437,13 +437,13 @@ export default function CatalogPage() {
 
         {/* Header */}
       <PageHeader
-        title="Redemption Catalog"
+        title="Rewards catalog"
         description={<>Fixed reward items customers redeem with their points{isDevAdmin && chains.length > 0 && ` · ${chains.length} compan${chains.length > 1 ? 'ies' : 'y'}`}</>}
-        actions={<Button variant="primary" icon={<Plus />} onClick={openCreate}>New Item</Button>}
+        actions={<Button variant="primary" icon={<Plus />} onClick={openCreate}>New item</Button>}
       >
         {!isLoading && visibleItems.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            <HeaderStat label="Total Items" value={visibleItems.length} />
+            <HeaderStat label="Total items" value={visibleItems.length} />
             <HeaderStat label="Active" value={activeCount} tone="success" />
             <HeaderStat label="Inactive" value={visibleItems.length - activeCount} />
             {isDevAdmin && <HeaderStat label="Companies" value={chains.length} />}
@@ -469,7 +469,7 @@ export default function CatalogPage() {
             <div style={s.emptyIcon}><Glyph e="🏷️" size={28} color="#5a6472" /></div>
             <div style={s.emptyTitle}>No catalog items yet</div>
             <div style={s.emptySub}>Create your first reward item to get started</div>
-            <button style={s.createBtn} onClick={openCreate}>+ Create First Item</button>
+            <button style={s.createBtn} onClick={openCreate}>+ Create first item</button>
           </div>
         ) : (
           <>
@@ -510,15 +510,14 @@ export default function CatalogPage() {
           onSave={handleSave}
         />
       )}
-    </div>
+    </Page>
   );
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: 'var(--background)', padding: '32px 0' },
-  inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
+  inner: { display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
@@ -608,46 +607,6 @@ const cs: Record<string, React.CSSProperties> = {
   deleteBtn: {
     background: '#fdf2f2', color: '#c42130', border: 'none',
     borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 15, fontWeight: 600,
-  },
-};
-
-const m: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-  },
-  modal: {
-    background: '#fff', borderRadius: 12, width: '100%', maxWidth: 520,
-    margin: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.25)', overflow: 'hidden',
-    maxHeight: '90vh', overflowY: 'auto',
-  },
-  header: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '20px 24px', borderBottom: '1px solid #e4e7ec',
-    position: 'sticky', top: 0, background: '#fff', zIndex: 1,
-  },
-  title: { margin: 0, fontSize: 20, fontWeight: 700, color: PRIMARY },
-  closeBtn: {
-    background: 'none', border: 'none', fontSize: 18,
-    cursor: 'pointer', color: TEXT_MUTED, lineHeight: 1,
-  },
-  form: { padding: 24, display: 'flex', flexDirection: 'column', gap: 14 },
-  label: { fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: -6 },
-  input: {
-    border: '1.5px solid #d5dae1', borderRadius: 10,
-    padding: '10px 14px', fontSize: 15, outline: 'none', width: '100%',
-    boxSizing: 'border-box' as const,
-  },
-  hint: { fontSize: 15, color: TEXT_MUTED, whiteSpace: 'nowrap' },
-  checkRow: { display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: 14 },
-  actions: { display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 },
-  cancelBtn: {
-    background: '#f1f3f6', border: 'none', borderRadius: 10,
-    padding: '10px 20px', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151',
-  },
-  saveBtn: {
-    background: PRIMARY, color: '#fff', border: 'none',
-    borderRadius: 10, padding: '10px 24px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
   },
 };
 

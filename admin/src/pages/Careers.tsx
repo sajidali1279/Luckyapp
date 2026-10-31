@@ -6,12 +6,13 @@ import { careersApi, jobOpeningsApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useAdminBadges } from '../hooks/useAdminBadges';
 import ConfirmModal from '../components/ConfirmModal';
+import Modal from '../components/Modal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader, Button, Tabs } from '../components/kit';
+import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
+import { Page, PageHeader, Button, Tabs, Field } from '../components/kit';
 import { Plus } from 'lucide-react';
 
 const POSITION_LABELS: Record<string, string> = {
@@ -131,7 +132,7 @@ export default function Careers() {
   });
 
   const applications: Application[] = data?.data?.data?.applications ?? [];
-  // Same "new" definition the sidebar's own Careers badge counts by — shown
+  // Same "new" definition the sidebar's own Careers badge counts by, shown
   // here too so the Applications tab isn't a blank guess when that badge
   // pointed you at this page.
   // (2026-10-25) taken from the same badge source, not from the filtered list: filtered by Reviewed, the list has no new ones
@@ -199,11 +200,13 @@ export default function Careers() {
     setEditNotes(app.reviewNotes ?? '');
   }
 
+  const savingOpening = createOpeningMut.isPending || updateOpeningMut.isPending;
+
   return (
-    <div style={s.page}>
+    <Page>
       <ConfirmModal
         open={!!confirmDeleteOpening}
-        title="Delete Opening"
+        title="Delete opening"
         message="This job opening will be permanently removed. Applicants already submitted won't be affected."
         confirmLabel="Delete"
         danger
@@ -212,7 +215,7 @@ export default function Careers() {
       />
       <ConfirmModal
         open={!!confirmDeleteApp}
-        title="Delete Application"
+        title="Delete application"
         message="This application will be permanently deleted and cannot be recovered."
         confirmLabel="Delete"
         danger
@@ -225,7 +228,7 @@ export default function Careers() {
         description={`${openings.length} opening${openings.length !== 1 ? 's' : ''} · ${total} application${total !== 1 ? 's' : ''}${filtered ? ' match the filters' : ''}`}
         actions={mainTab === 'openings' && (
           <Button variant="primary" icon={<Plus />} onClick={() => { setEditingOpening(null); setOpeningForm(emptyForm); setShowOpeningForm(true); }}>
-            Post Opening
+            Post opening
           </Button>
         )}
       />
@@ -235,7 +238,7 @@ export default function Careers() {
         value={mainTab}
         onChange={setMainTab}
         tabs={[
-          { value: 'openings', label: 'Job Openings' },
+          { value: 'openings', label: 'Job openings' },
           { value: 'applications', label: 'Applications', count: newAppCount > 0 ? newAppCount : undefined },
         ]}
       />
@@ -243,7 +246,7 @@ export default function Careers() {
       {/* ── OPENINGS PANEL ── */}
       {mainTab === 'openings' && (
         openingsLoading ? <CardSkeleton count={3} /> :
-        openings.length === 0 ? <div style={s.empty}>No openings posted yet. Click "Post Opening" to add one.</div> : (
+        openings.length === 0 ? <div style={s.empty}>No openings posted yet. Click "Post opening" to add one.</div> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {openings.map(op => (
               <div key={op.id} style={{ ...s.opCard, opacity: op.isActive ? 1 : 0.55 }}>
@@ -257,7 +260,7 @@ export default function Careers() {
                     </div>
                     <div style={s.opMeta}>
                       {POSITION_LABELS[op.position] ?? op.position}
-                      {op.store ? ` · ${op.store.name} - ${op.store.city}` : ' · Any Location'}
+                      {op.store ? ` · ${op.store.name}, ${op.store.city}` : ' · Any location'}
                       {op.payRange ? ` · ${op.payRange}` : ''}
                       {op.employType !== 'BOTH' ? ` · ${op.employType === 'FULL_TIME' ? 'Full-time' : 'Part-time'}` : ''}
                     </div>
@@ -290,15 +293,15 @@ export default function Careers() {
       {/* Filters */}
       <div style={s.filters}>
         <select style={s.select} value={selectedPosition} onChange={e => setSelectedPosition(e.target.value)}>
-          <option value="">All Positions</option>
+          <option value="">All positions</option>
           {Object.entries(POSITION_LABELS).map(([val, label]) => (
             <option key={val} value={val}>{label}</option>
           ))}
         </select>
         <select style={s.select} value={selectedStore} onChange={e => setSelectedStore(e.target.value)}>
-          <option value="">All Stores</option>
+          <option value="">All stores</option>
           {stores.map((st: any) => (
-            <option key={st.id} value={st.id}>{st.name} - {st.city}</option>
+            <option key={st.id} value={st.id}>{st.name}, {st.city}</option>
           ))}
         </select>
       </div>
@@ -317,7 +320,7 @@ export default function Careers() {
               <TableRow style={s.thead}>
                 <TableHead style={s.th}>Applicant</TableHead>
                 <TableHead style={s.th}>Position</TableHead>
-                <TableHead style={s.th}>Preferred Store</TableHead>
+                <TableHead style={s.th}>Preferred store</TableHead>
                 <TableHead style={s.th}>Availability</TableHead>
                 <TableHead style={s.th}>Status</TableHead>
                 <TableHead style={s.th}>Applied</TableHead>
@@ -333,7 +336,7 @@ export default function Careers() {
                       <div style={s.appPhone}>{app.phone}</div>
                     </TableCell>
                     <TableCell style={s.td}>{POSITION_LABELS[app.position] ?? app.position}</TableCell>
-                    <TableCell style={s.td}>{app.store ? `${app.store.name} - ${app.store.city}` : 'Any'}</TableCell>
+                    <TableCell style={s.td}>{app.store ? `${app.store.name}, ${app.store.city}` : 'Any'}</TableCell>
                     <TableCell style={s.td}>
                       <span style={s.avail}>{app.availability.type === 'FULL_TIME' ? 'Full-time' : 'Part-time'}</span>
                     </TableCell>
@@ -353,63 +356,60 @@ export default function Careers() {
 
       {/* Opening Form Modal */}
       {showOpeningForm && (
-        <div style={s.overlay} onClick={() => setShowOpeningForm(false)}>
-          <div style={{ ...s.modal, width: 520 }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin: '0 0 20px', fontSize: 20, color: PRIMARY }}>{editingOpening ? 'Edit Opening' : 'Post Job Opening'}</h2>
+        <Modal title={editingOpening ? 'Edit opening' : 'Post job opening'} onClose={() => setShowOpeningForm(false)} busy={savingOpening} maxWidth={520}>
+          <div style={s.form}>
+            <Field label="Job title" htmlFor="opening-title" required>
+              <input id="opening-title" className="ui-input" style={INPUT} value={openingForm.title} onChange={e => setOpeningForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Cashier needed, north location" />
+            </Field>
 
-            <label style={s.label}>Job Title *</label>
-            <input style={s.input} value={openingForm.title} onChange={e => setOpeningForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Cashier Needed – North Location" />
-
-            <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <label style={s.label}>Position *</label>
-                <select style={s.input} value={openingForm.position} onChange={e => setOpeningForm(f => ({ ...f, position: e.target.value }))}>
+            <div style={s.pair}>
+              <Field label="Position" htmlFor="opening-position" required>
+                <select id="opening-position" className="ui-input" style={INPUT} value={openingForm.position} onChange={e => setOpeningForm(f => ({ ...f, position: e.target.value }))}>
                   {POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={s.label}>Employment Type</label>
-                <select style={s.input} value={openingForm.employType} onChange={e => setOpeningForm(f => ({ ...f, employType: e.target.value }))}>
-                  <option value="BOTH">Full-time or Part-time</option>
+              </Field>
+              <Field label="Employment type" htmlFor="opening-type">
+                <select id="opening-type" className="ui-input" style={INPUT} value={openingForm.employType} onChange={e => setOpeningForm(f => ({ ...f, employType: e.target.value }))}>
+                  <option value="BOTH">Full-time or part-time</option>
                   <option value="FULL_TIME">Full-time only</option>
                   <option value="PART_TIME">Part-time only</option>
                 </select>
-              </div>
+              </Field>
             </div>
 
-            <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <label style={s.label}>Store (optional)</label>
-                <select style={s.input} value={openingForm.storeId} onChange={e => setOpeningForm(f => ({ ...f, storeId: e.target.value }))}>
-                  <option value="">Any Location</option>
-                  {stores.map((st: any) => <option key={st.id} value={st.id}>{st.name} - {st.city}</option>)}
+            <div style={s.pair}>
+              <Field label="Store (optional)" htmlFor="opening-store">
+                <select id="opening-store" className="ui-input" style={INPUT} value={openingForm.storeId} onChange={e => setOpeningForm(f => ({ ...f, storeId: e.target.value }))}>
+                  <option value="">Any location</option>
+                  {stores.map((st: any) => <option key={st.id} value={st.id}>{st.name}, {st.city}</option>)}
                 </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={s.label}>Pay Range (optional)</label>
-                <input style={s.input} value={openingForm.payRange} onChange={e => setOpeningForm(f => ({ ...f, payRange: e.target.value }))} placeholder="e.g. $15–$18/hr" />
-              </div>
+              </Field>
+              <Field label="Pay range (optional)" htmlFor="opening-pay">
+                <input id="opening-pay" className="ui-input" style={INPUT} value={openingForm.payRange} onChange={e => setOpeningForm(f => ({ ...f, payRange: e.target.value }))} placeholder="e.g. $15 to $18/hr" />
+              </Field>
             </div>
 
-            <label style={s.label}>Description (optional)</label>
-            <textarea style={{ ...s.input, minHeight: 80, resize: 'vertical' } as any} value={openingForm.description} onChange={e => setOpeningForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe the role, responsibilities…" />
+            <Field label="Description (optional)" htmlFor="opening-description">
+              <textarea id="opening-description" className="ui-input" style={{ ...INPUT, minHeight: 80, resize: 'vertical' }} value={openingForm.description} onChange={e => setOpeningForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe the role, responsibilities…" />
+            </Field>
 
-            <label style={s.label}>Requirements (optional)</label>
-            <textarea style={{ ...s.input, minHeight: 60, resize: 'vertical' } as any} value={openingForm.requirements} onChange={e => setOpeningForm(f => ({ ...f, requirements: e.target.value }))} placeholder="Experience, certifications, etc." />
+            <Field label="Requirements (optional)" htmlFor="opening-requirements">
+              <textarea id="opening-requirements" className="ui-input" style={{ ...INPUT, minHeight: 60, resize: 'vertical' }} value={openingForm.requirements} onChange={e => setOpeningForm(f => ({ ...f, requirements: e.target.value }))} placeholder="Experience, certifications, etc." />
+            </Field>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0', cursor: 'pointer', fontSize: 15 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14, color: '#111827' }}>
               <input type="checkbox" checked={openingForm.isActive} onChange={e => setOpeningForm(f => ({ ...f, isActive: e.target.checked }))} />
               Active (visible to customers)
             </label>
 
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-              <button style={s.cancelBtn} onClick={() => setShowOpeningForm(false)}>Cancel</button>
-              <button style={s.saveBtn} onClick={submitOpeningForm} disabled={!openingForm.title}>
-                {editingOpening ? 'Save Changes' : 'Post Opening'}
-              </button>
+            <div style={s.footer}>
+              <Button onClick={() => setShowOpeningForm(false)} disabled={savingOpening}>Cancel</Button>
+              <Button variant="primary" onClick={submitOpeningForm} disabled={!openingForm.title || savingOpening}>
+                {savingOpening ? 'Saving…' : editingOpening ? 'Save changes' : 'Post opening'}
+              </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Detail Modal */}
@@ -418,16 +418,14 @@ export default function Careers() {
         const sc = STATUS_CONFIG[app.status];
         const avail = app.availability;
         return (
-          <div style={s.overlay} onClick={() => setSelectedApp(null)}>
-            <div style={s.modal} onClick={e => e.stopPropagation()}>
-              <div style={s.modalHeader}>
-                <div>
-                  <div style={s.modalName}>{app.name}</div>
-                  <div style={s.modalSub}>{POSITION_LABELS[app.position] ?? app.position}</div>
-                </div>
-                <span style={{ ...s.badge, color: sc.color, background: sc.bg, fontSize: 15 }}>{sc.label}</span>
-              </div>
-
+          <Modal
+            title={app.name}
+            subtitle={<>{POSITION_LABELS[app.position] ?? app.position} <span style={{ ...s.badge, color: sc.color, background: sc.bg, marginLeft: 6 }}>{sc.label}</span></>}
+            onClose={() => setSelectedApp(null)}
+            busy={updateMut.isPending || deleteMut.isPending}
+            maxWidth={520}
+          >
+            <div>
               {/* Contact */}
               <div style={s.section}>
                 <div style={s.sectionTitle}>Contact</div>
@@ -440,7 +438,7 @@ export default function Careers() {
                 <div style={s.sectionTitle}>Preferences</div>
                 <div style={s.row}>
                   <span style={s.rowLabel}>Store</span>
-                  <span>{app.store ? `${app.store.name} - ${app.store.city}` : 'Any location'}</span>
+                  <span>{app.store ? `${app.store.name}, ${app.store.city}` : 'Any location'}</span>
                 </div>
                 <div style={s.row}>
                   <span style={s.rowLabel}>Type</span>
@@ -463,15 +461,15 @@ export default function Careers() {
               {/* Message */}
               {app.message && (
                 <div style={s.section}>
-                  <div style={s.sectionTitle}>Cover Note</div>
+                  <div style={s.sectionTitle}>Cover note</div>
                   <p style={s.text}>{app.message}</p>
                 </div>
               )}
 
               {/* Status Update */}
               <div style={s.section}>
-                <div style={s.sectionTitle}>Update Status</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={s.sectionTitle} id="app-status-label">Update status</div>
+                <div role="group" aria-labelledby="app-status-label" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {(['NEW', 'REVIEWED', 'INTERVIEW', 'HIRED', 'REJECTED'] as const).map(st => (
                     <button key={st}
                       style={{ ...s.statusBtn, ...(app.status === st ? { background: STATUS_CONFIG[st].bg, color: STATUS_CONFIG[st].color, fontWeight: 700, border: `1.5px solid ${STATUS_CONFIG[st].color}` } : {}) }}
@@ -485,40 +483,41 @@ export default function Careers() {
 
               {/* Review Notes */}
               <div style={s.section}>
-                <div style={s.sectionTitle}>Internal Notes</div>
+                <label htmlFor="app-notes" style={{ ...s.sectionTitle, display: 'block' }}>Internal notes</label>
                 <textarea
+                  id="app-notes"
+                  className="ui-input"
                   style={s.textarea}
                   rows={3}
                   placeholder="Add notes visible only to admins…"
                   value={editNotes}
                   onChange={e => setEditNotes(e.target.value)}
                 />
-                <button style={s.saveBtn}
+                <Button variant="primary" size="sm" style={{ marginTop: 8 }}
                   onClick={() => updateMut.mutate({ id: app.id, updates: { reviewNotes: editNotes } })}>
-                  Save Notes
-                </button>
+                  Save notes
+                </Button>
               </div>
 
               {/* Applied info */}
               <div style={s.metaRow}>
                 <span style={s.metaText}>Applied {new Date(app.createdAt).toLocaleString()}</span>
                 {isDevAdmin && (
-                  <button style={s.deleteBtn}
+                  <Button variant="danger" size="sm"
                     onClick={() => setConfirmDeleteApp(app.id)}>
                     Delete
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
-          </div>
+          </Modal>
         );
       })()}
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '32px 24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },
   subtitle: { margin: '4px 0 0', fontSize: 14, color: TEXT_MUTED },
@@ -548,13 +547,7 @@ const s: Record<string, React.CSSProperties> = {
 
   empty: { textAlign: 'center', padding: '60px 0', color: '#5a6472', fontSize: 15 },
 
-  // Modal
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 200, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: 20 },
-  modal: { background: '#fff', borderRadius: 12, width: 480, maxHeight: 'calc(100vh - 40px)', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', padding: 28 },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  modalName: { fontSize: 20, fontWeight: 700, color: PRIMARY },
-  modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
-
+  // Application details
   section: { marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid #e4e7ec' },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
   row: { display: 'flex', gap: 12, marginBottom: 6, fontSize: 14, color: '#111827' },
@@ -564,7 +557,6 @@ const s: Record<string, React.CSSProperties> = {
   statusBtn: { padding: '6px 14px', borderRadius: 20, border: '1.5px solid #e4e7ec', background: '#f7f8fa', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151' },
 
   textarea: { width: '100%', borderRadius: 8, border: '1.5px solid #e4e7ec', padding: '10px 12px', fontSize: 15, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' },
-  saveBtn: { marginTop: 8, padding: '8px 18px', borderRadius: 8, border: 'none', background: PRIMARY, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' },
 
   metaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   metaText: { fontSize: 14, color: '#5a6472' },
@@ -579,7 +571,7 @@ const s: Record<string, React.CSSProperties> = {
   editBtn: { padding: '6px 14px', borderRadius: 8, border: '1.5px solid #1D3557', background: '#fff', color: PRIMARY, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
 
   // Form
-  label: { fontSize: 13, fontWeight: 700, color: PRIMARY, display: 'block', marginBottom: 5, marginTop: 14 },
-  input: { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #e4e7ec', fontSize: 15, fontFamily: 'inherit', boxSizing: 'border-box' },
-  cancelBtn: { padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e4e7ec', background: '#fff', fontSize: 15, fontWeight: 600, cursor: 'pointer', color: '#374151' },
+  form: { display: 'grid', gap: 12 },
+  pair: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 },   // side by side, one column on a phone
+  footer: { display: 'flex', gap: 8, justifyContent: 'flex-end' },
 };

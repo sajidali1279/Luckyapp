@@ -14,7 +14,7 @@ import { showPhone } from '../lib/phoneText';
 import { storeDayLong, storeDayTime, storeToday } from '../lib/storeDates';
 import { useLimits } from '../components/SettingsCards';
 import { useSingleFlight } from '../hooks/useSingleFlight';
-import { PageHeader, HeaderStat, Button, Tabs } from '../components/kit';
+import { Page, PageHeader, HeaderStat, Button, Tabs } from '../components/kit';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
 import ReferralsPanel from '../components/ReferralsPanel';
@@ -222,7 +222,7 @@ export default function Customers() {
   const lastFour = deleteTarget ? deleteTarget.phone.replace(/\D/g, '').slice(-4) : '';
 
   return (
-    <div style={s.page}>
+    <Page>
       {/* ── Header ── */}
       <PageHeader
         title="Customers"
@@ -261,12 +261,12 @@ export default function Customers() {
           <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
             {isSuperAdmin && (
               <select style={s.filterSelect} aria-label="Filter disputes by store" value={disputeStore} onChange={e => setDisputeStore(e.target.value)}>
-                <option value="">All Stores</option>
+                <option value="">All stores</option>
                 {stores.map((st: any) => <option key={st.id} value={st.id}>{st.name}</option>)}
               </select>
             )}
             <select style={s.filterSelect} aria-label="Filter disputes by status" value={disputeStatus} onChange={e => setDisputeStatus(e.target.value)}>
-              <option value="">All Statuses</option>
+              <option value="">All statuses</option>
               <option value="PENDING">Pending</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
@@ -277,7 +277,7 @@ export default function Customers() {
           ) : disputesLoading ? (
             <CardSkeleton count={3} />
           ) : disputes.length === 0 ? (
-            <div style={s.emptyState}><div style={{ fontSize: 48 }} aria-hidden="true"><Glyph e="✅" size={28} color="#5a6472" /></div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear - no missing points reports</div></div>
+            <div style={s.emptyState}><div style={{ fontSize: 48 }} aria-hidden="true"><Glyph e="✅" size={28} color="#5a6472" /></div><div style={s.emptyTitle}>No disputes</div><div style={s.emptySub}>All clear: no missing points reports</div></div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {disputesTotal > disputes.length && <div style={s.disputeMeta}>Showing the newest {disputes.length} of {disputesTotal.toLocaleString()} reports. Use the filters to narrow the list.</div>}
@@ -418,7 +418,7 @@ export default function Customers() {
                         <TableCell>
                           <button type="button" onClick={() => navigate(`/customers/${c.id}`)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
                             aria-label={`Open ${displayName}'s profile`}>
-                            <div style={{ fontWeight: 600, color: '#111827' }}>{c.name || <span style={{ color: TEXT_MUTED, fontStyle: 'italic' }}>No name</span>}{c.isTest && <span style={s.testBadge}>TEST</span>}</div>
+                            <div style={{ fontWeight: 600, color: '#111827' }}>{c.name || <span style={{ color: TEXT_MUTED, fontStyle: 'italic' }}>No name</span>}{c.isTest && <span style={s.testBadge}>Test</span>}</div>
                             <div style={{ fontSize: 13, color: TEXT_MUTED }}>{showPhone(c.phone)}</div>
                           </button>
                           {!c.isActive && <div style={{ fontSize: 12, color: '#a51b28', fontWeight: 600 }}>Restricted{c.fraudNote ? `: ${c.fraudNote}` : ''}</div>}
@@ -462,7 +462,7 @@ export default function Customers() {
                     <div style={{ ...s.avatar, background: color }} aria-hidden="true">{initial}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={s.customerName}>{c.name || <span style={{ color: TEXT_MUTED, fontStyle: 'italic' }}>No name</span>}</div>
-                      <div style={s.customerPhone}>{showPhone(c.phone)}{c.isTest && <span style={s.testBadge}>TEST</span>}</div>
+                      <div style={s.customerPhone}>{showPhone(c.phone)}{c.isTest && <span style={s.testBadge}>Test</span>}</div>
                       {!c.isActive && (
                         <div style={s.fraudBadge}>Restricted{c.fraudNote ? `: ${c.fraudNote}` : ''}</div>
                       )}
@@ -487,7 +487,7 @@ export default function Customers() {
                     <div style={s.statDivider} />
                     <div style={s.statBlock}>
                       <div style={s.statBlockNum}>{fmt$(c.totalSpent ?? 0)}</div>
-                      <div style={s.statBlockLbl}>Total Spent</div>
+                      <div style={s.statBlockLbl}>Total spent</div>
                     </div>
                     <div style={s.statDivider} />
                     <div style={s.statBlock}>
@@ -504,7 +504,7 @@ export default function Customers() {
                     aria-label={`Open ${displayName}'s profile: details, every transaction, notes and referrals`}
                     onClick={() => navigate(`/customers/${c.id}`)}
                   >
-                    View Profile
+                    View profile
                   </button>
                   <button
                     style={{ ...s.actionBtn, ...(c.isActive ? s.actionBtnRestrict : s.actionBtnRestore) }}
@@ -512,7 +512,7 @@ export default function Customers() {
                     onClick={() => { setRestrictTarget({ id: c.id, name: displayName, isActive: c.isActive }); setFraudNote(''); setRestrictError(''); }}
                     disabled={toggleMutation.isPending}
                   >
-                    {c.isActive ? 'Restrict Account' : 'Restore Account'}
+                    {c.isActive ? 'Restrict account' : 'Restore account'}
                   </button>
 
                   {isDevAdmin && (
@@ -521,7 +521,7 @@ export default function Customers() {
                       aria-label={`Delete ${displayName}'s account`}
                       onClick={() => { setDeleteTarget({ id: c.id, name: displayName, phone: c.phone }); setDeleteTyped(''); setDeleteError(''); }}
                     >
-                      Delete Account
+                      Delete account
                     </button>
                   )}
                 </div>
@@ -625,7 +625,7 @@ export default function Customers() {
             {resolveTarget.estimatedAmt && <div style={{ fontSize: 14, color: TEXT_MUTED, marginTop: 4 }}>The customer says the purchase was about ${Number(resolveTarget.estimatedAmt).toFixed(2)}.</div>}
             {resolveTarget.transaction && (
               <div style={s.linkedTxCard}>
-                <div style={s.linkedTxHeader}>Linked Transaction</div>
+                <div style={s.linkedTxHeader}>Linked transaction</div>
                 <div style={s.linkedTxRow}>
                   {storeDayTime(resolveTarget.transaction.createdAt)} · ${Number(resolveTarget.transaction.purchaseAmount).toFixed(2)} · {String(resolveTarget.transaction.category || '').replace(/_/g, ' ')}
                 </div>
@@ -687,12 +687,11 @@ export default function Customers() {
         </Modal>
       )}
 
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, gap: 16, flexWrap: 'wrap' },
   eyebrow: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },

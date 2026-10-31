@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { billingApi } from '../services/api';
@@ -15,7 +15,7 @@ import {
   stateFromRows, applyChanges, refusalFor, changeLines, effectLines, holdWarnings, touchesAppText, gasFill, salePays,
   type TierKey, type TierRow, type CategoryRow, type TierChange, type CategoryChange, type RateState,
 } from '../lib/rateRules';
-import { PageHeader, Button, Notice, Tabs } from '../components/kit';
+import { Page, PageHeader, Button, Notice, Tabs } from '../components/kit';
 import { Save, Info, Smartphone } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -24,11 +24,11 @@ type CatKey = typeof CATEGORIES[number];
 
 const CAT_META: Record<CatKey, { emoji: string; label: string; desc: string }> = {
   GROCERIES:    { emoji: '🛒', label: 'Groceries',     desc: 'General grocery items'     },
-  FROZEN_FOODS: { emoji: '🧊', label: 'Frozen Foods',  desc: 'Frozen & refrigerated'     },
-  FRESH_FOODS:  { emoji: '🥗', label: 'Fresh Foods',   desc: 'Deli, produce, fresh prep'  },
+  FROZEN_FOODS: { emoji: '🧊', label: 'Frozen foods',  desc: 'Frozen & refrigerated'     },
+  FRESH_FOODS:  { emoji: '🥗', label: 'Fresh foods',   desc: 'Deli, produce, fresh prep'  },
   GAS:          { emoji: '⛽', label: 'Gas',           desc: 'Gasoline purchases'         },
   DIESEL:       { emoji: '🚛', label: 'Diesel',        desc: 'Diesel fuel purchases'      },
-  HOT_FOODS:    { emoji: '🌭', label: 'Hot Foods',     desc: 'Hot deli & prepared foods'  },
+  HOT_FOODS:    { emoji: '🌭', label: 'Hot foods',     desc: 'Hot deli & prepared foods'  },
   OTHER:        { emoji: '🏪', label: 'Other',         desc: 'All other in-store items'   },
 };
 
@@ -78,8 +78,23 @@ function sameText(field: Field, a: string, b: string): boolean {
   return parseFloat(a) === parseFloat(b);
 }
 
+/** True below `px` wide (the tiers become stacked cards on a phone). */
+function useNarrow(px: number) {
+  const query = `(max-width: ${px - 1}px)`;
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const on = () => setNarrow(m.matches);
+    on();
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, [query]);
+  return narrow;
+}
+
 export default function Rates() {
   const qc = useQueryClient();
+  const narrow = useNarrow(640);
   const [draft, setDraft] = useState<Record<string, TierDraft>>({});
   const [catDraft, setCatDraft] = useState<Record<string, string>>({});
   const [showPerGallon, setShowPerGallon] = useState<boolean | null>(null); // null until the rates arrive, then follows what is live
@@ -295,10 +310,98 @@ export default function Rates() {
     </div>
   );
 
+  // One tier's pieces, shared by the table (wide screens) and the stacked cards (phones)
+  function tierView(tierKey: TierKey) {
+    const r = rowOf(tierKey);
+    if (!r) return null;
+    const meta = TIER_META[tierKey];
+    const name = tierName(tierKey);
+    const dirty = isDirty(tierKey);
+    const rateNum = parseFloat(shown(tierKey, 'cashbackRate'));
+    const ptsNum = parseFloat(shown(tierKey, 'pointsThreshold'));
+    return {
+      dirty,
+      nameCell: (
+        <div style={s.tierCell}>
+          <span style={{ ...s.dot, background: meta.color }} />
+          <div>
+            <div style={s.tierName}><Glyph e={meta.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{name}</div>
+            <div style={s.tierSub}>
+              {tierKey === 'BRONZE' ? 'New customers' : `${(r.pointsThreshold ?? 0).toLocaleString('en-US')} points to reach`}
+            </div>
+          </div>
+        </div>
+      ),
+      rateBox: (
+        <div style={s.inputGroup}>
+          <input
+            type="number" min="0" max={MAX_TIER_RATE * 100} step="0.5"
+            aria-label={`${name} cashback percent`}
+            value={shown(tierKey, 'cashbackRate')}
+            onChange={(e) => setField(tierKey, 'cashbackRate', e.target.value)}
+            onKeyDown={enterSaves(tierKey)}
+            style={{ ...s.input, ...(dirty ? s.inputDirty : {}) }}
+            placeholder="e.g. 3"
+          />
+          <span style={s.suffix}>%</span>
+          {isFinite(rateNum) && shown(tierKey, 'cashbackRate') !== '' && (
+            <span style={s.preview}>{pct(rateNum / 100)} back per $1</span>
+          )}
+        </div>
+      ),
+      gasBox: (
+        <>
+          <div style={s.inputGroup}>
+            <input
+              type="number" min="0" max={MAX_GAS_CENTS} step="0.5"
+              aria-label={`${name} gas cents per gallon`}
+              value={shown(tierKey, 'gasCentsPerGallon')}
+              onChange={(e) => setField(tierKey, 'gasCentsPerGallon', e.target.value)}
+              onKeyDown={enterSaves(tierKey)}
+              style={{ ...s.input, ...(dirty ? s.inputDirty : {}) }}
+              placeholder="empty = use %"
+            />
+            {shown(tierKey, 'gasCentsPerGallon') !== '' ? <span style={s.suffix}>¢</span> : null}
+          </div>
+          {r.gasCentsPerGallon != null && !dirty && (
+            <div style={s.gasActive}>In use: {r.gasCentsPerGallon}¢ a gallon, gas and diesel</div>
+          )}
+        </>
+      ),
+      pointsBox: tierKey === 'BRONZE' ? (
+        <span style={{ fontSize: 14, color: TEXT_MUTED }}>Starting tier</span>
+      ) : (
+        <div style={s.inputGroup}>
+          <input
+            type="number" min={MIN_THRESHOLD_POINTS} step="500"
+            aria-label={`${name} points to reach the tier`}
+            value={shown(tierKey, 'pointsThreshold')}
+            onChange={(e) => setField(tierKey, 'pointsThreshold', e.target.value)}
+            onKeyDown={enterSaves(tierKey)}
+            style={{ ...s.input, width: 110, ...(dirty ? s.inputDirty : {}) }}
+            placeholder="e.g. 5000"
+          />
+          <span style={s.suffix}>pts</span>
+          {isFinite(ptsNum) && shown(tierKey, 'pointsThreshold') !== '' && (
+            <span style={s.preview}>= {money(ptsNum / 100)} of cashback</span>
+          )}
+        </div>
+      ),
+      actions: dirty ? (
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+          <button style={s.saveBtn} aria-label={`Save ${name}`} disabled={busy} onClick={() => openTierPlan([tierKey])}>Save</button>
+          <button style={s.undoBtn} aria-label={`Undo ${name}`} onClick={() => undoTier(tierKey)}>↩</button>
+        </div>
+      ) : (
+        <span style={s.savedTag}>✓ Saved</span>
+      ),
+    };
+  }
+
   return (
-    <div style={s.page}>
+    <Page>
       <PageHeader
-        title="Cashback Rates"
+        title="Cashback rates"
         description="Set the base cashback % each customer tier earns. Promotions stack on top of these."
         actions={dirtyTiers.length > 0 && (
           <Button variant="primary" icon={<Save />} onClick={() => openTierPlan(dirtyTiers)}>
@@ -335,6 +438,32 @@ export default function Rates() {
 
       {tiers.length > 0 && (
         <div style={s.tableWrap}>
+          {narrow ? (
+            <div style={s.tierCards}>
+              {TIERS.map((tierKey) => {
+                const v = tierView(tierKey);
+                if (!v) return null;
+                return (
+                  <div key={tierKey} data-tier-card style={{ ...s.tierCard, ...(v.dirty ? s.trDirty : {}) }}>
+                    {v.nameCell}
+                    <div style={s.cardField}>
+                      <div style={s.cardLabel}>Cashback %</div>
+                      {v.rateBox}
+                    </div>
+                    <div style={s.cardField}>
+                      <div style={s.cardLabel}>Gas ¢ / gallon</div>
+                      {v.gasBox}
+                    </div>
+                    <div style={s.cardField}>
+                      <div style={s.cardLabel}>Points to reach the tier</div>
+                      {v.pointsBox}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{v.actions}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
           <Table style={s.table}>
             <TableHeader>
               <TableRow style={s.thead}>
@@ -356,105 +485,25 @@ export default function Rates() {
             </TableHeader>
             <TableBody>
               {TIERS.map((tierKey) => {
-                const r = rowOf(tierKey);
-                if (!r) return null;
-                const meta = TIER_META[tierKey];
-                const name = tierName(tierKey);
-                const dirty = isDirty(tierKey);
-                const rateNum = parseFloat(shown(tierKey, 'cashbackRate'));
-                const ptsNum = parseFloat(shown(tierKey, 'pointsThreshold'));
-
+                const v = tierView(tierKey);
+                if (!v) return null;
                 return (
-                  <TableRow key={tierKey} style={{ ...s.tr, ...(dirty ? s.trDirty : {}) }}>
-                    <TableCell style={s.td}>
-                      <div style={s.tierCell}>
-                        <span style={{ ...s.dot, background: meta.color }} />
-                        <div>
-                          <div style={s.tierName}><Glyph e={meta.emoji} size={14} style={{ verticalAlign: -2, marginRight: 4 }} />{name}</div>
-                          <div style={s.tierSub}>
-                            {tierKey === 'BRONZE' ? 'New customers' : `${(r.pointsThreshold ?? 0).toLocaleString('en-US')} points to reach`}
-                          </div>
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell style={s.td}>
-                      <div style={s.inputGroup}>
-                        <input
-                          type="number" min="0" max={MAX_TIER_RATE * 100} step="0.5"
-                          aria-label={`${name} cashback percent`}
-                          value={shown(tierKey, 'cashbackRate')}
-                          onChange={(e) => setField(tierKey, 'cashbackRate', e.target.value)}
-                          onKeyDown={enterSaves(tierKey)}
-                          style={{ ...s.input, ...(dirty ? s.inputDirty : {}) }}
-                          placeholder="e.g. 3"
-                        />
-                        <span style={s.suffix}>%</span>
-                        {isFinite(rateNum) && shown(tierKey, 'cashbackRate') !== '' && (
-                          <span style={s.preview}>{pct(rateNum / 100)} back per $1</span>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    <TableCell style={s.td}>
-                      <div style={s.inputGroup}>
-                        <input
-                          type="number" min="0" max={MAX_GAS_CENTS} step="0.5"
-                          aria-label={`${name} gas cents per gallon`}
-                          value={shown(tierKey, 'gasCentsPerGallon')}
-                          onChange={(e) => setField(tierKey, 'gasCentsPerGallon', e.target.value)}
-                          onKeyDown={enterSaves(tierKey)}
-                          style={{ ...s.input, ...(dirty ? s.inputDirty : {}) }}
-                          placeholder="empty = use %"
-                        />
-                        {shown(tierKey, 'gasCentsPerGallon') !== '' ? <span style={s.suffix}>¢</span> : null}
-                      </div>
-                      {r.gasCentsPerGallon != null && !dirty && (
-                        <div style={s.gasActive}>In use: {r.gasCentsPerGallon}¢ a gallon, gas and diesel</div>
-                      )}
-                    </TableCell>
-
-                    <TableCell style={s.td}>
-                      {tierKey === 'BRONZE' ? (
-                        <span style={{ fontSize: 14, color: TEXT_MUTED }}>Starting tier</span>
-                      ) : (
-                        <div style={s.inputGroup}>
-                          <input
-                            type="number" min={MIN_THRESHOLD_POINTS} step="500"
-                            aria-label={`${name} points to reach the tier`}
-                            value={shown(tierKey, 'pointsThreshold')}
-                            onChange={(e) => setField(tierKey, 'pointsThreshold', e.target.value)}
-                            onKeyDown={enterSaves(tierKey)}
-                            style={{ ...s.input, width: 110, ...(dirty ? s.inputDirty : {}) }}
-                            placeholder="e.g. 5000"
-                          />
-                          <span style={s.suffix}>pts</span>
-                          {isFinite(ptsNum) && shown(tierKey, 'pointsThreshold') !== '' && (
-                            <span style={s.preview}>= {money(ptsNum / 100)} of cashback</span>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-
-                    <TableCell style={{ ...s.td, textAlign: 'right' }}>
-                      {dirty ? (
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button style={s.saveBtn} aria-label={`Save ${name}`} disabled={busy} onClick={() => openTierPlan([tierKey])}>Save</button>
-                          <button style={s.undoBtn} aria-label={`Undo ${name}`} onClick={() => undoTier(tierKey)}>↩</button>
-                        </div>
-                      ) : (
-                        <span style={s.savedTag}>✓ Saved</span>
-                      )}
-                    </TableCell>
+                  <TableRow key={tierKey} style={{ ...s.tr, ...(v.dirty ? s.trDirty : {}) }}>
+                    <TableCell style={s.td}>{v.nameCell}</TableCell>
+                    <TableCell style={s.td}>{v.rateBox}</TableCell>
+                    <TableCell style={s.td}>{v.gasBox}</TableCell>
+                    <TableCell style={s.td}>{v.pointsBox}</TableCell>
+                    <TableCell style={{ ...s.td, textAlign: 'right' }}>{v.actions}</TableCell>
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
+          )}
           <div style={s.lastChange}>
             {last && (last.by || last.summary)
               ? <>Last changed by <strong>{last.by}</strong>, {storeDayTime(last.at)}: {last.summary}</>
-              : 'No change has been recorded yet. From now on every change to a rate is recorded here and in the Activity Log.'}
+              : 'No change has been recorded yet. From now on every change to a rate is recorded here and in the Activity log.'}
           </div>
         </div>
       )}
@@ -465,7 +514,7 @@ export default function Rates() {
       {/* ── Category Bonus Rates ─────────────────────────────────────────── */}
       <div style={s.sectionHeader}>
         <div>
-          <h2 style={s.sectionTitle}>Category Bonus Rates</h2>
+          <h2 style={s.sectionTitle}>Category bonus rates</h2>
           <p style={s.sectionSubtitle}>
             This bonus adds to the tier base rate on every purchase in this category. It is not a
             promotion, it is a permanent part of the rate. The columns to the right show the
@@ -574,7 +623,7 @@ export default function Rates() {
           </Table>
           <div style={s.legend}>
             over {pct(CASHBACK_WARN)}: those sales are held for a manager to review. over {pct(CASHBACK_CAP)}: a sale never pays more than {pct(CASHBACK_CAP)}.
-            {' '}Gas and Diesel are paid by the gallon for a tier that has a ¢/gallon rate, so this bonus is not used for that tier.
+            {' '}Gas and diesel are paid by the gallon for a tier that has a ¢/gallon rate, so this bonus is not used for that tier.
           </div>
         </div>
       )}
@@ -585,7 +634,7 @@ export default function Rates() {
       {/* ── Gas & Diesel Mode ────────────────────────────────────────────── */}
       <div style={s.sectionHeader}>
         <div>
-          <h2 style={s.sectionTitle}>Gas & Diesel Mode</h2>
+          <h2 style={s.sectionTitle}>Gas and diesel mode</h2>
           <p style={s.sectionSubtitle}>
             Choose how cashback is calculated for gas and diesel. In ¢/gallon mode each tier earns a flat
             rate per gallon pumped. Gold, Diamond and Platinum also get a fixed extra 5, 7 and 10 cents a gallon
@@ -613,15 +662,15 @@ export default function Rates() {
           </button>
 
           {liveCents ? (
-            <span style={s.liveBadge}>● LIVE: ¢/gallon</span>
+            <span style={s.liveBadge}>● Live: ¢/gallon</span>
           ) : (
-            <span style={s.liveInactiveBadge}>● LIVE: % of amount</span>
+            <span style={s.liveInactiveBadge}>● Live: % of amount</span>
           )}
 
           <span style={s.gasModeHint}>
             {viewCents
               ? 'Base = ¢/gallon × gallons pumped · promos still add on top as % of purchase'
-              : 'Base = tier % × purchase amount · set the bonus % for Gas and Diesel in the table above'}
+              : 'Base = tier % × purchase amount · set the bonus % for gas and diesel on the Category bonuses tab'}
           </span>
         </div>
 
@@ -638,7 +687,7 @@ export default function Rates() {
                 <TableHead style={{ ...s.th, width: 200 }}>Tier</TableHead>
                 <TableHead style={s.th}>
                   ¢ / gallon
-                  <div style={s.thSub}>applies to GAS & DIESEL, at most {MAX_GAS_CENTS}</div>
+                  <div style={s.thSub}>applies to gas and diesel, at most {MAX_GAS_CENTS}</div>
                 </TableHead>
                 <TableHead style={s.th}>
                   What a {money(EXAMPLE_SALE)} fill pays
@@ -738,11 +787,11 @@ export default function Rates() {
           <div style={s.calcBox}>
             <div style={s.calcRow}>
               <span>Bronze customer, {money(EXAMPLE_SALE)} of groceries</span>
-              <span style={{ color: AMBER_TEXT, fontWeight: 700 }}>{ratesReady ? `${pct(before.tiers.BRONZE.cashbackRate)} + ${pct(before.categories.GROCERIES ?? 0)}` : ' - '}</span>
+              <span style={{ color: AMBER_TEXT, fontWeight: 700 }}>{ratesReady ? `${pct(before.tiers.BRONZE.cashbackRate)} + ${pct(before.categories.GROCERIES ?? 0)}` : ''}</span>
             </div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #e4e7ec', paddingTop: 8 }}>
               <span>Customer earns</span>
-              <span style={{ fontWeight: 700 }}>{ratesReady ? `= ${money(bronzeGroceries)}` : ' - '}</span>
+              <span style={{ fontWeight: 700 }}>{ratesReady ? `= ${money(bronzeGroceries)}` : ''}</span>
             </div>
           </div>
         </div>
@@ -750,14 +799,14 @@ export default function Rates() {
         <div style={s.infoCard}>
           <div style={s.infoCardTitle}>Gas by the gallon</div>
           <p style={s.infoCardText}>
-            For GAS and DIESEL you can set a flat cents-per-gallon rate instead of a percentage. Gold, Diamond and
+            For gas and diesel you can set a flat cents-per-gallon rate instead of a percentage. Gold, Diamond and
             Platinum get a fixed extra on top, paid whichever way gas is set.
           </p>
           <div style={s.calcBox}>
-            <div style={s.calcRow}><span>Gold customer, {money(EXAMPLE_SALE)} fill ({exampleGallons.toFixed(1)} gal)</span><span style={{ color: AMBER_TEXT, fontWeight: 700 }}>{goldFill ? `${money(goldFill.cashback)} + ${money(goldFill.bonus)}` : ' - '}</span></div>
+            <div style={s.calcRow}><span>Gold customer, {money(EXAMPLE_SALE)} fill ({exampleGallons.toFixed(1)} gal)</span><span style={{ color: AMBER_TEXT, fontWeight: 700 }}>{goldFill ? `${money(goldFill.cashback)} + ${money(goldFill.bonus)}` : ''}</span></div>
             <div style={{ ...s.calcRow, borderTop: '1px solid #e4e7ec', paddingTop: 8 }}>
               <span>Customer earns</span>
-              <span style={{ fontWeight: 700 }}>{goldFill ? `= ${money(goldFill.total)} (${pctOne(goldFill.percent)})` : ' - '}</span>
+              <span style={{ fontWeight: 700 }}>{goldFill ? `= ${money(goldFill.total)} (${pctOne(goldFill.percent)})` : ''}</span>
             </div>
           </div>
         </div>
@@ -774,13 +823,11 @@ export default function Rates() {
         onConfirm={() => { plan?.run(); }}
         onCancel={() => setPlan(null)}
       />
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '32px 24px' },
-
   headerRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 16 },
   title: { margin: '0 0 6px', fontSize: 26, fontWeight: 700, color: PRIMARY },
   subtitle: { margin: 0, color: TEXT_MUTED, fontSize: 14 },
@@ -822,6 +869,10 @@ const s: Record<string, React.CSSProperties> = {
   td: { padding: '14px 16px', verticalAlign: 'middle' as const },
 
   tierCell: { display: 'flex', alignItems: 'center', gap: 10 },
+  tierCards: { display: 'flex', flexDirection: 'column' },
+  tierCard: { display: 'flex', flexDirection: 'column', gap: 12, padding: 16, borderBottom: '1px solid #e4e7ec' },
+  cardField: { display: 'flex', flexDirection: 'column', gap: 4 },
+  cardLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED },
   dot: { width: 10, height: 10, borderRadius: '50%', flexShrink: 0 },
   tierName: { fontWeight: 700, fontSize: 14, color: PRIMARY },
   tierSub: { fontSize: 13, color: TEXT_MUTED, marginTop: 1 },

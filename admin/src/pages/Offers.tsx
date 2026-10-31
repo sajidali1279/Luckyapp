@@ -1,4 +1,4 @@
-﻿import { useState, useRef } from 'react';
+﻿import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -9,9 +9,10 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { C, FONT, RADIUS, INPUT } from '../lib/theme';
 import { Page, PageHeader, SectionTitle, Tabs, Button, Chip, Card, Badge, Notice, EmptyState, Field, MenuButton } from '../components/kit';
-import { LayoutTemplate, Lightbulb, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Trash2, Pencil, Square, Clock, BellOff } from 'lucide-react';
+import { LayoutTemplate, Lightbulb, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Pencil, Square, Clock, BellOff } from 'lucide-react';
 import Modal from '../components/Modal';
 import { serverMessage } from '../lib/apiError';
+import { CATEGORY_LABELS, CATEGORY_OPTIONS, NO_CATEGORY_LABEL, categoryLabel } from '../lib/categories';
 import OfferResultsModal from '../components/OfferResultsModal';
 import { storeToday, addDays, monthEnd, dayLabel, startOfStoreDay, endOfStoreDay, storeDayLong, storeDayTime } from '../lib/storeDates';
 import { CASHBACK_CAP, MAX_CENTS_PER_GALLON, findClashes, tiersAtCeiling, pctText, type Clash, type DraftPromo, type PostedOffer } from '../lib/offerRules';
@@ -55,12 +56,12 @@ const TEMPLATES: Template[] = [
   { icon: '⛽', group: 'Gas & Diesel', title: 'Gas Saver Monday', description: 'Start the week with an extra {bonus} cashback on gas every Monday.', bonusRate: '3', category: 'GAS', hours: onDays(1) },
   { icon: '🚛', group: 'Gas & Diesel', title: 'Diesel Driver Deal', description: 'Truckers and fleet drivers earn an extra {bonus} cashback on every diesel fill.', bonusRate: '3', category: 'DIESEL' },
   { icon: '🚛', group: 'Gas & Diesel', title: 'Diesel Week', description: 'An extra {bonus} cashback on all diesel this week. A thank-you to our big rig regulars.', bonusRate: '3', category: 'DIESEL', length: 7 },
-  // Hot Foods
-  { icon: '🌮', group: 'Hot Foods', title: 'Hot Food Happy Hour', description: 'Earn an extra {bonus} cashback on hot food from 3 to 6 PM.', bonusRate: '5', category: 'HOT_FOODS', hours: between('15:00', '18:00') },
-  { icon: '☕', group: 'Hot Foods', title: 'Morning Commuter Special', description: 'Earn an extra {bonus} cashback on hot food and coffee from 5 to 10 AM. Start your day rewarded.', bonusRate: '5', category: 'HOT_FOODS', hours: between('05:00', '10:00') },
-  { icon: '🌮', group: 'Hot Foods', title: 'Taco Tuesday', description: 'An extra {bonus} cashback on hot food every Tuesday. Make Tuesday your Lucky Stop day!', bonusRate: '5', category: 'HOT_FOODS', hours: onDays(2) },
-  { icon: '🌮', group: 'Hot Foods', title: 'Lunch Rush Deal', description: 'Grab lunch and earn an extra {bonus} cashback on hot food from 11 AM to 2 PM.', bonusRate: '5', category: 'HOT_FOODS', hours: between('11:00', '14:00') },
-  { icon: '❄️', group: 'Hot Foods', title: 'Cold Weather Comfort', description: 'Warm up and earn an extra {bonus} cashback on hot food and hot drinks this week.', bonusRate: '5', category: 'HOT_FOODS', length: 7 },
+  // Hot food
+  { icon: '🌮', group: 'Hot food', title: 'Hot Food Happy Hour', description: 'Earn an extra {bonus} cashback on hot food from 3 to 6 PM.', bonusRate: '5', category: 'HOT_FOODS', hours: between('15:00', '18:00') },
+  { icon: '☕', group: 'Hot food', title: 'Morning Commuter Special', description: 'Earn an extra {bonus} cashback on hot food and coffee from 5 to 10 AM. Start your day rewarded.', bonusRate: '5', category: 'HOT_FOODS', hours: between('05:00', '10:00') },
+  { icon: '🌮', group: 'Hot food', title: 'Taco Tuesday', description: 'An extra {bonus} cashback on hot food every Tuesday. Make Tuesday your Lucky Stop day!', bonusRate: '5', category: 'HOT_FOODS', hours: onDays(2) },
+  { icon: '🌮', group: 'Hot food', title: 'Lunch Rush Deal', description: 'Grab lunch and earn an extra {bonus} cashback on hot food from 11 AM to 2 PM.', bonusRate: '5', category: 'HOT_FOODS', hours: between('11:00', '14:00') },
+  { icon: '❄️', group: 'Hot food', title: 'Cold Weather Comfort', description: 'Warm up and earn an extra {bonus} cashback on hot food and hot drinks this week.', bonusRate: '5', category: 'HOT_FOODS', length: 7 },
   // Groceries
   { icon: '🛒', group: 'Groceries', title: 'Weekend Grocery Bonus', description: 'An extra {bonus} cashback on groceries every Saturday and Sunday. Stock up and save.', bonusRate: '3', category: 'GROCERIES', hours: onDays(6, 0) },
   { icon: '🛒', group: 'Groceries', title: 'Stock Up & Save', description: 'An extra {bonus} cashback on groceries all week. Every item counts toward your balance.', bonusRate: '3', category: 'GROCERIES', length: 7 },
@@ -130,16 +131,19 @@ const TEMPLATE_GROUPS = [...new Set(TEMPLATES.map((t) => t.group))];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const CATEGORIES = [
-  { value: '', label: 'All Categories' },
-  { value: 'GROCERIES', label: 'Groceries' },
-  { value: 'FROZEN_FOODS', label: 'Frozen Foods' },
-  { value: 'FRESH_FOODS', label: 'Fresh Foods' },
-  { value: 'GAS', label: 'Gas' },
-  { value: 'DIESEL', label: 'Diesel' },
-  { value: 'HOT_FOODS', label: 'Hot Foods' },
-  { value: 'OTHER', label: 'Other' },
+/** The choices on the promotion and quick post forms: no category first, then the most used. */
+const FORM_CATEGORIES = [
+  { value: '', label: NO_CATEGORY_LABEL },
+  ...['GAS', 'DIESEL', 'HOT_FOODS', 'GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'OTHER'].map((value) => ({ value, label: CATEGORY_LABELS[value] })),
 ];
+
+/** The category words in an auto-written title and description. Customers read these, so they stay as they were posted until now. */
+const POSTED_CATEGORY: Record<string, string> = {
+  GROCERIES: 'Groceries', FROZEN_FOODS: 'Frozen Foods', FRESH_FOODS: 'Fresh Foods', GAS: 'Gas', DIESEL: 'Diesel', HOT_FOODS: 'Hot Foods', OTHER: 'Other',
+};
+function postedCategory(category: string, none: string) { return category === '' ? none : POSTED_CATEGORY[category] ?? category; }
+/** "on hot food purchases" for a category, "on every purchase" for none: what the post box says it pays on. */
+function onPurchases(category: string) { return category === '' ? 'on every purchase' : `on ${categoryLabel(category).toLowerCase()} purchases`; }
 
 // Dates are store days (Central time), wherever the admin is opened. They used to be the UTC date and the browser's
 // midnight, which started a promotion at 7 pm the evening before and drew its first day a day early.
@@ -181,7 +185,10 @@ export default function Offers() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab') as MainTab | null;
   const [mainTab, setMainTabState] = useState<MainTab>(urlTab && MAIN_TABS.includes(urlTab) && (isHQ || urlTab === 'deals' || urlTab === 'calendar') ? urlTab : 'promotions');
+  // A tab in the address, or one picked by hand, is never overridden; only a plain visit lands on the requests waiting for HQ
+  const tabTouched = useRef(!!urlTab);
   function setMainTab(v: MainTab) {
+    tabTouched.current = true;
     setMainTabState(v);
     setSearchParams((sp) => { const n = new URLSearchParams(sp); if (v === 'promotions') n.delete('tab'); else n.set('tab', v); return n; }, { replace: true });
   }
@@ -255,6 +262,12 @@ export default function Offers() {
   // Store managers' requests waiting for HQ (the Requests tab's count; the panel shares this list)
   const { data: requestsData } = useQuery({ queryKey: ['offer-requests'], queryFn: () => offerRequestsApi.list(), enabled: isHQ });
   const waitingRequests = ((requestsData?.data?.data ?? []) as any[]).filter((r) => r.status === 'PENDING').length;
+  // The menu badge counts these, so opening Offers from the menu lands on them (once, when the list arrives)
+  useEffect(() => {
+    if (tabTouched.current || !requestsData) return;
+    tabTouched.current = true;
+    if (isHQ && waitingRequests > 0) setMainTab('requests');
+  }, [requestsData]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const offers: any[] = data?.data?.data || [];
   const pastOffers: any[] = historyData?.data?.data || [];
@@ -360,8 +373,8 @@ export default function Offers() {
     setShowQuick(false); setShowTemplates(false);
     setTimeout(() => document.getElementById('offer-form')?.scrollIntoView({ behavior: 'smooth' }), 100);
     toast.success(tiers && !keepTiers && !isCpg
-      ? 'Form filled from past offer. Per-tier rates are not available for gas, so its highest rate is used - update the dates and submit'
-      : 'Form filled from past offer - update the dates and submit');
+      ? 'Form filled from the past offer. Per-tier rates are not available for gas, so its highest rate is used. Update the dates and submit.'
+      : 'Form filled from the past offer. Update the dates and submit.');
   }
 
   // Fill the form from a promotion idea (Ideas): its words in both languages, bonus, hours, audience and dates, to change and post
@@ -442,17 +455,35 @@ export default function Offers() {
     createMutation.mutate({ fd: pending.fd, kind: pending.kind });
   }
 
+  /** What stops the promotion from being posted, or null. The first mistake in the order of the form; it shows above the buttons. */
+  function promoProblem(): string | null {
+    if (category === null) return null;   // only the category step shows until one is chosen
+    if (!startDate || !endDate) return 'Choose the start and end dates.';
+    if (endDate < startDate) return 'The end date must be on or after the start date.';
+    if (endDate < storeToday()) return 'That end date has already passed.';
+    if (type === 'SPECIFIC_STORE' && !storeId) return 'Choose a store.';
+    const issue = hoursProblem(hours) ?? audienceProblem(aud);
+    if (issue) return issue;
+    const isGasDiesel = category === 'GAS' || category === 'DIESEL';
+    if (useTierBonuses && !isGasDiesel) {
+      const rates = TIERS.map((t) => parseFloat(tierBonuses[t])).filter((v) => !isNaN(v) && v > 0).map(frac);
+      if (rates.length === 0) return 'Enter at least one tier bonus rate.';
+      if (Math.max(...rates) > CASHBACK_CAP + 1e-9) return BONUS_TOO_BIG;
+    } else if (isGasDiesel && gasBonusType === 'cpg') {
+      const cpg = parseFloat(gasBonusCpg);
+      if (isNaN(cpg) || cpg <= 0) return 'Enter the cents-per-gallon bonus.';
+      if (cpg > MAX_CENTS_PER_GALLON) return `A per-gallon bonus can be at most ${MAX_CENTS_PER_GALLON} cents.`;
+    } else {
+      const pct = parseFloat(bonusRate);
+      if (isNaN(pct) || pct <= 0) return 'Enter the bonus percentage.';
+      if (pct > CASHBACK_CAP * 100 + 1e-9) return BONUS_TOO_BIG;
+    }
+    return null;
+  }
+
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (category === null) { toast.error('Select a category'); return; }
-    if (!startDate || !endDate) { toast.error('Start and end dates are required'); return; }
-    if (endDate < startDate) { toast.error('The end date must be on or after the start date'); return; }
-    if (endDate < storeToday()) { toast.error('That end date has already passed'); return; }
-    if (type === 'SPECIFIC_STORE' && !storeId) { toast.error('Select a store'); return; }
-    const hoursIssue = hoursProblem(hours);
-    if (hoursIssue) { toast.error(hoursIssue); return; }
-    const audIssue = audienceProblem(aud);
-    if (audIssue) { toast.error(audIssue); return; }
+    if (category === null || promoProblem()) return;
 
     const isGasDiesel = category === 'GAS' || category === 'DIESEL';
     const isCpg = isGasDiesel && gasBonusType === 'cpg';
@@ -465,17 +496,9 @@ export default function Offers() {
         const v = parseFloat(tierBonuses[t]);
         if (!isNaN(v) && v > 0) tierMap[t] = frac(v);
       }
-      if (Object.keys(tierMap).length === 0) { toast.error('Enter at least one tier bonus rate'); return; }
-      if (Math.max(...Object.values(tierMap)) > CASHBACK_CAP + 1e-9) { toast.error(BONUS_TOO_BIG); return; }
-    } else if (isCpg) {
-      if (isNaN(cpg) || cpg <= 0) { toast.error('Enter the cents-per-gallon bonus'); return; }
-      if (cpg > MAX_CENTS_PER_GALLON) { toast.error(`A per-gallon bonus can be at most ${MAX_CENTS_PER_GALLON} cents.`); return; }
-    } else {
-      if (isNaN(pct) || pct <= 0) { toast.error('Enter the bonus percentage'); return; }
-      if (pct > CASHBACK_CAP * 100 + 1e-9) { toast.error(BONUS_TOO_BIG); return; }
     }
 
-    const catLabel = category === '' ? 'Store-wide' : (CATEGORIES.find((c) => c.value === category)?.label ?? category);
+    const catLabel = postedCategory(category, 'Store-wide');
     const bonusDisplay = isCpg ? `+${cpg}¢/gal` : tierMap ? 'Per-tier bonus' : `+${pct}%`;
     const autoTitle = title.trim() || `${bonusDisplay} ${catLabel} Promotion`;
     const autoDesc = description.trim() || `${bonusDisplay} bonus on ${catLabel.toLowerCase()} purchases. Valid ${dayLabel(startDate)} to ${dayLabel(endDate)}, ${endDate.slice(0, 4)}.`;
@@ -514,26 +537,32 @@ export default function Offers() {
       tiers: tierMap, centsPerGallon: isCpg ? cpg : null, startMs, endMs,
     };
     const label = hoursLabel(hp);
-    askToPost(describePost('promo', fd, autoTitle, `${bonusDisplay} on ${catLabel.toLowerCase()} purchases${label ? `, ${label}` : ''}`, draft, whereText(type, storeId), whenText(startMs, endMs, false)));
+    askToPost(describePost('promo', fd, autoTitle, `${bonusDisplay} ${onPurchases(category)}${label ? `, ${label}` : ''}`, draft, whereText(type, storeId), whenText(startMs, endMs, false)));
+  }
+
+  /** What stops a quick post, or null; it shows above the "Review and post" button. */
+  function quickProblem(): string | null {
+    const isGasDiesel = quickCategory === 'GAS' || quickCategory === 'DIESEL';
+    if (isGasDiesel && quickBonusMode === 'cpg') {
+      const cpg = parseFloat(quickCpg);
+      if (isNaN(cpg) || cpg <= 0) return 'Enter the cents-per-gallon bonus.';
+      if (cpg > MAX_CENTS_PER_GALLON) return `A per-gallon bonus can be at most ${MAX_CENTS_PER_GALLON} cents.`;
+      return null;
+    }
+    const bonus = parseFloat(quickBonus);
+    if (isNaN(bonus) || bonus <= 0) return 'Enter the bonus percentage.';
+    if (bonus > CASHBACK_CAP * 100 + 1e-9) return BONUS_TOO_BIG;
+    return null;
   }
 
   function handleQuickPost() {
+    if (quickProblem()) return;
     const isGasDiesel = quickCategory === 'GAS' || quickCategory === 'DIESEL';
     const useCpg = isGasDiesel && quickBonusMode === 'cpg';
     const cpg = parseFloat(quickCpg);
     const bonus = parseFloat(quickBonus);
 
-    if (useCpg) {
-      if (isNaN(cpg) || cpg <= 0) { toast.error('Enter a ¢/gallon bonus'); return; }
-      if (cpg > MAX_CENTS_PER_GALLON) { toast.error(`A per-gallon bonus can be at most ${MAX_CENTS_PER_GALLON} cents.`); return; }
-    } else {
-      if (isNaN(bonus) || bonus <= 0) { toast.error('Enter a bonus %'); return; }
-      if (bonus > CASHBACK_CAP * 100 + 1e-9) { toast.error(BONUS_TOO_BIG); return; }
-    }
-
-    const catLabel = quickCategory
-      ? CATEGORIES.find(c => c.value === quickCategory)?.label ?? quickCategory
-      : 'All Categories';
+    const catLabel = postedCategory(quickCategory, 'All Categories');
     const durationLabel = { today: 'Today', '3d': '3 Days', '1w': 'This Week', '2w': '2 Weeks', '1m': 'This Month' }[quickDuration];
     const bonusDisplay = useCpg ? `+${cpg}¢/gal` : `+${bonus}%`;
     const autoTitle = `${bonusDisplay} ${catLabel} Bonus - ${durationLabel}`;
@@ -558,7 +587,7 @@ export default function Offers() {
       type: 'ALL_STORES', storeId: null, category: quickCategory || null,
       percent: useCpg ? null : frac(bonus), tiers: null, centsPerGallon: useCpg ? cpg : null, startMs, endMs,
     };
-    askToPost(describePost('quick', fd, autoTitle, `${bonusDisplay} on ${catLabel.toLowerCase()} purchases`, draft, whereText('ALL_STORES', ''), whenText(startMs, endMs, true)));
+    askToPost(describePost('quick', fd, autoTitle, `${bonusDisplay} ${onPurchases(quickCategory)}`, draft, whereText('ALL_STORES', ''), whenText(startMs, endMs, true)));
   }
 
   // Everything the confirmation box shows, worked out once
@@ -640,14 +669,20 @@ export default function Offers() {
     };
   }
 
+  /** What stops the deal from being posted, or null. The first mistake in the order of the form; it shows above the buttons. */
+  function dealProblem(): string | null {
+    if (!dealTitle.trim()) return 'Enter the product or item name.';
+    if (!dealText.trim()) return 'Enter the deal text, for example "2 for $5".';
+    if (!dealStartDate || !dealEndDate) return 'Choose the start and end dates.';
+    if (dealEndDate < dealStartDate) return 'The end date must be on or after the start date.';
+    if (dealEndDate < storeToday()) return 'That end date has already passed.';
+    if (dealType === 'SPECIFIC_STORE' && !dealStoreId) return 'Choose a store.';
+    return null;
+  }
+
   function handleCreateDeal(e: React.FormEvent) {
     e.preventDefault();
-    if (!dealTitle.trim()) { toast.error('Title is required'); return; }
-    if (!dealText.trim()) { toast.error('Deal text is required (e.g. "2 for $5")'); return; }
-    if (!dealStartDate || !dealEndDate) { toast.error('Start and end dates are required'); return; }
-    if (dealEndDate < dealStartDate) { toast.error('The end date must be on or after the start date'); return; }
-    if (dealEndDate < storeToday()) { toast.error('That end date has already passed'); return; }
-    if (dealType === 'SPECIFIC_STORE' && !dealStoreId) { toast.error('Select a store'); return; }
+    if (dealProblem()) return;
     const startMs = startOfStoreDay(dealStartDate).getTime();
     const endMs = endOfStoreDay(dealEndDate).getTime();
     const fd = new FormData();
@@ -664,7 +699,7 @@ export default function Offers() {
     if (dealSpanish.titleEs.trim()) fd.append('titleEs', dealSpanish.titleEs.trim());
     if (dealSpanish.dealTextEs.trim()) fd.append('dealTextEs', dealSpanish.dealTextEs.trim());
     if (dealSpanish.descriptionEs.trim()) fd.append('descriptionEs', dealSpanish.descriptionEs.trim());
-    askToPost(describePost('deal', fd, dealTitle.trim(), `${dealText.trim()} - ${dealTitle.trim()}`, null, whereText(dealType, dealStoreId), whenText(startMs, endMs, false)));
+    askToPost(describePost('deal', fd, dealTitle.trim(), `${dealText.trim()}: ${dealTitle.trim()}`, null, whereText(dealType, dealStoreId), whenText(startMs, endMs, false)));
   }
 
   function resetDealForm() {
@@ -786,7 +821,7 @@ export default function Offers() {
           { value: 'deals', label: 'Deals', count: dealOffers.length },
           ...(isHQ ? [{ value: 'challenges' as const, label: 'Challenges' }] : []),
           ...(isHQ ? [{ value: 'welcome' as const, label: 'Joining bonus' }] : []),
-          ...(isHQ ? [{ value: 'requests' as const, label: 'Requests', count: waitingRequests || undefined }] : []),
+          ...(isHQ ? [{ value: 'requests' as const, label: 'Promotion requests', count: waitingRequests || undefined }] : []),
           { value: 'calendar', label: 'Calendar' },
         ]}
       />
@@ -799,16 +834,7 @@ export default function Offers() {
             <div style={s.group}>
               <div style={s.groupLabel}>Category</div>
               <div style={s.chips}>
-                {[
-                  { value: '', label: 'All' },
-                  { value: 'GAS', label: 'Gas' },
-                  { value: 'DIESEL', label: 'Diesel' },
-                  { value: 'HOT_FOODS', label: 'Hot Foods' },
-                  { value: 'GROCERIES', label: 'Groceries' },
-                  { value: 'FROZEN_FOODS', label: 'Frozen' },
-                  { value: 'FRESH_FOODS', label: 'Fresh' },
-                  { value: 'OTHER', label: 'Other' },
-                ].map(c => (
+                {FORM_CATEGORIES.map(c => (
                   <Chip key={c.value} selected={quickCategory === c.value}
                     onClick={() => {
                       setQuickCategory(c.value);
@@ -824,8 +850,8 @@ export default function Offers() {
             <div style={s.group}>
               {isGasQuick && (
                 <div style={{ ...s.chips, marginBottom: 4 }}>
-                  <Chip selected={quickBonusMode === 'pct'} onClick={() => setQuickBonusMode('pct')}>% Cashback</Chip>
-                  <Chip selected={quickBonusMode === 'cpg'} onClick={() => setQuickBonusMode('cpg')}>¢/Gallon</Chip>
+                  <Chip selected={quickBonusMode === 'pct'} onClick={() => setQuickBonusMode('pct')}>% cashback</Chip>
+                  <Chip selected={quickBonusMode === 'cpg'} onClick={() => setQuickBonusMode('cpg')}>¢ per gallon</Chip>
                 </div>
               )}
               {quickBonusMode === 'cpg' && isGasQuick ? (
@@ -870,7 +896,7 @@ export default function Offers() {
             <div style={s.group}>
               <div style={s.groupLabel}>Duration</div>
               <div style={s.chips}>
-                {([['today', 'Today'], ['3d', '3 Days'], ['1w', '1 Week'], ['2w', '2 Weeks'], ['1m', '1 Month']] as const).map(([val, label]) => (
+                {([['today', 'Today'], ['3d', '3 days'], ['1w', '1 week'], ['2w', '2 weeks'], ['1m', '1 month']] as const).map(([val, label]) => (
                   <Chip key={val} selected={quickDuration === val} onClick={() => setQuickDuration(val)}>{label}</Chip>
                 ))}
               </div>
@@ -878,18 +904,18 @@ export default function Offers() {
           </div>
 
           {(() => {
+            const problem = quickProblem();
             const useCpg = isGasQuick && quickBonusMode === 'cpg';
-            const hasValue = useCpg ? (parseFloat(quickCpg) > 0) : (parseFloat(quickBonus) > 0);
-            if (!hasValue) return null;
             const bonusDisplay = useCpg ? `+${quickCpg}¢/gal` : `+${quickBonus}%`;
-            const catLabel = quickCategory ? CATEGORIES.find(c => c.value === quickCategory)?.label : 'All Categories';
             return (
               <div style={s.previewRow}>
-                <span style={{ fontSize: FONT.body, color: C.text2 }}>
-                  Will post <strong style={{ color: C.text }}>{bonusDisplay} {catLabel} Bonus</strong>
-                  {' '}· {({ today: 'Today only', '3d': '3 days', '1w': '1 week', '2w': '2 weeks', '1m': '1 month' } as const)[quickDuration]}
-                </span>
-                <Button variant="primary" onClick={handleQuickPost} disabled={createMutation.isPending}>Review and post</Button>
+                <FormProblem message={problem} style={{ flex: '1 1 260px' }}>
+                  <span style={{ fontSize: FONT.body, color: C.text2 }}>
+                    Will post <strong style={{ color: C.text }}>{bonusDisplay} {postedCategory(quickCategory, 'All Categories')} Bonus</strong>
+                    {' '}· {({ today: 'Today only', '3d': '3 days', '1w': '1 week', '2w': '2 weeks', '1m': '1 month' } as const)[quickDuration]}
+                  </span>
+                </FormProblem>
+                <Button variant="primary" onClick={handleQuickPost} disabled={!!problem || createMutation.isPending}>Review and post</Button>
               </div>
             );
           })()}
@@ -918,7 +944,7 @@ export default function Offers() {
                   <div style={{ fontSize: FONT.small, color: C.muted, lineHeight: 1.5, marginTop: 2 }}>{templateText(t)}</div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                     {t.bonusRate && <Badge tone="info">+{t.bonusRate}% bonus</Badge>}
-                    <Badge>{t.category ? catName(t.category) : 'Store-wide'}</Badge>
+                    <Badge>{categoryLabel(t.category)}</Badge>
                     <Badge icon={<Clock size={12} />}>{templateWhen(t)}</Badge>
                   </div>
                 </div>
@@ -938,16 +964,7 @@ export default function Offers() {
             <div style={s.formSection}>
               <div style={s.stepLabel}>1. Category <span style={{ color: C.muted, fontWeight: 400 }}>(required)</span></div>
               <div style={s.chips}>
-                {[
-                  { value: '', label: 'Store-wide' },
-                  { value: 'GAS', label: 'Gas' },
-                  { value: 'DIESEL', label: 'Diesel' },
-                  { value: 'HOT_FOODS', label: 'Hot Foods' },
-                  { value: 'GROCERIES', label: 'Groceries' },
-                  { value: 'FROZEN_FOODS', label: 'Frozen' },
-                  { value: 'FRESH_FOODS', label: 'Fresh' },
-                  { value: 'OTHER', label: 'Other' },
-                ].map(c => (
+                {FORM_CATEGORIES.map(c => (
                   <Chip key={c.value} selected={category === c.value}
                     onClick={() => { setCategory(c.value); setGasBonusCpg(''); setGasBonusType('cpg'); setBonusRate(''); }}>
                     {c.label}
@@ -1052,7 +1069,7 @@ export default function Offers() {
                       <select aria-label="Choose a store" className="ui-input" style={INPUT} value={storeId} onChange={e => setStoreId(e.target.value)}>
                         <option value="">Choose a store</option>
                         {stores.map((store: any) => (
-                          <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
+                          <option key={store.id} value={store.id}>{store.name} ({store.city}, {store.state})</option>
                         ))}
                       </select>
                     )}
@@ -1064,8 +1081,12 @@ export default function Offers() {
             {category !== null && (
               <div style={s.formSection}>
                 <div style={s.stepLabel}>4. Title and image</div>
-                <input aria-label="Title" className="ui-input" style={INPUT} value={title} onChange={e => setTitle(e.target.value)} maxLength={100} placeholder="Leave blank to write one for you" />
-                <textarea aria-label="Description" className="ui-input" style={{ ...INPUT, height: 72, resize: 'vertical' }} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (optional, written for you if blank)" />
+                <Field label="Title (optional)" htmlFor="offer-title" hint="Leave blank and one is written for you.">
+                  <input id="offer-title" className="ui-input" style={INPUT} value={title} onChange={e => setTitle(e.target.value)} maxLength={100} />
+                </Field>
+                <Field label="Description (optional)" htmlFor="offer-desc" hint="Leave blank and one is written for you.">
+                  <textarea id="offer-desc" className="ui-input" style={{ ...INPUT, height: 72, resize: 'vertical' }} maxLength={500} value={description} onChange={e => setDescription(e.target.value)} />
+                </Field>
                 <SpanishFields idPrefix="offer" value={spanish} onChange={setSpanish} english={{ title, description }} />
                 <ImagePick id="offer-image" file={imageFile} onFile={setImageFile} category={category || null} />
               </div>
@@ -1100,11 +1121,14 @@ export default function Offers() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 8, paddingTop: 16 }}>
-              <Button variant="primary" type="submit" disabled={createMutation.isPending || category === null}>
-                {createMutation.isPending ? 'Creating...' : 'Create Offer'}
-              </Button>
-              <Button onClick={resetForm}>Cancel</Button>
+            <div style={{ paddingTop: 16 }}>
+              <FormProblem message={promoProblem()} spaced />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button variant="primary" type="submit" disabled={createMutation.isPending || category === null || !!promoProblem()}>
+                  {createMutation.isPending ? 'Creating…' : 'Create offer'}
+                </Button>
+                <Button onClick={resetForm}>Cancel</Button>
+              </div>
             </div>
           </form>
         </Card>
@@ -1132,7 +1156,7 @@ export default function Offers() {
             <>
               {livePromotions.length > 0 ? (
                 <>
-                  <SectionTitle>Live Now ({livePromotions.length})</SectionTitle>
+                  <SectionTitle>Live now ({livePromotions.length})</SectionTitle>
                   <div style={s.grid}>
                     {livePromotions.map((offer: any) => (
                       <OfferCard key={offer.id} offer={offer} onReuse={isStoreManager ? undefined : () => reuseOffer(offer)} onResults={isHQ ? () => setResultsFor(offer) : undefined} onEdit={() => setEditing(offer)} onEndNow={() => setEndingNow(offer)} />
@@ -1217,7 +1241,7 @@ export default function Offers() {
                         <select id="deal-store" className="ui-input" style={INPUT} value={dealStoreId} onChange={(e) => setDealStoreId(e.target.value)}>
                           <option value="">Choose a store</option>
                           {stores.map((store: any) => (
-                            <option key={store.id} value={store.id}>{store.name} - {store.city}, {store.state}</option>
+                            <option key={store.id} value={store.id}>{store.name} ({store.city}, {store.state})</option>
                           ))}
                         </select>
                       </Field>
@@ -1226,17 +1250,20 @@ export default function Offers() {
                 )}
                 <Field label="Product category (optional)" htmlFor="deal-category">
                   <select id="deal-category" className="ui-input" style={INPUT} value={dealCategory} onChange={(e) => setDealCategory(e.target.value)}>
-                    {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    {CATEGORY_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </Field>
                 <Field label="Age restriction">
                   <AgeToggle on={dealRequires21} onToggle={() => setDealRequires21(!dealRequires21)} />
                 </Field>
-                <div style={{ display: 'flex', gap: 8, paddingTop: 4 }}>
-                  <Button variant="primary" type="submit" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? 'Creating...' : 'Post Deal'}
-                  </Button>
-                  <Button onClick={resetDealForm}>Cancel</Button>
+                <div style={{ paddingTop: 4 }}>
+                  <FormProblem message={dealProblem()} spaced />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button variant="primary" type="submit" disabled={createMutation.isPending || !!dealProblem()}>
+                      {createMutation.isPending ? 'Creating…' : 'Post deal'}
+                    </Button>
+                    <Button onClick={resetDealForm}>Cancel</Button>
+                  </div>
                 </div>
               </form>
             </Card>
@@ -1250,7 +1277,7 @@ export default function Offers() {
             <>
               {liveDeals.length > 0 ? (
                 <>
-                  <SectionTitle>Live Now ({liveDeals.length})</SectionTitle>
+                  <SectionTitle>Live now ({liveDeals.length})</SectionTitle>
                   <div style={s.grid}>
                     {liveDeals.map((offer: any) => (
                       <DealCard key={offer.id} offer={offer} onEdit={() => setEditing(offer)} onEndNow={() => setEndingNow(offer)} onReuse={() => reuseDeal(offer)} />
@@ -1301,7 +1328,14 @@ export default function Offers() {
 
 // ─── Pieces ──────────────────────────────────────────────────────────────────
 
-function catName(c: string) { return c.replace(/_/g, ' ').toLowerCase().replace(/^./, (x) => x.toUpperCase()); }
+/** A form's one mistake, kept in view above its buttons (a screen reader hears it appear), or `children` when there is none. */
+function FormProblem({ message, children, style, spaced }: { message: string | null; children?: React.ReactNode; style?: React.CSSProperties; spaced?: boolean }) {
+  return (
+    <div aria-live="polite" style={style}>
+      {message ? <Notice tone="warning" style={{ fontSize: FONT.small, marginBottom: spaced ? 12 : 0 }}>{message}</Notice> : children}
+    </div>
+  );
+}
 
 function AgeToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -1322,9 +1356,9 @@ function OfferTags({ offer, isPast, isScheduled }: { offer: any; isPast?: boolea
         : isPast ? <Badge>{offer.isActive === false ? 'Removed' : 'Ended'}</Badge>
         : <Badge tone="success">Live</Badge>}
       <Badge icon={offer.type === 'ALL_STORES' ? <Globe size={12} /> : <MapPin size={12} />}>
-        {offer.type === 'ALL_STORES' ? 'All Stores' : (offer.store?.name ?? 'Store')}
+        {offer.type === 'ALL_STORES' ? 'All stores' : (offer.store?.name ?? 'Store')}
       </Badge>
-      {offer.category && <Badge>{catName(offer.category)}</Badge>}
+      {offer.category && <Badge>{categoryLabel(offer.category)}</Badge>}
       {offer.requires21 && <Badge tone="warning">21+</Badge>}
       {offer.titleEs && <Badge title={`In Spanish: ${offer.titleEs}`}>ES</Badge>}
       {audienceLabel(offer) && <Badge tone="info">{audienceLabel(offer)}</Badge>}
@@ -1339,7 +1373,7 @@ function bonusText(offer: any): string | null {
     return Object.entries(offer.tierBonusRates as Record<string, number>)
       .map(([tier, rate]) => `${tier[0]}${tier.slice(1).toLowerCase()} +${pctText(rate)}%`).join(' · ');
   }
-  if (offer.bonusRate) return `+${pctText(offer.bonusRate)}% ${offer.category ? offer.category.replace(/_/g, ' ').toLowerCase() : 'store-wide'}`;
+  if (offer.bonusRate) return `+${pctText(offer.bonusRate)}% ${categoryLabel(offer.category).toLowerCase()}`;
   return null;
 }
 
@@ -1372,8 +1406,8 @@ function OfferCard({ offer, onDelete, onReuse, onResults, onEdit, onEndNow, isPa
         {onReuse && <Button size="sm" icon={<RotateCcw />} onClick={onReuse} aria-label={`Reuse ${offer.title}`}>Reuse</Button>}
         {!isPast && onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onEndNow} aria-label={`End ${offer.title} now`} title="End now" />}
-          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} aria-label={`Cancel ${offer.title}`} title="Cancel" />}
+          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Square />} onClick={onEndNow} aria-label={`End ${offer.title} now`}>End now</Button>}
+          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Square />} onClick={onDelete} aria-label={`Cancel ${offer.title}`}>Cancel</Button>}
         </span>
       </div>
     </Card>
@@ -1395,8 +1429,8 @@ function DealCard({ offer, onDelete, onEdit, onEndNow, onReuse, isPast, isSchedu
         {onReuse && <Button size="sm" icon={<RotateCcw />} onClick={onReuse} aria-label={`Reuse ${offer.title}`}>Reuse</Button>}
         {!isPast && onEdit && <Button size="sm" icon={<Pencil />} onClick={onEdit} aria-label={`Edit ${offer.title}`}>Edit</Button>}
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onEndNow} aria-label={`End ${offer.title} now`} title="End now" />}
-          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Trash2 />} onClick={onDelete} aria-label={`Cancel ${offer.title}`} title="Cancel" />}
+          {!isPast && !isScheduled && onEndNow && <Button size="sm" variant="danger" icon={<Square />} onClick={onEndNow} aria-label={`End ${offer.title} now`}>End now</Button>}
+          {!isPast && isScheduled && onDelete && <Button size="sm" variant="danger" icon={<Square />} onClick={onDelete} aria-label={`Cancel ${offer.title}`}>Cancel</Button>}
         </span>
       </div>
     </Card>
@@ -1564,7 +1598,7 @@ const s: Record<string, React.CSSProperties> = {
   hours: { display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', fontSize: FONT.small, color: C.text2, marginBottom: 6 },
   cardDesc: { color: C.muted, fontSize: FONT.small, margin: '0 0 8px', lineHeight: 1.5 },
   cardDate: { color: C.muted, fontSize: FONT.caption, marginTop: 8 },
-  cardActions: { display: 'flex', gap: 6, padding: '10px 14px', borderTop: `1px solid ${C.border}`, background: C.subtle },
+  cardActions: { display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 14px', borderTop: `1px solid ${C.border}`, background: C.subtle },
   dealText: { fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4, letterSpacing: '-0.01em' },
   pastNote: { color: C.muted, fontSize: FONT.body, margin: '8px 0 14px' },
 };

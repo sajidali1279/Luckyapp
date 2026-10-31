@@ -13,7 +13,7 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { showPhone, phoneDigits } from '../lib/phoneText';
 import { useSingleFlight } from '../hooks/useSingleFlight';
-import { PageHeader, HeaderStat, Button, MenuButton } from '../components/kit';
+import { Page, PageHeader, HeaderStat, Button, MenuButton } from '../components/kit';
 import { Clock, Printer, Tags, KeyRound, Power, MoreHorizontal } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
@@ -21,10 +21,10 @@ import Glyph from '../components/Glyph';
 const ALL_CATEGORIES = [
   { value: 'GAS',           label: 'Gas',          icon: '⛽' },
   { value: 'DIESEL',        label: 'Diesel',        icon: '🚛' },
-  { value: 'HOT_FOODS',     label: 'Hot Foods',     icon: '🌮' },
+  { value: 'HOT_FOODS',     label: 'Hot foods',     icon: '🌮' },
   { value: 'GROCERIES',     label: 'Groceries',     icon: '🛒' },
-  { value: 'FROZEN_FOODS',  label: 'Frozen Foods',  icon: '🧊' },
-  { value: 'FRESH_FOODS',   label: 'Fresh Foods',   icon: '🥗' },
+  { value: 'FROZEN_FOODS',  label: 'Frozen foods',  icon: '🧊' },
+  { value: 'FRESH_FOODS',   label: 'Fresh foods',   icon: '🥗' },
   { value: 'OTHER',         label: 'Other',         icon: '🏪' },
 ] as const;
 
@@ -181,7 +181,7 @@ export default function Stores() {
   const [form, setForm] = useState<FormState>({ name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '', requiresAgeGate: false });
   const [confirmDeactivateId, setConfirmDeactivateId] = useState<string | null>(null);
 
-  // Add Store (Dev Admin only) — its own small form, separate from Edit Store's (categories, age gate
+  // Add Store (Dev Admin only): its own small form, separate from Edit Store's (categories, age gate
   // and coordinate-note logic there don't apply to a brand-new store yet)
   const BLANK_ADD_FORM = { name: '', address: '', city: '', state: '', zipCode: '', phone: '', latitude: '', longitude: '', feePercent: '' };
   const [showAddStore, setShowAddStore] = useState(false);
@@ -232,7 +232,7 @@ export default function Stores() {
 
   const stores: Store[] = data?.data?.data ?? [];
 
-  // Pending dispute counts — one query, grouped client-side
+  // Pending dispute counts: one query, grouped client-side
   const { data: disputeData } = useQuery({
     queryKey: ['disputes-pending-by-store'],
     queryFn: () => disputesApi.getAll({ status: 'PENDING' }),
@@ -361,7 +361,7 @@ export default function Stores() {
       setApiKeys((p) => ({ ...p, [storeId]: key }));
       setApiKeyVisible((p) => ({ ...p, [storeId]: true }));
       setApiKeyStatus((p) => ({ ...p, [storeId]: true }));
-      toast.success('API key regenerated - update config.json on the store PC');
+      toast.success('API key regenerated. Update config.json on the store PC.');
     } catch (e) { toast.error(failureMessage(e, 'Could not regenerate the key. The old key still works.')); }
   }
 
@@ -549,7 +549,7 @@ export default function Stores() {
       if (!results.length) { setEditError('That address was not found. Try a more specific address, or type the coordinates yourself.'); return; }
       const { lat, lon } = results[0];
       setForm((f) => ({ ...f, latitude: parseFloat(lat).toFixed(6), longitude: parseFloat(lon).toFixed(6) }));
-      toast.success('Coordinates filled in - verify they look correct!');
+      toast.success('Coordinates filled in. Check they look correct.');
     } catch {
       setEditError('The address lookup could not be reached. Check the connection, or type the coordinates yourself.');
     } finally {
@@ -654,10 +654,10 @@ export default function Stores() {
   }
 
   return (
-    <div style={s.page}>
+    <Page>
       <ConfirmModal headingLevel="h2"
         open={!!confirmRegenId}
-        title="Regenerate API Key"
+        title="Regenerate API key"
         message="The old key stops working immediately. You must update config.json on that store's POS device before it can process transactions again."
         confirmLabel="Regenerate"
         danger
@@ -666,7 +666,7 @@ export default function Stores() {
       />
       <ConfirmModal headingLevel="h2"
         open={!!confirmDeactivateId}
-        title="Deactivate Store"
+        title="Deactivate store"
         message="Customers stop seeing this store anywhere in the app (gas prices, offers, hot food), and sales, redemptions and benefit claims can no longer be recorded here. Staff keep their accounts. You can reactivate it any time from this page."
         confirmLabel="Deactivate"
         danger
@@ -697,7 +697,7 @@ export default function Stores() {
             <HeaderStat label="stores" value={stores.length} />
             {isDevAdmin && (
               <Button variant="primary" icon={<Plus />} onClick={() => { setAddForm(BLANK_ADD_FORM); setAddError(''); setShowAddStore(true); }}>
-                Add Store
+                Add store
               </Button>
             )}
           </>
@@ -777,7 +777,7 @@ export default function Stores() {
 
                 {/* ── Category pills ── */}
                 <div style={s.divider} />
-                <div style={s.catSectionLabel}>Available Categories</div>
+                <div style={s.catSectionLabel}>Available categories</div>
                 <div style={s.catPillRow}>
                   {ALL_CATEGORIES.map(cat => {
                     const enabled = (store.enabledCategories ?? []).length === 0 || (store.enabledCategories ?? []).includes(cat.value);
@@ -791,7 +791,7 @@ export default function Stores() {
 
                 {/* ── Gas Prices inline editor ── */}
                 <div style={s.divider} />
-                <div style={s.gasSectionLabel}>Gas Prices</div>
+                <div style={s.gasSectionLabel}>Gas prices</div>
                 <div style={s.gasRow}>
                   {(['gas', 'diesel'] as const).map((kind) => {
                     const saved = kind === 'gas' ? store.gasPricePerGallon : store.dieselPricePerGallon;
@@ -841,13 +841,13 @@ export default function Stores() {
                     <div style={s.divider} />
                     <div style={s.apiKeySection}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                        <div style={s.apiKeyLabel}>Printer Agent API Key</div>
+                        <div style={s.apiKeyLabel}>Printer agent API key</div>
                         <Button size="sm" variant="ghost" onClick={() => setKeyOpenId(null)}>Done</Button>
                       </div>
                       {apiKeyVisible[store.id] && apiKeys[store.id] ? (
                         <div style={s.apiKeyBox}>
                           <code style={s.apiKeyCode}>{apiKeys[store.id]}</code>
-                          <div style={s.apiKeyHint}>Copy this now - it can't be shown again after you leave this page.</div>
+                          <div style={s.apiKeyHint}>Copy this now: it can't be shown again after you leave this page.</div>
                           <div style={s.apiKeyBtns}>
                             <button style={s.apiKeyBtn} onClick={() => copyApiKey(apiKeys[store.id])}>Copy</button>
                             <button style={{ ...s.apiKeyBtn, color: '#a51b28', borderColor: '#f3cdd1' }} onClick={() => setConfirmRegenId(store.id)}>Regenerate</button>
@@ -857,7 +857,7 @@ export default function Stores() {
                       ) : apiKeyStatus[store.id] !== undefined ? (
                         <div style={s.apiKeyBox}>
                           <div style={s.apiKeyStatusText}>
-                            {apiKeyStatus[store.id] ? '✓ A key is configured (not shown again - regenerate for a new one)' : 'No key set yet'}
+                            {apiKeyStatus[store.id] ? '✓ A key is configured (not shown again; regenerate for a new one)' : 'No key set yet'}
                           </div>
                           <div style={s.apiKeyBtns}>
                             <button style={s.apiKeyBtn} onClick={() => setConfirmRegenId(store.id)}>Regenerate</button>
@@ -869,7 +869,7 @@ export default function Stores() {
                           onClick={() => checkApiKeyStatus(store.id)}
                           disabled={apiKeyStoreId === store.id}
                         >
-                          {apiKeyStoreId === store.id ? 'Checking…' : 'Check API Key Status'}
+                          {apiKeyStoreId === store.id ? 'Checking…' : 'Check API key status'}
                         </button>
                       )}
                     </div>
@@ -914,10 +914,10 @@ export default function Stores() {
 
       {/* POS Keyword Mappings */}
       {kwStoreId && (
-        <Modal title="POS Keyword Mappings" subtitle={`${storeNameOf(kwStoreId)} - map POS receipt labels to Lucky Stop categories`} onClose={() => setKwStoreId(null)} maxWidth={560}>
+        <Modal title="POS keyword mappings" subtitle={`${storeNameOf(kwStoreId)}: map POS receipt labels to Lucky Stop categories`} onClose={() => setKwStoreId(null)} maxWidth={560}>
           <div style={s.kwHint}>
             When the printer-agent parses a receipt, it checks these keywords first (case-insensitive, partial match).
-            If a line contains the keyword, it's classified into the chosen category - overriding the built-in patterns.
+            If a line contains the keyword, it's classified into the chosen category, overriding the built-in patterns.
             <br /><br />
             <strong>Example:</strong> your POS prints "FUEL GRD 1" → add keyword <code>fuel grd</code> → GAS
           </div>
@@ -925,7 +925,7 @@ export default function Stores() {
           {kwLoading ? (
             <div style={{ padding: '20px 0', color: TEXT_MUTED, textAlign: 'center' }} role="status">Loading…</div>
           ) : kwMappings.length === 0 ? (
-            <div style={s.kwEmpty}>No custom mappings yet - built-in keyword patterns will be used.</div>
+            <div style={s.kwEmpty}>No custom mappings yet. Built-in keyword patterns will be used.</div>
           ) : (
             <div style={s.kwList}>
               {kwMappings.map((m) => {
@@ -943,7 +943,7 @@ export default function Stores() {
           )}
 
           <div>
-            <div style={s.sectionLabel}>Add Mapping</div>
+            <div style={s.sectionLabel}>Add mapping</div>
             <div style={s.kwAddRow}>
               <input
                 style={{ ...s.input, flex: 2, minWidth: 0 }}
@@ -982,7 +982,7 @@ export default function Stores() {
 
       {/* Store Hours */}
       {hoursStoreId && (
-        <Modal title="Store Hours" subtitle={storeNameOf(hoursStoreId)} onClose={() => setHoursStoreId(null)} busy={weekSaving || holidaySaving} maxWidth={640}>
+        <Modal title="Store hours" subtitle={storeNameOf(hoursStoreId)} onClose={() => setHoursStoreId(null)} busy={weekSaving || holidaySaving} maxWidth={640}>
           {hoursLoading ? (
             <div style={{ padding: '20px 0', color: TEXT_MUTED, textAlign: 'center' }} role="status">Loading…</div>
           ) : (
@@ -999,7 +999,7 @@ export default function Stores() {
                 </div>
               </div>
               <div>
-                <div style={s.sectionLabelFirst}>Weekly Schedule</div>
+                <div style={s.sectionLabelFirst}>Weekly schedule</div>
                 <div style={s.hoursWeekList}>
                   {DAYS.map((d) => {
                     const day = weekForm[d.value];
@@ -1033,12 +1033,12 @@ export default function Stores() {
                   })}
                 </div>
                 <button style={{ ...s.saveBtn, width: '100%' }} onClick={saveWeekHours} disabled={weekSaving}>
-                  {weekSaving ? 'Saving…' : 'Save Weekly Hours'}
+                  {weekSaving ? 'Saving…' : 'Save weekly hours'}
                 </button>
               </div>
 
               <div>
-                <div style={s.sectionLabelFirst}>Holiday / Special-Date Hours</div>
+                <div style={s.sectionLabelFirst}>Holiday and special-date hours</div>
                 <div style={s.catHint}>
                   Overrides the regular weekly schedule for one specific date, e.g. closed on Thanksgiving, or shorter hours on Christmas Eve.
                 </div>
@@ -1057,7 +1057,7 @@ export default function Stores() {
                   </div>
                 )}
 
-                <div style={s.sectionLabel}>Add a Date Override</div>
+                <div style={s.sectionLabel}>Add a date override</div>
                 <div style={s.fieldRow}>
                   <div style={s.field}>
                     <label style={s.label} htmlFor="holiday-date">Date</label>
@@ -1091,7 +1091,7 @@ export default function Stores() {
                   )}
                 </div>
                 <button style={{ ...s.kwAddBtn, width: '100%', marginTop: 10 }} onClick={addHoliday} disabled={holidaySaving}>
-                  {holidaySaving ? '…' : '+ Add Holiday Hours'}
+                  {holidaySaving ? '…' : '+ Add holiday hours'}
                 </button>
               </div>
             </>
@@ -1106,18 +1106,18 @@ export default function Stores() {
 
       {/* Edit Store */}
       {editStore && (
-        <Modal title="Edit Store" subtitle={editStore.name} onClose={() => setEditStore(null)} busy={mutation.isPending} maxWidth={640}>
+        <Modal title="Edit store" subtitle={editStore.name} onClose={() => setEditStore(null)} busy={mutation.isPending} maxWidth={640}>
           <form onSubmit={(e) => { e.preventDefault(); save(); }} noValidate style={s.editForm}>
             <div>
-              <div style={s.sectionLabelFirst}>Store Details</div>
+              <div style={s.sectionLabelFirst}>Store details</div>
               <div style={s.fieldRow}>
                 <div style={s.field}>
-                  <label style={s.label} htmlFor="store-name">Store Name</label>
+                  <label style={s.label} htmlFor="store-name">Store name</label>
                   <input id="store-name" style={s.input} value={form.name} onChange={setF('name')} placeholder="Lucky Stop #1" maxLength={60} />
                 </div>
                 <div style={s.field}>
                   <label style={s.label} htmlFor="store-phone">Phone</label>
-                  <input id="store-phone" style={s.input} value={form.phone} onChange={setF('phone')} placeholder="(580) 555-0100 - empty to clear" />
+                  <input id="store-phone" style={s.input} value={form.phone} onChange={setF('phone')} placeholder="(580) 555-0100, or empty to clear" />
                 </div>
               </div>
             </div>
@@ -1125,7 +1125,7 @@ export default function Stores() {
             <div>
               <div style={s.sectionLabelFirst}>Address</div>
               <div style={s.field}>
-                <label style={s.label} htmlFor="store-address">Street Address</label>
+                <label style={s.label} htmlFor="store-address">Street address</label>
                 <input id="store-address" style={s.input} value={form.address} onChange={setF('address')} placeholder="123 Main St" maxLength={120} />
               </div>
               <div style={s.fieldRow}>
@@ -1138,19 +1138,19 @@ export default function Stores() {
                   <input id="store-state" style={s.input} value={form.state} onChange={setF('state')} placeholder="TX" maxLength={2} />
                 </div>
                 <div style={s.field}>
-                  <label style={s.label} htmlFor="store-zip">ZIP Code</label>
+                  <label style={s.label} htmlFor="store-zip">ZIP code</label>
                   <input id="store-zip" style={s.input} value={form.zipCode} onChange={setF('zipCode')} placeholder="75090" maxLength={10} />
                 </div>
               </div>
             </div>
 
             <div>
-              <div style={s.sectionLabelFirst}>Location Coordinates</div>
+              <div style={s.sectionLabelFirst}>Location coordinates</div>
               <div style={s.geocodeHint}>
-                Fill in the address above, then click <strong>Auto-fill</strong> to get coordinates automatically - or enter them manually. The app finds the nearest store from these.
+                Fill in the address above, then click <strong>Auto-fill</strong> to get coordinates automatically, or enter them manually. The app finds the nearest store from these.
               </div>
               <button type="button" style={s.geocodeBtn} onClick={geocodeAddress} disabled={geocoding}>
-                {geocoding ? 'Looking up…' : 'Auto-fill from Address'}
+                {geocoding ? 'Looking up…' : 'Auto-fill from address'}
               </button>
               <div style={s.fieldRow}>
                 <div style={s.field}>
@@ -1166,7 +1166,7 @@ export default function Stores() {
             </div>
 
             <div>
-              <div style={s.sectionLabelFirst}>Age-Restricted Store</div>
+              <div style={s.sectionLabelFirst}>Age-restricted store</div>
               <div style={s.catHint}>
                 For stores like a liquor store, customers must confirm they're 21+ before the app shows this store's content.
               </div>
@@ -1182,7 +1182,7 @@ export default function Stores() {
             </div>
 
             <div>
-              <div style={s.sectionLabelFirst}>Available Categories</div>
+              <div style={s.sectionLabelFirst}>Available categories</div>
               <div style={s.catHint}>
                 Toggle which product categories are available at this store. Empty = all categories enabled.
               </div>
@@ -1196,7 +1196,7 @@ export default function Stores() {
                       style={{ ...s.catToggleBtn, ...(on ? s.catToggleBtnOn : s.catToggleBtnOff) }}
                       onClick={() => {
                         if (enabledCats.length === 0) {
-                          // Currently "all" — clicking one turns on explicit list of all EXCEPT this
+                          // Currently "all": clicking one turns on explicit list of all EXCEPT this
                           setEnabledCats(ALL_CATEGORIES.map(c => c.value).filter(v => v !== cat.value));
                         } else {
                           toggleCat(cat.value);
@@ -1220,7 +1220,7 @@ export default function Stores() {
             <div style={s.modalActions}>
               <button type="button" style={s.cancelBtn} onClick={() => setEditStore(null)} disabled={mutation.isPending}>Cancel</button>
               <button type="submit" style={s.saveBtn} disabled={mutation.isPending}>
-                {mutation.isPending ? 'Saving…' : 'Save Changes'}
+                {mutation.isPending ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </form>
@@ -1229,13 +1229,13 @@ export default function Stores() {
 
       {/* ── Add Store (Dev Admin only) ── */}
       {showAddStore && (
-        <Modal title="Add Store" subtitle="Store 13 (and beyond)" onClose={() => setShowAddStore(false)} busy={addMutation.isPending} maxWidth={640}>
+        <Modal title="Add store" subtitle="Store 13 (and beyond)" onClose={() => setShowAddStore(false)} busy={addMutation.isPending} maxWidth={640}>
           <form onSubmit={(e) => { e.preventDefault(); handleAddStore(); }} noValidate style={s.editForm}>
             <div>
-              <div style={s.sectionLabelFirst}>Store Details</div>
+              <div style={s.sectionLabelFirst}>Store details</div>
               <div style={s.fieldRow}>
                 <div style={s.field}>
-                  <label style={s.label} htmlFor="add-name">Store Name</label>
+                  <label style={s.label} htmlFor="add-name">Store name</label>
                   <input id="add-name" style={s.input} value={addForm.name} onChange={(e) => { setAddForm((f) => ({ ...f, name: e.target.value })); setAddError(''); }} placeholder="Lucky Stop #13" maxLength={60} autoFocus />
                 </div>
                 <div style={s.field}>
@@ -1248,7 +1248,7 @@ export default function Stores() {
             <div>
               <div style={s.sectionLabelFirst}>Address</div>
               <div style={s.field}>
-                <label style={s.label} htmlFor="add-address">Street Address</label>
+                <label style={s.label} htmlFor="add-address">Street address</label>
                 <input id="add-address" style={s.input} value={addForm.address} onChange={(e) => { setAddForm((f) => ({ ...f, address: e.target.value })); setAddError(''); }} placeholder="123 Main St" maxLength={120} />
               </div>
               <div style={s.fieldRow}>
@@ -1261,16 +1261,16 @@ export default function Stores() {
                   <input id="add-state" style={s.input} value={addForm.state} onChange={(e) => { setAddForm((f) => ({ ...f, state: e.target.value })); setAddError(''); }} placeholder="TX" maxLength={2} />
                 </div>
                 <div style={s.field}>
-                  <label style={s.label} htmlFor="add-zip">ZIP Code</label>
+                  <label style={s.label} htmlFor="add-zip">ZIP code</label>
                   <input id="add-zip" style={s.input} value={addForm.zipCode} onChange={(e) => { setAddForm((f) => ({ ...f, zipCode: e.target.value })); setAddError(''); }} placeholder="75090" maxLength={10} />
                 </div>
               </div>
             </div>
 
             <div>
-              <div style={s.sectionLabelFirst}>Location Coordinates (optional)</div>
+              <div style={s.sectionLabelFirst}>Location coordinates (optional)</div>
               <div style={s.geocodeHint}>
-                Leave both empty for now and fill them in later from Edit Store - or enter them here. The app finds the nearest store from these.
+                Leave both empty for now and fill them in later from Edit store, or enter them here. The app finds the nearest store from these.
               </div>
               <div style={s.fieldRow}>
                 <div style={s.field}>
@@ -1285,7 +1285,7 @@ export default function Stores() {
             </div>
 
             <div>
-              <div style={s.sectionLabelFirst}>Platform Fee (optional)</div>
+              <div style={s.sectionLabelFirst}>Platform fee (optional)</div>
               <div style={s.geocodeHint}>Percent of cashback billed to this store. Leave empty for the default (10%).</div>
               <div style={s.field}>
                 <label style={s.label} htmlFor="add-fee">Fee %</label>
@@ -1294,25 +1294,24 @@ export default function Stores() {
             </div>
 
             <div style={s.noteBox}>
-              After adding the store, set its weekly hours and gas/diesel prices from its card, and assign staff from the Staff page - the readiness line on the card shows what is still missing.
+              After adding the store, set its weekly hours and gas/diesel prices from its card, and assign staff from the Staff page. The readiness line on the card shows what is still missing.
             </div>
 
             {addError && <div role="alert" style={s.errorBox}>{addError}</div>}
             <div style={s.modalActions}>
               <button type="button" style={s.cancelBtn} onClick={() => setShowAddStore(false)} disabled={addMutation.isPending}>Cancel</button>
               <button type="submit" style={s.saveBtn} disabled={addMutation.isPending}>
-                {addMutation.isPending ? 'Adding…' : 'Add Store'}
+                {addMutation.isPending ? 'Adding…' : 'Add store'}
               </button>
             </div>
           </form>
         </Modal>
       )}
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '32px 24px' },
 
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 12, flexWrap: 'wrap' },
   title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },

@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Check, X, Clock, MapPin, MessageSquare, Inbox } from 'lucide-react';
 import { offerRequestsApi } from '../../services/api';
 import { serverMessage } from '../../lib/apiError';
+import { categoryLabel } from '../../lib/categories';
 import { C, FONT, INPUT } from '../../lib/theme';
 import { Button, Card, Badge, Notice, EmptyState, Field, SectionTitle } from '../kit';
 import Modal from '../Modal';
@@ -19,7 +20,6 @@ import { CASHBACK_CAP, MAX_CENTS_PER_GALLON, pctText } from '../../lib/offerRule
 
 const TIERS = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND', 'PLATINUM'] as const;
 const tierName = (t: string) => t[0] + t.slice(1).toLowerCase();
-const catName = (c: string | null) => (c ? c.replace(/_/g, ' ').toLowerCase().replace(/^./, (x) => x.toUpperCase()) : 'Store-wide');
 
 const STATUS: Record<string, { label: string; tone: 'success' | 'danger' | 'neutral' | 'info' }> = {
   PENDING: { label: 'Waiting', tone: 'info' },
@@ -89,7 +89,7 @@ function RequestCard({ r, onApprove, onDecline }: { r: any; onApprove?: () => vo
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <Badge tone={st.tone}>{st.label}</Badge>
           <Badge icon={<MapPin size={12} />}>{r.store?.name ?? 'Store'}</Badge>
-          <Badge>{catName(r.category)}</Badge>
+          <Badge>{categoryLabel(r.category)}</Badge>
           {r.requires21 && <Badge tone="warning">21+</Badge>}
         </div>
         <h3 style={{ fontSize: FONT.section, fontWeight: 600, color: C.text, margin: '4px 0 0' }}>{r.title}</h3>
@@ -185,7 +185,7 @@ function ApproveModal({ request: r, onClose }: { request: any; onClose: () => vo
         <Field label="Title" htmlFor="req-title" required>
           <input id="req-title" className="ui-input" style={INPUT} value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
         </Field>
-        <Field label={`Bonus (${catName(r.category).toLowerCase()})`} htmlFor="req-bonus">
+        <Field label={`Bonus (${categoryLabel(r.category).toLowerCase()})`} htmlFor="req-bonus">
           {isCpg ? (
             <div style={row}><input id="req-bonus" type="number" min="0" step="0.5" max={MAX_CENTS_PER_GALLON} className="ui-input" style={{ ...INPUT, width: 120 }} value={cpg} onChange={(e) => setCpg(e.target.value)} /><span style={unit}>cents a gallon</span></div>
           ) : tiers ? (

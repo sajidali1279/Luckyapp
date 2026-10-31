@@ -29,7 +29,7 @@ import { canonicalPrice, priceProblem, priceChangePercent, BIG_PRICE_CHANGE_PERC
 import { Copy, Trash2, RotateCcw, Download, Upload } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { labelsCsv, downloadCsv, CsvCoverage } from '../utils/labelsCsv';
-import { PageHeader, Button, Tabs } from '../components/kit';
+import { Page, PageHeader, Button, Tabs } from '../components/kit';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -51,7 +51,7 @@ interface Label {
 interface LabelImpact { storeCopies: number; inheritingBase: number; ownPrice: number; salePrice: number; printed: number }
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-// Sentinel for the "Uncategorized" filter option — distinct from '' (no filter).
+// Sentinel for the "Uncategorized" filter option, distinct from '' (no filter).
 const UNCATEGORIZED = '__uncategorized__';
 
 // The swatch is each design's own frame colour on the printed label (utils/printLabels.ts), the same as the app shows
@@ -74,13 +74,13 @@ export default function Labels() {
   const [searchParams] = useSearchParams();
   type ViewMode = 'catalog' | 'store' | 'coverage' | 'health' | 'same' | 'deals';
   // A store manager uses this page too (on a PC). What the server keeps for HQ (a price for every store, removing an item, Coverage,
-  // Health, Same barcode, Deals, Import) is not offered to them: they get the Catalog (names, deals, designs) and By Store (their prices).
+  // Health, Same barcode, Deals, Import) is not offered to them: they get the Catalog (names, deals, designs) and By store (their prices).
   const isHQ = ['SUPER_ADMIN', 'DEV_ADMIN'].includes(useAuthStore(st => st.user?.role ?? ''));
   const validTabs: ViewMode[] = isHQ ? ['catalog', 'store', 'coverage', 'health', 'same', 'deals'] : ['catalog', 'store'];
   const initialTab = searchParams.get('tab') as ViewMode | null;
   const [viewMode, setViewMode] = useState<ViewMode>(initialTab && validTabs.includes(initialTab) ? initialTab : 'catalog');
 
-  // useState's initializer only runs on first mount — a same-route
+  // useState's initializer only runs on first mount: a same-route
   // navigation (e.g. clicking "Review at this store" from the Health tab)
   // changes searchParams without remounting this component, so the tab
   // needs to react to that change explicitly, not just read it once.
@@ -291,10 +291,10 @@ export default function Labels() {
   }
 
   // Catalog printing is a plain reference print at the base/chain-wide
-  // price — it never touches any store's StoreLabel or printedAt, matching
+  // price: it never touches any store's StoreLabel or printedAt, matching
   // how admin-web printing always worked before per-store pricing existed
   // (admin-created/printed labels were never tied to a specific store's
-  // queue). Store-scoped, tracked printing lives on the "By Store" tab.
+  // queue). Store-scoped, tracked printing lives on the "By store" tab.
   function runCatalogPrint(entries: PrintableLabelEntry[]) {
     const opened = printLabels(entries);
     if (opened) {
@@ -302,7 +302,7 @@ export default function Labels() {
       setQuantities({});
       setPriceOverrides({});
     } else {
-      toast.error('Print window was blocked - allow pop-ups and try again');
+      toast.error('The print window was blocked. Allow pop-ups for this site and try again.');
     }
   }
 
@@ -717,7 +717,7 @@ export default function Labels() {
   ) : '';
 
   return (
-    <div style={s.page}>
+    <Page>
       <ConfirmModal
         open={!!confirmDelete}
         title="Remove this item from every store?"
@@ -802,7 +802,7 @@ export default function Labels() {
 
       <ConfirmModal
         open={!!pendingBulkPrint}
-        title="Print This Many Labels?"
+        title="Print this many labels?"
         message={pendingBulkPrint ? `You're about to print ${pendingBulkPrint.length} labels (${pendingBulkPrint.reduce((sum, e) => sum + e.quantity, 0)} total copies) at their base/chain-wide price. Continue?` : ''}
         confirmLabel="Print"
         onConfirm={() => { if (pendingBulkPrint) runCatalogPrint(pendingBulkPrint); setPendingBulkPrint(null); }}
@@ -810,9 +810,9 @@ export default function Labels() {
       />
 
       {showModal && (
-        <Modal title={editingLabel ? 'Edit Label' : 'Add Label'} onClose={closeModal} busy={saveMutation.isPending} maxWidth={480}>
+        <Modal title={editingLabel ? 'Edit label' : 'Add label'} onClose={closeModal} busy={saveMutation.isPending} maxWidth={480}>
           <form style={m.form} onSubmit={e => { e.preventDefault(); handleSaveClick(); }} noValidate>
-            <label style={m.label} htmlFor="lbl-name">Product Name *</label>
+            <label style={m.label} htmlFor="lbl-name">Product name<span style={m.req}> (required)</span></label>
             <div style={{ position: 'relative' as const }}>
               <input
                 id="lbl-name"
@@ -837,7 +837,7 @@ export default function Labels() {
                 </div>
               )}
             </div>
-            <label style={m.label} htmlFor="lbl-price">Base Price *</label>
+            <label style={m.label} htmlFor="lbl-price">Base price<span style={m.req}> (required)</span></label>
             <div style={m.priceInputWrap}>
               <span style={m.priceInputDollar} aria-hidden="true">$</span>
               <input
@@ -862,7 +862,7 @@ export default function Labels() {
               style={m.input}
               value={formDealText}
               onChange={e => { setFormDealText(e.target.value); setFormError(''); }}
-              placeholder='e.g. "2 for $5" or "BOGO" - shown alongside the price above'
+              placeholder='e.g. "2 for $5" or "BOGO", shown next to the price above'
               maxLength={20}
             />
             {dealHint && 'left' in dealHint && (
@@ -889,7 +889,7 @@ export default function Labels() {
               style={m.input}
               value={formBarcode}
               onChange={e => { setFormBarcode(e.target.value); setFormError(''); }}
-              placeholder="Scan or type the product's UPC/EAN - for order lookups, not tied to the price/deal above"
+              placeholder="Scan or type the product's UPC/EAN: for order lookups, not tied to the price/deal above"
               maxLength={40}
               aria-invalid={!!barcodeClash}
             />
@@ -922,7 +922,7 @@ export default function Labels() {
             {existingForNew && (
               <div role="status" style={m.hint}>
                 This barcode is already "{existingForNew.productName}"{existingForNew.priceText ? ` at $${existingForNew.priceText}` : ', with no price yet'}. One barcode is one item, so no second item is made.
-                {!isHQ ? ' HQ sets its price for every store: to change the price at your store, find it on By Store.'
+                {!isHQ ? ' HQ sets its price for every store: to change the price at your store, find it on By store.'
                   : sameAsExisting ? ' It already has this price.' : typedPrice ? ` Saving changes its price to $${typedPrice} for every store (a store with its own price keeps it).` : ''}
               </div>
             )}
@@ -987,7 +987,7 @@ export default function Labels() {
                 style={{ ...m.saveBtn, ...(!formProductName.trim() || !priceOk || !!barcodeClash || sameAsExisting || (!!existingForNew && !isHQ) || saveMutation.isPending ? m.saveBtnDim : {}) }}
                 disabled={!formProductName.trim() || !priceOk || !!barcodeClash || sameAsExisting || (!!existingForNew && !isHQ) || saveMutation.isPending}
               >
-                {saveMutation.isPending ? 'Saving…' : existingForNew ? `Change its price` : 'Save Label'}
+                {saveMutation.isPending ? 'Saving…' : existingForNew ? `Change its price` : 'Save label'}
               </button>
             </div>
           </form>
@@ -1025,7 +1025,7 @@ export default function Labels() {
                 {exporting ? 'Exporting…' : 'Export'}
               </Button>
               {isHQ && <Button icon={<Upload />} onClick={() => setShowImport(true)} title="Bring back an edited export: see every change, then apply">Import</Button>}
-              <Button variant="primary" icon={<Plus />} onClick={openAddModal}>Add Label</Button>
+              <Button variant="primary" icon={<Plus />} onClick={openAddModal}>Add label</Button>
             </>
           )}
         />
@@ -1037,7 +1037,7 @@ export default function Labels() {
           onChange={setViewMode}
           tabs={([
             { value: 'catalog', label: 'Catalog' },
-            { value: 'store', label: 'By Store' },
+            { value: 'store', label: 'By store' },
             { value: 'coverage', label: 'Coverage' },
             { value: 'health', label: 'Health' },
             { value: 'same', label: 'Same barcode', ...(sameCount ? { count: sameCount } : {}) },
@@ -1079,7 +1079,7 @@ export default function Labels() {
                 )}
                 {(availableCategories.length > 0 || hasUncategorized) && (
                   <select style={s.filterSelect} aria-label="Filter by category" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-                    <option value="">All Categories</option>
+                    <option value="">All categories</option>
                     {availableCategories.map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
@@ -1136,10 +1136,8 @@ export default function Labels() {
                       return (
                         <TableRow key={label.id} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                           <TableCell style={{ ...s.td, ...(rowChanged ? s.rowChangedMark : {}) }}>
-                            {label.priceText != null ? (
+                            {label.priceText != null && (
                               <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} aria-label={`Select ${label.productName}`} />
-                            ) : (
-                              <span title="Set a price before this can be printed" style={{ color: TEXT_MUTED, fontSize: 16 }}>-</span>
                             )}
                           </TableCell>
                           <TableCell style={{ ...s.td, minWidth: 250 }}>
@@ -1166,7 +1164,7 @@ export default function Labels() {
                                 normalize={v => { const c = canonicalPrice(v); return c ? { value: c } : { error: v.trim() ? (priceProblem(v) || 'Enter a price like 2.99') : 'A label needs a price to print.' }; }}
                               />
                             ) : (
-                              !isHQ ? <span title="HQ sets the price for every store. Set your store's price on By Store." style={{ color: TEXT_MUTED, fontSize: 13 }}>No price yet</span> : <QuickPrice
+                              !isHQ ? <span title="HQ sets the price for every store. Set your store's price on By store." style={{ color: TEXT_MUTED, fontSize: 13 }}>No price yet</span> : <QuickPrice
                                 label={label}
                                 staged={cellValue(label, 'priceText')}
                                 disabled={savingAll}
@@ -1270,13 +1268,12 @@ export default function Labels() {
           </div>
         )}
       </div>
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, CSSProperties> = {
-  page: { minHeight: '100vh', background: 'var(--background)', padding: '32px 0' },
-  inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 20 },
+  inner: { display: 'flex', flexDirection: 'column', gap: 20 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
   pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
@@ -1394,6 +1391,7 @@ const m: Record<string, CSSProperties> = {
   pct: { color: TEXT_MUTED },
   pctBig: { color: '#a51b28', fontWeight: 700 },
   label: { fontSize: 13, fontWeight: 700, color: '#111827', marginTop: 6 },
+  req: { color: TEXT_MUTED, fontWeight: 400 },
   hint: { fontSize: 12, color: TEXT_MUTED, marginTop: 2 },
   dealChip: { fontSize: 12, fontWeight: 700, color: PRIMARY, background: '#eef2ff', border: `1px solid ${PRIMARY}`, borderRadius: 999, padding: '3px 10px', cursor: 'pointer' },
   similarBox: { display: 'flex', flexDirection: 'column' as const, gap: 6, padding: '8px 10px', borderRadius: 8, background: '#f6f8fb', border: '1px solid #e4e7ec' },

@@ -6,9 +6,11 @@ import { schedulingApi, storesApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ErrorState from '../components/ErrorState';
 import ConfirmModal from '../components/ConfirmModal';
+import Modal from '../components/Modal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
+import { Button, Field, Notice } from '../components/kit';
 import Glyph from '../components/Glyph';
 import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
@@ -38,10 +40,12 @@ const DAYS: { key: string; label: string }[] = [
 ];
 
 const ALL_SHIFTS: { key: string; label: string; time: string; color: string }[] = [
-  { key: 'OPENING', label: 'Opening', time: '06:00–14:00', color: '#8a5300' },
-  { key: 'MIDDLE',  label: 'Middle',  time: '10:00–18:00', color: '#1a7f45' },
-  { key: 'CLOSING', label: 'Closing', time: '14:00–22:00', color: PRIMARY },
+  { key: 'OPENING', label: 'Opening', time: '06:00 to 14:00', color: '#8a5300' },
+  { key: 'MIDDLE',  label: 'Middle',  time: '10:00 to 18:00', color: '#1a7f45' },
+  { key: 'CLOSING', label: 'Closing', time: '14:00 to 22:00', color: PRIMARY },
 ];
+
+const REQUEST_STATUS_LABEL: Record<string, string> = { PENDING: 'Pending', APPROVED: 'Approved', DENIED: 'Denied' };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -58,7 +62,7 @@ export default function Scheduling() {
 
   // ── Queries ──
   // getAccessible() returns every store for SuperAdmin+, and just the
-  // caller's own store(s) for a Store Manager — including a Store Manager
+  // caller's own store(s) for a Store Manager, including a Store Manager
   // with more than one assigned store, which getOne(storeIds[0]) (the old
   // approach here) could never see past.
   const { data: storesData, isLoading: storesLoading, isError: storesError, refetch: refetchStores } = useQuery({
@@ -67,7 +71,7 @@ export default function Scheduling() {
   });
   const stores: any[] = storesData?.data?.data || [];
 
-  // A Store Manager doesn't need to pick a store the way SuperAdmin+ does —
+  // A Store Manager doesn't need to pick a store the way SuperAdmin+ does:
   // auto-select their first one. They can still switch via the sidebar below
   // if they manage more than one.
   useEffect(() => {
@@ -111,7 +115,7 @@ export default function Scheduling() {
     refetchInterval: 60000,
   });
 
-  // Per-store pending-request breakdown — only relevant once the multi-store
+  // Per-store pending-request breakdown: only relevant once the multi-store
   // sidebar below is actually visible (a single-store manager has nowhere
   // else it could be). Same combined number as the sidebar nav's own
   // Scheduling badge, just split out per store so it's obvious which one
@@ -237,7 +241,7 @@ export default function Scheduling() {
 
   return (
     <div style={s.page} className="ui-split">
-      {/* ── Sidebar - hidden only when there's nothing to pick: a single-store
+      {/* ── Sidebar, hidden only when there's nothing to pick: a single-store
           manager is auto-selected above. A Store Manager assigned to more
           than one store still needs this to switch between them. ── */}
       {(!isStoreManager || stores.length > 1) && <div style={s.sidebar} className="ui-split-list">
@@ -290,7 +294,7 @@ export default function Scheduling() {
         {!selectedStoreId ? (
           <div style={s.emptyState}>
             <div style={s.emptyEmoji}><Glyph e="📅" size={28} color="#5a6472" /></div>
-            <div style={s.emptyTitle}>Select a Store</div>
+            <div style={s.emptyTitle}>Select a store</div>
             <div style={s.emptyDesc}>Choose a store from the sidebar to manage its schedule.</div>
           </div>
         ) : (
@@ -305,7 +309,7 @@ export default function Scheduling() {
                   {selectedStore?.city}, {selectedStore?.state}
                 </div>
               </div>
-              {/* Shift toggle - SuperAdmin+ only (requires PATCH /stores/:storeId) */}
+              {/* Shift toggle: SuperAdmin+ only (requires PATCH /stores/:storeId) */}
               {!isStoreManager && (
                 <div style={s.shiftToggle}>
                   <button
@@ -342,7 +346,7 @@ export default function Scheduling() {
               <div style={s.vacancyBanner}>
                 <span style={s.vacancyBannerIcon}><Glyph e="⚠️" size={18} color="#8a5300" /></span>
                 <div style={{ flex: 1 }}>
-                  <strong>{selectedStoreVacancies.vacantCount} open shift{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong> - {' '}
+                  <strong>{selectedStoreVacancies.vacantCount} open shift{selectedStoreVacancies.vacantCount !== 1 ? 's' : ''}</strong>:{' '}
                   {selectedStoreVacancies.vacancies.slice(0, 4).map((v: any) => `${v.dayOfWeek} ${v.shiftType.toLowerCase()}`).join(', ')}
                   {selectedStoreVacancies.vacancies.length > 4 ? ` +${selectedStoreVacancies.vacancies.length - 4} more` : ''}
                 </div>
@@ -353,7 +357,7 @@ export default function Scheduling() {
               <>
                 {/* Today's Roster */}
                 <div style={s.section}>
-                  <h2 style={s.sectionTitle}>Today's Roster {todayDay ? `(${todayDay})` : ''}</h2>
+                  <h2 style={s.sectionTitle}>Today's roster {todayDay ? `(${todayDay})` : ''}</h2>
                   {rosterError ? (
                     <ErrorState message="Could not load who is working today." onRetry={() => refetchRoster()} />
                   ) : roster.length === 0 ? (
@@ -375,7 +379,7 @@ export default function Scheduling() {
                             <div style={{ ...s.rosterShiftTag, backgroundColor: (shift?.color || '#d5dae1') + '18', color: shift?.color || '#5a6472', borderColor: (shift?.color || '#d5dae1') + '40' }}>
                               {shift?.label}
                             </div>
-                            <div style={s.rosterTime}>{r.startTime} – {r.endTime}</div>
+                            <div style={s.rosterTime}>{r.startTime} to {r.endTime}</div>
                           </div>
                         );
                       })}
@@ -385,7 +389,7 @@ export default function Scheduling() {
 
                 {/* Weekly Grid */}
                 <div style={s.section}>
-                  <h2 style={s.sectionTitle}>Weekly Template</h2>
+                  <h2 style={s.sectionTitle}>Weekly template</h2>
                   {scheduleError ? (
                     <ErrorState onRetry={refetchSchedule} />
                   ) : scheduleLoading ? (
@@ -444,7 +448,7 @@ export default function Scheduling() {
                                           setAddModal({ day: day.key, shiftType: shift.key });
                                           setSelectedEmployeeId('');
                                         }}
-                                        title={noEmployees ? 'No staff assigned to this store yet - add staff first' : available.length === 0 ? 'All employees already scheduled this day' : 'Add employee to this shift'}
+                                        title={noEmployees ? 'No staff assigned to this store yet. Add staff first.' : available.length === 0 ? 'All employees already scheduled this day' : 'Add employee to this shift'}
                                       >
                                         +
                                       </button>}
@@ -466,7 +470,7 @@ export default function Scheduling() {
 
             {activeTab === 'requests' && (
               <div style={s.section}>
-                <h2 style={s.sectionTitle}>Shift Requests</h2>
+                <h2 style={s.sectionTitle}>Shift requests</h2>
 
                 {/* Pending */}
                 <h3 style={s.subTitle}>Pending ({pendingRequests.length})</h3>
@@ -511,8 +515,6 @@ export default function Scheduling() {
         )}
       </div>
 
-      {/* ── Add Shift Modal ── */}
-
       <ConfirmModal
         open={confirmTwoShifts}
         title="Switch to 2 shifts?"
@@ -531,51 +533,52 @@ export default function Scheduling() {
         onCancel={() => setConfirmTwoShifts(false)}
       />
 
+      {/* ── Add Shift Modal ── */}
       {addModal && (
-        <div style={s.modalOverlay} onClick={() => setAddModal(null)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 style={s.modalTitle}>
-              Assign Employee - {DAYS.find((d) => d.key === addModal.day)?.label},{' '}
-              {ALL_SHIFTS.find((sh) => sh.key === addModal.shiftType)?.label}{' '}
-              ({ALL_SHIFTS.find((sh) => sh.key === addModal.shiftType)?.time})
-            </h3>
-            {allEmployees.length === 0 ? (
-              <div style={{ padding: '12px 16px', background: '#fdf6e8', borderRadius: 8, fontSize: 15, color: '#8a5300' }}>
-                No staff are assigned to this store yet. Go to <strong>Staff</strong> to create employee accounts and assign them to this store first.
-              </div>
-            ) : getAvailableEmployees(addModal.day).length === 0 ? (
-              <div style={{ padding: '12px 16px', background: '#e2e3e5', borderRadius: 8, fontSize: 15, color: '#374151' }}>
-                All employees are already scheduled on this day. Each employee can only have one shift per day.
-              </div>
-            ) : (
-              <>
-                <label style={s.label}>Select Employee</label>
-                <select
-                  style={s.select}
-                  value={selectedEmployeeId}
-                  onChange={(e) => setSelectedEmployeeId(e.target.value)}
-                >
-                  <option value="">-- Choose an employee --</option>
-                  {getAvailableEmployees(addModal.day).map((emp: any) => (
-                    <option key={emp.id} value={emp.id}>
-                      {emp.name || emp.phone}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-            <div style={s.modalActions}>
-              <button
-                style={s.saveBtn}
-                onClick={handleAddShift}
-                disabled={!selectedEmployeeId || assignMutation.isPending}
+        <Modal
+          title="Assign an employee"
+          subtitle={`${DAYS.find((d) => d.key === addModal.day)?.label}, ${ALL_SHIFTS.find((sh) => sh.key === addModal.shiftType)?.label} shift (${ALL_SHIFTS.find((sh) => sh.key === addModal.shiftType)?.time})`}
+          onClose={() => setAddModal(null)}
+          busy={assignMutation.isPending}
+          maxWidth={420}
+        >
+          {allEmployees.length === 0 ? (
+            <Notice tone="warning">
+              No staff are assigned to this store yet. Go to <strong>Staff</strong> to create employee accounts and assign them to this store first.
+            </Notice>
+          ) : getAvailableEmployees(addModal.day).length === 0 ? (
+            <Notice tone="neutral">
+              All employees are already scheduled on this day. Each employee can only have one shift per day.
+            </Notice>
+          ) : (
+            <Field label="Employee" htmlFor="sch-employee">
+              <select
+                id="sch-employee"
+                className="ui-input"
+                style={INPUT}
+                value={selectedEmployeeId}
+                onChange={(e) => setSelectedEmployeeId(e.target.value)}
               >
-                {assignMutation.isPending ? 'Assigning...' : 'Assign Shift'}
-              </button>
-              <button style={s.cancelBtn} onClick={() => setAddModal(null)}>Cancel</button>
-            </div>
+                <option value="">Choose an employee</option>
+                {getAvailableEmployees(addModal.day).map((emp: any) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name || emp.phone}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Button onClick={() => setAddModal(null)} disabled={assignMutation.isPending}>Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={handleAddShift}
+              disabled={!selectedEmployeeId || assignMutation.isPending}
+            >
+              {assignMutation.isPending ? 'Assigning…' : 'Assign shift'}
+            </Button>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
@@ -612,17 +615,17 @@ function RequestCard({
         </div>
         {/* Type badge */}
         <span style={{ ...s.requestTypeBadge, background: typeColor + '15', color: typeColor }}>
-          {isTimeOff ? 'Time Off' : 'Fill-In'}
+          {isTimeOff ? 'Time off' : 'Fill-in'}
         </span>
         {/* Status chip */}
         <span style={{ ...s.statusBadge, background: statusColor + '18', color: statusColor, borderColor: statusColor + '40' }}>
-          {request.status}
+          {REQUEST_STATUS_LABEL[request.status] ?? request.status}
         </span>
       </div>
       <div style={s.requestDetails}>
         <span>{fmtDate(request.date)}</span>
         <span style={s.dot}>·</span>
-        <span>{request.shiftType}</span>
+        <span>{ALL_SHIFTS.find((sh) => sh.key === request.shiftType)?.label ?? request.shiftType}</span>
         {request.notes && (
           <>
             <span style={s.dot}>·</span>
@@ -831,7 +834,7 @@ const s: Record<string, React.CSSProperties> = {
   },
   statusBadge: {
     borderRadius: 8, padding: '3px 10px', fontSize: 12, fontWeight: 700,
-    textTransform: 'uppercase', border: '1px solid',
+    border: '1px solid',
   },
   requestDetails: { display: 'flex', gap: 10, fontSize: 15, color: '#374151', flexWrap: 'wrap', fontWeight: 600 },
   dot: { color: '#e4e7ec' },
@@ -848,37 +851,6 @@ const s: Record<string, React.CSSProperties> = {
     border: '1px solid #f3cdd1',
     borderRadius: 10, padding: '8px 20px', fontWeight: 700,
     cursor: 'pointer', fontSize: 15,
-  },
-
-  // Modal
-  modalOverlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 200, backdropFilter: 'blur(2px)',
-  },
-  modal: {
-    background: '#fff', borderRadius: 20, padding: 28,
-    width: 420, maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-    display: 'flex', flexDirection: 'column', gap: 14,
-  },
-  modalTitle: { margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' },
-  label: { fontWeight: 700, fontSize: 14, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' },
-  select: {
-    padding: '11px 14px', borderRadius: 10,
-    border: '1.5px solid #e4e7ec', fontSize: 14, width: '100%',
-    boxSizing: 'border-box' as const, background: '#f7f8fa', color: '#111827',
-  },
-  modalActions: { display: 'flex', gap: 10, marginTop: 4 },
-  saveBtn: {
-    background: '#17663a', color: '#fff', border: 'none',
-    borderRadius: 10, padding: '11px 24px', fontWeight: 700,
-    cursor: 'pointer', fontSize: 14,
-    boxShadow: '0 4px 12px rgba(15,81,50,0.3)',
-  },
-  cancelBtn: {
-    background: '#f1f3f6', color: TEXT_MUTED,
-    border: '1.5px solid #e4e7ec', borderRadius: 10,
-    padding: '11px 24px', fontWeight: 700, cursor: 'pointer', fontSize: 14,
   },
 
   // Empty / loading

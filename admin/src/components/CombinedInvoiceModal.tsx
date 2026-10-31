@@ -1,9 +1,15 @@
+import { useId, useRef } from 'react';
 import { Table, TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell } from './ui/table';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { BillNotes, fmt$, fmtPct } from '../utils/billingFormat';
 import Glyph from '../components/Glyph';
+import { useDialog } from '../hooks/useDialog';
 
 export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClose: () => void }) {
+  const titleId = useId();
+  const numId = useId();
+  const ref = useRef<HTMLDivElement>(null);
+  useDialog(true, ref, onClose, false);
   const invNum = `INV-${inv.period.replace('-', '')}-ALL`;
   const stores: any[] = [...inv.stores].sort((a: any, b: any) => (a.store?.name ?? '').localeCompare(b.store?.name ?? ''));
   const isExtra = (r: any) => r.billingType === 'CUSTOM';
@@ -72,7 +78,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
 
   return (
     <div style={inv2.overlay} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={inv2.paper}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={`${titleId} ${numId}`} tabIndex={-1} style={inv2.paper}>
         {/* Screen header */}
         <div style={inv2.header}>
           <div>
@@ -80,8 +86,8 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
             <div style={inv2.headerSub}>Gas Station Loyalty Platform</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={inv2.invTitle}>INVOICE</div>
-            <div style={inv2.invNum}>{invNum}</div>
+            <h2 id={titleId} style={inv2.invTitle}>Invoice</h2>
+            <div id={numId} style={inv2.invNum}>{invNum}</div>
           </div>
         </div>
 
@@ -95,20 +101,20 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
           {/* Meta */}
           <div style={inv2.metaRow}>
             <div style={inv2.metaBox}>
-              <div style={inv2.metaLabel}>Bill To</div>
-              <div style={inv2.metaValue}>Lucky Stop - All Stores</div>
-              <div style={inv2.metaSub}>{stores.length} locations - consolidated invoice</div>
+              <div style={inv2.metaLabel}>Bill to</div>
+              <div style={inv2.metaValue}>Lucky Stop, all stores</div>
+              <div style={inv2.metaSub}>{stores.length} locations, consolidated invoice</div>
             </div>
             <div style={inv2.metaBox}>
-              <div style={inv2.metaLabel}>Invoice Details</div>
+              <div style={inv2.metaLabel}>Invoice details</div>
               <div style={inv2.metaDetail}><span>Invoice #</span><strong style={{ fontFamily: 'monospace' }}>{invNum}</strong></div>
-              <div style={inv2.metaDetail}><span>Issue Date</span><span>{issueDate}</span></div>
-              <div style={inv2.metaDetail}><span>Billing Period</span><span>{periodStart} – {periodEnd}</span></div>
-              <div style={inv2.metaDetail}><span>Stores Covered</span><span>{stores.length}</span></div>
+              <div style={inv2.metaDetail}><span>Issue date</span><span>{issueDate}</span></div>
+              <div style={inv2.metaDetail}><span>Billing period</span><span>{periodStart} to {periodEnd}</span></div>
+              <div style={inv2.metaDetail}><span>Stores covered</span><span>{stores.length}</span></div>
               <div style={inv2.metaDetail}>
                 <span>Status</span>
                 <span style={inv.isPaid ? inv2.paidTag : inv2.unpaidTag}>
-                  {inv.isPaid ? '✓ ALL PAID' : 'OUTSTANDING'}
+                  {inv.isPaid ? '✓ All paid' : 'Outstanding'}
                 </span>
               </div>
             </div>
@@ -116,18 +122,18 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
 
           {/* Summary cards */}
           <div style={inv2.summaryRow}>
-            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Total Transactions</div><div style={inv2.summaryValue}>{inv.totalTxns}</div></div>
-            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Purchase Volume</div><div style={inv2.summaryValue}>{fmt$(inv.totalVolume)}</div></div>
-            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Subscription Fees</div><div style={inv2.summaryValue}>{fmt$(totalSubscription)}</div></div>
+            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Total transactions</div><div style={inv2.summaryValue}>{inv.totalTxns}</div></div>
+            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Purchase volume</div><div style={inv2.summaryValue}>{fmt$(inv.totalVolume)}</div></div>
+            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Subscription fees</div><div style={inv2.summaryValue}>{fmt$(totalSubscription)}</div></div>
             <div style={inv2.summaryCard}>
-              <div style={inv2.summaryLabel}>Platform Fee</div>
+              <div style={inv2.summaryLabel}>Platform fee</div>
               <div style={{ ...inv2.summaryValue, color: '#a51b28' }}>{fmt$(totalDevCut)}</div>
               {totalCashback > 0 && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>{fmtPct(totalDevCut / totalCashback)} of cashback</div>}
             </div>
-            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Cashback Covered</div><div style={{ ...inv2.summaryValue, color: '#8a5300' }}>{fmt$(totalCashback)}</div></div>
+            <div style={inv2.summaryCard}><div style={inv2.summaryLabel}>Cashback covered</div><div style={{ ...inv2.summaryValue, color: '#8a5300' }}>{fmt$(totalCashback)}</div></div>
             {totalExtraCharges > 0 && (
               <div style={inv2.summaryCard}>
-                <div style={inv2.summaryLabel}>Extra Charges</div>
+                <div style={inv2.summaryLabel}>Extra charges</div>
                 <div style={{ ...inv2.summaryValue, color: '#4f6d8f' }}>{fmt$(totalExtraCharges)}</div>
                 <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 2 }}>not part of the platform fee</div>
               </div>
@@ -142,10 +148,10 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Txns</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Volume</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Subscription</TableHead>
-                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Platform Fee</TableHead>
-                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Extra Charge</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Platform fee</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Extra charge</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Cashback</TableHead>
-                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Total Owed</TableHead>
+                <TableHead style={{ ...inv2.tableTh, textAlign: 'right' as const }}>Total owed</TableHead>
                 <TableHead style={{ ...inv2.tableTh, textAlign: 'center' as const }}>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -157,16 +163,17 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
                 return (
                   <TableRow key={r.id} style={i % 2 === 1 ? { background: '#f7f8fa' } : undefined}>
                     <TableCell style={inv2.tableTd}>
-                      <div style={{ fontWeight: 700 }}>{r.store?.name ?? 'All Stores (Chain-wide)'}</div>
+                      <div style={{ fontWeight: 700 }}>{r.store?.name ?? 'All stores (chain-wide)'}</div>
                       {r.store?.city && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 1 }}>{r.store.city}</div>}
                       {isManual && <div style={{ fontSize: 13, color: TEXT_MUTED, marginTop: 1 }}>{manualDescription || 'Manual charge'}</div>}
                     </TableCell>
+                    {/* a line that does not apply to this row is left empty */}
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.txCount ?? 0}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : ' - '}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : <span style={{ color: TEXT_MUTED }}> - </span>}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#a51b28', fontWeight: 600 }}>{isManual ? <span style={{ color: TEXT_MUTED }}> - </span> : fmt$(n?.devCutEarned ?? 0)}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#4f6d8f', fontWeight: 600 }}>{isManual ? fmt$(r.amount) : <span style={{ color: TEXT_MUTED }}> - </span>}</TableCell>
-                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#8a5300' }}>{n ? fmt$(n.customerCashback) : ' - '}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n ? fmt$(n.purchaseVolume) : ''}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right' }}>{n?.subscriptionFee ? fmt$(n.subscriptionFee) : ''}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#a51b28', fontWeight: 600 }}>{isManual ? '' : fmt$(n?.devCutEarned ?? 0)}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#4f6d8f', fontWeight: 600 }}>{isManual ? fmt$(r.amount) : ''}</TableCell>
+                    <TableCell style={{ ...inv2.tableTd, textAlign: 'right', color: '#8a5300' }}>{n ? fmt$(n.customerCashback) : ''}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'right', fontWeight: 700 }}>{fmt$(n?.totalAmountOwed ?? r.amount)}</TableCell>
                     <TableCell style={{ ...inv2.tableTd, textAlign: 'center' }}>
                       <span style={r.isPaid ? inv2.paidTag : inv2.unpaidTag}>{r.isPaid ? '✓' : '⏳'}</span>
@@ -189,7 +196,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
               </TableRow>
               <TableRow style={{ background: PRIMARY }}>
                 <TableCell colSpan={7} style={{ ...inv2.tableTd, color: '#fff', fontWeight: 700, fontSize: 15, textAlign: 'right' }}>
-                  Grand Total - All Stores
+                  Grand total, all stores
                 </TableCell>
                 <TableCell style={{ ...inv2.tableTd, color: '#fff', fontWeight: 700, fontSize: 16 }}>{fmt$(grandTotal)}</TableCell>
                 <TableCell style={inv2.tableTd}></TableCell>
@@ -202,7 +209,7 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
             <div style={{ background: '#edf7f0', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}>✓</span>
               <div>
-                <div style={{ fontWeight: 700, color: '#17663a', fontSize: 15 }}>All Stores - Payment Confirmed</div>
+                <div style={{ fontWeight: 700, color: '#17663a', fontSize: 15 }}>All stores: payment confirmed</div>
                 {inv.paidAt && <div style={{ fontSize: 15, color: '#047857', marginTop: 2 }}>Paid on {new Date(inv.paidAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>}
               </div>
             </div>
@@ -210,9 +217,9 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
             <div style={{ background: '#fdf6e8', borderRadius: 10, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span style={{ fontSize: 24 }}><Glyph e="⏳" size={28} color="#5a6472" /></span>
               <div>
-                <div style={{ fontWeight: 700, color: '#8a5300', fontSize: 15 }}>Payment Outstanding</div>
+                <div style={{ fontWeight: 700, color: '#8a5300', fontSize: 15 }}>Payment outstanding</div>
                 <div style={{ fontSize: 15, color: '#8a5300', marginTop: 2 }}>
-                  {stores.filter((r: any) => !r.isPaid).length} of {stores.length} stores unpaid - use "Mark Paid" to confirm receipt
+                  {stores.filter((r: any) => !r.isPaid).length} of {stores.length} stores unpaid. Use "Mark paid" to confirm receipt.
                 </div>
               </div>
             </div>
@@ -225,8 +232,8 @@ export default function CombinedInvoiceModal({ inv, onClose }: { inv: any; onClo
 
         {/* Actions */}
         <div style={inv2.actions}>
-          <button style={inv2.printBtn} onClick={handlePrint}>Print / Save PDF</button>
-          <button style={inv2.closeBtn} onClick={onClose}>✕ Close</button>
+          <button type="button" style={inv2.printBtn} onClick={handlePrint}>Print or save as PDF</button>
+          <button type="button" style={inv2.closeBtn} onClick={onClose} aria-label="Close">✕ Close</button>
         </div>
       </div>
     </div>
@@ -237,24 +244,25 @@ const inv2: Record<string, React.CSSProperties> = {
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
     zIndex: 300, display: 'flex', alignItems: 'flex-start',
-    justifyContent: 'center', padding: '32px 20px', overflowY: 'auto',
+    justifyContent: 'center', padding: 'clamp(16px, 4vw, 32px) clamp(12px, 3vw, 20px)', overflowY: 'auto',
   },
   paper: {
     background: '#fff', borderRadius: 12, width: '100%',
-    boxShadow: '0 24px 64px rgba(0,0,0,0.28)', padding: '40px',
-    position: 'relative', flexShrink: 0,
+    boxShadow: '0 24px 64px rgba(0,0,0,0.28)', padding: 'clamp(16px, 4vw, 40px)',
+    position: 'relative', flexShrink: 0, outline: 'none', boxSizing: 'border-box',
   },
   header: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12,
     marginBottom: 32, paddingBottom: 24, borderBottom: '2px solid #1D3557',
   },
   headerBrand: { fontSize: 22, fontWeight: 700, color: PRIMARY },
   headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 4 },
-  invTitle: { fontSize: 32, fontWeight: 700, color: PRIMARY, letterSpacing: 2 },
+  invTitle: { margin: 0, fontSize: 32, fontWeight: 700, color: PRIMARY, letterSpacing: 2, textTransform: 'uppercase' },
   invNum: { fontSize: 15, color: TEXT_MUTED, marginTop: 4, fontFamily: 'monospace' },
 
-  metaRow: { display: 'flex', gap: 20, marginBottom: 24 },
-  metaBox: { flex: 1, background: '#f7f8fa', borderRadius: 10, padding: '16px 20px' },
+  // the two boxes sit side by side, and stack on a phone
+  metaRow: { display: 'flex', flexWrap: 'wrap', gap: 20, marginBottom: 24 },
+  metaBox: { flex: '1 1 240px', minWidth: 0, background: '#f7f8fa', borderRadius: 10, padding: '16px 20px' },
   metaLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 10 },
   metaValue: { fontSize: 17, fontWeight: 700, color: PRIMARY },
   metaSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 3 },
@@ -271,7 +279,7 @@ const inv2: Record<string, React.CSSProperties> = {
   tableTh: { background: PRIMARY, color: '#fff', padding: '10px 12px', fontSize: 13, fontWeight: 700, textAlign: 'left' as const },
   tableTd: { padding: '9px 12px', fontSize: 15, borderBottom: '1px solid #e4e7ec', color: PRIMARY, verticalAlign: 'middle' as const },
 
-  actions: { display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e4e7ec' },
+  actions: { display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10, paddingTop: 20, marginTop: 8, borderTop: '1px solid #e4e7ec' },
   printBtn: { padding: '10px 22px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   closeBtn: { padding: '10px 22px', background: '#e4e7ec', color: '#374151', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
 };

@@ -5,7 +5,7 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader } from '../components/kit';
+import { Page, PageHeader } from '../components/kit';
 import Glyph from '../components/Glyph';
 import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
@@ -59,7 +59,7 @@ export default function LeaderboardPage() {
   const eom: EmployeeEntry | undefined = employees.find((e: EmployeeEntry) => e.isEmployeeOfMonth);
 
   return (
-    <div style={s.page}>
+    <Page>
       <div style={s.inner}>
 
         {/* Header */}
@@ -71,7 +71,7 @@ export default function LeaderboardPage() {
           <div style={s.panel}>
             <div style={s.panelHeader}>
               <div>
-                <div style={s.panelTitle}>Customer Rankings</div>
+                <div style={s.panelTitle}>Customer rankings</div>
                 <div style={s.panelSub}>Ranked by lifetime points earned</div>
               </div>
               <select
@@ -101,7 +101,7 @@ export default function LeaderboardPage() {
                 <Table style={s.table}>
                   <TableHeader>
                     <TableRow>
-                      {['Rank', 'Name', 'Points Earned'].map(h => (
+                      {['Rank', 'Name', 'Points earned'].map(h => (
                         <TableHead key={h} style={s.th}>{h}</TableHead>
                       ))}
                     </TableRow>
@@ -132,7 +132,7 @@ export default function LeaderboardPage() {
           <div style={s.panel}>
             <div style={s.panelHeader}>
               <div>
-                <div style={s.panelTitle}>Employee Ratings</div>
+                <div style={s.panelTitle}>Employee ratings</div>
                 <div style={s.panelSub}>
                   {empStoreName ? `Showing ${empStoreName}` : 'Select a store to view ratings'}
                 </div>
@@ -154,7 +154,7 @@ export default function LeaderboardPage() {
               <div style={s.eomCard}>
                 <span style={{ fontSize: 28 }}><Glyph e="🏅" size={28} color="#5a6472" /></span>
                 <div style={{ flex: 1 }}>
-                  <div style={s.eomLabel}>Employee of the Month</div>
+                  <div style={s.eomLabel}>Employee of the month</div>
                   <div style={s.eomName}>{eom.firstName}</div>
                   <div style={s.eomStats}>
                     <Stars rating={eom.avgRating} size={16} />
@@ -226,13 +226,12 @@ export default function LeaderboardPage() {
 
         </div>
       </div>
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { minHeight: '100vh', background: 'var(--background)', padding: '32px 0' },
-  inner: { padding: '0 24px', display: 'flex', flexDirection: 'column', gap: 24 },
+  inner: { display: 'flex', flexDirection: 'column', gap: 24 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },

@@ -6,7 +6,7 @@ import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader } from '../components/kit';
+import { Page, PageHeader, EmptyState } from '../components/kit';
 
 function fmt$(n: number) { return `$${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function fmtPct(r: number) { return `${(r * 100).toFixed(1)}%`; }
@@ -37,22 +37,22 @@ export default function SuperAdminBilling() {
   const totalPaid = invoices.reduce((s: number, i: any) =>
     s + i.stores.filter((r: any) => r.isPaid).reduce((a: number, r: any) => a + r.amount, 0), 0);
   // Unpaid-first so the invoice(s) actually needing action aren't buried
-  // below already-settled ones — matches the "Unpaid Total" card above it.
+  // below already-settled ones; matches the "Unpaid Total" card above it.
   const sortedInvoices = [...invoices].sort((a, b) => Number(a.isPaid) - Number(b.isPaid));
 
   return (
-    <div style={s.page}>
-      <PageHeader title="My Billing" description="Monthly platform fee invoices from the Lucky Stop developer." />
+    <Page>
+      <PageHeader title="Billing" description="Monthly platform fee invoices from the Lucky Stop developer." />
 
       {/* Summary Cards */}
       <div style={s.cards}>
         <div style={{ ...s.card, borderTop: '3px solid #c42130' }}>
-          <div style={s.cardLabel}>Outstanding Balance</div>
+          <div style={s.cardLabel}>Outstanding balance</div>
           <div style={{ ...s.cardValue, color: totalOutstanding > 0 ? '#a51b28' : '#17663a' }}>{fmt$(totalOutstanding)}</div>
           <div style={s.cardSub}>{invoices.filter((i) => !i.isPaid).length} unpaid invoice{invoices.filter((i) => !i.isPaid).length !== 1 ? 's' : ''}</div>
         </div>
         <div style={{ ...s.card, borderTop: '3px solid #1D3557' }}>
-          <div style={s.cardLabel}>Total Invoices</div>
+          <div style={s.cardLabel}>Total invoices</div>
           <div style={s.cardValue}>{invoices.length}</div>
           <div style={s.cardSub}>Since account creation</div>
         </div>
@@ -61,7 +61,7 @@ export default function SuperAdminBilling() {
       {/* Invoices Table */}
       <div style={s.tableWrap}>
         <div style={s.tableHeader}>
-          <span style={s.tableTitle}>Invoice History</span>
+          <span style={s.tableTitle}>Invoice history</span>
         </div>
 
         {isLoading ? (
@@ -69,12 +69,12 @@ export default function SuperAdminBilling() {
         ) : isError ? (
           <ErrorState message="Failed to load invoices." onRetry={refetch} />
         ) : invoices.length === 0 ? (
-          <div style={s.empty}>No invoices yet.</div>
+          <div style={{ padding: 16 }}><EmptyState title="No invoices yet." /></div>
         ) : (
           <Table style={s.table}>
             <TableHeader>
               <TableRow>
-                {['Invoice Period', 'Transactions', 'Purchase Volume', 'Cashback Issued', 'Platform Fee', 'Status'].map((h) => (
+                {['Invoice period', 'Transactions', 'Purchase volume', 'Cashback issued', 'Platform fee', 'Status'].map((h) => (
                   <TableHead key={h} style={s.th}>{h}</TableHead>
                 ))}
               </TableRow>
@@ -124,7 +124,7 @@ export default function SuperAdminBilling() {
                         {inv.isPaid ? (
                           <span style={s.badgePaid}>✓ Paid</span>
                         ) : paidCount > 0 ? (
-                          <span style={s.badgeUnpaid}>◐ {paidCount}/{inv.stores.length} Paid</span>
+                          <span style={s.badgeUnpaid}>◐ {paidCount}/{inv.stores.length} paid</span>
                         ) : (
                           <span style={s.badgeUnpaid}>Unpaid</span>
                         )}
@@ -146,11 +146,11 @@ export default function SuperAdminBilling() {
                     <TableRow>
                       <TableCell colSpan={6} style={s.expandedCell}>
                         <div style={s.storeBreakdown}>
-                          <div style={s.breakdownTitle}>Store Breakdown</div>
+                          <div style={s.breakdownTitle}>Store breakdown</div>
                           <Table style={{ ...s.table, margin: 0 }}>
                             <TableHeader>
                               <TableRow>
-                                {['Store', 'City', 'Reason', 'Transactions', 'Cashback Issued', 'Amount', 'Status'].map((h) => (
+                                {['Store', 'City', 'Reason', 'Transactions', 'Cashback issued', 'Amount', 'Status'].map((h) => (
                                   <TableHead key={h} style={{ ...s.th, background: '#eef2f7', fontSize: 13 }}>{h}</TableHead>
                                 ))}
                               </TableRow>
@@ -160,9 +160,9 @@ export default function SuperAdminBilling() {
                                 .sort((a: any, b: any) => b.amount - a.amount)
                                 .map((row: any, i: number) => (
                                   <TableRow key={row.store?.id ?? `chain-${i}`} style={s.tr}>
-                                    <TableCell style={s.td}><strong>{row.store?.name ?? 'All Stores (Chain-wide)'}</strong></TableCell>
-                                    <TableCell style={s.td}>{row.store?.city ?? ' - '}</TableCell>
-                                    <TableCell style={s.td}>{row.description || ' - '}</TableCell>
+                                    <TableCell style={s.td}><strong>{row.store?.name ?? 'All stores (chain-wide)'}</strong></TableCell>
+                                    <TableCell style={s.td}>{row.store?.city ?? ''}</TableCell>
+                                    <TableCell style={s.td}>{row.description || ''}</TableCell>
                                     <TableCell style={s.td}>{row.txCount}</TableCell>
                                     <TableCell style={s.td}>{fmt$(row.cashbackIssued)}</TableCell>
                                     <TableCell style={{ ...s.td, color: row.billingType === 'CUSTOM' ? '#4f6d8f' : '#a51b28', fontWeight: 700 }}>
@@ -199,17 +199,16 @@ export default function SuperAdminBilling() {
 
       {/* Info box */}
       <div style={s.infoBox}>
-        <div style={s.infoTitle}>About Platform Fees</div>
+        <div style={s.infoTitle}>About platform fees</div>
         <div style={s.infoText}>
-          Platform fees are calculated as a percentage of the cashback credits issued to your customers each month. When your employees grant points, a small developer cut is taken from the cashback pool - you are billed for that amount monthly.
+          Platform fees are calculated as a percentage of the cashback credits issued to your customers each month. When your employees grant points, a small platform fee is recorded on the cashback issued, and you are billed for that amount monthly.
         </div>
       </div>
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '32px 24px' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },
   subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
@@ -240,7 +239,7 @@ const s: Record<string, React.CSSProperties> = {
   footer: { padding: '14px 20px', background: '#f7f8fa', borderTop: '1px solid #e4e7ec', fontSize: 15, color: TEXT_MUTED },
 
   infoBox: { background: '#eef2f7', border: '1px solid #d3dcea', borderRadius: 12, padding: '18px 22px' },
-  infoTitle: { fontWeight: 700, color: '#3730a3', fontSize: 15, marginBottom: 6 },
+  infoTitle: { fontWeight: 700, color: PRIMARY, fontSize: 15, marginBottom: 6 },
   infoText: { fontSize: 15, color: '#1D3557', lineHeight: 1.6 },
 
   pdfBtn: {

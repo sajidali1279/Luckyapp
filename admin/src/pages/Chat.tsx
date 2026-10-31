@@ -115,7 +115,7 @@ export default function Chat() {
   });
   const stores: { id: string; name: string; city: string }[] = storesData?.data?.data || [];
 
-  // Per-store unread breakdown — only relevant once the multi-store sidebar
+  // Per-store unread breakdown: only relevant once the multi-store sidebar
   // below is actually visible (a single-store Store Manager has nowhere else
   // it could be). Same combined number as the sidebar nav's own Chat badge,
   // just split out per store so it's obvious which one actually has
@@ -248,20 +248,20 @@ export default function Chat() {
     <div style={s.container} className="ui-split">
       <ConfirmModal
         open={showClearConfirm}
-        title="Clear Chat"
+        title="Clear this chat?"
         message={`Permanently delete all ${messages.length} message${messages.length === 1 ? '' : 's'} in ${selectedStore?.name ?? 'this store'}'s chat? This clears it for the store's own staff too, not just your view. This can't be undone.`}
-        confirmLabel={clearChatMutation.isPending ? 'Clearing…' : 'Clear Chat'}
+        confirmLabel={clearChatMutation.isPending ? 'Clearing…' : 'Clear chat'}
         danger
         onConfirm={() => clearChatMutation.mutate()}
         onCancel={() => setShowClearConfirm(false)}
       />
-      {/* ── Sidebar - hidden only when there's nothing to pick: a single-store
+      {/* ── Sidebar, hidden only when there's nothing to pick: a single-store
           Store Manager is auto-selected above. A Store Manager assigned to
           more than one store still needs this to switch between them. ── */}
       {(!isStoreManager || stores.length > 1) && (
         <div style={s.sidebar} className="ui-split-list">
           <div style={s.sidebarTop}>
-            <div style={s.sidebarTitle}>Messages</div>
+            <div style={s.sidebarTitle}>Chat</div>
             <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
           </div>
 
@@ -331,11 +331,11 @@ export default function Chat() {
                 <div style={s.chatHeaderName}>{selectedStore?.name}</div>
                 <div style={s.chatHeaderSub}>
                   <span style={s.onlineDot} />
-                  {selectedStore?.city ? `${selectedStore.city} · ` : ''}Store Team Chat
+                  {selectedStore?.city ? `${selectedStore.city} · ` : ''}Store team chat
                 </div>
               </div>
               <div style={s.chatHeaderBadge}>
-                <span style={s.chatHeaderBadgeText}>{messages.length} msgs</span>
+                <span style={s.chatHeaderBadgeText}>{messages.length} message{messages.length === 1 ? '' : 's'}</span>
               </div>
               {canClearChat && messages.length > 0 && (
                 <button
@@ -343,7 +343,7 @@ export default function Chat() {
                   onClick={() => setShowClearConfirm(true)}
                   title="Permanently delete this store's chat history"
                 >
-                  Clear Chat
+                  Clear chat
                 </button>
               )}
             </div>
@@ -508,6 +508,7 @@ export default function Chat() {
                     style={{ ...s.sendBtn, opacity: ((!inputText.trim() && !file) || sending) ? 0.45 : 1 }}
                     onClick={() => handleSend()}
                     disabled={(!inputText.trim() && !file) || sending}
+                    aria-label="Send message"
                   >
                     {sending ? '…' : '↑'}
                   </button>

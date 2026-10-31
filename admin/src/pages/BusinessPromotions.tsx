@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { promotionsApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
+import Modal from '../components/Modal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
 import { storeToday, storeDayLong } from '../lib/storeDates';
-import { PageHeader, Button, HeaderStat } from '../components/kit';
+import { Page, PageHeader, Button, HeaderStat, Field } from '../components/kit';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
 import { failureMessage } from '../lib/apiError';
@@ -101,44 +102,37 @@ function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => 
   });
 
   return (
-    <div style={m.overlay} onClick={onClose}>
-      <div style={m.modal} onClick={(e) => e.stopPropagation()}>
-        <div style={m.modalHeader}>
-          <div>
-            <div style={m.modalTitle}>Publish Ad</div>
-            <div style={m.modalSub}>for {promo.businessName}</div>
-          </div>
-          <button style={m.closeBtn} onClick={onClose}>✕</button>
-        </div>
+    <Modal title="Publish ad" subtitle={`For ${promo.businessName}`} onClose={onClose} busy={publishMutation.isPending} maxWidth={560}>
+      <div style={m.form}>
+        <Field label="Ad title" htmlFor="pub-title" required>
+          <input id="pub-title" className="ui-input" style={INPUT} value={adTitle} onChange={e => setAdTitle(e.target.value)} placeholder="Catchy headline for the ad" />
+        </Field>
 
-        <div style={m.modalBody}>
-          <label style={m.label}>Ad Title *</label>
-          <input style={m.input} value={adTitle} onChange={e => setAdTitle(e.target.value)} placeholder="Catchy headline for the ad" />
-
-          <label style={m.label}>Ad Body *</label>
+        <Field label="Ad body" htmlFor="pub-body" required>
           <textarea
-            style={{ ...m.input, minHeight: 90, resize: 'vertical' } as React.CSSProperties}
+            id="pub-body"
+            className="ui-input"
+            style={{ ...INPUT, minHeight: 90, resize: 'vertical' }}
             value={adBody}
             onChange={e => setAdBody(e.target.value)}
             placeholder="Ad description shown to customers"
           />
+        </Field>
 
-          <label style={m.label}>Banner / Image (optional)</label>
-          <div style={m.imageArea}>
+        <Field label="Banner image (optional)">
+          <div>
             {imagePreview && !removeImage ? (
               <div style={m.previewWrap}>
                 <img src={imagePreview} alt="preview" style={m.previewImg} />
                 <div style={m.previewActions}>
-                  <button style={m.changeImgBtn} type="button" onClick={() => fileRef.current?.click()}>
-                    Change
-                  </button>
-                  <button
-                    style={{ ...m.changeImgBtn, color: '#c42130', borderColor: '#f3cdd1' }}
-                    type="button"
+                  <Button size="sm" onClick={() => fileRef.current?.click()}>Change</Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
                     onClick={() => { setRemoveImage(true); setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -156,26 +150,29 @@ function PublishModal({ promo, onClose }: { promo: PromoRequest; onClose: () => 
               onChange={handleFileChange}
             />
           </div>
+        </Field>
 
-          <label style={m.label}>Expiry Date (optional)</label>
-          <input style={m.input} type="date" value={adExpiresAt} onChange={e => setAdExpiresAt(e.target.value)} />
-
-          <label style={m.label}>Internal Note (optional)</label>
-          <input style={m.input} value={devAdminNote} onChange={e => setDevAdminNote(e.target.value)} placeholder="e.g. Paid $200/month, 3-month contract" />
+        <div style={m.pair}>
+          <Field label="Expiry date (optional)" htmlFor="pub-expires">
+            <input id="pub-expires" className="ui-input" style={INPUT} type="date" value={adExpiresAt} onChange={e => setAdExpiresAt(e.target.value)} />
+          </Field>
+          <Field label="Internal note (optional)" htmlFor="pub-note">
+            <input id="pub-note" className="ui-input" style={INPUT} value={devAdminNote} onChange={e => setDevAdminNote(e.target.value)} placeholder="e.g. Paid $200/month, 3-month contract" />
+          </Field>
         </div>
 
-        <div style={m.modalFooter}>
-          <button style={m.cancelBtn} onClick={onClose}>Cancel</button>
-          <button
-            style={{ ...m.publishBtn, opacity: publishMutation.isPending ? 0.6 : 1 }}
+        <div style={m.footer}>
+          <Button onClick={onClose} disabled={publishMutation.isPending}>Cancel</Button>
+          <Button
+            variant="primary"
             onClick={() => publishMutation.mutate()}
             disabled={publishMutation.isPending || !adTitle.trim() || !adBody.trim()}
           >
-            {publishMutation.isPending ? 'Publishing...' : 'Publish Ad'}
-          </button>
+            {publishMutation.isPending ? 'Publishing…' : 'Publish ad'}
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -234,67 +231,70 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div style={m.overlay} onClick={onClose}>
-      <div style={m.modal} onClick={(e) => e.stopPropagation()}>
-        <div style={m.modalHeader}>
-          <div>
-            <div style={m.modalTitle}>Add Promotion</div>
-            <div style={m.modalSub}>Published immediately - no customer request needed</div>
-          </div>
-          <button style={m.closeBtn} onClick={onClose}>✕</button>
-        </div>
+    <Modal title="Add promotion" subtitle="Published right away, no customer request needed." onClose={onClose} busy={createMutation.isPending} maxWidth={560}>
+      <div style={m.form}>
+        <Field label="Business name" htmlFor="promo-business" required>
+          <input id="promo-business" className="ui-input" style={INPUT} value={businessName} onChange={e => setBusinessName(e.target.value)} placeholder="The business being advertised" />
+        </Field>
 
-        <div style={m.modalBody}>
-          <label style={m.label}>Business Name *</label>
-          <input style={m.input} value={businessName} onChange={e => setBusinessName(e.target.value)} placeholder="The business being advertised" />
-
-          <label style={m.label}>Business Description *</label>
+        <Field label="Business description" htmlFor="promo-description" required>
           <textarea
-            style={{ ...m.input, minHeight: 60, resize: 'vertical' } as React.CSSProperties}
+            id="promo-description"
+            className="ui-input"
+            style={{ ...INPUT, minHeight: 60, resize: 'vertical' }}
             value={businessDescription}
             onChange={e => setBusinessDescription(e.target.value)}
             placeholder="What the business does"
           />
+        </Field>
 
-          <label style={m.label}>Contact Name *</label>
-          <input style={m.input} value={requesterName} onChange={e => setRequesterName(e.target.value)} placeholder="Who to reach for this ad" />
+        <div style={m.pair}>
+          <Field label="Contact name" htmlFor="promo-contact" required>
+            <input id="promo-contact" className="ui-input" style={INPUT} value={requesterName} onChange={e => setRequesterName(e.target.value)} placeholder="Who to reach for this ad" />
+          </Field>
+          <Field label="Contact phone" htmlFor="promo-phone" required>
+            <input id="promo-phone" className="ui-input" style={INPUT} value={requesterPhone} onChange={e => setRequesterPhone(e.target.value)} placeholder="Contact phone number" />
+          </Field>
+        </div>
 
-          <label style={m.label}>Contact Phone *</label>
-          <input style={m.input} value={requesterPhone} onChange={e => setRequesterPhone(e.target.value)} placeholder="Contact phone number" />
+        <div style={m.pair}>
+          <Field label="Website (optional)" htmlFor="promo-website">
+            <input id="promo-website" className="ui-input" style={INPUT} value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://…" />
+          </Field>
+          <Field label="Location (optional)" htmlFor="promo-location">
+            <input id="promo-location" className="ui-input" style={INPUT} value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. 123 Main St, Sherman, TX" />
+          </Field>
+        </div>
 
-          <label style={m.label}>Website (optional)</label>
-          <input style={m.input} value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://…" />
+        <Field label="Ad title" htmlFor="promo-ad-title" required>
+          <input id="promo-ad-title" className="ui-input" style={INPUT} value={adTitle} onChange={e => setAdTitle(e.target.value)} placeholder="Catchy headline for the ad" />
+        </Field>
 
-          <label style={m.label}>Location (optional)</label>
-          <input style={m.input} value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. 123 Main St, Sherman, TX" />
-
-          <label style={m.label}>Ad Title *</label>
-          <input style={m.input} value={adTitle} onChange={e => setAdTitle(e.target.value)} placeholder="Catchy headline for the ad" />
-
-          <label style={m.label}>Ad Body *</label>
+        <Field label="Ad body" htmlFor="promo-ad-body" required>
           <textarea
-            style={{ ...m.input, minHeight: 90, resize: 'vertical' } as React.CSSProperties}
+            id="promo-ad-body"
+            className="ui-input"
+            style={{ ...INPUT, minHeight: 90, resize: 'vertical' }}
             value={adBody}
             onChange={e => setAdBody(e.target.value)}
             placeholder="Ad description shown to customers"
           />
+        </Field>
 
-          <label style={m.label}>Banner / Image (optional)</label>
-          <div style={m.imageArea}>
+        <Field label="Banner image (optional)">
+          <div>
             {imagePreview ? (
               <div style={m.previewWrap}>
                 <img src={imagePreview} alt="preview" style={m.previewImg} />
                 <div style={m.previewActions}>
-                  <button style={m.changeImgBtn} type="button" onClick={() => fileRef.current?.click()}>
-                    Change
-                  </button>
-                  <button
-                    style={{ ...m.changeImgBtn, color: '#c42130', borderColor: '#f3cdd1' }}
-                    type="button"
+                  <Button size="sm" onClick={() => fileRef.current?.click()}>Change</Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
                     onClick={() => { setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ''; }}
                   >
                     Remove
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -312,26 +312,29 @@ function CreatePromotionModal({ onClose }: { onClose: () => void }) {
               onChange={handleFileChange}
             />
           </div>
+        </Field>
 
-          <label style={m.label}>Expiry Date (optional)</label>
-          <input style={m.input} type="date" value={adExpiresAt} onChange={e => setAdExpiresAt(e.target.value)} />
-
-          <label style={m.label}>Internal Note (optional)</label>
-          <input style={m.input} value={devAdminNote} onChange={e => setDevAdminNote(e.target.value)} placeholder="e.g. Paid $200/month, 3-month contract" />
+        <div style={m.pair}>
+          <Field label="Expiry date (optional)" htmlFor="promo-expires">
+            <input id="promo-expires" className="ui-input" style={INPUT} type="date" value={adExpiresAt} onChange={e => setAdExpiresAt(e.target.value)} />
+          </Field>
+          <Field label="Internal note (optional)" htmlFor="promo-note">
+            <input id="promo-note" className="ui-input" style={INPUT} value={devAdminNote} onChange={e => setDevAdminNote(e.target.value)} placeholder="e.g. Paid $200/month, 3-month contract" />
+          </Field>
         </div>
 
-        <div style={m.modalFooter}>
-          <button style={m.cancelBtn} onClick={onClose}>Cancel</button>
-          <button
-            style={{ ...m.publishBtn, opacity: createMutation.isPending || !canSubmit ? 0.6 : 1 }}
+        <div style={m.footer}>
+          <Button onClick={onClose} disabled={createMutation.isPending}>Cancel</Button>
+          <Button
+            variant="primary"
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending || !canSubmit}
           >
-            {createMutation.isPending ? 'Adding...' : 'Add & Publish'}
-          </button>
+            {createMutation.isPending ? 'Adding…' : 'Add and publish'}
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -418,13 +421,13 @@ export default function BusinessPromotions() {
     REJECTED: requests.filter(r => r.status === 'REJECTED').length,
   };
 
-  if (isError) return <div style={{ padding: 32 }}><ErrorState message="Failed to load promotion requests." onRetry={refetch} /></div>;
+  if (isError) return <Page><ErrorState message="Failed to load promotion requests." onRetry={refetch} /></Page>;
 
   return (
-    <div style={s.page}>
+    <Page>
       <ConfirmModal
         open={!!rejectTarget}
-        title="Reject Request"
+        title="Reject request"
         message={`Reject the promotion request from ${rejectTarget?.businessName ?? ''}?`}
         confirmLabel="Reject"
         danger
@@ -436,7 +439,7 @@ export default function BusinessPromotions() {
       />
       <ConfirmModal
         open={!!deleteTarget}
-        title="Delete Promotion"
+        title="Delete promotion"
         message={`Permanently delete the request from ${deleteTarget?.businessName ?? ''}? This cannot be undone.`}
         confirmLabel="Delete"
         danger
@@ -445,9 +448,9 @@ export default function BusinessPromotions() {
       />
       {showCreateModal && <CreatePromotionModal onClose={() => setShowCreateModal(false)} />}
       <PageHeader
-        title="Business Promotions"
+        title="Business promotions"
         description="Review advertising requests and publish approved ads to the customer app."
-        actions={<Button variant="primary" icon={<Plus />} onClick={() => setShowCreateModal(true)}>Add Promotion</Button>}
+        actions={<Button variant="primary" icon={<Plus />} onClick={() => setShowCreateModal(true)}>Add promotion</Button>}
       >
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           <HeaderStat label="Pending" value={counts.PENDING} tone={counts.PENDING > 0 ? 'warning' : 'neutral'} />
@@ -494,7 +497,7 @@ export default function BusinessPromotions() {
                     <div style={s.bizNameRow}>
                       <span style={s.bizName}>{req.businessName}</span>
                       <span style={{ ...s.statusBadge, color: STATUS_COLORS[req.status], backgroundColor: STATUS_BG[req.status] }}>
-                        {req.status}
+                        {req.status.charAt(0) + req.status.slice(1).toLowerCase()}
                       </span>
                     </div>
                     <div style={s.requesterLine}>
@@ -508,7 +511,7 @@ export default function BusinessPromotions() {
                   <div style={s.cardBody}>
                     <div style={s.infoGrid}>
                       <div style={s.infoBlock}>
-                        <div style={s.infoLabel}>Business Description</div>
+                        <div style={s.infoLabel}>Business description</div>
                         <div style={s.infoValue}>{req.businessDescription}</div>
                       </div>
                       {req.website && (
@@ -520,11 +523,11 @@ export default function BusinessPromotions() {
                       {req.status === 'APPROVED' && (
                         <>
                           <div style={s.infoBlock}>
-                            <div style={s.infoLabel}>Published Ad Title</div>
+                            <div style={s.infoLabel}>Published ad title</div>
                             <div style={s.infoValue}>{req.adTitle}</div>
                           </div>
                           <div style={s.infoBlock}>
-                            <div style={s.infoLabel}>Published Ad Body</div>
+                            <div style={s.infoLabel}>Published ad body</div>
                             <div style={s.infoValue}>{req.adBody}</div>
                           </div>
                           {req.adExpiresAt && (
@@ -535,7 +538,7 @@ export default function BusinessPromotions() {
                           )}
                           {req.publishedAt && (
                             <div style={s.infoBlock}>
-                              <div style={s.infoLabel}>Published At</div>
+                              <div style={s.infoLabel}>Published on</div>
                               <div style={s.infoValue}>{formatDate(req.publishedAt)}</div>
                             </div>
                           )}
@@ -543,7 +546,7 @@ export default function BusinessPromotions() {
                       )}
                       {req.devAdminNote && (
                         <div style={s.infoBlock}>
-                          <div style={s.infoLabel}>Internal Note</div>
+                          <div style={s.infoLabel}>Internal note</div>
                           <div style={{ ...s.infoValue, color: '#6366f1' }}>{req.devAdminNote}</div>
                         </div>
                       )}
@@ -556,7 +559,7 @@ export default function BusinessPromotions() {
                             style={s.publishActionBtn}
                             onClick={() => setPublishTarget(req)}
                           >
-                            Review & Publish
+                            Review and publish
                           </button>
                           <button
                             style={s.rejectBtn}
@@ -572,7 +575,7 @@ export default function BusinessPromotions() {
                           style={s.publishActionBtn}
                           onClick={() => setPublishTarget(req)}
                         >
-                          Edit Ad
+                          Edit ad
                         </button>
                       )}
                       {req.status === 'REJECTED' && (
@@ -580,7 +583,7 @@ export default function BusinessPromotions() {
                           style={s.publishActionBtn}
                           onClick={() => setPublishTarget(req)}
                         >
-                          Publish Anyway
+                          Publish anyway
                         </button>
                       )}
                       <button
@@ -605,7 +608,7 @@ export default function BusinessPromotions() {
           onClose={() => setPublishTarget(null)}
         />
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -616,7 +619,6 @@ const s: Record<string, React.CSSProperties> = {
   featuredField: { display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#374151' },
   featuredInput: { width: 72, padding: '8px 10px', border: '1.5px solid #d5dae1', borderRadius: 8, fontSize: 15, fontWeight: 700, textAlign: 'center' },
   featuredLink: { background: 'none', border: 'none', color: '#1D3557', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', padding: 0 },
-  page: { padding: '32px 24px' },
   topBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24 },
   addBtn: {
     padding: '10px 18px', borderRadius: 10, border: 'none', flexShrink: 0,
@@ -665,7 +667,7 @@ const s: Record<string, React.CSSProperties> = {
   bizName: { fontSize: 16, fontWeight: 700, color: '#111827' },
   statusBadge: {
     fontSize: 13, fontWeight: 700, padding: '2px 8px',
-    borderRadius: 20, textTransform: 'uppercase', letterSpacing: 0.5,
+    borderRadius: 20,
   },
   requesterLine: { fontSize: 14, color: TEXT_MUTED },
   expandBtn: {
@@ -703,47 +705,10 @@ const s: Record<string, React.CSSProperties> = {
 };
 
 const m: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
-  },
-  modal: {
-    background: '#fff', borderRadius: 12, width: '100%',
-    maxHeight: '90vh', display: 'flex', flexDirection: 'column',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-  },
-  modalHeader: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-    padding: '20px 24px 16px', borderBottom: '1px solid #f1f3f6',
-  },
-  modalTitle: { fontSize: 18, fontWeight: 700, color: PRIMARY },
-  modalSub: { fontSize: 15, color: TEXT_MUTED, marginTop: 2 },
-  closeBtn: {
-    background: '#f1f3f6', border: 'none', borderRadius: 8,
-    width: 30, height: 30, cursor: 'pointer', fontSize: 14,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  modalBody: { padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 },
-  label: { fontSize: 14, fontWeight: 700, color: '#5a6472', textTransform: 'uppercase', letterSpacing: 0.4 },
-  input: {
-    width: '100%', padding: '10px 12px', borderRadius: 8,
-    border: '1.5px solid #e4e7ec', fontSize: 14, color: '#111827',
-    outline: 'none', boxSizing: 'border-box',
-  },
-  modalFooter: {
-    display: 'flex', justifyContent: 'flex-end', gap: 10,
-    padding: '16px 24px', borderTop: '1px solid #f1f3f6',
-  },
-  cancelBtn: {
-    padding: '9px 18px', borderRadius: 8, border: '1.5px solid #e4e7ec',
-    background: '#fff', color: '#5a6472', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-  },
-  publishBtn: {
-    padding: '9px 20px', borderRadius: 8, border: 'none',
-    background: '#1a7f45', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-  },
+  form: { display: 'grid', gap: 12 },
+  pair: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 },   // side by side, one column on a phone
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8 },
 
-  imageArea: { marginBottom: 4 },
   uploadBtn: {
     width: '100%', padding: '20px 16px', borderRadius: 10,
     border: '2px dashed #d5dae1', background: '#f7f8fa',
@@ -755,8 +720,4 @@ const m: Record<string, React.CSSProperties> = {
   previewWrap: { display: 'flex', flexDirection: 'column', gap: 8 },
   previewImg: { width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 10, border: '1px solid #e4e7ec' },
   previewActions: { display: 'flex', gap: 8 },
-  changeImgBtn: {
-    padding: '6px 14px', borderRadius: 7, border: '1.5px solid #d5dae1',
-    background: '#fff', fontSize: 14, fontWeight: 600, color: '#374151', cursor: 'pointer',
-  },
 };

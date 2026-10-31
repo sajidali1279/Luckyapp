@@ -6,7 +6,7 @@ import CardSkeleton from '../components/CardSkeleton';
 import DataTablePagination from '../components/DataTablePagination';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { storeToday, addDays, startOfStoreDay, endOfStoreDay } from '../lib/storeDates';
-import { PageHeader, Button } from '../components/kit';
+import { Page, PageHeader, Button } from '../components/kit';
 import { RefreshCw } from 'lucide-react';
 import Glyph from '../components/Glyph';
 import { useIsMobile } from '../hooks/use-mobile';
@@ -15,171 +15,171 @@ import { useIsMobile } from '../hooks/use-mobile';
 
 const ACTION_META: Record<string, { label: string; color: string; bg: string; icon: string }> = {
   // Points
-  GRANT_POINTS:              { label: 'Grant Points',           color: '#1a7f45', bg: '#2DC65318', icon: '💰' },
-  REDEEM_CREDITS:            { label: 'Redeem Credits',         color: '#3c6e8f', bg: '#457b9d18', icon: '🎁' },
-  REJECT_TRANSACTION:        { label: 'Reject Transaction',     color: '#c42130', bg: '#E6394618', icon: '❌' },
-  SELF_GRANT:                { label: 'Self Grant (QR)',        color: '#1a7f45', bg: '#2DC65318', icon: '📄' },
-  BROADCAST:                 { label: 'Push Sent',              color: '#3c6e8f', bg: '#457b9d18', icon: '📢' },
-  DISPUTE_APPROVED:          { label: 'Dispute Approved',       color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
-  DISPUTE_REJECTED:          { label: 'Dispute Rejected',       color: '#c42130', bg: '#E6394618', icon: '❌' },
-  APPROVE:                   { label: 'Sale Approved',          color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
-  APPROVE_FLAGGED:           { label: 'Held Sale Approved',     color: '#1a7f45', bg: '#2DC65318', icon: '🟢' },
-  REJECT_FLAGGED:            { label: 'Held Sale Rejected',     color: '#c42130', bg: '#E6394618', icon: '🔴' },
-  VOID_TRANSACTION:          { label: 'Sale Voided',            color: '#c42130', bg: '#E6394618', icon: '↩️' },
-  AUTO_EXPIRE_PENDING:       { label: 'Unfinished Sales Expired', color: '#5a6472', bg: '#6c757d18', icon: '⌛' },
-  GOODWILL_CREDIT:           { label: 'Goodwill Credit',        color: '#1a7f45', bg: '#2DC65318', icon: '🤝' },
-  CLAIM_TIER_BENEFIT:        { label: 'Tier Perk Used',         color: '#8a5300', bg: '#b8860b18', icon: '⭐' },
-  CATALOG_REDEMPTION:        { label: 'Reward Redeemed',        color: '#3c6e8f', bg: '#457b9d18', icon: '🎁' },
-  CATALOG_CONFIRM:           { label: 'Reward Handed Out',      color: '#3c6e8f', bg: '#457b9d18', icon: '✅' },
-  WELCOME_GIFT:              { label: 'Welcome Gift Given',     color: '#3c6e8f', bg: '#457b9d18', icon: '🎉' },
-  WINBACK_SEND:              { label: 'Win-back Gifts Sent',    color: '#1a7f45', bg: '#2DC65318', icon: '🎁' },
+  GRANT_POINTS:              { label: 'Grant points',           color: '#1a7f45', bg: '#2DC65318', icon: '💰' },
+  REDEEM_CREDITS:            { label: 'Redeem credits',         color: '#3c6e8f', bg: '#457b9d18', icon: '🎁' },
+  REJECT_TRANSACTION:        { label: 'Reject transaction',     color: '#c42130', bg: '#E6394618', icon: '❌' },
+  SELF_GRANT:                { label: 'Self grant (QR)',        color: '#1a7f45', bg: '#2DC65318', icon: '📄' },
+  BROADCAST:                 { label: 'Push sent',              color: '#3c6e8f', bg: '#457b9d18', icon: '📢' },
+  DISPUTE_APPROVED:          { label: 'Dispute approved',       color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
+  DISPUTE_REJECTED:          { label: 'Dispute rejected',       color: '#c42130', bg: '#E6394618', icon: '❌' },
+  APPROVE:                   { label: 'Sale approved',          color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
+  APPROVE_FLAGGED:           { label: 'Held sale approved',     color: '#1a7f45', bg: '#2DC65318', icon: '🟢' },
+  REJECT_FLAGGED:            { label: 'Held sale rejected',     color: '#c42130', bg: '#E6394618', icon: '🔴' },
+  VOID_TRANSACTION:          { label: 'Sale voided',            color: '#c42130', bg: '#E6394618', icon: '↩️' },
+  AUTO_EXPIRE_PENDING:       { label: 'Unfinished sales expired', color: '#5a6472', bg: '#6c757d18', icon: '⌛' },
+  GOODWILL_CREDIT:           { label: 'Goodwill credit',        color: '#1a7f45', bg: '#2DC65318', icon: '🤝' },
+  CLAIM_TIER_BENEFIT:        { label: 'Tier perk used',         color: '#8a5300', bg: '#b8860b18', icon: '⭐' },
+  CATALOG_REDEMPTION:        { label: 'Reward redeemed',        color: '#3c6e8f', bg: '#457b9d18', icon: '🎁' },
+  CATALOG_CONFIRM:           { label: 'Reward handed out',      color: '#3c6e8f', bg: '#457b9d18', icon: '✅' },
+  WELCOME_GIFT:              { label: 'Welcome gift given',     color: '#3c6e8f', bg: '#457b9d18', icon: '🎉' },
+  WINBACK_SEND:              { label: 'Win-back gifts sent',    color: '#1a7f45', bg: '#2DC65318', icon: '🎁' },
   // Rewards and notices
-  CATALOG_ITEM_CREATE:       { label: 'Reward Added',           color: PRIMARY, bg: '#1D355718', icon: '🎁' },
-  CATALOG_ITEM_UPDATE:       { label: 'Reward Changed',         color: PRIMARY, bg: '#1D355718', icon: '✏️' },
-  CATALOG_POINTS_FOLLOWED_PRICE: { label: 'Reward Points Followed Price', color: PRIMARY, bg: '#1D355718', icon: '🔗' },
-  NOTICE_CREATE:             { label: 'Notice Posted',          color: '#8a5300', bg: '#F4A26118', icon: '📌' },
-  NOTICE_DEACTIVATE:         { label: 'Notice Taken Down',      color: '#5a6472', bg: '#6c757d18', icon: '⏹️' },
-  NOTICE_DELETE:             { label: 'Notice Deleted',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
-  NOTICE_UPDATE:             { label: 'Notice Edited',          color: '#1D3557', bg: '#1D355718', icon: '✏️' },
-  NOTICE_REACTIVATE:         { label: 'Notice Brought Back',    color: '#17663a', bg: '#2DC65318', icon: '🔄' },
-  PROMOTION_PUBLISH:         { label: 'Business Ad Published',  color: '#1a7f45', bg: '#2DC65318', icon: '📣' },
-  PROMOTION_REJECT:          { label: 'Business Ad Declined',   color: '#5a6472', bg: '#6c757d18', icon: '🚫' },
-  PROMOTION_SETTINGS:        { label: 'Featured Ads Setting',   color: '#3c6e8f', bg: '#3c6e8f18', icon: '⭐' },
-  PROMOTION_DELETE:          { label: 'Business Ad Deleted',    color: '#c42130', bg: '#E6394618', icon: '🗑️' },
-  CLEAR_CHAT:                { label: 'Store Chat Cleared',     color: '#c42130', bg: '#E6394618', icon: '🧹' },
+  CATALOG_ITEM_CREATE:       { label: 'Reward added',           color: PRIMARY, bg: '#1D355718', icon: '🎁' },
+  CATALOG_ITEM_UPDATE:       { label: 'Reward changed',         color: PRIMARY, bg: '#1D355718', icon: '✏️' },
+  CATALOG_POINTS_FOLLOWED_PRICE: { label: 'Reward points followed price', color: PRIMARY, bg: '#1D355718', icon: '🔗' },
+  NOTICE_CREATE:             { label: 'Notice posted',          color: '#8a5300', bg: '#F4A26118', icon: '📌' },
+  NOTICE_DEACTIVATE:         { label: 'Notice taken down',      color: '#5a6472', bg: '#6c757d18', icon: '⏹️' },
+  NOTICE_DELETE:             { label: 'Notice deleted',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  NOTICE_UPDATE:             { label: 'Notice edited',          color: '#1D3557', bg: '#1D355718', icon: '✏️' },
+  NOTICE_REACTIVATE:         { label: 'Notice brought back',    color: '#17663a', bg: '#2DC65318', icon: '🔄' },
+  PROMOTION_PUBLISH:         { label: 'Business ad published',  color: '#1a7f45', bg: '#2DC65318', icon: '📣' },
+  PROMOTION_REJECT:          { label: 'Business ad declined',   color: '#5a6472', bg: '#6c757d18', icon: '🚫' },
+  PROMOTION_SETTINGS:        { label: 'Featured ads setting',   color: '#3c6e8f', bg: '#3c6e8f18', icon: '⭐' },
+  PROMOTION_DELETE:          { label: 'Business ad deleted',    color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  CLEAR_CHAT:                { label: 'Store chat cleared',     color: '#c42130', bg: '#E6394618', icon: '🧹' },
   // Accounts, stores and the daily messages
-  EDIT_STAFF:                { label: 'Staff Edited',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
-  DELETE_OWN_ACCOUNT:        { label: 'Customer Deleted Account', color: '#c42130', bg: '#E6394618', icon: '👋' },
-  CREATE_STORE:              { label: 'Store Added',            color: '#1D3557', bg: '#0369a118', icon: '🏪' },
-  UPDATE_HOT_FOOD_HOURS:     { label: 'Hot Food Hours Changed', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
-  MORNING_SUMMARY:           { label: 'Morning Summary Sent',   color: '#5a6472', bg: '#6c757d18', icon: '🌅' },
-  WEEKLY_SUMMARY:            { label: 'Weekly Summary Sent',    color: '#5a6472', bg: '#6c757d18', icon: '📊' },
+  EDIT_STAFF:                { label: 'Staff edited',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
+  DELETE_OWN_ACCOUNT:        { label: 'Customer deleted account', color: '#c42130', bg: '#E6394618', icon: '👋' },
+  CREATE_STORE:              { label: 'Store added',            color: '#1D3557', bg: '#0369a118', icon: '🏪' },
+  UPDATE_HOT_FOOD_HOURS:     { label: 'Hot food hours changed', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  MORNING_SUMMARY:           { label: 'Morning summary sent',   color: '#5a6472', bg: '#6c757d18', icon: '🌅' },
+  WEEKLY_SUMMARY:            { label: 'Weekly summary sent',    color: '#5a6472', bg: '#6c757d18', icon: '📊' },
   // Offers & Banners
-  CREATE_OFFER:              { label: 'Create Offer',           color: '#8a5300', bg: '#F4A26118', icon: '📢' },
-  UPDATE_OFFER:              { label: 'Update Offer',           color: '#8a5300', bg: '#F4A26118', icon: '✏️' },
-  DELETE_OFFER:              { label: 'Delete Offer',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
-  OFFER_REQUESTED:           { label: 'Promotion Requested',    color: '#8a5300', bg: '#F4A26118', icon: '🙋' },
-  OFFER_REQUEST_APPROVED:    { label: 'Promotion Request Approved', color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
-  OFFER_REQUEST_DECLINED:    { label: 'Promotion Request Declined', color: '#c42130', bg: '#E6394618', icon: '❌' },
-  OFFER_REQUEST_WITHDRAWN:   { label: 'Promotion Request Withdrawn', color: '#5a6472', bg: '#6c757d18', icon: '↩️' },
-  PROMOTION_BUDGET_USED:     { label: 'Promotion Budget Used Up', color: '#c42130', bg: '#E6394618', icon: '💸' },
-  CHALLENGE_CREATE:          { label: 'Challenge Posted',       color: '#8a5300', bg: '#F4A26118', icon: '🏆' },
-  CHALLENGE_UPDATE:          { label: 'Challenge Changed',      color: '#8a5300', bg: '#F4A26118', icon: '✏️' },
-  SHELF_DEAL_VISIBILITY:     { label: 'Shelf Deal Shown/Hidden', color: '#3c6e8f', bg: '#457b9d18', icon: '🏷️' },
-  CREATE_BANNER:             { label: 'Create Banner',          color: '#8a5300', bg: '#F4A26118', icon: '🖼️' },
-  DELETE_BANNER:             { label: 'Delete Banner',          color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  CREATE_OFFER:              { label: 'Create offer',           color: '#8a5300', bg: '#F4A26118', icon: '📢' },
+  UPDATE_OFFER:              { label: 'Update offer',           color: '#8a5300', bg: '#F4A26118', icon: '✏️' },
+  DELETE_OFFER:              { label: 'Delete offer',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  OFFER_REQUESTED:           { label: 'Promotion requested',    color: '#8a5300', bg: '#F4A26118', icon: '🙋' },
+  OFFER_REQUEST_APPROVED:    { label: 'Promotion request approved', color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
+  OFFER_REQUEST_DECLINED:    { label: 'Promotion request declined', color: '#c42130', bg: '#E6394618', icon: '❌' },
+  OFFER_REQUEST_WITHDRAWN:   { label: 'Promotion request withdrawn', color: '#5a6472', bg: '#6c757d18', icon: '↩️' },
+  PROMOTION_BUDGET_USED:     { label: 'Promotion budget used up', color: '#c42130', bg: '#E6394618', icon: '💸' },
+  CHALLENGE_CREATE:          { label: 'Challenge posted',       color: '#8a5300', bg: '#F4A26118', icon: '🏆' },
+  CHALLENGE_UPDATE:          { label: 'Challenge changed',      color: '#8a5300', bg: '#F4A26118', icon: '✏️' },
+  SHELF_DEAL_VISIBILITY:     { label: 'Shelf deal shown/hidden', color: '#3c6e8f', bg: '#457b9d18', icon: '🏷️' },
+  CREATE_BANNER:             { label: 'Create banner',          color: '#8a5300', bg: '#F4A26118', icon: '🖼️' },
+  DELETE_BANNER:             { label: 'Delete banner',          color: '#c42130', bg: '#E6394618', icon: '🗑️' },
   // Staff & Access
-  CREATE_STAFF:              { label: 'Create Staff',           color: '#4f6d8f', bg: '#9b5de518', icon: '👤' },
-  TOGGLE_USER:               { label: 'Deactivate / Reactivate', color: '#c42130', bg: '#E6394618', icon: '🔒' },
+  CREATE_STAFF:              { label: 'Create staff',           color: '#4f6d8f', bg: '#9b5de518', icon: '👤' },
+  TOGGLE_USER:               { label: 'Deactivate / reactivate', color: '#c42130', bg: '#E6394618', icon: '🔒' },
   RESET_PIN:                 { label: 'Reset PIN',              color: '#c42130', bg: '#E6394618', icon: '🔑' },
-  SIGN_OUT_EVERYWHERE:       { label: 'Signed Out Everywhere',  color: '#1D3557', bg: '#1D355718', icon: '🔒' },
+  SIGN_OUT_EVERYWHERE:       { label: 'Signed out everywhere',  color: '#1D3557', bg: '#1D355718', icon: '🔒' },
   CREATE_SUPER_ADMIN:        { label: 'Create Super Admin',     color: '#4f6d8f', bg: '#9b5de518', icon: '🏢' },
-  DELETE_USER:               { label: 'Delete Account',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
-  DELETE_USER_REFUSED:       { label: 'Delete Refused',         color: '#c42130', bg: '#E6394618', icon: '⛔' },
+  DELETE_USER:               { label: 'Delete account',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  DELETE_USER_REFUSED:       { label: 'Delete refused',         color: '#c42130', bg: '#E6394618', icon: '⛔' },
   DENIED_ACCOUNT_ACTION:     { label: 'Refused (role too low)', color: '#c42130', bg: '#E6394618', icon: '⛔' },
-  ADD_STORE:                 { label: 'Add Store Assignment',   color: '#4f6d8f', bg: '#9b5de518', icon: '🏪' },
-  REMOVE_STORE:              { label: 'Remove Store Assign.',   color: '#c42130', bg: '#E6394618', icon: '🚫' },
-  SET_STORES:                { label: 'Change Stores',          color: '#4f6d8f', bg: '#9b5de518', icon: '🏪' },
+  ADD_STORE:                 { label: 'Add store assignment',   color: '#4f6d8f', bg: '#9b5de518', icon: '🏪' },
+  REMOVE_STORE:              { label: 'Remove store assign.',   color: '#c42130', bg: '#E6394618', icon: '🚫' },
+  SET_STORES:                { label: 'Change stores',          color: '#4f6d8f', bg: '#9b5de518', icon: '🏪' },
   // Stores
-  UPDATE_STORE:              { label: 'Store Edited',           color: '#1D3557', bg: '#0369a118', icon: '🏪' },
-  GAS_PRICE_UPDATE:          { label: 'Gas / Diesel Price',     color: '#1D3557', bg: '#0369a118', icon: '⛽' },
-  UPDATE_STORE_HOURS:        { label: 'Store Hours Changed',    color: '#1D3557', bg: '#0369a118', icon: '🕐' },
-  ADD_STORE_HOLIDAY:         { label: 'Holiday Hours Added',    color: '#1D3557', bg: '#0369a118', icon: '📅' },
-  DELETE_STORE_HOLIDAY:      { label: 'Holiday Hours Removed',  color: '#c42130', bg: '#E6394618', icon: '📅' },
-  ADD_KEYWORD_MAPPING:       { label: 'POS Keyword Added',      color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
-  DELETE_KEYWORD_MAPPING:    { label: 'POS Keyword Removed',    color: '#c42130', bg: '#E6394618', icon: '🗂️' },
-  REGENERATE_API_KEY:        { label: 'Printer Key Regenerated', color: '#c42130', bg: '#E6394618', icon: '🔑' },
+  UPDATE_STORE:              { label: 'Store edited',           color: '#1D3557', bg: '#0369a118', icon: '🏪' },
+  GAS_PRICE_UPDATE:          { label: 'Gas / diesel price',     color: '#1D3557', bg: '#0369a118', icon: '⛽' },
+  UPDATE_STORE_HOURS:        { label: 'Store hours changed',    color: '#1D3557', bg: '#0369a118', icon: '🕐' },
+  ADD_STORE_HOLIDAY:         { label: 'Holiday hours added',    color: '#1D3557', bg: '#0369a118', icon: '📅' },
+  DELETE_STORE_HOLIDAY:      { label: 'Holiday hours removed',  color: '#c42130', bg: '#E6394618', icon: '📅' },
+  ADD_KEYWORD_MAPPING:       { label: 'POS keyword added',      color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
+  DELETE_KEYWORD_MAPPING:    { label: 'POS keyword removed',    color: '#c42130', bg: '#E6394618', icon: '🗂️' },
+  REGENERATE_API_KEY:        { label: 'Printer key regenerated', color: '#c42130', bg: '#E6394618', icon: '🔑' },
   // Scheduling
-  ASSIGN_SHIFT:              { label: 'Assign Shift',           color: '#1D3557', bg: '#0369a118', icon: '📅' },
-  REMOVE_SHIFT:              { label: 'Remove Shift',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
-  CREATE_SHIFT_REQUEST:      { label: 'Shift Request',          color: TEXT_MUTED, bg: '#6c757d18', icon: '🙋' },
-  APPROVE_SHIFT_REQUEST:     { label: 'Approve Shift Req.',     color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
-  DENY_SHIFT_REQUEST:        { label: 'Deny Shift Req.',        color: '#c42130', bg: '#E6394618', icon: '❌' },
+  ASSIGN_SHIFT:              { label: 'Assign shift',           color: '#1D3557', bg: '#0369a118', icon: '📅' },
+  REMOVE_SHIFT:              { label: 'Remove shift',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  CREATE_SHIFT_REQUEST:      { label: 'Shift request',          color: TEXT_MUTED, bg: '#6c757d18', icon: '🙋' },
+  APPROVE_SHIFT_REQUEST:     { label: 'Approve shift req.',     color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
+  DENY_SHIFT_REQUEST:        { label: 'Deny shift req.',        color: '#c42130', bg: '#E6394618', icon: '❌' },
   // Store Requests
-  SUBMIT_STORE_REQUEST:      { label: 'Store Request',          color: '#8a5300', bg: '#f59e0b18', icon: '📋' },
-  ACKNOWLEDGE_STORE_REQUEST: { label: 'Acknowledge Request',    color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
+  SUBMIT_STORE_REQUEST:      { label: 'Store request',          color: '#8a5300', bg: '#f59e0b18', icon: '📋' },
+  ACKNOWLEDGE_STORE_REQUEST: { label: 'Acknowledge request',    color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
   // Billing
-  BILLING_GENERATE:          { label: 'Make Bills',             color: '#1D3557', bg: '#0369a118', icon: '🧾' },
-  BILLING_FILL_MISSING:      { label: 'Fill In Missing Bills',  color: '#1D3557', bg: '#0369a118', icon: '🧩' },
-  HOT_FOOD_ITEM_CREATED:        { label: 'Hot Food Item Added', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
-  HOT_FOOD_ITEM_UPDATED:        { label: 'Hot Food Item Changed', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
-  HOT_FOOD_ITEM_DELETED:        { label: 'Hot Food Item Deleted', color: '#c42130', bg: '#E6394618', icon: '🔥' },
-  HOT_FOOD_ITEM_STORE_ADDED:    { label: 'Hot Food Item Added to Store', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
-  HOT_FOOD_ITEM_STORE_REMOVED:  { label: 'Hot Food Item Removed from Store', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
-  MISSING_PERSON_POSTED:        { label: 'Missing Person Posted', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
-  MISSING_PERSON_EDITED:        { label: 'Missing Person Edited', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
-  MISSING_PERSON_CONFIRMED:     { label: 'Missing Person Rechecked', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
-  MISSING_PERSON_REPORTED:      { label: 'Missing Person Poster Reported', color: '#c42130', bg: '#E6394618', icon: '🔎' },
-  CAREERS_APPLICATION_UPDATED:  { label: 'Job Application Updated', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
-  CAREERS_APPLICATION_DELETED:  { label: 'Job Application Deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
-  CAREERS_OPENING_CREATED:      { label: 'Job Opening Added', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
-  CAREERS_OPENING_UPDATED:      { label: 'Job Opening Changed', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
-  CAREERS_OPENING_DELETED:      { label: 'Job Opening Deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
-  ORDER_CATEGORY_UPDATED:       { label: 'Order Category Changed', color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
-  SETTINGS_ENGAGEMENT_UPDATE: { label: 'Engagement Changed', color: '#1D3557', bg: '#0369a118', icon: '✨' },
-  STORE_GOAL_CREATE:          { label: 'Store Goal Created', color: '#1a7f45', bg: '#2DC65318', icon: '🏪' },
-  FLASH_DEAL_CREATE:          { label: 'Flash Deal Sent', color: '#a51b28', bg: '#CC293618', icon: '⚡' },
-  FLASH_DEAL_END:             { label: 'Flash Deal Ended', color: '#5a6472', bg: '#5a647218', icon: '⚡' },
-  SETTINGS_RULES_UPDATE:          { label: 'Rules Changed', color: '#1D3557', bg: '#0369a118', icon: '⚙️' },
-  SETTINGS_FEATURES_UPDATE:       { label: 'Features Switched', color: '#1D3557', bg: '#0369a118', icon: '🎚️' },
-  SETTINGS_BUSINESS_UPDATE:       { label: 'Contact Details Changed', color: '#1D3557', bg: '#0369a118', icon: '☎️' },
-  SETTINGS_WELCOME_UPDATE:        { label: 'Joining Bonus Changed', color: '#1D3557', bg: '#0369a118', icon: '🎁' },
-  SETTINGS_EXPIRY_UPDATE:         { label: 'Points Expiry Changed', color: '#1D3557', bg: '#0369a118', icon: '⏳' },
-  REFERRAL_SETTINGS_UPDATE:       { label: 'Refer a Friend Changed', color: '#1D3557', bg: '#0369a118', icon: '🤝' },
-  RECEIPT_SCAN_SETTINGS:          { label: 'Receipt Scanning Changed', color: '#1D3557', bg: '#0369a118', icon: '🧾' },
-  RECEIPT_SCAN:                   { label: 'Receipt Scanned', color: '#1D3557', bg: '#0369a118', icon: '🧾' },
-  POINTS_EXPIRED:                 { label: 'Points Expired', color: '#8a5300', bg: '#fdf6e8', icon: '⏳' },
-  POINTS_EXPIRY_SKIPPED:          { label: 'Points Expiry Skipped', color: '#5a6472', bg: '#5a647218', icon: '⏳' },
-  POINTS_EXPIRY_UNDONE:           { label: 'Points Expiry Undone', color: '#1a7f45', bg: '#2DC65318', icon: '↩️' },
-  CANCEL_UNFINISHED_SALES:        { label: 'Unfinished Sales Cancelled', color: '#8a5300', bg: '#fdf6e8', icon: '🧹' },
-  CUSTOMER_UNLOCK:                { label: 'Customer Unlocked', color: '#1a7f45', bg: '#2DC65318', icon: '🔓' },
-  CUSTOMER_NOTE_DELETE:           { label: 'Customer Note Deleted', color: '#5a6472', bg: '#5a647218', icon: '🗒️' },
-  HOT_FOOD_COMBO_CREATE:          { label: 'Hot Food Combo Added', color: '#c2410c', bg: '#c2410c18', icon: '🍱' },
-  HOT_FOOD_COMBO_UPDATE:          { label: 'Hot Food Combo Changed', color: '#c2410c', bg: '#c2410c18', icon: '🍱' },
-  HOT_FOOD_COMBO_DELETE:          { label: 'Hot Food Combo Removed', color: '#a51b28', bg: '#CC293618', icon: '🍱' },
-  HOT_FOOD_MENU_GRID:             { label: 'Hot Food Menus Changed', color: '#c2410c', bg: '#c2410c18', icon: '🍗' },
-  COMBO_IDEAS_RESTORED:           { label: 'Combo Ideas Shown Again', color: '#1D3557', bg: '#0369a118', icon: '💡' },
-  LABEL_PRINTER_FINE_TUNE:        { label: 'Label Printer Adjusted', color: '#1D3557', bg: '#0369a118', icon: '🖨️' },
-  MISSING_PERSON_REQUESTED:       { label: 'Missing Person Poster Requested', color: '#8a5300', bg: '#fdf6e8', icon: '📝' },
-  MISSING_PERSON_REQUEST_DECLINED:{ label: 'Missing Person Request Declined', color: '#a51b28', bg: '#CC293618', icon: '📝' },
-  MISSING_PERSON_ALERT:           { label: 'Missing Person Alert Sent', color: '#a51b28', bg: '#CC293618', icon: '🚨' },
-  MISSING_PERSON_ENDED:           { label: 'Missing Person Poster Ended', color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
-  UPDATE_BANNER:                  { label: 'Banner Changed', color: '#1D3557', bg: '#0369a118', icon: '🖼️' },
-  TEST_PUSH:                      { label: 'Test Push Sent', color: '#5a6472', bg: '#5a647218', icon: '🔔' },
-  STORE_GOAL_UPDATE:          { label: 'Store Goal Changed', color: '#1D3557', bg: '#0369a118', icon: '🏪' },
-  SETTINGS_THEME_UPDATE:      { label: 'App Theme Changed', color: '#1D3557', bg: '#0369a118', icon: '🎃' },
-  ORDER_CATEGORY_DELETED:       { label: 'Order Category Deleted', color: '#c42130', bg: '#E6394618', icon: '🗂️' },
-  BILLING_RECALCULATE:       { label: 'Recalculate Bill',       color: '#1D3557', bg: '#0369a118', icon: '🔄' },
-  BILLING_MARK_PAID:         { label: 'Mark Bill Paid',         color: '#1a7f45', bg: '#2DC65318', icon: '💳' },
-  BILLING_MARK_PERIOD_PAID:  { label: 'Mark Month Paid',        color: '#1a7f45', bg: '#2DC65318', icon: '💳' },
-  BILLING_UNDO_PAID:         { label: 'Undo Payment',           color: '#c42130', bg: '#E6394618', icon: '↩️' },
-  BILLING_CHARGE_ADD:        { label: 'Add Extra Charge',       color: '#8a5300', bg: '#F4A26118', icon: '➕' },
-  BILLING_CHARGE_EDIT:       { label: 'Edit Extra Charge',      color: '#8a5300', bg: '#F4A26118', icon: '✏️' },
-  BILLING_CHARGE_DELETE:     { label: 'Delete Extra Charge',    color: '#c42130', bg: '#E6394618', icon: '🗑️' },
-  BILLING_REPORT_SENT:       { label: 'Billing Report Sent',    color: '#3c6e8f', bg: '#457b9d18', icon: '📨' },
-  STORE_BILLING_UPDATE:      { label: 'Store Plan / Fee',       color: '#4f6d8f', bg: '#9b5de518', icon: '⚙️' },
-  DEV_CUT_RATE_UPDATE:       { label: 'Default Fee Rate',       color: '#4f6d8f', bg: '#9b5de518', icon: '⚙️' },
-  APP_VERSIONS_UPDATE:       { label: 'App Versions',           color: '#4f6d8f', bg: '#9b5de518', icon: '📱' },
+  BILLING_GENERATE:          { label: 'Make bills',             color: '#1D3557', bg: '#0369a118', icon: '🧾' },
+  BILLING_FILL_MISSING:      { label: 'Fill in missing bills',  color: '#1D3557', bg: '#0369a118', icon: '🧩' },
+  HOT_FOOD_ITEM_CREATED:        { label: 'Hot food item added', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_UPDATED:        { label: 'Hot food item changed', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_DELETED:        { label: 'Hot food item deleted', color: '#c42130', bg: '#E6394618', icon: '🔥' },
+  HOT_FOOD_ITEM_STORE_ADDED:    { label: 'Hot food item added to store', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  HOT_FOOD_ITEM_STORE_REMOVED:  { label: 'Hot food item removed from store', color: '#8a5300', bg: '#ea580c18', icon: '🔥' },
+  MISSING_PERSON_POSTED:        { label: 'Missing person posted', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_EDITED:        { label: 'Missing person edited', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_CONFIRMED:     { label: 'Missing person rechecked', color: '#1D3557', bg: '#0369a118', icon: '🔎' },
+  MISSING_PERSON_REPORTED:      { label: 'Missing person poster reported', color: '#c42130', bg: '#E6394618', icon: '🔎' },
+  CAREERS_APPLICATION_UPDATED:  { label: 'Job application updated', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_APPLICATION_DELETED:  { label: 'Job application deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
+  CAREERS_OPENING_CREATED:      { label: 'Job opening added', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_OPENING_UPDATED:      { label: 'Job opening changed', color: '#1D3557', bg: '#0369a118', icon: '🧑‍💼' },
+  CAREERS_OPENING_DELETED:      { label: 'Job opening deleted', color: '#c42130', bg: '#E6394618', icon: '🧑‍💼' },
+  ORDER_CATEGORY_UPDATED:       { label: 'Order category changed', color: '#1D3557', bg: '#0369a118', icon: '🗂️' },
+  SETTINGS_ENGAGEMENT_UPDATE: { label: 'Engagement changed', color: '#1D3557', bg: '#0369a118', icon: '✨' },
+  STORE_GOAL_CREATE:          { label: 'Store goal created', color: '#1a7f45', bg: '#2DC65318', icon: '🏪' },
+  FLASH_DEAL_CREATE:          { label: 'Flash deal sent', color: '#a51b28', bg: '#CC293618', icon: '⚡' },
+  FLASH_DEAL_END:             { label: 'Flash deal ended', color: '#5a6472', bg: '#5a647218', icon: '⚡' },
+  SETTINGS_RULES_UPDATE:          { label: 'Rules changed', color: '#1D3557', bg: '#0369a118', icon: '⚙️' },
+  SETTINGS_FEATURES_UPDATE:       { label: 'Features switched', color: '#1D3557', bg: '#0369a118', icon: '🎚️' },
+  SETTINGS_BUSINESS_UPDATE:       { label: 'Contact details changed', color: '#1D3557', bg: '#0369a118', icon: '☎️' },
+  SETTINGS_WELCOME_UPDATE:        { label: 'Joining bonus changed', color: '#1D3557', bg: '#0369a118', icon: '🎁' },
+  SETTINGS_EXPIRY_UPDATE:         { label: 'Points expiry changed', color: '#1D3557', bg: '#0369a118', icon: '⏳' },
+  REFERRAL_SETTINGS_UPDATE:       { label: 'Refer a friend changed', color: '#1D3557', bg: '#0369a118', icon: '🤝' },
+  RECEIPT_SCAN_SETTINGS:          { label: 'Receipt scanning changed', color: '#1D3557', bg: '#0369a118', icon: '🧾' },
+  RECEIPT_SCAN:                   { label: 'Receipt scanned', color: '#1D3557', bg: '#0369a118', icon: '🧾' },
+  POINTS_EXPIRED:                 { label: 'Points expired', color: '#8a5300', bg: '#fdf6e8', icon: '⏳' },
+  POINTS_EXPIRY_SKIPPED:          { label: 'Points expiry skipped', color: '#5a6472', bg: '#5a647218', icon: '⏳' },
+  POINTS_EXPIRY_UNDONE:           { label: 'Points expiry undone', color: '#1a7f45', bg: '#2DC65318', icon: '↩️' },
+  CANCEL_UNFINISHED_SALES:        { label: 'Unfinished sales cancelled', color: '#8a5300', bg: '#fdf6e8', icon: '🧹' },
+  CUSTOMER_UNLOCK:                { label: 'Customer unlocked', color: '#1a7f45', bg: '#2DC65318', icon: '🔓' },
+  CUSTOMER_NOTE_DELETE:           { label: 'Customer note deleted', color: '#5a6472', bg: '#5a647218', icon: '🗒️' },
+  HOT_FOOD_COMBO_CREATE:          { label: 'Hot food combo added', color: '#c2410c', bg: '#c2410c18', icon: '🍱' },
+  HOT_FOOD_COMBO_UPDATE:          { label: 'Hot food combo changed', color: '#c2410c', bg: '#c2410c18', icon: '🍱' },
+  HOT_FOOD_COMBO_DELETE:          { label: 'Hot food combo removed', color: '#a51b28', bg: '#CC293618', icon: '🍱' },
+  HOT_FOOD_MENU_GRID:             { label: 'Hot food menus changed', color: '#c2410c', bg: '#c2410c18', icon: '🍗' },
+  COMBO_IDEAS_RESTORED:           { label: 'Combo ideas shown again', color: '#1D3557', bg: '#0369a118', icon: '💡' },
+  LABEL_PRINTER_FINE_TUNE:        { label: 'Label printer adjusted', color: '#1D3557', bg: '#0369a118', icon: '🖨️' },
+  MISSING_PERSON_REQUESTED:       { label: 'Missing person poster requested', color: '#8a5300', bg: '#fdf6e8', icon: '📝' },
+  MISSING_PERSON_REQUEST_DECLINED:{ label: 'Missing person request declined', color: '#a51b28', bg: '#CC293618', icon: '📝' },
+  MISSING_PERSON_ALERT:           { label: 'Missing person alert sent', color: '#a51b28', bg: '#CC293618', icon: '🚨' },
+  MISSING_PERSON_ENDED:           { label: 'Missing person poster ended', color: '#1a7f45', bg: '#2DC65318', icon: '✅' },
+  UPDATE_BANNER:                  { label: 'Banner changed', color: '#1D3557', bg: '#0369a118', icon: '🖼️' },
+  TEST_PUSH:                      { label: 'Test push sent', color: '#5a6472', bg: '#5a647218', icon: '🔔' },
+  STORE_GOAL_UPDATE:          { label: 'Store goal changed', color: '#1D3557', bg: '#0369a118', icon: '🏪' },
+  SETTINGS_THEME_UPDATE:      { label: 'App theme changed', color: '#1D3557', bg: '#0369a118', icon: '🎃' },
+  ORDER_CATEGORY_DELETED:       { label: 'Order category deleted', color: '#c42130', bg: '#E6394618', icon: '🗂️' },
+  BILLING_RECALCULATE:       { label: 'Recalculate bill',       color: '#1D3557', bg: '#0369a118', icon: '🔄' },
+  BILLING_MARK_PAID:         { label: 'Mark bill paid',         color: '#1a7f45', bg: '#2DC65318', icon: '💳' },
+  BILLING_MARK_PERIOD_PAID:  { label: 'Mark month paid',        color: '#1a7f45', bg: '#2DC65318', icon: '💳' },
+  BILLING_UNDO_PAID:         { label: 'Undo payment',           color: '#c42130', bg: '#E6394618', icon: '↩️' },
+  BILLING_CHARGE_ADD:        { label: 'Add extra charge',       color: '#8a5300', bg: '#F4A26118', icon: '➕' },
+  BILLING_CHARGE_EDIT:       { label: 'Edit extra charge',      color: '#8a5300', bg: '#F4A26118', icon: '✏️' },
+  BILLING_CHARGE_DELETE:     { label: 'Delete extra charge',    color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  BILLING_REPORT_SENT:       { label: 'Billing report sent',    color: '#3c6e8f', bg: '#457b9d18', icon: '📨' },
+  STORE_BILLING_UPDATE:      { label: 'Store plan / fee',       color: '#4f6d8f', bg: '#9b5de518', icon: '⚙️' },
+  DEV_CUT_RATE_UPDATE:       { label: 'Default fee rate',       color: '#4f6d8f', bg: '#9b5de518', icon: '⚙️' },
+  APP_VERSIONS_UPDATE:       { label: 'App versions',           color: '#4f6d8f', bg: '#9b5de518', icon: '📱' },
   // Rates
-  RATE_TIER_UPDATE:          { label: 'Tier Rates Changed',     color: '#4f6d8f', bg: '#9b5de518', icon: '🏆' },
-  RATE_CATEGORY_UPDATE:      { label: 'Category Bonus Changed', color: '#4f6d8f', bg: '#9b5de518', icon: '📦' },
-  TIER_PERIOD_RESET:         { label: 'Tier Period Reset',      color: '#3c6e8f', bg: '#457b9d18', icon: '🔄' },
+  RATE_TIER_UPDATE:          { label: 'Tier rates changed',     color: '#4f6d8f', bg: '#9b5de518', icon: '🏆' },
+  RATE_CATEGORY_UPDATE:      { label: 'Category bonus changed', color: '#4f6d8f', bg: '#9b5de518', icon: '📦' },
+  TIER_PERIOD_RESET:         { label: 'Tier period reset',      color: '#3c6e8f', bg: '#457b9d18', icon: '🔄' },
   // Labels
-  CREATE_LABEL:              { label: 'Create Label',           color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
-  UPDATE_LABEL:              { label: 'Update Label',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
-  DELETE_LABEL:              { label: 'Delete Label',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
-  LABEL_CHANGE_REFUSED:      { label: 'Label Change Refused',   color: '#c42130', bg: '#E6394618', icon: '⛔' },
-  PRINT_LABEL:               { label: 'Print Label(s)',         color: '#17663a', bg: '#0f513218', icon: '🖨️' },
-  STORE_LABEL_PRICE:         { label: 'Store Label Price',      color: PRIMARY, bg: '#1D355718', icon: '💲' },
-  STORE_LABEL_REMOVED:       { label: 'Label Removed From Store', color: '#c42130', bg: '#E6394618', icon: '➖' },
-  PUSH_LABEL_TO_ALL_STORES:  { label: 'Label Added To All Stores', color: PRIMARY, bg: '#1D355718', icon: '📤' },
-  LABEL_SALE_ENDED:          { label: 'Sale Prices Ended',      color: '#3c6e8f', bg: '#457b9d18', icon: '⏱️' },
-  LABELS_MERGED:             { label: 'Same-Barcode Items Merged', color: PRIMARY, bg: '#1D355718', icon: '🔗' },
-  LABELS_IMPORTED:           { label: 'Labels Imported',        color: PRIMARY, bg: '#1D355718', icon: '📥' },
-  DEAL_RECOMMENDATIONS_RESTORED: { label: 'Deal Suggestions Shown Again', color: PRIMARY, bg: '#1D355718', icon: '💡' },
-  DEAL_LIMITS:               { label: 'Deal Limits Changed',    color: PRIMARY, bg: '#1D355718', icon: '📏' },
-  DEALS_BULK:                { label: 'Deals Set Together',     color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
-  DEAL_LEARNING_RESET:       { label: 'Deal Suggestions Started Over', color: PRIMARY, bg: '#1D355718', icon: '🔄' },
+  CREATE_LABEL:              { label: 'Create label',           color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
+  UPDATE_LABEL:              { label: 'Update label',           color: PRIMARY, bg: '#1D355718', icon: '✏️' },
+  DELETE_LABEL:              { label: 'Delete label',           color: '#c42130', bg: '#E6394618', icon: '🗑️' },
+  LABEL_CHANGE_REFUSED:      { label: 'Label change refused',   color: '#c42130', bg: '#E6394618', icon: '⛔' },
+  PRINT_LABEL:               { label: 'Print label(s)',         color: '#17663a', bg: '#0f513218', icon: '🖨️' },
+  STORE_LABEL_PRICE:         { label: 'Store label price',      color: PRIMARY, bg: '#1D355718', icon: '💲' },
+  STORE_LABEL_REMOVED:       { label: 'Label removed from store', color: '#c42130', bg: '#E6394618', icon: '➖' },
+  PUSH_LABEL_TO_ALL_STORES:  { label: 'Label added to all stores', color: PRIMARY, bg: '#1D355718', icon: '📤' },
+  LABEL_SALE_ENDED:          { label: 'Sale prices ended',      color: '#3c6e8f', bg: '#457b9d18', icon: '⏱️' },
+  LABELS_MERGED:             { label: 'Same-barcode items merged', color: PRIMARY, bg: '#1D355718', icon: '🔗' },
+  LABELS_IMPORTED:           { label: 'Labels imported',        color: PRIMARY, bg: '#1D355718', icon: '📥' },
+  DEAL_RECOMMENDATIONS_RESTORED: { label: 'Deal suggestions shown again', color: PRIMARY, bg: '#1D355718', icon: '💡' },
+  DEAL_LIMITS:               { label: 'Deal limits changed',    color: PRIMARY, bg: '#1D355718', icon: '📏' },
+  DEALS_BULK:                { label: 'Deals set together',     color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
+  DEAL_LEARNING_RESET:       { label: 'Deal suggestions started over', color: PRIMARY, bg: '#1D355718', icon: '🔄' },
 };
 
 const ROLE_META: Record<string, { label: string; color: string }> = {
@@ -320,10 +320,10 @@ export default function ActivityLog() {
   }
 
   return (
-    <div style={narrow ? { ...s.container, padding: 16 } : s.container}>
+    <Page>
       {/* Header */}
       <PageHeader
-        title="Activity Log"
+        title="Activity log"
         description="All staff actions: grants, redemptions, offers, banners, account changes."
         actions={<Button icon={<RefreshCw />} onClick={() => refetch()}>Refresh</Button>}
       />
@@ -349,20 +349,20 @@ export default function ActivityLog() {
         <div style={s.alertBox}>
           <strong>High-Risk Actions (last 24h):</strong>
           {' '}{stats.recentHighRisk.length} sensitive action{stats.recentHighRisk.length !== 1 ? 's' : ''} detected
-          {' '}(deletions, user toggles, PIN resets) - review below.
+          {' '}(deletions, user toggles, PIN resets): review below.
         </div>
       )}
 
       {/* Filters */}
       <div style={s.filters}>
         <select aria-label="Action" style={s.select} value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
-          <option value="">All Actions</option>
+          <option value="">All actions</option>
           <optgroup label="── Points ──">
             {['GRANT_POINTS','APPROVE','APPROVE_FLAGGED','REJECT_FLAGGED','REJECT_TRANSACTION','VOID_TRANSACTION','AUTO_EXPIRE_PENDING','GOODWILL_CREDIT','CLAIM_TIER_BENEFIT','REDEEM_CREDITS','CATALOG_REDEMPTION','CATALOG_CONFIRM','WELCOME_GIFT','WINBACK_SEND','SELF_GRANT','DISPUTE_APPROVED','DISPUTE_REJECTED','BROADCAST'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
-          <optgroup label="── Offers & Banners ──">
+          <optgroup label="── Offers & banners ──">
             {['CREATE_OFFER','UPDATE_OFFER','DELETE_OFFER','OFFER_REQUESTED','OFFER_REQUEST_APPROVED','OFFER_REQUEST_DECLINED','OFFER_REQUEST_WITHDRAWN','SHELF_DEAL_VISIBILITY','CREATE_BANNER','DELETE_BANNER','PROMOTION_BUDGET_USED','CHALLENGE_CREATE','CHALLENGE_UPDATE'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
@@ -377,7 +377,7 @@ export default function ActivityLog() {
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
-          <optgroup label="── Staff & Access ──">
+          <optgroup label="── Staff & access ──">
             {['CREATE_STAFF','EDIT_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','SET_STORES','DELETE_USER','DELETE_USER_REFUSED','DENIED_ACCOUNT_ACTION','DELETE_OWN_ACCOUNT'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
@@ -387,7 +387,7 @@ export default function ActivityLog() {
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
-          <optgroup label="── Rewards, Notices & Local Ads ──">
+          <optgroup label="── Rewards, notices & local ads ──">
             {['CATALOG_ITEM_CREATE','CATALOG_ITEM_UPDATE','CATALOG_POINTS_FOLLOWED_PRICE','NOTICE_CREATE','NOTICE_UPDATE','NOTICE_REACTIVATE','NOTICE_DEACTIVATE','NOTICE_DELETE','PROMOTION_PUBLISH','PROMOTION_REJECT','PROMOTION_DELETE','PROMOTION_SETTINGS'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
@@ -402,7 +402,7 @@ export default function ActivityLog() {
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
-          <optgroup label="── Store Requests ──">
+          <optgroup label="── Store requests ──">
             {['SUBMIT_STORE_REQUEST','ACKNOWLEDGE_STORE_REQUEST'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
@@ -430,7 +430,7 @@ export default function ActivityLog() {
         </select>
 
         <select aria-label="Who did it" style={s.select} value={actorRole} onChange={(e) => { setActorRole(e.target.value); setPage(1); }}>
-          <option value="">All Roles</option>
+          <option value="">All roles</option>
           <option value="DEV_ADMIN">Dev Admin</option>
           <option value="SUPER_ADMIN">Super Admin</option>
           <option value="STORE_MANAGER">Store Manager</option>
@@ -439,7 +439,7 @@ export default function ActivityLog() {
         </select>
 
         <select aria-label="Store" style={s.select} value={storeId} onChange={(e) => { setStoreId(e.target.value); setPage(1); }}>
-          <option value="">All Stores</option>
+          <option value="">All stores</option>
           {stores.map((s: any) => (
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
@@ -505,14 +505,13 @@ export default function ActivityLog() {
         onPrevious={() => setPage(p => p - 1)}
         onNext={() => setPage(p => p + 1)}
       />
-    </div>
+    </Page>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4, fontSize: 14 },

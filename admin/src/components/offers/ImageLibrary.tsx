@@ -5,10 +5,7 @@ import Modal from '../Modal';
 import { Chip } from '../kit';
 import { C, FONT, RADIUS } from '../../lib/theme';
 import { OFFER_IMAGES, type OfferImage } from '../../lib/offerImages';
-
-const CAT_LABEL: Record<string, string> = {
-  GROCERIES: 'Groceries', FROZEN_FOODS: 'Frozen', FRESH_FOODS: 'Fresh', GAS: 'Gas', DIESEL: 'Diesel', HOT_FOODS: 'Hot Foods', OTHER: 'Other',
-};
+import { CATEGORY_LABELS } from '../../lib/categories';
 
 /** The picture as a file, ready for the form (the same upload as a picture chosen from the computer). */
 export async function libraryFile(img: OfferImage): Promise<File> {
@@ -19,13 +16,13 @@ export async function libraryFile(img: OfferImage): Promise<File> {
 }
 
 export function ImageLibrary({ category, onPick, onClose }: { category?: string | null; onPick: (img: OfferImage) => void; onClose: () => void }) {
-  // Store-wide (no category) opens on Other: the gifts, stars and coins
-  const [cat, setCat] = useState<string>(category && CAT_LABEL[category] ? category : 'OTHER');
+  // No category opens on Other: the gifts, stars and coins
+  const [cat, setCat] = useState<string>(category && CATEGORY_LABELS[category] ? category : 'OTHER');
   const shown = OFFER_IMAGES.filter((i) => i.category === cat);
   return (
     <Modal title="Lucky Stop pictures" subtitle="Ready-made offer pictures, 1200 x 600. Pick one; you can still change it later." onClose={onClose} maxWidth={860}>
       <div role="group" aria-label="Picture category" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-        {Object.entries(CAT_LABEL).map(([value, label]) => (
+        {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
           <Chip key={value} selected={cat === value} onClick={() => setCat(value)}>
             {label} ({OFFER_IMAGES.filter((i) => i.category === value).length})
           </Chip>

@@ -7,17 +7,19 @@ import { useAuthStore } from '../store/authStore';
 import toast from 'react-hot-toast';
 import { failureMessage } from '../lib/apiError';
 import ConfirmModal from '../components/ConfirmModal';
+import Modal from '../components/Modal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
-import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
+import { Button, Field } from '../components/kit';
 import Glyph from '../components/Glyph';
 import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
 
 const TYPE_LABELS: Record<string, string> = {
-  LOW_STOCK: 'Low Stock Alert',
-  STORE_SUPPLIES: 'Store Supplies',
-  CUSTOMER_REQUESTED_PRODUCT: 'Customer Asking',
-  WORK_ORDER: 'Work Order',
+  LOW_STOCK: 'Low stock alert',
+  STORE_SUPPLIES: 'Store supplies',
+  CUSTOMER_REQUESTED_PRODUCT: 'Customer asking',
+  WORK_ORDER: 'Work order',
 };
 
 const TYPE_ICONS: Record<string, string> = {
@@ -42,9 +44,13 @@ const PRIORITY_BG: Record<string, string> = {
   HIGH: '#fdf2f2', MEDIUM: '#fdf6e8', LOW: '#edf7f0',
 };
 
+const PRIORITY_LABEL: Record<string, string> = {
+  HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low',
+};
+
 const AVATAR_PALETTE = ['#4f6d8f', '#1D3557', '#1a7f45', '#8a5300', PRIMARY, '#c42130', '#3c6e8f'];
 
-// Sentinel used for the sidebar's "All Stores" entry — never collides with a real store id (cuid).
+// Sentinel used for the sidebar's "All stores" entry: never collides with a real store id (cuid).
 const ALL_STORES_ID = '__ALL_STORES__';
 
 const STORE_GRADIENTS = [
@@ -92,6 +98,7 @@ const PR_STATUS_COLOR: Record<string, string> = { PENDING: '#8a5300', ACCEPTED: 
 const PR_STATUS_BG: Record<string, string>    = { PENDING: '#fdf6e8', ACCEPTED: '#edf7f0', DECLINED: '#fdf2f2' };
 const PR_STATUS_BORDER: Record<string, string>= { PENDING: '#f1dcaf', ACCEPTED: '#c8e6d2', DECLINED: '#f3cdd1' };
 const PR_STATUS_DOT: Record<string, string>   = { PENDING: '#8a5300', ACCEPTED: '#22c55e', DECLINED: '#c42130' };
+const PR_STATUS_LABEL: Record<string, string> = { PENDING: 'Pending', ACCEPTED: 'Accepted', DECLINED: 'Declined' };
 
 interface StockLine {
   id: string;
@@ -121,8 +128,8 @@ interface StockRequest {
 }
 
 const STOCK_TYPE_LABELS: Record<string, string> = {
-  LOW_STOCK: 'Low Stock',
-  CUSTOMER_REQUEST: 'Customer Request',
+  LOW_STOCK: 'Low stock',
+  CUSTOMER_REQUEST: 'Customer request',
 };
 
 const REJECTION_REASONS = [
@@ -187,7 +194,7 @@ export default function StoreRequests() {
   }, [stores.length, isStoreManager]);
   useEffect(() => { rememberStore('requests', selectedStoreId); }, [selectedStoreId]);
 
-  // A Store Manager with exactly one assigned store never needs to pick —
+  // A Store Manager with exactly one assigned store never needs to pick:
   // auto-select it. A Store Manager with multiple stores (a supported case,
   // see requireStoreAccess/allStoresAccess) still needs the sidebar picker
   // below, just without the SuperAdmin-only "All Stores" aggregate option.
@@ -210,7 +217,7 @@ export default function StoreRequests() {
   const requests: StoreRequest[] = requestsData?.data?.data || [];
 
   // Fetch Product/Stock data regardless of which tab is active (not just when
-  // that tab is selected) — otherwise the tab switcher's own pending badges
+  // that tab is selected); otherwise the tab switcher's own pending badges
   // below read as 0 until the user has already clicked into that tab once,
   // which is exactly the "no linkage" gap the sidebar's combined badge count
   // was supposed to point at.
@@ -243,7 +250,7 @@ export default function StoreRequests() {
     ? (stockAllData?.data?.data || [])
     : (stockData?.data?.data || []);
 
-  // Per-store pending breakdown for the sidebar's store list — same three
+  // Per-store pending breakdown for the sidebar's store list: same three
   // sources the "Requests" nav badge already sums client-side (AppSidebar),
   // just broken out per store instead of one combined number with no
   // indication of which store actually needs a look.
@@ -317,12 +324,12 @@ export default function StoreRequests() {
     mutationFn: ({ requestId, lines }: { requestId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT'; rejectionReason?: string; rejectionNote?: string }[] }) =>
       employeeRequestApi.reviewRequest(requestId, { lines }),
     onSuccess: () => {
-      toast.success('Request reviewed - accepted items added to the order list');
+      toast.success('Request reviewed: accepted items added to the order list');
       qc.invalidateQueries({ queryKey: ['stock-requests'] });
       qc.invalidateQueries({ queryKey: ['stock-requests-all'] });
       qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
       // Order List's detail view has its own mini review panel for the same
-      // underlying requests — keep it in sync instead of waiting on its 30s poll.
+      // underlying requests: keep it in sync instead of waiting on its 30s poll.
       qc.invalidateQueries({ queryKey: ['pending-reqs-panel'] });
       setLineState({});
       setReviewTarget(null);
@@ -365,19 +372,19 @@ export default function StoreRequests() {
   const selectedStore = stores.find(st => st.id === effectiveStoreId);
   const storeIdx = stores.findIndex(st => st.id === effectiveStoreId);
   const gradient = isAllStores ? ['#374151', '#5a6472'] : (STORE_GRADIENTS[storeIdx % STORE_GRADIENTS.length] || STORE_GRADIENTS[0]);
-  const headerName = isAllStores ? 'All Stores' : (selectedStore?.name ?? 'Store');
+  const headerName = isAllStores ? 'All stores' : (selectedStore?.name ?? 'Store');
 
   return (
     <div style={s.page} className="ui-split">
       <ConfirmModal
         open={!!confirmAcceptTarget}
-        title="Accept Request"
-        message={`Accept the product request for "${confirmAcceptTarget?.productName}"? The employee who submitted it will be notified.`}
+        title="Accept this request?"
+        message={`Accept the product request for "${confirmAcceptTarget?.productName}"? The customer who asked is told, and it goes on the store's open order list.`}
         confirmLabel="Accept"
         onConfirm={() => { if (confirmAcceptTarget) respondMutation.mutate({ id: confirmAcceptTarget.id, status: 'ACCEPTED', note: '' }); setConfirmAcceptTarget(null); }}
         onCancel={() => setConfirmAcceptTarget(null)}
       />
-      {/* ── Sidebar (Chat style) - hidden only when there's nothing to pick:
+      {/* ── Sidebar (Chat style), hidden only when there's nothing to pick:
           a single-store Store Manager is auto-selected above. A Store
           Manager with multiple stores still needs this to choose one. ── */}
       {(!isStoreManager || stores.length > 1) && (
@@ -387,8 +394,8 @@ export default function StoreRequests() {
             <div style={s.sidebarSubtitle}>{stores.length} store{stores.length !== 1 ? 's' : ''}</div>
           </div>
           <div style={s.storeList}>
-            {/* "All Stores" is a cross-store aggregate backed by a SuperAdmin-only
-                endpoint - never offered to Store Manager, even a multi-store one. */}
+            {/* "All stores" is a cross-store aggregate backed by a SuperAdmin-only
+                endpoint: never offered to Store Manager, even a multi-store one. */}
             {!isStoreManager && (
               <button
                 style={{ ...s.storeBtn, ...(selectedStoreId === ALL_STORES_ID ? s.storeBtnActive : {}) }}
@@ -398,7 +405,7 @@ export default function StoreRequests() {
                   <Store size={18} color="#fff" />
                 </div>
                 <div style={s.storeBtnInfo}>
-                  <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? PRIMARY : '#111827' }}>All Stores</div>
+                  <div style={{ ...s.storeBtnName, color: selectedStoreId === ALL_STORES_ID ? PRIMARY : '#111827' }}>All stores</div>
                   <div style={s.storeBtnCity}>Every location</div>
                 </div>
                 {selectedStoreId === ALL_STORES_ID && <div style={s.activeIndicator} />}
@@ -473,11 +480,11 @@ export default function StoreRequests() {
                   disabled={isAllStores}
                   title={isAllStores ? 'Select a single store to view this tab' : undefined}
                 >
-                  Store Alerts
+                  Store alerts
                   {pending.length > 0 && <span style={s.tabBadge}>{pending.length}</span>}
                 </button>
                 <button style={{ ...s.tabBtn, ...(activeTab === 'stock' ? s.tabBtnActive : {}) }} onClick={() => setActiveTab('stock')}>
-                  Stock Requests
+                  Stock requests
                   {stockPending.length > 0 && <span style={s.tabBadge}>{stockPending.length}</span>}
                 </button>
                 <button
@@ -486,7 +493,7 @@ export default function StoreRequests() {
                   disabled={isAllStores}
                   title={isAllStores ? 'Select a single store to view this tab' : undefined}
                 >
-                  Product Requests
+                  Product requests
                   {prPending.length > 0 && <span style={s.tabBadge}>{prPending.length}</span>}
                 </button>
               </div>
@@ -548,7 +555,7 @@ export default function StoreRequests() {
                                   <span style={s.doneBadge}>✓ Done</span>
                                 ) : (
                                   <span style={{ ...s.prioBadge, background: pBg, color: pColor, borderColor: pColor + '55' }}>
-                                    <span style={{ ...s.prioBadgeDot, background: pColor }} />{req.priority}
+                                    <span style={{ ...s.prioBadgeDot, background: pColor }} />{PRIORITY_LABEL[req.priority] ?? req.priority}
                                   </span>
                                 )}
                               </div>
@@ -569,7 +576,7 @@ export default function StoreRequests() {
                                 </div>
                               </div>
                             ) : !isReadOnly ? (
-                              <button style={s.ackBtn} onClick={() => { setAckTarget(req); setAckNote(''); }}> Mark as Handled</button>
+                              <button style={s.ackBtn} onClick={() => { setAckTarget(req); setAckNote(''); }}>Mark as handled</button>
                             ) : (
                               <div style={s.pendingPill}><span style={s.pendingDot} />Awaiting manager review</div>
                             )}
@@ -627,7 +634,7 @@ export default function StoreRequests() {
                                 <Package size={22} color={PRIMARY} strokeWidth={1.75} />
                               </div>
                               <div style={{ flex: 1, minWidth: 130 }}>
-                                <div style={s.typeLabel}>{STOCK_TYPE_LABELS[req.requestType] || 'Stock Request'}</div>
+                                <div style={s.typeLabel}>{STOCK_TYPE_LABELS[req.requestType] || 'Stock request'}</div>
                                 <div style={s.storeMeta}>
                                   {req.lines.length} item{req.lines.length !== 1 ? 's' : ''}
                                   {isAllStores && req.store?.name ? `  ·  ${req.store.name}` : ''}
@@ -661,7 +668,7 @@ export default function StoreRequests() {
                                 </div>
                               </div>
                             ) : !isReadOnly ? (
-                              <button style={s.ackBtn} onClick={() => { setReviewTarget(req); setLineState({}); }}> Review Items</button>
+                              <button style={s.ackBtn} onClick={() => { setReviewTarget(req); setLineState({}); }}>Review items</button>
                             ) : (
                               <div style={s.pendingPill}><span style={s.pendingDot} />Awaiting manager review</div>
                             )}
@@ -730,7 +737,7 @@ export default function StoreRequests() {
                               </div>
                               <div style={{ ...s.prStatusBadge, background: statusBg, color: statusColor, borderColor: statusBorder }}>
                                 <span style={{ ...s.prStatusDot, background: statusDot }} />
-                                {pr.status}
+                                {PR_STATUS_LABEL[pr.status] ?? pr.status}
                               </div>
                             </div>
 
@@ -794,24 +801,21 @@ export default function StoreRequests() {
 
       {/* ── Decline Product Request Modal ── */}
       {respondTarget && (
-        <div style={s.overlay} onClick={() => setRespondTarget(null)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={s.modalHeader}>
-              <div style={s.modalTitle}>Decline Request</div>
-              <button style={s.modalClose} onClick={() => setRespondTarget(null)}>✕</button>
+        <Modal title="Decline request" onClose={() => setRespondTarget(null)} busy={respondMutation.isPending}>
+          <div style={{ ...s.previewCard, background: '#fdf2f2', borderColor: '#f3cdd1' }}>
+            <div style={{ ...s.previewIconWrap, background: '#fdf2f2' }}>
+              <span style={s.previewIconEmoji}><Glyph e="🛍️" size={20} color="#1D3557" /></span>
             </div>
-            <div style={{ ...s.previewCard, background: '#fdf2f2', borderColor: '#f3cdd1' }}>
-              <div style={{ ...s.previewIconWrap, background: '#fdf2f2' }}>
-                <span style={s.previewIconEmoji}><Glyph e="🛍️" size={20} color="#1D3557" /></span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={s.previewType}>{respondTarget.productName}</div>
-                <div style={s.previewMeta}>from {respondTarget.customer.name || 'Customer'} · {respondTarget.customer.phone}</div>
-                {respondTarget.description && <div style={s.previewNotes}>"{respondTarget.description}"</div>}
-              </div>
+            <div style={{ flex: 1 }}>
+              <div style={s.previewType}>{respondTarget.productName}</div>
+              <div style={s.previewMeta}>from {respondTarget.customer.name || 'Customer'} · {respondTarget.customer.phone}</div>
+              {respondTarget.description && <div style={s.previewNotes}>"{respondTarget.description}"</div>}
             </div>
-            <div style={s.modalLabel}>Custom decline note <span style={s.optionalTag}>(optional - default message sent if blank)</span></div>
+          </div>
+          <Field label="Decline note (optional)" htmlFor="sr-decline-note" hint="Left blank, the customer sees the standard message.">
             <textarea
+              id="sr-decline-note"
+              className="ui-input"
               style={s.noteInput}
               placeholder="Product supply unavailable with current set of vendors but request is identified, validated, stored for future references."
               value={respondNote}
@@ -819,56 +823,51 @@ export default function StoreRequests() {
               rows={3}
               maxLength={400}
             />
-            <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setRespondTarget(null)}>Cancel</button>
-              <button
-                style={{ ...s.prDeclineMdBtn, ...(respondMutation.isPending ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
-                disabled={respondMutation.isPending}
-                onClick={() => respondMutation.mutate({ id: respondTarget.id, status: 'DECLINED', note: respondNote })}
-              >
-                {respondMutation.isPending ? 'Sending…' : '✕  Confirm Decline'}
-              </button>
-            </div>
+          </Field>
+          <div style={s.modalActions}>
+            <Button onClick={() => setRespondTarget(null)} disabled={respondMutation.isPending}>Cancel</Button>
+            <Button
+              variant="danger-solid"
+              disabled={respondMutation.isPending}
+              onClick={() => respondMutation.mutate({ id: respondTarget.id, status: 'DECLINED', note: respondNote })}
+            >
+              {respondMutation.isPending ? 'Sending…' : 'Decline'}
+            </Button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Acknowledge Modal ── */}
       {ackTarget && (
-        <div style={s.overlay} onClick={() => setAckTarget(null)}>
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            {/* Modal header */}
-            <div style={s.modalHeader}>
-              <div style={s.modalTitle}>Mark as Handled</div>
-              <button style={s.modalClose} onClick={() => setAckTarget(null)}>✕</button>
+        <Modal title="Mark as handled" onClose={() => setAckTarget(null)} busy={acknowledgeMutation.isPending}>
+          {/* Request preview */}
+          <div style={s.previewCard}>
+            <div style={{ ...s.previewIconWrap, background: TYPE_BG[ackTarget.type] || '#f1f3f6' }}>
+              <span style={s.previewIconEmoji}><Glyph e={TYPE_ICONS[ackTarget.type]} size={18} /></span>
             </div>
-
-            {/* Request preview */}
-            <div style={s.previewCard}>
-              <div style={{ ...s.previewIconWrap, background: TYPE_BG[ackTarget.type] || '#f1f3f6' }}>
-                <span style={s.previewIconEmoji}><Glyph e={TYPE_ICONS[ackTarget.type]} size={18} /></span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={s.previewType}>{TYPE_LABELS[ackTarget.type]}</div>
-                <div style={s.previewMeta}>from {ackTarget.submitterName} · {ackTarget.store?.name}</div>
-                {ackTarget.notes && (
-                  <div style={s.previewNotes}>"{ackTarget.notes}"</div>
-                )}
-              </div>
-              <span style={{
-                ...s.prioBadge,
-                background: PRIORITY_BG[ackTarget.priority] || '#f1f3f6',
-                color: PRIORITY_COLOR[ackTarget.priority] || '#5a6472',
-                borderColor: (PRIORITY_COLOR[ackTarget.priority] || '#5a6472') + '55',
-                alignSelf: 'flex-start',
-              }}>
-                <span style={{ ...s.prioBadgeDot, background: PRIORITY_COLOR[ackTarget.priority] || '#5a6472' }} />
-                {ackTarget.priority}
-              </span>
+            <div style={{ flex: 1 }}>
+              <div style={s.previewType}>{TYPE_LABELS[ackTarget.type]}</div>
+              <div style={s.previewMeta}>from {ackTarget.submitterName} · {ackTarget.store?.name}</div>
+              {ackTarget.notes && (
+                <div style={s.previewNotes}>"{ackTarget.notes}"</div>
+              )}
             </div>
+            <span style={{
+              ...s.prioBadge,
+              background: PRIORITY_BG[ackTarget.priority] || '#f1f3f6',
+              color: PRIORITY_COLOR[ackTarget.priority] || '#5a6472',
+              borderColor: (PRIORITY_COLOR[ackTarget.priority] || '#5a6472') + '55',
+              alignSelf: 'flex-start',
+            }}>
+              <span style={{ ...s.prioBadgeDot, background: PRIORITY_COLOR[ackTarget.priority] || '#5a6472' }} />
+              {PRIORITY_LABEL[ackTarget.priority] ?? ackTarget.priority}
+            </span>
+          </div>
 
-            <div style={s.modalLabel}>Add a note <span style={s.optionalTag}>(optional)</span></div>
+          <Field label="Add a note (optional)" htmlFor="sr-ack-note">
             <textarea
+              id="sr-ack-note"
+              className="ui-input"
               style={s.noteInput}
               placeholder="e.g. Ordered, arriving Thursday…"
               value={ackNote}
@@ -876,136 +875,127 @@ export default function StoreRequests() {
               rows={3}
               maxLength={300}
             />
+          </Field>
 
-            <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setAckTarget(null)}>Cancel</button>
-              <button
-                style={{ ...s.confirmBtn, ...(acknowledgeMutation.isPending ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
-                disabled={acknowledgeMutation.isPending}
-                onClick={() => acknowledgeMutation.mutate({ id: ackTarget.id, note: ackNote })}
-              >
-                {acknowledgeMutation.isPending ? 'Saving…' : ' Confirm'}
-              </button>
-            </div>
+          <div style={s.modalActions}>
+            <Button onClick={() => setAckTarget(null)} disabled={acknowledgeMutation.isPending}>Cancel</Button>
+            <Button
+              variant="primary"
+              disabled={acknowledgeMutation.isPending}
+              onClick={() => acknowledgeMutation.mutate({ id: ackTarget.id, note: ackNote })}
+            >
+              {acknowledgeMutation.isPending ? 'Saving…' : 'Confirm'}
+            </Button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* ── Review Stock Request Modal ── */}
       {reviewTarget && (
-        <div style={s.overlay} onClick={() => setReviewTarget(null)}>
-          <div style={{ ...s.modal, width: 520 }} onClick={(e) => e.stopPropagation()}>
-            <div style={s.modalHeader}>
-              <div style={s.modalTitle}>Review Stock Request</div>
-              <button style={s.modalClose} onClick={() => setReviewTarget(null)}>✕</button>
+        <Modal title="Review stock request" onClose={() => setReviewTarget(null)} busy={reviewMutation.isPending} maxWidth={520}>
+          {/* Request preview */}
+          <div style={s.previewCard}>
+            <div style={{ ...s.previewIconWrap, background: '#eef2f7' }}>
+              <Package size={20} color={PRIMARY} strokeWidth={1.75} />
             </div>
-
-            {/* Request preview */}
-            <div style={s.previewCard}>
-              <div style={{ ...s.previewIconWrap, background: '#eef2f7' }}>
-                <Package size={20} color={PRIMARY} strokeWidth={1.75} />
+            <div style={{ flex: 1 }}>
+              <div style={s.previewType}>{STOCK_TYPE_LABELS[reviewTarget.requestType] || 'Stock request'}</div>
+              <div style={s.previewMeta}>
+                from {reviewTarget.submittedBy?.name} · {reviewTarget.lines.length} item{reviewTarget.lines.length !== 1 ? 's' : ''}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={s.previewType}>{STOCK_TYPE_LABELS[reviewTarget.requestType] || 'Stock Request'}</div>
-                <div style={s.previewMeta}>
-                  from {reviewTarget.submittedBy?.name} · {reviewTarget.lines.length} item{reviewTarget.lines.length !== 1 ? 's' : ''}
-                </div>
-                {reviewTarget.note && <div style={s.previewNotes}>"{reviewTarget.note}"</div>}
-              </div>
-            </div>
-
-            {reviewTarget.lines.filter(l => l.status === 'PENDING').length > 0 && (
-              <button
-                style={{ ...s.acceptAllBtn, ...(reviewMutation.isPending ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
-                disabled={reviewMutation.isPending}
-                onClick={() => acceptAllLines(reviewTarget)}
-              >
-                ✓ Accept All {reviewTarget.lines.filter(l => l.status === 'PENDING').length} Item{reviewTarget.lines.filter(l => l.status === 'PENDING').length !== 1 ? 's' : ''}
-              </button>
-            )}
-
-            <div style={s.reviewLineList}>
-              {reviewTarget.lines.map(line => {
-                const linePending = line.status === 'PENDING';
-                const st = lineState[line.id] || { action: null, reason: 'OTHER', note: '' };
-                return (
-                  <div key={line.id} style={s.reviewLine}>
-                    <div style={s.reviewLineName}>{line.name}</div>
-                    {(line.quantity || line.category || line.notes) && (
-                      <div style={s.reviewLineMeta}>
-                        {line.quantity && `Qty: ${line.quantity}`}
-                        {line.quantity && line.category && ' · '}
-                        {line.category}
-                        {line.notes && ` - ${line.notes}`}
-                      </div>
-                    )}
-                    {!linePending ? (
-                      <span style={{
-                        ...s.prStatusBadge,
-                        marginTop: 8,
-                        background: line.status === 'ACCEPTED' ? '#edf7f0' : '#fdf2f2',
-                        color: line.status === 'ACCEPTED' ? '#17663a' : '#a51b28',
-                        borderColor: line.status === 'ACCEPTED' ? '#c8e6d2' : '#f3cdd1',
-                      }}>
-                        {line.status === 'ACCEPTED' ? '✓ Accepted' : `✕ Rejected${line.rejectionReason ? ` - ${line.rejectionReason}` : ''}`}
-                      </span>
-                    ) : (
-                      <>
-                        <div style={s.reviewLineActionRow}>
-                          <button
-                            style={{ ...s.reviewLineActionBtn, ...(st.action === 'ACCEPT' ? s.reviewLineActionBtnAccept : {}) }}
-                            onClick={() => setLine(line.id, 'action', 'ACCEPT')}
-                          >
-                            ✓ Accept
-                          </button>
-                          <button
-                            style={{ ...s.reviewLineActionBtn, ...(st.action === 'REJECT' ? s.reviewLineActionBtnReject : {}) }}
-                            onClick={() => setLine(line.id, 'action', 'REJECT')}
-                          >
-                            ✕ Reject
-                          </button>
-                        </div>
-                        {st.action === 'REJECT' && (
-                          <div>
-                            <div style={s.reasonChipRow}>
-                              {REJECTION_REASONS.map(rr => (
-                                <button
-                                  key={rr.value}
-                                  style={{ ...s.reasonChip, ...(st.reason === rr.value ? s.reasonChipActive : {}) }}
-                                  onClick={() => setLine(line.id, 'reason', rr.value)}
-                                >
-                                  {rr.label}
-                                </button>
-                              ))}
-                            </div>
-                            <input
-                              style={s.reasonNoteInput}
-                              value={st.note}
-                              onChange={(e) => setLine(line.id, 'note', e.target.value)}
-                              placeholder="Optional note..."
-                              maxLength={300}
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setReviewTarget(null)}>Cancel</button>
-              <button
-                style={{ ...s.confirmBtn, ...(reviewMutation.isPending ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
-                disabled={reviewMutation.isPending}
-                onClick={() => submitStockReview(reviewTarget)}
-              >
-                {reviewMutation.isPending ? 'Submitting…' : ' Submit Review'}
-              </button>
+              {reviewTarget.note && <div style={s.previewNotes}>"{reviewTarget.note}"</div>}
             </div>
           </div>
-        </div>
+
+          {reviewTarget.lines.filter(l => l.status === 'PENDING').length > 0 && (
+            <button
+              style={{ ...s.acceptAllBtn, ...(reviewMutation.isPending ? { opacity: 0.65, cursor: 'not-allowed' } : {}) }}
+              disabled={reviewMutation.isPending}
+              onClick={() => acceptAllLines(reviewTarget)}
+            >
+              ✓ Accept all {reviewTarget.lines.filter(l => l.status === 'PENDING').length} item{reviewTarget.lines.filter(l => l.status === 'PENDING').length !== 1 ? 's' : ''}
+            </button>
+          )}
+
+          <div style={s.reviewLineList}>
+            {reviewTarget.lines.map(line => {
+              const linePending = line.status === 'PENDING';
+              const st = lineState[line.id] || { action: null, reason: 'OTHER', note: '' };
+              return (
+                <div key={line.id} style={s.reviewLine}>
+                  <div style={s.reviewLineName}>{line.name}</div>
+                  {(line.quantity || line.category || line.notes) && (
+                    <div style={s.reviewLineMeta}>
+                      {[line.quantity && `Qty: ${line.quantity}`, line.category, line.notes].filter(Boolean).join(' · ')}
+                    </div>
+                  )}
+                  {!linePending ? (
+                    <span style={{
+                      ...s.prStatusBadge,
+                      marginTop: 8,
+                      background: line.status === 'ACCEPTED' ? '#edf7f0' : '#fdf2f2',
+                      color: line.status === 'ACCEPTED' ? '#17663a' : '#a51b28',
+                      borderColor: line.status === 'ACCEPTED' ? '#c8e6d2' : '#f3cdd1',
+                    }}>
+                      {line.status === 'ACCEPTED' ? '✓ Accepted' : `✕ Rejected${line.rejectionReason ? `: ${REJECTION_REASONS.find(rr => rr.value === line.rejectionReason)?.label ?? line.rejectionReason}` : ''}`}
+                    </span>
+                  ) : (
+                    <>
+                      <div style={s.reviewLineActionRow}>
+                        <button
+                          style={{ ...s.reviewLineActionBtn, ...(st.action === 'ACCEPT' ? s.reviewLineActionBtnAccept : {}) }}
+                          onClick={() => setLine(line.id, 'action', 'ACCEPT')}
+                        >
+                          ✓ Accept
+                        </button>
+                        <button
+                          style={{ ...s.reviewLineActionBtn, ...(st.action === 'REJECT' ? s.reviewLineActionBtnReject : {}) }}
+                          onClick={() => setLine(line.id, 'action', 'REJECT')}
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                      {st.action === 'REJECT' && (
+                        <div>
+                          <div style={s.reasonChipRow}>
+                            {REJECTION_REASONS.map(rr => (
+                              <button
+                                key={rr.value}
+                                style={{ ...s.reasonChip, ...(st.reason === rr.value ? s.reasonChipActive : {}) }}
+                                onClick={() => setLine(line.id, 'reason', rr.value)}
+                              >
+                                {rr.label}
+                              </button>
+                            ))}
+                          </div>
+                          <input
+                            style={s.reasonNoteInput}
+                            value={st.note}
+                            onChange={(e) => setLine(line.id, 'note', e.target.value)}
+                            placeholder="Optional note..."
+                            aria-label={`Why ${line.name} was rejected (optional)`}
+                            maxLength={300}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={s.modalActions}>
+            <Button onClick={() => setReviewTarget(null)} disabled={reviewMutation.isPending}>Cancel</Button>
+            <Button
+              variant="primary"
+              disabled={reviewMutation.isPending}
+              onClick={() => submitStockReview(reviewTarget)}
+            >
+              {reviewMutation.isPending ? 'Submitting…' : 'Submit review'}
+            </Button>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -1208,27 +1198,7 @@ const s: Record<string, React.CSSProperties> = {
     display: 'inline-block',
   },
 
-  // Modal
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-    backdropFilter: 'blur(2px)',
-  },
-  modal: {
-    background: '#fff', borderRadius: 20, padding: 28,
-    width: 460, maxWidth: '92vw',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-    display: 'flex', flexDirection: 'column', gap: 18,
-  },
-  modalHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  modalTitle: { fontWeight: 700, fontSize: 20, color: '#111827' },
-  modalClose: {
-    width: 32, height: 32, borderRadius: 12,
-    border: 'none', background: '#f1f3f6',
-    cursor: 'pointer', fontSize: 14, color: TEXT_MUTED, fontWeight: 700,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-
+  // Dialogs
   previewCard: {
     display: 'flex', alignItems: 'flex-start', gap: 12,
     background: '#f7f8fa', borderRadius: 12, padding: '14px 16px',
@@ -1243,41 +1213,9 @@ const s: Record<string, React.CSSProperties> = {
   previewMeta: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   previewNotes: { fontSize: 14, color: TEXT_MUTED, fontStyle: 'italic', marginTop: 5 },
 
-  modalLabel: {
-    fontSize: 13, fontWeight: 700, color: TEXT_MUTED,
-    textTransform: 'uppercase', letterSpacing: '0.8px',
-  },
-  optionalTag: { fontSize: 12, fontWeight: 500, textTransform: 'none', color: TEXT_MUTED },
-  noteInput: {
-    width: '100%', padding: '12px 14px',
-    borderRadius: 12, border: '1.5px solid #e4e7ec',
-    fontSize: 14, resize: 'vertical',
-    boxSizing: 'border-box' as const,
-    background: '#f7f8fa', color: '#111827',
-    fontFamily: 'inherit',
-  },
+  noteInput: { ...INPUT, resize: 'vertical' },
 
-  modalActions: { display: 'flex', gap: 10 },
-  cancelBtn: {
-    flex: 1, padding: '12px 16px',
-    borderRadius: 12, border: '1.5px solid #e4e7ec',
-    background: '#fff', cursor: 'pointer',
-    fontSize: 14, fontWeight: 700, color: '#374151',
-  },
-  confirmBtn: {
-    flex: 2, padding: '12px 16px',
-    borderRadius: 12, border: 'none',
-    background: '#17663a', color: '#fff',
-    cursor: 'pointer', fontSize: 14, fontWeight: 700,
-    boxShadow: '0 4px 14px rgba(15,81,50,0.35)',
-  },
-  prDeclineMdBtn: {
-    flex: 2, padding: '12px 16px',
-    borderRadius: 12, border: 'none',
-    background: '#c42130', color: '#fff',
-    cursor: 'pointer', fontSize: 14, fontWeight: 700,
-    boxShadow: '0 4px 14px rgba(220,38,38,0.35)',
-  },
+  modalActions: { display: 'flex', gap: 8, justifyContent: 'flex-end' },
 
   // Product Request cards
   prCard: {

@@ -12,7 +12,8 @@ import {
 import { billingApi, storesApi } from '../services/api';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { storeToday, isRealDate, daysBetween, dayLabel } from '../lib/storeDates';
-import { PageHeader, Button, Chip, Tabs } from '../components/kit';
+import { Page, PageHeader, Button, Chip, Tabs } from '../components/kit';
+import { useIsMobile } from '../hooks/use-mobile';
 import { CustomersTab, PromotionsTab, PointsTab, StaffTab, BusyTab, ScorecardsTab } from '../components/analytics/InsightTabs';
 import { Download } from 'lucide-react';
 import Glyph from '../components/Glyph';
@@ -53,7 +54,7 @@ function checkCustom(from: string, to: string, today: string): { prompt?: string
 function fmt$(n: number) { return `$${(Number.isFinite(Number(n)) ? Number(n) : 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
 const CATEGORY_COLORS = [PRIMARY, '#c42130', '#8a5300', '#1a7f45', '#3c6e8f', '#4f6d8f', '#fd7e14', '#20c997'];
-const DOLLAR_SERIES = ['$', 'volume', 'cut', 'revenue', 'cashback', 'redeemed', 'amount'];
+const DOLLAR_SERIES = ['$', 'volume', 'cut', 'fee', 'revenue', 'cashback', 'redeemed', 'amount'];
 
 function catLabel(cat: string) { return cat.replace(/_/g, ' '); }
 
@@ -88,8 +89,9 @@ function summarize(daily: any[], key: string, what: string, money = false) {
 }
 
 function ChartCard({ title, summary, children }: { title: string; summary: string; children: React.ReactNode }) {
+  const narrow = useIsMobile();
   return (
-    <div style={s.chartCard}>
+    <div style={narrow ? { ...s.chartCard, padding: 16 } : s.chartCard}>
       <h2 style={s.chartTitle}>{title}</h2>
       <div role="img" aria-label={summary}>{children}</div>
     </div>
@@ -119,8 +121,8 @@ export default function Analytics() {
   const today = storeToday();
   const custom = range === 'custom' ? checkCustom(customFrom, customTo, today) : {};
   const ready = range !== 'custom' || (!custom.prompt && !custom.problem);
-  // 7d/30d/90d ask the server for its own canonical definition (utils/dashboardWindows.ts) — the same one the
-  // Dashboard's Business tab uses — which also brings a previous-period comparison along for free. Custom
+  // 7d/30d/90d ask the server for its own canonical definition (utils/dashboardWindows.ts), the same one the
+  // Dashboard's Business tab uses, which also brings a previous-period comparison along for free. Custom
   // sends plain from/to and gets no comparison, since "the previous period" is not well defined for an
   // arbitrary range someone typed in.
   const queryParams = range === 'custom' ? { from: customFrom, to: customTo, storeId: storeId || undefined } : { range, storeId: storeId || undefined };
@@ -148,7 +150,7 @@ export default function Analytics() {
   const storeRows = buildStoreRows(byStore, allStores);
   const selectedStoreName = storeId ? allStores.find((st) => st.id === storeId)?.name : undefined;
 
-  // Cashback as a share of purchase volume, day by day — derived on the client from `daily`, no server change
+  // Cashback as a share of purchase volume, day by day, derived on the client from `daily`, no server change
   // needed for this one.
   const cashbackShareDaily = daily.map((d) => ({ date: d.date, cashbackShare: d.purchaseVolume > 0 ? parseFloat(((d.pointsAwarded / d.purchaseVolume) * 100).toFixed(2)) : 0 }));
 
@@ -191,6 +193,12 @@ export default function Analytics() {
     return <ReferenceArea x1={kind === 'line' ? prev : last} x2={last} fill="#e4e7ec" fillOpacity={0.9} />;
   };
   const dateTick = (v: string) => dayLabel(v);
+  const narrow = useIsMobile();
+  const storeTick = (v: string) => {
+    if (!narrow) return v;
+    const short = v.replace(/^Lucky Stop\s+/, '');
+    return short.length > 12 ? `${short.slice(0, 11)}…` : short;
+  };
 
   // A promotion that started inside the visible window, drawn as a thin vertical line so a spike can be tied
   // to it. Only on the daily line/area charts, where a day-by-day reader would actually look for the cause.
@@ -199,7 +207,7 @@ export default function Analytics() {
   ));
 
   return (
-    <div style={s.container}>
+    <Page>
       {/* Header */}
       <PageHeader
         title="Analytics"
@@ -262,17 +270,17 @@ export default function Analytics() {
               preset range, not Custom) */}
           <div style={s.summaryGrid}>
             <SummaryCard icon="🧾" label="Transactions" value={totals.transactions || 0} delta={compare && pctChange(compare.current.totals.transactions, compare.previous.totals.transactions)} />
-            <SummaryCard icon="💵" label="Purchase Volume" value={fmt$(totals.purchaseVolume || 0)} delta={compare && pctChange(compare.current.totals.purchaseVolume, compare.previous.totals.purchaseVolume)} />
-            <SummaryCard icon="💰" label="Your Dev Cut" value={fmt$(totals.devCut || 0)} green />
-            <SummaryCard icon="🎁" label="Cashback Awarded" value={fmt$(totals.pointsAwarded || 0)} delta={compare && pctChange(compare.current.totals.cashbackIssued, compare.previous.totals.cashbackIssued)} />
-            <SummaryCard icon="🏪" label="Stores Selling" value={byStore.length} sub={allStores.length ? `of ${allStores.length} active` : undefined} />
+            <SummaryCard icon="💵" label="Purchase volume" value={fmt$(totals.purchaseVolume || 0)} delta={compare && pctChange(compare.current.totals.purchaseVolume, compare.previous.totals.purchaseVolume)} />
+            <SummaryCard icon="💰" label="Your platform fee" value={fmt$(totals.devCut || 0)} green />
+            <SummaryCard icon="🎁" label="Cashback awarded" value={fmt$(totals.pointsAwarded || 0)} delta={compare && pctChange(compare.current.totals.cashbackIssued, compare.previous.totals.cashbackIssued)} />
+            <SummaryCard icon="🏪" label="Stores selling" value={byStore.length} sub={allStores.length ? `of ${allStores.length} active` : undefined} />
           </div>
           {compare && (
             <p style={s.compareNote}>Percent change is against {RANGE_PREV_LABEL[range as Exclude<Range, 'custom'>]}, the same length of time, ending at the same point.</p>
           )}
 
           {noActivity ? (
-            <div style={s.chartCard}>
+            <div style={narrow ? { ...s.chartCard, padding: 16 } : s.chartCard}>
               <div style={s.emptyState}>
                 No activity in this date range yet. Charts will populate once transactions or redemptions come in.
               </div>
@@ -284,7 +292,7 @@ export default function Analytics() {
               )}
 
               {/* Daily transactions line chart, with the previous period dashed behind it when one is available */}
-              <ChartCard title="Daily Transactions" summary={summarize(daily, 'transactions', 'Daily transactions') + (compare ? ` Dashed line: the same days of ${RANGE_PREV_LABEL[range as Exclude<Range, 'custom'>]}.` : '')}>
+              <ChartCard title="Daily transactions" summary={summarize(daily, 'transactions', 'Daily transactions') + (compare ? ` Dashed line: the same days of ${RANGE_PREV_LABEL[range as Exclude<Range, 'custom'>]}.` : '')}>
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart accessibilityLayer={false} data={dailyWithPrev} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
@@ -301,7 +309,7 @@ export default function Analytics() {
               </ChartCard>
 
               {/* Daily revenue line chart, same previous-period dashed line */}
-              <ChartCard title="Daily Revenue (Purchase Volume & Dev Cut)" summary={summarize(daily, 'purchaseVolume', 'Daily purchase volume', true) + (compare ? ` Dashed line: the same days of ${RANGE_PREV_LABEL[range as Exclude<Range, 'custom'>]}.` : '')}>
+              <ChartCard title="Daily revenue (purchase volume and platform fee)" summary={summarize(daily, 'purchaseVolume', 'Daily purchase volume', true) + (compare ? ` Dashed line: the same days of ${RANGE_PREV_LABEL[range as Exclude<Range, 'custom'>]}.` : '')}>
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart accessibilityLayer={false} data={dailyWithPrev} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
@@ -312,14 +320,14 @@ export default function Analytics() {
                     {shade('line')}
                     {promotionLines}
                     {compare && <Line type="monotone" dataKey="prevPurchaseVolume" stroke="#5a6472" strokeWidth={1.5} strokeDasharray="5 4" dot={false} name="Previous period" />}
-                    <Line type="monotone" dataKey="purchaseVolume" stroke={PRIMARY} strokeWidth={2} dot={false} name="Purchase Volume" />
-                    <Line type="monotone" dataKey="devCut" stroke="#1a7f45" strokeWidth={2} dot={false} name="Dev Cut" />
+                    <Line type="monotone" dataKey="purchaseVolume" stroke={PRIMARY} strokeWidth={2} dot={false} name="Purchase volume" />
+                    <Line type="monotone" dataKey="devCut" stroke="#1a7f45" strokeWidth={2} dot={false} name="Platform fee" />
                   </LineChart>
                 </ResponsiveContainer>
               </ChartCard>
 
               {/* Cashback as a share of purchase volume, day by day: explains WHY the trend moves, not just that it does */}
-              <ChartCard title="Cashback Share of Sales" summary={summarize(cashbackShareDaily, 'cashbackShare', 'Cashback as a percent of purchase volume')}>
+              <ChartCard title="Cashback share of sales" summary={summarize(cashbackShareDaily, 'cashbackShare', 'Cashback as a percent of purchase volume')}>
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart accessibilityLayer={false} data={cashbackShareDaily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
@@ -332,7 +340,7 @@ export default function Analytics() {
               </ChartCard>
 
               {/* Daily cashback area chart */}
-              <ChartCard title="Cashback Awarded Trend" summary={summarize(daily, 'pointsAwarded', 'Daily cashback awarded', true)}>
+              <ChartCard title="Cashback awarded trend" summary={summarize(daily, 'pointsAwarded', 'Daily cashback awarded', true)}>
                 <ResponsiveContainer width="100%" height={240}>
                   <AreaChart accessibilityLayer={false} data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <defs>
@@ -346,13 +354,13 @@ export default function Analytics() {
                     <YAxis tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
                     <Tooltip content={<CustomTooltip />} />
                     {shade('line')}
-                    <Area type="monotone" dataKey="pointsAwarded" stroke="#8a5300" strokeWidth={2} fill="url(#pointsGrad)" name="Cashback Awarded" dot={false} />
+                    <Area type="monotone" dataKey="pointsAwarded" stroke="#8a5300" strokeWidth={2} fill="url(#pointsGrad)" name="Cashback awarded" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               </ChartCard>
 
-              {/* Daily redemptions - count (bars) + $ redeemed (line) on a second axis */}
-              <ChartCard title="Redemptions Trend" summary={summarize(daily, 'redemptions', 'Daily redemptions')}>
+              {/* Daily redemptions: count (bars) + $ redeemed (line) on a second axis */}
+              <ChartCard title="Redemptions trend" summary={summarize(daily, 'redemptions', 'Daily redemptions')}>
                 <ResponsiveContainer width="100%" height={240}>
                   <ComposedChart accessibilityLayer={false} data={daily} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
@@ -363,7 +371,7 @@ export default function Analytics() {
                     <Legend />
                     {shade('bar')}
                     <Bar yAxisId="left" dataKey="redemptions" fill="#4f6d8f" name="Redemptions" radius={[4, 4, 0, 0]} />
-                    <Line yAxisId="right" type="monotone" dataKey="redeemedAmount" stroke="#1a7f45" strokeWidth={2} name="Redeemed Amount" dot={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="redeemedAmount" stroke="#1a7f45" strokeWidth={2} name="Redeemed amount" dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </ChartCard>
@@ -372,14 +380,14 @@ export default function Analytics() {
                   of them, so these step aside once drilled down to one. Click a bar to drill in. */}
               {storeRows.length > 0 && !storeId && (
                 <ChartCard
-                  title="Transactions by Store"
+                  title="Transactions by store"
                   summary={`Transactions by store, click a bar to see just that store: ${storeRows.map((r) => `${r.storeName} ${r.transactions}`).join(', ')}.`}
                 >
                   <ResponsiveContainer width="100%" height={Math.max(300, storeRows.length * 36)}>
-                    <BarChart accessibilityLayer={false} data={storeRows} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+                    <BarChart accessibilityLayer={false} data={storeRows} layout="vertical" margin={{ top: 5, right: narrow ? 12 : 30, left: narrow ? 0 : 100, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
                       <XAxis type="number" tick={{ fontSize: 13 }} allowDecimals={false} />
-                      <YAxis type="category" dataKey="storeName" tick={{ fontSize: 13 }} width={120} />
+                      <YAxis type="category" dataKey="storeName" tick={{ fontSize: 13 }} tickFormatter={storeTick} width={narrow ? 90 : 120} />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
                       <Bar dataKey="transactions" fill={PRIMARY} name="Transactions" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.transactions > 0 && setStoreId(d.storeId)} />
@@ -391,18 +399,18 @@ export default function Analytics() {
               {/* Per-store purchase volume bar chart */}
               {storeRows.length > 0 && !storeId && (
                 <ChartCard
-                  title="Purchase Volume by Store ($)"
+                  title="Purchase volume by store ($)"
                   summary={`Purchase volume by store, click a bar to see just that store: ${storeRows.map((r) => `${r.storeName} ${fmt$(r.purchaseVolume)}`).join(', ')}.`}
                 >
                   <ResponsiveContainer width="100%" height={Math.max(300, storeRows.length * 36)}>
-                    <BarChart accessibilityLayer={false} data={storeRows} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+                    <BarChart accessibilityLayer={false} data={storeRows} layout="vertical" margin={{ top: 5, right: narrow ? 12 : 30, left: narrow ? 0 : 100, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
                       <XAxis type="number" tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
-                      <YAxis type="category" dataKey="storeName" tick={{ fontSize: 13 }} width={120} />
+                      <YAxis type="category" dataKey="storeName" tick={{ fontSize: 13 }} tickFormatter={storeTick} width={narrow ? 90 : 120} />
                       <Tooltip content={<CustomTooltip />} />
                       <Legend />
-                      <Bar dataKey="purchaseVolume" fill="#c42130" name="Purchase Volume" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
-                      <Bar dataKey="devCut" fill="#1a7f45" name="Dev Cut" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
+                      <Bar dataKey="purchaseVolume" fill="#c42130" name="Purchase volume" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
+                      <Bar dataKey="devCut" fill="#1a7f45" name="Platform fee" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => d.purchaseVolume > 0 && setStoreId(d.storeId)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -411,7 +419,7 @@ export default function Analytics() {
               {/* Purchase volume by category */}
               {byCategory.length > 0 && (
                 <ChartCard
-                  title="Purchase Volume by Category"
+                  title="Purchase volume by category"
                   summary={`Purchase volume by category: ${byCategory.map((c) => `${catLabel(c.category)} ${fmt$(c.purchaseVolume)}`).join(', ')}.`}
                 >
                   <ResponsiveContainer width="100%" height={Math.max(240, byCategory.length * 42)}>
@@ -420,7 +428,7 @@ export default function Analytics() {
                       <XAxis type="number" tick={{ fontSize: 13 }} tickFormatter={(v) => `$${v}`} />
                       <YAxis type="category" dataKey="category" tick={{ fontSize: 13 }} tickFormatter={catLabel} width={110} />
                       <Tooltip content={<CustomTooltip />} formatter={(v: any) => fmt$(v)} />
-                      <Bar dataKey="purchaseVolume" name="Purchase Volume" radius={[0, 4, 4, 0]}>
+                      <Bar dataKey="purchaseVolume" name="Purchase volume" radius={[0, 4, 4, 0]}>
                         {byCategory.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
                       </Bar>
                     </BarChart>
@@ -428,19 +436,23 @@ export default function Analytics() {
                 </ChartCard>
               )}
 
-              {/* Category mix - % share of purchase volume */}
+              {/* Category mix: % share of purchase volume */}
               {categoryPieData.length > 0 && (
                 <ChartCard
-                  title="Category Mix"
+                  title="Category mix"
                   summary={`Share of purchase volume by category: ${categoryPieData.map((c) => `${c.name.toLowerCase()} ${fmt$(c.value)}`).join(', ')}.`}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 48, flexWrap: 'wrap' as const }}>
-                    <PieChart accessibilityLayer={false} width={280} height={280}>
-                      <Pie data={categoryPieData} cx={130} cy={130} outerRadius={110} dataKey="value" label={({ percent }) => `${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: narrow ? 20 : 48, flexWrap: 'wrap' as const }}>
+                    <div style={{ flex: '1 1 220px', maxWidth: 280, height: 280 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                    <PieChart accessibilityLayer={false}>
+                      <Pie data={categoryPieData} cx="50%" cy="50%" outerRadius="80%" dataKey="value" label={({ percent }) => `${Math.round((percent ?? 0) * 100)}%`} labelLine={false}>
                         {categoryPieData.map((_, i) => <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />)}
                       </Pie>
                       <Tooltip formatter={(v: any) => fmt$(v)} />
                     </PieChart>
+                    </ResponsiveContainer>
+                    </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                       {categoryPieData.map((entry, i) => (
                         <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -456,25 +468,25 @@ export default function Analytics() {
                 </ChartCard>
               )}
 
-              {/* Cashback and the developer cut, as a share of sales (this replaces a pie that showed $NaN) */}
+              {/* Cashback and the platform fee, as a share of sales (this replaces a pie that showed $NaN) */}
               {totals.transactions > 0 && <CutCard totals={totals} />}
 
               {/* Busiest hours and days: the same idea as the bar charts above, but by time instead of by store */}
               {byHour.some((h: any) => h.transactions > 0) && (
-                <ChartCard title="Busiest Hours" summary={`Transactions by hour of day, Central time: ${byHour.map((h: any) => `${h.hour}:00 ${h.transactions}`).join(', ')}.`}>
+                <ChartCard title="Busiest hours" summary={`Transactions by hour of day, Central time: ${byHour.map((h: any) => `${h.hour}:00 ${h.transactions}`).join(', ')}.`}>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart accessibilityLayer={false} data={byHour} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
                       <XAxis dataKey="hour" tick={{ fontSize: 12 }} tickFormatter={(h) => `${h}:00`} interval={1} />
                       <YAxis tick={{ fontSize: 13 }} allowDecimals={false} />
-                      <Tooltip labelFormatter={(h) => `${h}:00-${h}:59 Central`} />
+                      <Tooltip labelFormatter={(h) => `${h}:00 to ${h}:59 Central`} />
                       <Bar dataKey="transactions" fill={PRIMARY} name="Transactions" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
               )}
               {byWeekday.some((w: any) => w.transactions > 0) && (
-                <ChartCard title="Busiest Days of the Week" summary={`Transactions by day of the week: ${byWeekday.map((w: any) => `${w.label} ${w.transactions}`).join(', ')}.`}>
+                <ChartCard title="Busiest days of the week" summary={`Transactions by day of the week: ${byWeekday.map((w: any) => `${w.label} ${w.transactions}`).join(', ')}.`}>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart accessibilityLayer={false} data={byWeekday} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
@@ -489,12 +501,12 @@ export default function Analytics() {
 
               {/* Store table */}
               {storeRows.length > 0 && (
-                <div style={s.chartCard}>
-                  <h2 style={s.chartTitle}>Store Breakdown Table</h2>
+                <div style={narrow ? { ...s.chartCard, padding: 16 } : s.chartCard}>
+                  <h2 style={s.chartTitle}>Store breakdown table</h2>
                   <Table style={s.table}>
                     <TableHeader>
                       <TableRow>
-                        {['Store', 'Transactions', 'Purchase Volume', 'Dev Cut'].map((h) => (
+                        {['Store', 'Transactions', 'Purchase volume', 'Platform fee'].map((h) => (
                           <TableHead key={h} style={s.th}>{h}</TableHead>
                         ))}
                       </TableRow>
@@ -520,7 +532,7 @@ export default function Analytics() {
           )}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -543,13 +555,14 @@ function CutCard({ totals }: { totals: any }) {
   const sales = totals.purchaseVolume || 0;
   const rows = [
     { label: 'Cashback to customers', value: totals.pointsAwarded || 0, color: '#8a5300' },
-    { label: 'Your dev cut', value: totals.devCut || 0, color: '#1a7f45' },
+    { label: 'Your platform fee', value: totals.devCut || 0, color: '#1a7f45' },
   ];
   const max = Math.max(...rows.map((r) => r.value), 0.01);
   const share = (n: number) => (sales > 0 ? `${((n / sales) * 100).toFixed(1)}% of sales` : 'no sales yet');
+  const narrow = useIsMobile();
   return (
-    <div style={s.chartCard}>
-      <h2 style={s.chartTitle}>Cashback and Your Cut</h2>
+    <div style={narrow ? { ...s.chartCard, padding: 16 } : s.chartCard}>
+      <h2 style={s.chartTitle}>Cashback and your platform fee</h2>
       <p style={{ color: TEXT_MUTED, fontSize: 14, margin: '-8px 0 16px' }}>Out of {fmt$(sales)} in purchases in this range.</p>
       {rows.map((r) => (
         <div key={r.label} style={{ marginBottom: 16 }}>
@@ -567,7 +580,6 @@ function CutCard({ totals }: { totals: any }) {
 }
 
 const s: Record<string, React.CSSProperties> = {
-  container: { padding: 32 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 16 },
   title: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
   sub: { color: TEXT_MUTED, marginTop: 4 },

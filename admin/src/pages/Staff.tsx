@@ -14,7 +14,7 @@ import { failureMessage } from '../lib/apiError';
 import { phoneDigits, typedPhone, showPhone } from '../lib/phoneText';
 import { storeDayLong } from '../lib/storeDates';
 import { useSingleFlight } from '../hooks/useSingleFlight';
-import { PageHeader, HeaderStat, Button, Chip, MenuButton } from '../components/kit';
+import { Page, PageHeader, HeaderStat, Button, Chip, MenuButton } from '../components/kit';
 import { Plus, Search } from 'lucide-react';
 import { INPUT } from '../lib/theme';
 import Glyph from '../components/Glyph';
@@ -193,7 +193,7 @@ export default function Staff() {
     mutationFn: ({ id, patch }: { id: string; patch: any }) => staffApi.edit(id, patch),
     onSuccess: (res) => {
       const changed = res.data?.data?.changed !== false;
-      toast.success(changed ? `${editTarget?.displayName}'s account was updated.` : `Nothing to change - it already looked like that.`);
+      toast.success(changed ? `${editTarget?.displayName}'s account was updated.` : `Nothing to change: it already looked like that.`);
       qc.invalidateQueries({ queryKey: ['staff'] });
       closeEdit();
     },
@@ -301,7 +301,7 @@ export default function Staff() {
   const inactiveCount = staffList.length - activeCount;
 
   return (
-    <div style={s.page}>
+    <Page>
       {/* ── Page Header ── */}
       <PageHeader
         title="Staff"
@@ -314,7 +314,7 @@ export default function Staff() {
             ))}
             {isSuperAdmin && (
               <Button variant={tab === 'create' ? 'secondary' : 'primary'} aria-pressed={tab === 'create'} icon={<Plus />} onClick={() => setTab('create')}>
-                New Account
+                New account
               </Button>
             )}
           </>
@@ -401,7 +401,7 @@ export default function Staff() {
                             return (
                               <TableRow key={member.id} style={member.isActive ? undefined : { background: '#f7f8fa' }}>
                                 <TableCell>
-                                  <div style={{ fontWeight: 600, color: '#111827' }}>{member.name || ' - '}{isMe && <span style={{ ...s.youBadge, marginLeft: 6 }}>You</span>}{!member.isActive && <span style={{ ...s.offBadge, marginLeft: 6 }}>Deactivated</span>}</div>
+                                  <div style={{ fontWeight: 600, color: '#111827' }}>{member.name || ''}{isMe && <span style={{ ...s.youBadge, marginLeft: 6 }}>You</span>}{!member.isActive && <span style={{ ...s.offBadge, marginLeft: 6 }}>Deactivated</span>}</div>
                                   <div style={{ fontSize: 13, color: '#5a6472' }}>{showPhone(member.phone)}</div>
                                 </TableCell>
                                 <TableCell style={{ fontSize: 13, color: '#374151', maxWidth: 360, whiteSpace: 'normal' }}>
@@ -439,7 +439,7 @@ export default function Staff() {
                               {initial}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={s.memberName}>{member.name || ' - '}</div>
+                              <div style={s.memberName}>{member.name || ''}</div>
                               <div style={s.memberPhone}>{showPhone(member.phone)}</div>
                             </div>
                             <div style={{ ...s.activeDot, background: member.isActive ? '#1a7f45' : '#c42130' }} aria-hidden="true" />
@@ -555,14 +555,14 @@ export default function Staff() {
         <div style={s.formWrap}>
           <div style={s.formCard}>
             <div style={s.formCardHeader}>
-              <h2 style={s.formCardTitle}>New Staff Account</h2>
+              <h2 style={s.formCardTitle}>New staff account</h2>
               <div style={s.formCardSub}>Fill in the details below to create a new account</div>
             </div>
 
             <form style={s.form} onSubmit={handleCreate} noValidate>
               {/* Role selector */}
               <div style={s.formGroup} role="group" aria-labelledby="staff-role-label">
-                <div style={s.formLabel} id="staff-role-label">Account Type</div>
+                <div style={s.formLabel} id="staff-role-label">Account type</div>
                 <div style={s.roleGrid}>
                   {ROLE_OPTIONS.map((opt) => {
                     const active = createRole === opt.value;
@@ -591,7 +591,7 @@ export default function Staff() {
               {/* Name and phone */}
               <div style={s.formRow}>
                 <div style={s.formGroup}>
-                  <label style={s.formLabel} htmlFor="staff-name">Full Name</label>
+                  <label style={s.formLabel} htmlFor="staff-name">Full name</label>
                   <input
                     id="staff-name"
                     style={s.input}
@@ -602,7 +602,7 @@ export default function Staff() {
                   />
                 </div>
                 <div style={s.formGroup}>
-                  <label style={s.formLabel} htmlFor="staff-phone">Phone Number</label>
+                  <label style={s.formLabel} htmlFor="staff-phone">Phone number</label>
                   <input
                     id="staff-phone"
                     style={s.input}
@@ -683,7 +683,7 @@ export default function Staff() {
       {/* ── Manage Stores ── */}
       {storesMgmtTarget && (
         <Modal
-          title="Manage Stores"
+          title="Manage stores"
           subtitle={<>Choose every store <strong>{storesMgmtTarget.name}</strong> works at</>}
           onClose={closeStores}
           busy={setStoresMutation.isPending}
@@ -700,10 +700,10 @@ export default function Staff() {
                   style={s.quickBtn}
                   onClick={() => setPendingStoreIds(stores.filter((st: any) => st.isActive !== false || storesMgmtTarget.assignedIds.includes(st.id)).map((st: any) => st.id))}
                 >
-                  Select All
+                  Select all
                 </button>
                 <button type="button" style={s.quickBtn} onClick={() => setPendingStoreIds([])}>
-                  Clear All
+                  Clear all
                 </button>
               </div>
             </div>
@@ -753,7 +753,7 @@ export default function Staff() {
             <div style={s.modalActions}>
               <button type="button" style={s.cancelBtn} onClick={closeStores} disabled={setStoresMutation.isPending}>Cancel</button>
               <button style={s.confirmBtn} type="submit" disabled={setStoresMutation.isPending || pendingStoreIds.length === 0 || (addedIds.length === 0 && removedIds.length === 0)}>
-                {setStoresMutation.isPending ? 'Saving…' : 'Save Changes'}
+                {setStoresMutation.isPending ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </form>
@@ -813,11 +813,11 @@ export default function Staff() {
         <Modal title={`Edit ${editTarget.displayName}`} onClose={closeEdit} busy={editMutation.isPending}>
           <form onSubmit={handleSaveEdit} style={s.modalForm} noValidate>
             <div style={s.formGroup}>
-              <label style={s.formLabel} htmlFor="edit-name">Full Name</label>
+              <label style={s.formLabel} htmlFor="edit-name">Full name</label>
               <input id="edit-name" style={s.input} value={editName} onChange={(e) => { setEditName(e.target.value); setEditError(''); }} autoComplete="off" />
             </div>
             <div style={s.formGroup}>
-              <label style={s.formLabel} htmlFor="edit-phone">Phone Number</label>
+              <label style={s.formLabel} htmlFor="edit-phone">Phone number</label>
               <input id="edit-phone" style={s.input} type="tel" value={editPhone} onChange={(e) => { setEditPhone(typedPhone(e.target.value)); setEditError(''); }} placeholder="(555) 000-0000" autoComplete="off" />
             </div>
             {(editTarget.role === 'EMPLOYEE' || editTarget.role === 'STORE_MANAGER') && (
@@ -857,7 +857,7 @@ export default function Staff() {
             <div style={s.modalActions}>
               <button type="button" style={s.cancelBtn} onClick={closeEdit} disabled={editMutation.isPending}>Cancel</button>
               <button style={s.confirmBtn} type="submit" disabled={editMutation.isPending}>
-                {editMutation.isPending ? 'Saving…' : 'Save Changes'}
+                {editMutation.isPending ? 'Saving…' : 'Save changes'}
               </button>
             </div>
           </form>
@@ -911,12 +911,11 @@ export default function Staff() {
           </form>
         </Modal>
       )}
-    </div>
+    </Page>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  page: { padding: '28px 32px', minHeight: 'calc(100vh - 64px)', background: 'var(--background)' },
 
   // Page header
   pageHeader: {

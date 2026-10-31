@@ -13,16 +13,17 @@ import ConfirmModal from '../ConfirmModal';
 import Modal from '../Modal';
 import CardSkeleton from '../CardSkeleton';
 import ErrorState from '../ErrorState';
+import { CATEGORY_OPTIONS } from '../../lib/categories';
 import { storeToday, addDays, startOfStoreDay, endOfStoreDay, storeDayLong } from '../../lib/storeDates';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from './SpanishFields';
 import { AudienceLimitsField, NO_AUDIENCE, audiencePayload, audienceProblem, audienceLabel, type AudienceLimitsValue } from './AudienceLimits';
 
-const CATS = [['', 'Any purchase'], ['GROCERIES', 'Groceries'], ['FROZEN_FOODS', 'Frozen'], ['FRESH_FOODS', 'Fresh'], ['GAS', 'Gas'], ['DIESEL', 'Diesel'], ['HOT_FOODS', 'Hot Foods'], ['OTHER', 'Other']] as const;
 const usd = (n: number) => `$${n.toFixed(2)}`;
 // Customers read the reward in points (100 pts = $1), so the rule in words does too; HQ still types it in dollars
 const pts = (dollars: number) => `${Math.round(dollars * 100).toLocaleString('en-US')} pts`;
 const ord = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 10 > 3 || [11, 12, 13].includes(n % 100) ? 0 : n % 10]}`;
-const catWords = (c: string) => (c ? ` on ${CATS.find(([v]) => v === c)?.[1].toLowerCase() ?? c.toLowerCase()}` : '');
+// The category in the rule's words, spelled as the server spells it
+const catWords = (c: string) => (c ? ` on ${c.replace(/_/g, ' ').toLowerCase()}` : '');
 
 /** The rule in words, as the server writes it. */
 export function ruleText(kind: string, target: number, reward: number, minPurchase: number | null, category: string, repeats: boolean): string {
@@ -136,7 +137,7 @@ function NewChallenge({ onDone }: { onDone: () => void }) {
           <Field label={kind === 'SPEND' ? 'Spend ($)' : 'Purchases'} htmlFor="ch-target"><input id="ch-target" className="ui-input" style={INPUT} inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value.replace(/[^0-9.]/g, ''))} /></Field>
           <Field label="Reward ($)" htmlFor="ch-reward" hint={r > 0 ? `Customers see ${pts(r)}` : 'In dollars. Customers see points (100 pts = $1).'}><input id="ch-reward" className="ui-input" style={INPUT} inputMode="decimal" value={reward} onChange={(e) => setReward(e.target.value.replace(/[^0-9.]/g, ''))} /></Field>
           {kind === 'VISITS' && <Field label="Each at least ($, optional)" htmlFor="ch-min"><input id="ch-min" className="ui-input" style={INPUT} inputMode="decimal" value={minPurchase} placeholder="Any amount" onChange={(e) => setMinPurchase(e.target.value.replace(/[^0-9.]/g, ''))} /></Field>}
-          <Field label="Category" htmlFor="ch-cat"><select id="ch-cat" className="ui-input" style={INPUT} value={category} onChange={(e) => setCategory(e.target.value)}>{CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+          <Field label="Category" htmlFor="ch-cat"><select id="ch-cat" className="ui-input" style={INPUT} value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></Field>
           <Field label="Where" htmlFor="ch-store"><select id="ch-store" className="ui-input" style={INPUT} value={storeId} onChange={(e) => setStoreId(e.target.value)}><option value="">All stores</option>{stores.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
         </div>
         {kind === 'VISITS' && (

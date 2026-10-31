@@ -562,7 +562,7 @@ function WeeklyEditor({ value, weekly, stores, onSave, busy }: { value: Config['
 }
 
 type FlashRow = { id: string; title: string; titleEs: string | null; body: string; link: string; audience: string; store: string | null; tier: string | null; startsAt: string; endsAt: string; announcedAt: string | null; sentCount: number; state: 'SCHEDULED' | 'LIVE' | 'ENDED' | 'CANCELLED' };
-const FLASH_LINKS: { key: string; label: string }[] = [{ key: 'OFFERS', label: 'The offers on Home' }, { key: 'HOT_FOOD', label: 'Hot Food' }, { key: 'REWARDS', label: 'Rewards' }, { key: 'GAS', label: 'Gas prices' }, { key: 'NONE', label: 'Nothing (just the message)' }];
+const FLASH_LINKS: { key: string; label: string }[] = [{ key: 'OFFERS', label: 'The offers on Home' }, { key: 'HOT_FOOD', label: 'Hot food' }, { key: 'REWARDS', label: 'Rewards' }, { key: 'GAS', label: 'Gas prices' }, { key: 'NONE', label: 'Nothing (just the message)' }];
 const FLASH_STATE: Record<FlashRow['state'], { label: string; tone: 'success' | 'warning' | 'neutral' }> = { LIVE: { label: 'Live', tone: 'success' }, SCHEDULED: { label: 'Scheduled', tone: 'warning' }, ENDED: { label: 'Ended', tone: 'neutral' }, CANCELLED: { label: 'Cancelled', tone: 'neutral' } };
 const storeHourFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: 'numeric', hourCycle: 'h23' });
 /** The instant a store day shows `hour` on the store clock (corrected on the nights the clocks change). */

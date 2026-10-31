@@ -1,7 +1,9 @@
-﻿import { useState } from 'react';
+﻿import { useId, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '../store/authStore';
+import { useDialog } from '../hooks/useDialog';
 
 // ─── Import all docs as raw markdown strings (bundled at build time) ──────────
 import privacyPolicyMd       from '../../../docs/legal/privacy-policy.md?raw';
@@ -24,7 +26,7 @@ import slaMd                 from '../../../docs/legal/service-level-agreement.m
 import cookiePolicyMd        from '../../../docs/legal/cookie-policy.md?raw';
 import aupMd                 from '../../../docs/legal/acceptable-use-policy.md?raw';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader } from '../components/kit';
+import { Page, PageHeader } from '../components/kit';
 import Glyph from '../components/Glyph';
 
 // ─── Doc manifest ─────────────────────────────────────────────────────────────
@@ -45,7 +47,7 @@ const ALL_DOCS: Doc[] = [
   // Legal
   {
     id: 'privacy-policy',
-    title: 'Privacy Policy',
+    title: 'Privacy policy',
     description: 'CCPA/COPPA compliance, data collection, retention, and subprocessors.',
     icon: '🔒',
     content: privacyPolicyMd,
@@ -54,7 +56,7 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'terms-of-service',
-    title: 'Terms of Service',
+    title: 'Terms of service',
     description: 'Customer eligibility, loyalty rules, fraud prohibitions, and arbitration.',
     icon: '📋',
     content: termsOfServiceMd,
@@ -63,8 +65,8 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'merchant-agreement',
-    title: 'Merchant Agreement',
-    description: 'B2B contract between Cliff Industries and store operators - SLA, fees, DPA.',
+    title: 'Merchant agreement',
+    description: 'B2B contract between Cliff Industries and store operators: SLA, fees, DPA.',
     icon: '🤝',
     content: merchantAgreementMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -72,7 +74,7 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'loyalty-program-terms',
-    title: 'Loyalty Program Terms',
+    title: 'Loyalty program terms',
     description: 'Cashback rates, tier system, catalog redemption, and program rules.',
     icon: '🏆',
     content: loyaltyTermsMd,
@@ -82,8 +84,8 @@ const ALL_DOCS: Doc[] = [
   // User Manuals
   {
     id: 'super-admin-manual',
-    title: 'Super Admin Manual',
-    description: 'Full HQ portal guide - stores, staff, offers, analytics, audit logs.',
+    title: 'Super Admin manual',
+    description: 'Full HQ portal guide: stores, staff, offers, analytics, audit logs.',
     icon: '👑',
     content: superAdminManualMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -91,7 +93,7 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'store-manager-manual',
-    title: 'Store Manager Manual',
+    title: 'Store Manager manual',
     description: 'Order lists, employee requests, offers, schedules, and reports.',
     icon: '🏪',
     content: storeManagerManualMd,
@@ -100,7 +102,7 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'employee-manual',
-    title: 'Employee Manual',
+    title: 'Employee manual',
     description: 'Transaction flow, receipt standards, item requests, and critical rules.',
     icon: '👤',
     content: employeeManualMd,
@@ -109,7 +111,7 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'customer-guide',
-    title: 'Customer Guide',
+    title: 'Customer guide',
     description: 'Onboarding, QR code, tiers, catalog redemption, and FAQ.',
     icon: '📱',
     content: customerGuideMd,
@@ -119,7 +121,7 @@ const ALL_DOCS: Doc[] = [
   // Technical
   {
     id: 'app-documentation',
-    title: 'Technical Documentation',
+    title: 'Technical documentation',
     description: 'Architecture, API reference, schema, deployment, fraud prevention.',
     icon: '⚙️',
     content: appDocumentationMd,
@@ -129,8 +131,8 @@ const ALL_DOCS: Doc[] = [
   // Legal (additional)
   {
     id: 'data-processing-agreement',
-    title: 'Data Processing Agreement',
-    description: 'DPA between Cliff Industries (Processor) and store operators (Controller) - CCPA/privacy compliance.',
+    title: 'Data processing agreement',
+    description: 'DPA between Cliff Industries (Processor) and store operators (Controller): CCPA/privacy compliance.',
     icon: '🔐',
     content: dpaMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -138,7 +140,7 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'service-level-agreement',
-    title: 'Service Level Agreement',
+    title: 'Service level agreement',
     description: 'Uptime commitment (99.5%), support response times, service credits, and maintenance windows.',
     icon: '📶',
     content: slaMd,
@@ -147,8 +149,8 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'cookie-policy',
-    title: 'Cookie Policy',
-    description: 'Cookies and local storage used by the admin portal - what, why, and how to manage them.',
+    title: 'Cookie policy',
+    description: 'Cookies and local storage used by the admin portal: what, why, and how to manage them.',
     icon: '🍪',
     content: cookiePolicyMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -156,8 +158,8 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'acceptable-use-policy',
-    title: 'Acceptable Use Policy',
-    description: 'Platform rules for all roles - prohibited uses, fraud prevention, enforcement, and reporting.',
+    title: 'Acceptable use policy',
+    description: 'Platform rules for all roles: prohibited uses, fraud prevention, enforcement, and reporting.',
     icon: '📜',
     content: aupMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN'],
@@ -166,8 +168,8 @@ const ALL_DOCS: Doc[] = [
   // Business
   {
     id: 'store-owner-pitch',
-    title: 'Store Owner Pitch',
-    description: 'Sales pitch for prospective store owners - value proposition, features, pricing, and onboarding.',
+    title: 'Store owner pitch',
+    description: 'Sales pitch for prospective store owners: value proposition, features, pricing, and onboarding.',
     icon: '📊',
     content: storeOwnerPitchMd,
     roles: ['DEV_ADMIN'],
@@ -175,8 +177,8 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'store-owner-overview',
-    title: 'Store Owner Overview',
-    description: 'Operational overview for onboarded store owners - what they have, how it works, support.',
+    title: 'Store owner overview',
+    description: 'Operational overview for onboarded store owners: what they have, how it works, support.',
     icon: '🏬',
     content: storeOwnerOverviewMd,
     roles: ['DEV_ADMIN'],
@@ -185,8 +187,8 @@ const ALL_DOCS: Doc[] = [
   // Operational
   {
     id: 'cashier-quick-reference',
-    title: 'Cashier Quick Reference',
-    description: 'One-page printable guide for cashiers - scan flow, redemption, common issues, and rules.',
+    title: 'Cashier quick reference',
+    description: 'One-page printable guide for cashiers: scan flow, redemption, common issues, and rules.',
     icon: '🖨️',
     content: cashierQuickRefMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'],
@@ -194,7 +196,7 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'new-store-setup-checklist',
-    title: 'New Store Setup Checklist',
+    title: 'New store setup checklist',
     description: 'Step-by-step onboarding checklist for launching a new store on the platform.',
     icon: '✅',
     content: newStoreChecklistMd,
@@ -203,8 +205,8 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'changelog',
-    title: 'Platform Changelog',
-    description: 'Release notes and feature history - what changed, when, and which roles it affects.',
+    title: 'Platform changelog',
+    description: 'Release notes and feature history: what changed, when, and which roles it affects.',
     icon: '📝',
     content: changelogMd,
     roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'],
@@ -212,7 +214,7 @@ const ALL_DOCS: Doc[] = [
   },
   {
     id: 'uptime-monitoring',
-    title: 'Uptime Monitoring Setup',
+    title: 'Uptime monitoring setup',
     description: 'UptimeRobot configuration for the API and admin portal, backing the SLA uptime commitment.',
     icon: '📡',
     content: uptimeMonitoringMd,
@@ -222,19 +224,23 @@ const ALL_DOCS: Doc[] = [
 ];
 
 const CATEGORIES = [
-  { id: 'legal',       label: 'Legal Documents',  icon: '⚖️',  color: PRIMARY, bg: '#eef2f7' },
-  { id: 'manual',      label: 'User Manuals',      icon: '📖',  color: '#1a7f45', bg: '#edf7f0' },
-  { id: 'technical',   label: 'Technical Docs',    icon: '🛠️',  color: '#4f6d8f', bg: '#eef2f7' },
-  { id: 'business',    label: 'Business Docs',     icon: '📊',  color: '#8a5300', bg: '#fdf6e8' },
+  { id: 'legal',       label: 'Legal documents',  icon: '⚖️',  color: PRIMARY, bg: '#eef2f7' },
+  { id: 'manual',      label: 'User manuals',      icon: '📖',  color: '#1a7f45', bg: '#edf7f0' },
+  { id: 'technical',   label: 'Technical docs',    icon: '🛠️',  color: '#4f6d8f', bg: '#eef2f7' },
+  { id: 'business',    label: 'Business docs',     icon: '📊',  color: '#8a5300', bg: '#fdf6e8' },
   { id: 'operational', label: 'Operations',        icon: '⚙️',  color: '#3c6e8f', bg: '#F0FDFA' },
 ] as const;
 
 // ─── Reader modal ─────────────────────────────────────────────────────────────
 
 function DocReader({ doc, onClose }: { doc: Doc; onClose: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialog(true, panelRef, onClose, false);
+
   function handlePrint() {
     const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    if (!printWindow) { toast.error('Allow pop-ups for this site to print'); return; }
 
     // Convert markdown to a simple plain-text representation for printing
     // We'll inject the rendered HTML
@@ -288,22 +294,22 @@ function DocReader({ doc, onClose }: { doc: Doc; onClose: () => void }) {
 
   return (
     <div style={rs.overlay} onClick={onClose}>
-      <div style={rs.panel} onClick={e => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} style={rs.panel} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div style={rs.header}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 22 }}><Glyph e={doc.icon} size={18} /></span>
             <div>
-              <div style={rs.headerTitle}>{doc.title}</div>
+              <h2 id={titleId} style={rs.headerTitle}>{doc.title}</h2>
               <div style={rs.headerSub}>{doc.description}</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <button onClick={handlePrint} style={rs.printBtn}>
+            <button type="button" onClick={handlePrint} style={rs.printBtn}>
               Print
             </button>
-            <button onClick={onClose} style={rs.closeBtn}>✕</button>
+            <button type="button" onClick={onClose} style={rs.closeBtn} aria-label="Close">✕</button>
           </div>
         </div>
 
@@ -335,7 +341,7 @@ export default function Documents() {
     : visibleDocs;
 
   return (
-    <div style={ps.root}>
+    <Page>
 
       {/* Page header */}
       <PageHeader title="Documents" description="Legal agreements, user manuals, and technical documentation." />
@@ -393,14 +399,13 @@ export default function Documents() {
       {activeDoc && (
         <DocReader doc={activeDoc} onClose={() => setActiveDoc(null)} />
       )}
-    </div>
+    </Page>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const ps: Record<string, React.CSSProperties> = {
-  root: { padding: '32px 32px 48px' },
   hero: {
     marginBottom: 28, display: 'flex', alignItems: 'flex-start',
     justifyContent: 'space-between', gap: 16,
@@ -458,7 +463,7 @@ const rs: Record<string, React.CSSProperties> = {
     justifyContent: 'flex-end',
   },
   panel: {
-    background: '#fff', width: '100%',
+    background: '#fff', width: '100%', outline: 'none',
     display: 'flex', flexDirection: 'column' as const,
     boxShadow: '-8px 0 40px rgba(0,0,0,0.18)',
   },
@@ -468,7 +473,7 @@ const rs: Record<string, React.CSSProperties> = {
     background: '#fff', flexShrink: 0,
     gap: 16,
   },
-  headerTitle: { fontSize: 17, fontWeight: 700, color: PRIMARY },
+  headerTitle: { fontSize: 17, fontWeight: 700, color: PRIMARY, margin: 0 },
   headerSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
   printBtn: {
     background: PRIMARY, color: '#fff',

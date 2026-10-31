@@ -8,7 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
-import { PageHeader, Tabs } from '../components/kit';
+import { Page, PageHeader, Tabs } from '../components/kit';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -100,8 +100,8 @@ function printList(list: OrderList) {
     ${items.map(item => `
       <tr>
         <td style="padding:10px 12px;font-weight:600;color:#111827">${item.name}</td>
-        <td style="padding:10px 12px;color:#5a6472">${item.quantity || ' - '}</td>
-        <td style="padding:10px 12px;color:#5a6472">${item.notes || ' - '}</td>
+        <td style="padding:10px 12px;color:#5a6472">${item.quantity || ''}</td>
+        <td style="padding:10px 12px;color:#5a6472">${item.notes || ''}</td>
         <td style="padding:10px 12px"><span style="padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:${ITEM_STATUS_CFG[item.status].bg};color:${ITEM_STATUS_CFG[item.status].text}">${ITEM_STATUS_CFG[item.status].label}</span></td>
       </tr>
     `).join('')}
@@ -135,7 +135,7 @@ function printList(list: OrderList) {
 
   const win = window.open('', '_blank');
   if (!win) {
-    toast.error('Popups are blocked - allow popups for this site to print, or use "Share as PDF" from the mobile app instead.');
+    toast.error('Popups are blocked. Allow popups for this site to print, or use "Share as PDF" from the mobile app instead.');
     return;
   }
   win.document.write(html);
@@ -204,10 +204,10 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
     mutationFn: (vars: { requestId: string; lines: { id: string; action: 'ACCEPT' | 'REJECT' }[] }) =>
       employeeRequestApi.reviewRequest(vars.requestId, { lines: vars.lines }),
     onSuccess: () => {
-      toast.success('Done - accepted items added to list');
+      toast.success('Done: accepted items added to the list');
       setLineActions({});
       setExpandedId(null);
-      // The Requests hub's Stock tab reviews the same underlying requests —
+      // The Requests hub's Stock tab reviews the same underlying requests:
       // keep it in sync instead of waiting on its own 30s poll.
       qc.invalidateQueries({ queryKey: ['stock-requests'] });
       qc.invalidateQueries({ queryKey: ['stock-requests-all'] });
@@ -242,7 +242,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       {/* ── Inline Add Bar ──────────────────────────────────── */}
       {canEdit && (
         <div style={p.section}>
-          <div style={p.sectionLabel}>+ Add Item</div>
+          <div style={p.sectionLabel}>+ Add item</div>
           <div style={{ position: 'relative' }}>
             <input
               ref={nameRef}
@@ -292,7 +292,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       {/* ── Quick Pad ───────────────────────────────────────── */}
       {canEdit && quickItems.length > 0 && (
         <div style={p.section}>
-          <div style={p.sectionLabel}>Quick Add</div>
+          <div style={p.sectionLabel}>Quick add</div>
           {quickItems.length > 6 && (
             <input
               style={p.quickSearchInput}
@@ -312,7 +312,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
                     style={p.quickTile}
                     onClick={() => quickAdd(item)}
                     disabled={addMut.isPending}
-                    title={`Add ${item.name}${item.category ? ' - ' + item.category : ''}`}
+                    title={`Add ${item.name}${item.category ? ` (${item.category})` : ''}`}
                   >
                     <span style={p.tileName}>{item.name}</span>
                     {item.category && <span style={p.tileCat}>{item.category}</span>}
@@ -326,9 +326,9 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
 
       {canEdit && quickItems.length === 0 && (
         <div style={p.section}>
-          <div style={p.sectionLabel}>Quick Add</div>
+          <div style={p.sectionLabel}>Quick add</div>
           <div style={{ fontSize: 13, color: TEXT_MUTED, padding: '12px 0' }}>
-            Quick Add tiles appear here after items have been ordered. Start adding items manually to build your history.
+            Quick add tiles appear here after items have been ordered. Start adding items manually to build your history.
           </div>
         </div>
       )}
@@ -337,7 +337,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       {pending.length > 0 && (
         <div style={p.section}>
           <div style={p.sectionLabel}>
-            Employee Requests
+            Employee requests
             <span style={p.badge}>{pending.length}</span>
           </div>
           {pending.map(req => {
@@ -361,7 +361,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
                     onClick={e => { e.stopPropagation(); acceptAll(req); }}
                     disabled={reviewMut.isPending}
                   >
-                    ✓ Accept All
+                    ✓ Accept all
                   </button>
                   <span style={{ color: TEXT_MUTED, marginLeft: 8, fontSize: 12 }}>{isOpen ? '▲' : '▼'}</span>
                 </div>
@@ -403,7 +403,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
                           reviewMut.mutate({ requestId: req.id, lines });
                         }}
                       >
-                        {reviewMut.isPending ? 'Submitting…' : 'Submit Review'}
+                        {reviewMut.isPending ? 'Submitting…' : 'Submit review'}
                       </button>
                     )}
                   </div>
@@ -461,10 +461,10 @@ function RestoreItemsPanel({ list }: { list: OrderList }) {
   return (
     <div style={p.panel}>
       <div style={p.section}>
-        <div style={p.sectionLabel}>↺ Restore Items</div>
+        <div style={p.sectionLabel}>↺ Restore items</div>
         {restorableItems.length === 0 ? (
           <div style={{ fontSize: 13, color: TEXT_MUTED, padding: '4px 0' }}>
-            All items on this list were received - nothing to restore.
+            All items on this list were received, so there is nothing to restore.
           </div>
         ) : (
           <>
@@ -498,7 +498,7 @@ function RestoreItemsPanel({ list }: { list: OrderList }) {
               onClick={doRestore}
               disabled={selectedCount === 0 || restoreMutation.isPending}
             >
-              {restoreMutation.isPending ? 'Restoring…' : `Restore ${selectedCount} Item${selectedCount !== 1 ? 's' : ''}`}
+              {restoreMutation.isPending ? 'Restoring…' : `Restore ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
             </button>
           </>
         )}
@@ -613,15 +613,15 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
     <div>
       <ConfirmModal
         open={confirmCloseList}
-        title="Close List"
-        message="Close this list? This means the order has been placed and the list will be locked."
-        confirmLabel="Close List"
+        title="Close this list?"
+        message="This means the order has been placed and the list will be locked."
+        confirmLabel="Close list"
         onConfirm={() => { closeMutation.mutate(); setConfirmCloseList(false); }}
         onCancel={() => setConfirmCloseList(false)}
       />
       <ConfirmModal
         open={!!confirmRemoveItemId}
-        title="Remove Item"
+        title="Remove this item?"
         message="Remove this item from the order list?"
         confirmLabel="Remove"
         danger
@@ -630,7 +630,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
       />
       {/* Breadcrumb */}
       <div style={s.breadcrumb}>
-        <button style={s.breadcrumbBtn} onClick={onBack}>← All Lists</button>
+        <button style={s.breadcrumbBtn} onClick={onBack}>← All lists</button>
         <span style={s.breadcrumbSep}>/</span>
         <span style={s.breadcrumbCur}>{list.name}</span>
       </div>
@@ -656,7 +656,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
             <button style={s.closeListBtn}
               onClick={() => setConfirmCloseList(true)}
               disabled={closeMutation.isPending}>
-              {closeMutation.isPending ? 'Closing…' : 'Close List'}
+              {closeMutation.isPending ? 'Closing…' : 'Close list'}
             </button>
           )}
         </div>
@@ -692,7 +692,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
           >
             <span style={s.instructionsLabel}>Standing instructions</span>
             <span style={list.store.orderInstructions ? s.instructionsText : s.instructionsEmpty}>
-              {list.store.orderInstructions || (canClose ? 'No standing instructions - click to add' : 'No standing instructions')}
+              {list.store.orderInstructions || (canClose ? 'No standing instructions. Click to add.' : 'No standing instructions')}
             </span>
           </div>
         )}
@@ -736,7 +736,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                     return (
                       <div key={item.id} style={s.itemRow}>
                         <div style={s.itemRowMain}>
-                          {/* Status chip - click to advance */}
+                          {/* Status chip: click to advance */}
                           <button
                             style={{
                               ...s.statusChip,
@@ -760,7 +760,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                           {/* Priority pill */}
                           <span style={{ ...s.priorityPill, background: pc.bg, color: pc.text }}>{pc.label}</span>
 
-                          {/* Qty - click to edit inline */}
+                          {/* Qty: click to edit inline */}
                           {isEditingQty ? (
                             <input
                               style={s.qtyEditInput}
@@ -791,7 +791,8 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                           {/* Remove */}
                           {canEdit && isOpen && (
                             <button style={s.removeBtn}
-                              onClick={() => setConfirmRemoveItemId(item.id)}>
+                              onClick={() => setConfirmRemoveItemId(item.id)}
+                              aria-label={`Remove ${item.name}`}>
                               ✕
                             </button>
                           )}
@@ -852,7 +853,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
   });
   const fullList: OrderList | null = fullListData?.data?.data || null;
 
-  // Independent of filterStoreId/filterStatus — always the true set of currently-open
+  // Independent of filterStoreId/filterStatus: always the true set of currently-open
   // lists, so "which stores need a list opened" is correct no matter what's selected above.
   const { data: openCheckData } = useQuery({
     queryKey: ['admin-order-lists-open-check'],
@@ -914,12 +915,12 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
         </div>
       )}
       <div style={s.filters}>
-        <select style={s.filterSelect} value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)}>
-          <option value="">All Stores</option>
+        <select style={s.filterSelect} aria-label="Store" value={filterStoreId} onChange={e => setFilterStoreId(e.target.value)}>
+          <option value="">All stores</option>
           {stores.map(st => <option key={st.id} value={st.id}>{st.name}</option>)}
         </select>
-        <select style={s.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-          <option value="">All Statuses</option>
+        <select style={s.filterSelect} aria-label="Status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="">All statuses</option>
           <option value="OPEN">Open</option>
           <option value="CLOSED">Closed</option>
         </select>
@@ -931,7 +932,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
             disabled={!filterStoreId || openMutation.isPending}
             title={!filterStoreId ? 'Select a store above first' : undefined}
           >
-            {openMutation.isPending ? 'Opening…' : '+ Open List'}
+            {openMutation.isPending ? 'Opening…' : '+ Open list'}
           </button>
         )}
       </div>
@@ -1000,7 +1001,7 @@ function CategoriesTab() {
     mutationFn: ({ id, data }: { id: string; data: object }) => orderCategoriesApi.adminUpdate(id, data),
     onSuccess: (_r, vars: any) => {
       const wasApprove = (vars.data as any).status === 'APPROVED';
-      toast.success(wasApprove ? 'Category approved - all list items updated' : 'Category updated');
+      toast.success(wasApprove ? 'Category approved: all list items updated' : 'Category updated');
       qc.invalidateQueries({ queryKey: ['order-categories-admin'] });
       setEditingId(null);
       setApprovingId(null);
@@ -1031,7 +1032,7 @@ function CategoriesTab() {
     <div>
       <ConfirmModal
         open={!!confirmDeleteCatId}
-        title="Delete Category"
+        title="Delete this category?"
         message="This category will be permanently removed."
         confirmLabel="Delete"
         danger
@@ -1039,8 +1040,8 @@ function CategoriesTab() {
         onCancel={() => setConfirmDeleteCatId(null)}
       />
       <div style={s.filters}>
-        <select style={s.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-          <option value="">All Statuses</option>
+        <select style={s.filterSelect} aria-label="Status" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="">All statuses</option>
           <option value="PENDING">Pending</option>
           <option value="APPROVED">Approved</option>
           <option value="REJECTED">Rejected</option>
@@ -1053,7 +1054,7 @@ function CategoriesTab() {
 
       {pendingCount > 0 && (
         <div style={s.approveHint}>
-          When approving, you can edit the name to fix typos - the correction will automatically apply to every item on every list.
+          When approving, you can edit the name to fix typos. The correction will automatically apply to every item on every list.
         </div>
       )}
 
@@ -1066,7 +1067,7 @@ function CategoriesTab() {
       ) : (
         <div style={s.catTable}>
           <div style={s.catTableHead}>
-            <span>Category Name</span>
+            <span>Category name</span>
             <span>Uses</span>
             <span>Status</span>
             <span>Actions</span>
@@ -1106,7 +1107,7 @@ function CategoriesTab() {
                     <>
                       <button style={s.approveBtn} onClick={() => confirmApprove(cat.id)}
                         disabled={updateMutation.isPending || !approveEdit.trim()}>
-                        {updateMutation.isPending ? '…' : approveEdit.trim() !== cat.name ? 'Approve & Rename' : 'Approve'}
+                        {updateMutation.isPending ? '…' : approveEdit.trim() !== cat.name ? 'Approve and rename' : 'Approve'}
                       </button>
                       <button style={s.cancelBtnSm} onClick={() => setApprovingId(null)}>Cancel</button>
                     </>
@@ -1152,7 +1153,7 @@ export default function OrderListPage() {
   const canEdit        = isDevAdmin;
   const canClose       = isDevAdmin || isSuperAdmin;
 
-  // Same source of truth as the sidebar's own "Order List" badge — shown
+  // Same source of truth as the sidebar's own "Order list" badge, shown
   // here too so the Categories tab isn't a blank guess when that badge
   // pointed you at this page.
   const { data: categoriesPendingData } = useQuery({
@@ -1163,9 +1164,9 @@ export default function OrderListPage() {
   const categoriesPendingCount: number = categoriesPendingData?.data?.data?.count ?? 0;
 
   return (
-    <div style={s.page}>
+    <Page>
       <PageHeader
-        title="Order Lists"
+        title="Order list"
         description={isDevAdmin ? 'Manage all store order lists and categories.' : 'Review and close store order lists across all locations.'}
       />
       <Tabs
@@ -1174,7 +1175,7 @@ export default function OrderListPage() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { value: 'lists', label: 'Order Lists' },
+          { value: 'lists', label: 'Order lists' },
           ...(isDevAdmin ? [{ value: 'categories' as const, label: 'Categories', count: categoriesPendingCount > 0 ? categoriesPendingCount : undefined }] : []),
         ]}
       />
@@ -1183,26 +1184,13 @@ export default function OrderListPage() {
         {tab === 'lists'      && <OrderListsTab canEdit={canEdit} canClose={canClose} />}
         {tab === 'categories' && isDevAdmin && <CategoriesTab />}
       </div>
-    </div>
+    </Page>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, React.CSSProperties> = {
-  page:       { padding: '24px 20px' },
-  pageHeader: { marginBottom: 24 },
-  pageTitle:  { fontSize: 26, fontWeight: 700, color: '#111827', margin: 0 },
-  pageSubtitle: { fontSize: 14, color: '#5a6472', marginTop: 4 },
-
-  tabs:      { display: 'flex', gap: 4, alignItems: 'flex-end', flexWrap: 'nowrap', overflowX: 'auto', borderBottom: '2px solid #e4e7ec', marginBottom: 24 },
-  tab:       { padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#5a6472', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', marginBottom: -2, transition: 'all 0.15s' },
-  tabActive: { color: PRIMARY, borderBottomColor: PRIMARY },
-  tabBadge: {
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    minWidth: 18, height: 18, borderRadius: 9, padding: '0 4px', marginLeft: 6,
-    background: '#c42130', color: '#fff', fontSize: 12, fontWeight: 700,
-  },
   tabContent: {},
 
   filters:      { display: 'flex', gap: 10, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' },

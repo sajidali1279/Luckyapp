@@ -295,7 +295,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/" icon={<LayoutDashboard size={16} />} label="Dashboard" end />
-              <SidebarNavItem to="/inventory-analytics" icon={<Package size={16} />} label="Inventory Intelligence" />
+              <SidebarNavItem to="/inventory-analytics" icon={<Package size={16} />} label="Inventory intelligence" />
               {isDevAdmin && (
                 <SidebarNavItem to="/analytics" icon={<TrendingUp size={16} />} label="Analytics" />
               )}
@@ -313,12 +313,12 @@ export function AppSidebar() {
               <SidebarNavItem to="/offers" icon={<Tag size={16} />} label="Offers" badge={offerRequestsPendingCount} />
               <SidebarNavItem to="/banners" icon={<Image size={16} />} label="Banners" />
               <SidebarNavItem to="/notices" icon={<Pin size={16} />} label="Notices" />
-              <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Catalog" />
+              <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Rewards catalog" />
               {isDevAdmin && (
                 <SidebarNavItem to="/promotions" icon={<Megaphone size={16} />} label="Promotions" badge={promotionsPendingCount} />
               )}
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot Food" badge={hotFoodPendingCount} />
+                <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot food" badge={hotFoodPendingCount} />
               )}
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/engagement" icon={<Sparkles size={16} />} label="Engagement" />
@@ -350,9 +350,9 @@ export function AppSidebar() {
               )}
               <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
               {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order List" badge={categoriesPendingCount} />
+                <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order list" badge={categoriesPendingCount} />
               )}
-              <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned Products" />
+              <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned products" />
               <SidebarNavItem to="/labels" icon={<Printer size={16} />} label="Labels" />
               <SidebarNavItem to="/pdi-invoices" icon={<ReceiptText size={16} />} label="Invoices to PDI" />
               {(isDevAdmin || isSuperAdmin) && (
@@ -370,16 +370,16 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/transactions" icon={<Receipt size={16} />} label="Transactions" badge={transactionsPendingCount} />
-              <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily Reports" />
-              <SidebarNavItem to="/daily-tasks" icon={<ListChecks size={16} />} label="Daily Tasks" />
+              <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily reports" />
+              <SidebarNavItem to="/daily-tasks" icon={<ListChecks size={16} />} label="Daily tasks" />
               {(isDevAdmin || isSuperAdmin) && (
                 <>
-                  <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Cashback Rates" />
+                  <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Cashback rates" />
                   <SidebarNavItem to="/leaderboard" icon={<Trophy size={16} />} label="Leaderboard" />
                 </>
               )}
               {isDevAdmin && (
-                <SidebarNavItem to="/activity" icon={<Activity size={16} />} label="Activity Log" />
+                <SidebarNavItem to="/activity" icon={<Activity size={16} />} label="Activity log" />
               )}
             </SidebarMenu>
           </SidebarGroupContent>

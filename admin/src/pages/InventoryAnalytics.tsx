@@ -99,7 +99,7 @@ export default function InventoryAnalytics() {
   return (
     <div style={s.page}>
       <PageHeader
-        title="Inventory Intelligence"
+        title="Inventory intelligence"
         description={`Order history across ${stores.length} store${stores.length === 1 ? '' : 's'} - ${totalItems} item${totalItems === 1 ? '' : 's'} tracked.`}
         // every panel (2026-10-25): the tabs below (restock speed, what people ask for, rewards and hot food) have their own data
         actions={<Button icon={<RefreshCw />} onClick={() => { qc.invalidateQueries({ queryKey: ['inventory-analytics-admin'] }); qc.invalidateQueries({ queryKey: ['inventory-insights'] }); }} aria-label="Refresh analytics data">Refresh</Button>}

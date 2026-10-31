@@ -6,7 +6,7 @@ import CardSkeleton from '../components/CardSkeleton';
 import { ClipboardCheck, Fuel, Droplets, Package, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { TEXT_MUTED } from '../lib/theme';
 import { storeToday } from '../lib/storeDates';
-import { PageHeader } from '../components/kit';
+import { Page, PageHeader } from '../components/kit';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
   return (
     <div style={s.card}>
       {/* Header row */}
-      <button style={s.cardHeader} onClick={() => setExpanded(v => !v)}>
+      <button style={s.cardHeader} onClick={() => setExpanded(v => !v)} aria-expanded={expanded}>
         <div style={s.avatarWrap}>
           <div style={s.avatar}>{initials}</div>
           <div>
@@ -97,21 +97,21 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
         <div style={s.cardBody}>
           {/* Prices */}
           <div style={s.section}>
-            <div style={s.sectionLabel}>Today's Prices</div>
+            <div style={s.sectionLabel}>Today's prices</div>
             <div style={s.dataGrid}>
-              <DataCell label="Gas ($/gal)" value={report.gasPrice != null ? `$${report.gasPrice.toFixed(3)}` : ' - '} />
-              <DataCell label="Diesel ($/gal)" value={report.dieselPrice != null ? `$${report.dieselPrice.toFixed(3)}` : ' - '} />
+              <DataCell label="Gas ($/gal)" value={report.gasPrice != null ? `$${report.gasPrice.toFixed(3)}` : null} />
+              <DataCell label="Diesel ($/gal)" value={report.dieselPrice != null ? `$${report.dieselPrice.toFixed(3)}` : null} />
             </div>
           </div>
 
           {/* Inventory */}
           <div style={s.section}>
-            <div style={s.sectionLabel}>Gas Inventory</div>
+            <div style={s.sectionLabel}>Gas inventory</div>
             <div style={s.dataGrid}>
-              <DataCell label="Regular" value={report.regGasGal != null ? `${report.regGasGal.toLocaleString()} gal` : ' - '} />
-              <DataCell label="Mid-Grade" value={report.midGradeGasGal != null ? `${report.midGradeGasGal.toLocaleString()} gal` : ' - '} />
-              <DataCell label="Premium" value={report.premiumGasGal != null ? `${report.premiumGasGal.toLocaleString()} gal` : ' - '} />
-              <DataCell label="Cigs Count" value={report.cigsCount != null ? report.cigsCount.toLocaleString() : ' - '} />
+              <DataCell label="Regular" value={report.regGasGal != null ? `${report.regGasGal.toLocaleString()} gal` : null} />
+              <DataCell label="Mid-grade" value={report.midGradeGasGal != null ? `${report.midGradeGasGal.toLocaleString()} gal` : null} />
+              <DataCell label="Premium" value={report.premiumGasGal != null ? `${report.premiumGasGal.toLocaleString()} gal` : null} />
+              <DataCell label="Cigs count" value={report.cigsCount != null ? report.cigsCount.toLocaleString() : null} />
             </div>
           </div>
 
@@ -126,7 +126,7 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
           {/* Image */}
           {report.imageUrl && (
             <div style={s.section}>
-              <div style={s.sectionLabel}>Attached Photo</div>
+              <div style={s.sectionLabel}>Attached photo</div>
               <a href={report.imageUrl} target="_blank" rel="noreferrer">
                 <img src={report.imageUrl} alt="Daily report" style={s.reportImg} />
               </a>
@@ -138,11 +138,11 @@ function ReportCard({ report, showStore, storeMap }: { report: DailyReport; show
   );
 }
 
-function DataCell({ label, value }: { label: string; value: string }) {
+function DataCell({ label, value }: { label: string; value: string | null }) {
   return (
     <div style={s.dataCell}>
       <div style={s.dataCellLabel}>{label}</div>
-      <div style={s.dataCellValue}>{value}</div>
+      <div style={value == null ? { ...s.dataCellValue, color: TEXT_MUTED, fontWeight: 500 } : s.dataCellValue}>{value ?? 'None'}</div>
     </div>
   );
 }
@@ -170,9 +170,9 @@ export default function DailyReports() {
   const reports: DailyReport[] = data?.data?.data ?? [];
 
   return (
-    <div style={s.page}>
+    <Page>
       {/* Header */}
-      <PageHeader title="Daily Reports" description="Employee shift reports submitted by store staff." />
+      <PageHeader title="Daily reports" description="Employee shift reports submitted by store staff." />
 
       {/* Filters */}
       <div style={s.filters}>
@@ -182,7 +182,7 @@ export default function DailyReports() {
           value={selectedStoreId}
           onChange={e => setSelectedStoreId(e.target.value)}
         >
-          <option value="">All Stores</option>
+          <option value="">All stores</option>
           {stores.map(st => (
             <option key={st.id} value={st.id}>{st.name}</option>
           ))}
@@ -222,51 +222,13 @@ export default function DailyReports() {
           {reports.map(r => <ReportCard key={r.id} report={r} showStore={!storeId} storeMap={storeMap} />)}
         </div>
       )}
-    </div>
+    </Page>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s: Record<string, CSSProperties> = {
-  page: {
-    padding: '28px 32px',
-    maxWidth: 1100,   // left-aligned like the other pages (it sat centred)
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 14,
-  },
-  iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 11,
-    background: '#c42130',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  title: {
-    margin: 0,
-    fontSize: 26,
-    fontWeight: 700,
-    color: '#111827',
-    lineHeight: 1.2,
-  },
-  subtitle: {
-    margin: 0,
-    fontSize: 13,
-    color: TEXT_MUTED,
-    marginTop: 2,
-  },
   filters: {
     display: 'flex',
     gap: 10,
