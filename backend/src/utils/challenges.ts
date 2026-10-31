@@ -52,7 +52,7 @@ export function saleCounts(c: { kind: string; minPurchase: number | null }, purc
 export async function creditChallenges(db: Db, saleId: string, now: Date = new Date()): Promise<ChallengeAward[]> {
   const sale = await db.pointsTransaction.findUnique({
     where: { id: saleId },
-    select: { id: true, customerId: true, storeId: true, category: true, purchaseAmount: true, createdAt: true, challengeId: true, status: true, store: { select: { transactionFeeRate: true } } },
+    select: { id: true, saleId: true, customerId: true, storeId: true, category: true, purchaseAmount: true, createdAt: true, challengeId: true, status: true, store: { select: { transactionFeeRate: true } } },
   });
   if (!feature('challenges')) return [];   // switched off in Settings: nothing moves on, nothing is paid
   if (!sale || sale.challengeId || sale.status !== TransactionStatus.APPROVED) return [];   // a reward line never counts
@@ -66,10 +66,22 @@ export async function creditChallenges(db: Db, saleId: string, now: Date = new D
   });
   if (running.length === 0) return [];
   const mine = await forCustomer(running, sale.customerId, at, undefined, at);   // as of the purchase (it is not its own last visit)
+  // A visit is a sale, not a line: gas and groceries on one receipt are one visit (2026-10-31; each line used to count). The lines of a
+  // sale share its sale id (the first line's id); a line adds no visit when another approved line of the same sale already counted
+  const saleKey = sale.saleId ?? sale.id;
+  const siblings = mine.some((c) => c.kind === 'VISITS')
+    ? await db.pointsTransaction.findMany({
+      where: { OR: [{ id: saleKey }, { saleId: saleKey }], id: { not: sale.id }, status: TransactionStatus.APPROVED, challengeId: null, referralId: null },
+      select: { storeId: true, category: true, purchaseAmount: true, createdAt: true },
+    })
+    : [];
+  const visitCounted = (c: (typeof mine)[number]) => siblings.some((l) => (!c.storeId || c.storeId === l.storeId) && (!c.category || c.category === l.category)
+    && l.createdAt >= c.startDate && l.createdAt <= c.endDate && saleCounts(c, l.purchaseAmount) > 0);
   const awards: ChallengeAward[] = [];
   for (const c of mine) {
     const add = saleCounts(c, sale.purchaseAmount);
     if (add <= 0) continue;
+    if (c.kind === 'VISITS' && visitCounted(c)) continue;
     const p = await db.challengeProgress.upsert({
       where: { challengeId_customerId: { challengeId: c.id, customerId: sale.customerId } },
       create: { challengeId: c.id, customerId: sale.customerId, progress: 0, timesEarned: 0 },
