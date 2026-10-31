@@ -57,9 +57,10 @@ export async function checkLockout(phone: string, db: LockoutDb = prisma): Promi
   return null;
 }
 
-export async function recordFailure(phone: string, db: LockoutDb = prisma) {
+/** Counts one wrong try; true when this try locked the account. */
+export async function recordFailure(phone: string, db: LockoutDb = prisma): Promise<boolean> {
   const user = await db.user.findUnique({ where: { phone }, select: { failedLoginAttempts: true, lockedUntil: true, lockoutLevel: true } });
-  if (!user) return;
+  if (!user) return false;
   // A lock that has run out starts a fresh set of tries. The counter used to stay at the limit, so one
   // wrong PIN after the lock ended locked the account again for another 15 minutes.
   const lockRanOut = !!user.lockedUntil && user.lockedUntil <= new Date();
@@ -73,6 +74,35 @@ export async function recordFailure(phone: string, db: LockoutDb = prisma) {
       ...(locking ? { lockoutLevel: user.lockoutLevel + 1 } : {}),
     },
   });
+  return locking;
+}
+
+/**
+ * A PIN try is counted BEFORE the PIN is checked, under a lock on the account's row, and a right PIN then clears the count
+ * (2026-10-31). Counting after the check let many guesses sent at the same moment all pass the "locked?" test before any of
+ * them was counted, so far more than 5 PINs could be tried. Returns the "locked" message when the try may not go ahead.
+ * When this try is the one that locks the account, its owner is told by push and in the inbox: someone who knows only the
+ * phone number can lock it, and the owner should know how to get back in (Forgot PIN unlocks at once).
+ */
+export async function claimPinTry(phone: string): Promise<string | null> {
+  let lockedNow: { id: string; es: boolean } | null = null;
+  const msg = await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<{ id: string; language: string | null }[]>`SELECT id, language FROM "users" WHERE phone = ${phone} FOR UPDATE`;
+    if (!rows.length) return null;
+    const locked = await checkLockout(phone, tx);
+    if (locked) return locked;
+    if (await recordFailure(phone, tx)) lockedNow = { id: rows[0].id, es: rows[0].language === 'es' };
+    return null;
+  });
+  const who = lockedNow as { id: string; es: boolean } | null;
+  if (who) {
+    sendPushToUser(who.id,
+      who.es ? 'Inicio de sesión bloqueado por un rato' : 'Sign-in locked for a while',
+      who.es ? 'Alguien escribió un PIN equivocado 5 veces. Si no fuiste tú, usa "¿Olvidaste tu PIN?" para elegir uno nuevo y entrar ahora.'
+        : 'Someone entered a wrong PIN 5 times. If it was not you, use Forgot PIN to choose a new one and sign in now.',
+      'ALERT').catch(() => {});
+  }
+  return msg;
 }
 
 export async function clearFailures(phone: string, db: LockoutDb = prisma) {
@@ -230,8 +260,8 @@ export async function login(req: Request, res: Response) {
 
   const { phone, pin, pushToken, platform } = parsed.data;
 
-  // Check lockout before touching DB
-  const lockMsg = await checkLockout(phone);
+  // Locked? If not, this try is counted now, before the PIN is checked (claimPinTry)
+  const lockMsg = await claimPinTry(phone);
   if (lockMsg) {
     res.status(429).json({ success: false, error: lockMsg });
     return;
@@ -244,7 +274,6 @@ export async function login(req: Request, res: Response) {
   const pinValid = await bcrypt.compare(pin, user?.pinHash ?? dummyHash);
 
   if (!user || !pinValid) {
-    await recordFailure(phone);
     res.status(401).json({ success: false, error: 'Incorrect phone number or PIN' });
     return;
   }
@@ -395,7 +424,7 @@ export async function changePin(req: AuthRequest, res: Response) {
   }
 
   // Guessing the current PIN from a stolen session counts against the same limit as guessing it at sign-in
-  const lockMsg = await checkLockout(user.phone);
+  const lockMsg = await claimPinTry(user.phone);
   if (lockMsg) {
     res.status(429).json({ success: false, error: lockMsg });
     return;
@@ -403,7 +432,6 @@ export async function changePin(req: AuthRequest, res: Response) {
 
   const valid = await bcrypt.compare(currentPin, user.pinHash);
   if (!valid) {
-    await recordFailure(user.phone);
     // 403, not 401: the app and the admin site treat any 401 as "session expired" and sign the person out, so a mistyped
     // current PIN used to end the session (the admin site even showed "session expired"). The session is fine; the PIN was wrong.
     res.status(403).json({ success: false, error: 'Current PIN is incorrect', code: 'WRONG_PIN' });
@@ -1342,17 +1370,17 @@ export async function deleteOwnAccount(req: AuthRequest, res: Response) {
     }
     const me = await prisma.user.findUnique({ where: { id: userId }, select: { phone: true, pinHash: true } });
     if (!me) { res.status(404).json({ success: false }); return; }
-    const lockMsg = await checkLockout(me.phone);
+    const lockMsg = await claimPinTry(me.phone);
     if (lockMsg) {
       res.status(429).json({ success: false, error: lockMsg, code: 'LOCKED' });
       return;
     }
     if (!me.pinHash || !(await bcrypt.compare(pin, me.pinHash))) {
-      await recordFailure(me.phone);
       // 403, not 401: a 401 makes the app sign the person out
       res.status(403).json({ success: false, error: 'Incorrect PIN', code: 'WRONG_PIN' });
       return;
     }
+    await clearFailures(me.phone);   // the right PIN: the try counted up front is not held against them
   }
 
   try {
