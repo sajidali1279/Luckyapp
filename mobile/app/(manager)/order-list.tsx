@@ -33,6 +33,7 @@ import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { showActionSheet } from '../../utils/actionSheet';
+import { usePoll } from '../../hooks/usePoll';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1374,7 +1375,7 @@ export default function ManagerOrderListScreen() {
     queryKey: ['order-list-active', selectedStoreId],
     queryFn: () => orderListApi.getActive(selectedStoreId!),
     enabled: !!selectedStoreId,
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
   });
 
   const activeList: OrderList | null = activeData?.data?.data || null;
@@ -1495,7 +1496,7 @@ export default function ManagerOrderListScreen() {
     queryKey: ['employee-requests', selectedStoreId, 'PENDING'],
     queryFn: () => employeeRequestApi.forStore(selectedStoreId!, 'PENDING'),
     enabled: !!selectedStoreId,
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
   });
   const pendingRequestCount: number = (reqData?.data?.data || []).length;
 

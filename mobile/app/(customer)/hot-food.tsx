@@ -37,6 +37,7 @@ import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } fro
 import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../components/HotFoodCombos';
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import OrderSteps from '../../components/OrderSteps';
+import { usePoll } from '../../hooks/usePoll';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -613,7 +614,7 @@ export default function CustomerHotFoodScreen() {
     queryKey: ['hot-food-pickup-stores'],
     queryFn: hotFoodApi.getPickupStores,
     staleTime: 60_000,
-    refetchInterval: 60_000,   // open / closed follows the clock
+    refetchInterval: usePoll(60_000),   // open / closed follows the clock
   });
   // A server from before the pickup list: the stores' own list, those with hot food on (no hours in it)
   const { data: storesData } = useQuery({
@@ -660,7 +661,7 @@ export default function CustomerHotFoodScreen() {
     queryFn: () => hotFoodApi.getCustomerMenu(effectiveStore),
     enabled: !!effectiveStore,
     staleTime: 60_000,
-    refetchInterval: 60_000,   // the open / closed line follows the clock
+    refetchInterval: usePoll(60_000),   // the open / closed line follows the clock
   });
   const menuItems: MenuItem[] = menuData?.data?.data || [];
   if (typeof menuData?.data?.limits?.maxPerItem === 'number') MAX_PER_ITEM = menuData.data.limits.maxPerItem;
@@ -707,11 +708,12 @@ export default function CustomerHotFoodScreen() {
   const hours: HotFoodHours | undefined = menuData?.data?.hours;
   const closed = !!hours && !hours.open;
 
-  // My orders
+  // My orders (every 15 seconds while that tab is open and this screen is shown)
+  const ordersPoll = usePoll(15_000);
   const { data: ordersData, isLoading: ordersLoading, isError: ordersIsError, refetch: refetchOrders, isRefetching: ordersRefetching } = useQuery({
     queryKey: ['my-hot-food-orders'],
     queryFn: hotFoodApi.getMyOrders,
-    refetchInterval: tab === 'orders' ? 15_000 : false,
+    refetchInterval: tab === 'orders' ? ordersPoll : false,
   });
 
   // Cancel an order the store has not started (the store is told not to make it)

@@ -26,6 +26,7 @@ import PulseHighlight from './PulseHighlight';
 import KeyboardSafe from './KeyboardSafe';
 import { useLargeTitleScroll } from './LargeTitleHeader';
 import StoreChips, { startStore } from './StoreChips';
+import { usePoll } from '../hooks/usePoll';
 
 interface Dispute {
   id: string;
@@ -63,7 +64,7 @@ export default function ManagerDisputesScreen() {
     queryKey: ['disputes-pending-by-store'],
     queryFn: () => disputeApi.getMyStoresPendingByStore(),
     enabled: stores.length > 1,
-    refetchInterval: 60000,
+    refetchInterval: usePoll(60000),
   });
   const pendingBy: Record<string, number> = byStoreQ.data?.data?.data ?? {};
   useEffect(() => {
@@ -83,7 +84,7 @@ export default function ManagerDisputesScreen() {
     queryKey: ['manager-disputes', storeId],
     queryFn: () => disputeApi.getForStore(storeId!),
     enabled: !!storeId,
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
   });
   const disputes: Dispute[] = data?.data?.data || [];
   const pending = disputes.filter(d => d.status === 'PENDING');

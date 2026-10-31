@@ -14,6 +14,7 @@ import AppLoader from '../components/AppLoader';
 import { queryClient } from '../services/queryClient';
 import ErrorBoundary from '../components/ErrorBoundary';
 import UpdatePrompt from '../components/UpdatePrompt';
+import BiometricOffer from '../components/BiometricOffer';
 import { loadSavedLanguage } from '../i18n';
 
 // Hold the splash until we're ready
@@ -152,6 +153,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }} />
         {(isLoading || showLoader) && <AppLoader />}
         <UpdatePrompt />
+        <BiometricOffer />
         <Toast config={toastConfig} />
       </QueryClientProvider>
     </ErrorBoundary>

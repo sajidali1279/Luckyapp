@@ -13,6 +13,19 @@ export function haversineMiles(lat1: number, lon1: number, lat2: number, lon2: n
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+/**
+ * The phone's position, or null, never waiting long (2026-10-31): a fresh fix can take forever indoors or with location switched off,
+ * and Home's offers waited on it. Waits at most `ms`, then takes the last known position (null if there is none).
+ */
+export async function quickPosition(ms = 8000, accuracy: Location.Accuracy = Location.Accuracy.Balanced): Promise<Location.LocationObject | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), ms); });
+  const fresh = Location.getCurrentPositionAsync({ accuracy }).catch(() => null);
+  const pos = await Promise.race([fresh, timeout]);
+  clearTimeout(timer);
+  return pos ?? (await Location.getLastKnownPositionAsync().catch(() => null));
+}
+
 export interface StoreWithLocation {
   id: string;
   latitude?: number | null;
@@ -28,24 +41,30 @@ export interface StoreWithLocation {
  * assigned store within range, never blocks, never leaves the caller with
  * no store id at all as long as they have at least one assignment.
  */
+// The store the GPS last picked for an assignment list, for this app run: a screen opened again starts there instead of at the first
+// store and flipping over a moment later
+const remembered = new Map<string, string>();
+
 export function useCurrentStoreId(
   allStores: StoreWithLocation[],
   assignedStoreIds: string[] | undefined
 ): string | undefined {
   const ids = assignedStoreIds ?? [];
   const idsKey = ids.join(',');
-  const [resolvedId, setResolvedId] = useState<string | undefined>(ids[0]);
+  const [resolvedId, setResolvedId] = useState<string | undefined>(() => remembered.get(idsKey) ?? ids[0]);
 
   useEffect(() => {
-    setResolvedId(ids[0]);
-    if (ids.length <= 1) return;
+    // Kept while it is still one of theirs: this runs again when the store list loads, and used to flip back to the first store
+    setResolvedId((cur) => (cur && ids.includes(cur) ? cur : remembered.get(idsKey) ?? ids[0]));
+    if (ids.length <= 1 || allStores.length === 0) return;   // the stores' locations not loaded yet: nothing to compare
 
     let cancelled = false;
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted' || cancelled) return;
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const pos = await quickPosition();
+        if (!pos || cancelled) return;
         const candidates = allStores.filter(
           (s) => ids.includes(s.id) && s.latitude != null && s.longitude != null
         );
@@ -57,7 +76,7 @@ export function useCurrentStoreId(
           const d = haversineMiles(pos.coords.latitude, pos.coords.longitude, s.latitude!, s.longitude!);
           if (d < closestDist) { closestDist = d; closest = s; }
         }
-        if (!cancelled && closestDist <= NEARBY_STORE_MAX_MILES) setResolvedId(closest.id);
+        if (!cancelled && closestDist <= NEARBY_STORE_MAX_MILES) { remembered.set(idsKey, closest.id); setResolvedId(closest.id); }
       } catch {
         // Keep the storeIds[0] fallback already set above.
       }

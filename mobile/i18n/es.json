@@ -103,6 +103,7 @@
     }
   },
   "missing": {
+    "cannotOpenLink": "No se pudo abrir el enlace.",
     "title": "Persona desaparecida",
     "helpFind": "Ayuda a encontrar",
     "helpFindUrgent": "Urgente: ayuda a encontrar",
@@ -2475,6 +2476,7 @@
     "addToCatalogA11y": "Agregar producto al catálogo"
   },
   "customerHome": {
+    "cannotCall": "Este dispositivo no puede hacer llamadas.",
     "ageLockTitle": "Oferta para Mayores de 21",
     "ageLockTap": "Toca para verificar tu edad",
     "greeting": "¡Hola, {{name}}!",

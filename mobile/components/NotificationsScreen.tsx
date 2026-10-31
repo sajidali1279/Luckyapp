@@ -27,6 +27,7 @@ import {
   BriefcaseIcon,
 } from './Icons';
 import LargeTitleHeader, { useLargeTitleScroll } from './LargeTitleHeader';
+import { usePoll } from '../hooks/usePoll';
 
 const TYPE_CONFIG: Record<string, { color: string }> = {
   GAS_PRICE_UPDATE:  { color: '#f97316' },
@@ -98,7 +99,7 @@ export default function NotificationsScreen() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-notifications'],
     queryFn: () => notificationsApi.getMyNotifications(),
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
   });
 
   // Badge behaviour on focus:

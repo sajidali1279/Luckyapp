@@ -29,12 +29,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { referralsApi } from '../../services/api';
 import { PENDING_INVITE_KEY, pendingInvite } from '../invite';
 import FocusStatusBar from '../../components/FocusStatusBar';
+import { offerBiometricAfterSignIn } from '../../components/BiometricOffer';
 
 type Screen = 'quick' | 'login' | 'register' | 'verify-phone';
 
 export default function LoginScreen() {
   const { t } = useTranslation();
-  const { setAuth, quickLoginPhone, biometricEnabled, setBiometricEnabled, saveBiometricPin, getBiometricPin } = useAuthStore();
+  const { setAuth, quickLoginPhone, biometricEnabled, saveBiometricPin, getBiometricPin } = useAuthStore();
 
   // Determine initial screen
   const [screen, setScreen] = useState<Screen>(quickLoginPhone ? 'quick' : 'login');
@@ -47,7 +48,6 @@ export default function LoginScreen() {
   const [confirmPin, setConfirmPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [bioAvailable, setBioAvailable] = useState(false);
-  const [showBioOffer, setShowBioOffer] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [tabsWidth, setTabsWidth] = useState(0);
   const tabAnim = useRef(new Animated.Value(screen === 'register' ? 1 : 0)).current;
@@ -206,8 +206,8 @@ export default function LoginScreen() {
       const { data } = await authApi.login(rawPhone(), pin);
       await setAuth(data.data.user, data.data.token);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Offer biometric enrollment after successful login
-      if (bioAvailable && !biometricEnabled) setShowBioOffer(true);
+      // Offer fingerprint or face sign-in on the next screen (this one goes away as soon as the app moves on)
+      if (bioAvailable && !biometricEnabled) offerBiometricAfterSignIn(pin);
       else if (bioAvailable && biometricEnabled) await saveBiometricPin(pin); // refresh saved PIN
     } catch (err: any) {
       setPin('');
@@ -260,7 +260,7 @@ export default function LoginScreen() {
       else if (ref?.error) Toast.show({ type: 'info', text1: t('invite.signupNotAdded'), text2: ref.error });
       signOut(getAuth()).catch(() => {});
       await setAuth(data.data.user, data.data.token);
-      if (bioAvailable && !biometricEnabled) setShowBioOffer(true);
+      if (bioAvailable && !biometricEnabled) offerBiometricAfterSignIn(pin);
     } catch (err: any) {
       setOtp('');
       const code = err.code as string | undefined;
@@ -304,42 +304,6 @@ export default function LoginScreen() {
     setPin('');
     setConfirmPin('');
   }, [tabAnim]);
-
-  async function enableBiometric() {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: t('auth.confirmIdentityBio'),
-      cancelLabel: t('auth.skip'),
-    });
-    if (result.success) {
-      await saveBiometricPin(pin);
-      await setBiometricEnabled(true);
-      Toast.show({ type: 'success', text1: t('auth.bioEnabled') });
-    }
-    setShowBioOffer(false);
-  }
-
-  // ── Biometric enrollment offer ──
-  if (showBioOffer) {
-    const bioType = Platform.OS === 'ios' ? t('auth.bioTypeIos') : t('auth.bioTypeAndroid');
-    return (
-      <View style={styles.bioOfferRoot}>
-        <FocusStatusBar barStyle="dark-content" />
-        <View style={styles.bioOfferCard}>
-          <View style={styles.bioIconRing}>
-            <ShieldIcon size={38} color={COLORS.primary} strokeWidth={1.75} />
-          </View>
-          <Text style={styles.bioOfferTitle}>{t('auth.enableBioQ', { type: bioType })}</Text>
-          <Text style={styles.bioOfferDesc}>{t('auth.enableBioDesc', { type: bioType })}</Text>
-          <TouchableOpacity style={styles.bioOfferBtn} onPress={enableBiometric}>
-            <Text style={styles.bioOfferBtnText}>{t('auth.enableBio', { type: bioType })}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.bioOfferSkip} onPress={() => setShowBioOffer(false)}>
-            <Text style={styles.bioOfferSkipText}>{t('auth.notNow')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
 
   // ── Quick login (phone saved, just enter PIN) ──
   if (screen === 'quick') {
@@ -737,35 +701,6 @@ const styles = StyleSheet.create({
   orLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
   orText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
 
-  // Biometric offer screen
-  bioOfferRoot: {
-    flex: 1, backgroundColor: COLORS.background,
-    justifyContent: 'center', padding: 24,
-  },
-  bioOfferCard: {
-    backgroundColor: COLORS.white, borderRadius: 24, padding: 32,
-    alignItems: 'center', gap: 14,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, shadowRadius: 16, elevation: 6,
-  },
-  bioIconRing: {
-    width: 80, height: 80, borderRadius: 24,
-    backgroundColor: COLORS.primary + '15',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: COLORS.primary + '30',
-  },
-  bioOfferTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text, textAlign: 'center' },
-  bioOfferDesc: { fontSize: 14, color: COLORS.textMuted, textAlign: 'center', lineHeight: 21 },
-  bioOfferBtn: {
-    backgroundColor: COLORS.primary, borderRadius: 14,
-    paddingVertical: 16, paddingHorizontal: 32, width: '100%', alignItems: 'center',
-    marginTop: 8,
-    shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
-  },
-  bioOfferBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
-  bioOfferSkip: { paddingVertical: 10 },
-  bioOfferSkipText: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
 });
 
 const vp = StyleSheet.create({

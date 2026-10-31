@@ -21,6 +21,7 @@ import { pointsApi } from '../../services/api';
 import { COLORS } from '../../constants';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import ModalToastHost from '../../components/ModalToastHost';
+import { usePoll } from '../../hooks/usePoll';
 
 type Line = { id: string; category: string; purchaseAmount: number; points: number; status: 'CREDITED' | 'HELD' | 'NOT_FINISHED' | 'REJECTED' | 'VOIDED'; addOn: boolean };
 type Sale = { saleId: string; storeId: string; createdAt: string; store: string | null; customer: { name: string; last4: string }; lines: Line[]; canAddReceipt: boolean; addReceiptUntil: string };
@@ -51,7 +52,7 @@ const who = (c: { name: string; last4: string }, t: (k: string, o?: any) => stri
 export default function RecentScreen() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['cashier-recent'], queryFn: () => pointsApi.getCashierRecent(), refetchInterval: 60_000 });
+  const q = useQuery({ queryKey: ['cashier-recent'], queryFn: () => pointsApi.getCashierRecent(), refetchInterval: usePoll(60_000) });
   const data = q.data?.data?.data;
   const sales: Sale[] = data?.sales ?? [];
   const redemptions: Redemption[] = data?.redemptions ?? [];

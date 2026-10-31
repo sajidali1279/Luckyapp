@@ -37,6 +37,7 @@ import ModalToastHost from '../../components/ModalToastHost';
 import { showActionSheet } from '../../utils/actionSheet';
 import { sized } from '../../utils/imageUrl';
 import FocusStatusBar from '../../components/FocusStatusBar';
+import { usePoll } from '../../hooks/usePoll';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -663,7 +664,7 @@ export default function HotFoodOrders() {
     queryKey: ['hot-food-orders', storeId],
     queryFn: () => hotFoodApi.getStoreOrders(storeId!),
     enabled: !!storeId,
-    refetchInterval: 10_000,
+    refetchInterval: usePoll(10_000),
   });
 
   // All items (menu + catalog)
@@ -671,7 +672,7 @@ export default function HotFoodOrders() {
     queryKey: ['hot-food-all-items', storeId],
     queryFn: () => hotFoodApi.getStoreAllItems(storeId!),
     enabled: !!storeId,
-    refetchInterval: 60_000,
+    refetchInterval: usePoll(60_000),
   });
 
   // Category suggestions

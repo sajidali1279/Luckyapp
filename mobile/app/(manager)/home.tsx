@@ -26,6 +26,7 @@ import ErrorState from '../../components/ErrorState';
 import DashboardWatermark from '../../components/DashboardWatermark';
 import { NoticeStack, usePinnedNotices } from '../../components/NoticeBanner';
 import FocusStatusBar from '../../components/FocusStatusBar';
+import { usePoll } from '../../hooks/usePoll';
 
 const BAR_COLORS = [
   '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
@@ -104,7 +105,7 @@ export default function ManagerHome() {
     queryFn: () => orderListApi.getActive(storeId!),
     enabled: !!storeId,
     staleTime: 60000,
-    refetchInterval: 60000,
+    refetchInterval: usePoll(60000),
   });
   const activeListItems: { status: string }[] = activeListData?.data?.data?.items ?? [];
   const neededCount  = activeListItems.filter(i => i.status === 'PENDING').length;
@@ -127,19 +128,19 @@ export default function ManagerHome() {
   const { data: pendingData } = useQuery({
     queryKey: ['employee-requests-pending-count'],
     queryFn: () => employeeRequestApi.getPendingCount(),
-    refetchInterval: 60000,
+    refetchInterval: usePoll(60000),
   });
   // Requests = stock requests + store alerts + product requests, the same three the menu badge adds up (2026-10-10: the card counted only the first)
-  const { data: storeReqData } = useQuery({ queryKey: ['store-requests-pending-count'], queryFn: () => storeRequestApi.getPendingCount(), refetchInterval: 60000 });
-  const { data: productReqData } = useQuery({ queryKey: ['product-requests-pending-count'], queryFn: () => productRequestApi.getPendingCount(), refetchInterval: 60000 });
+  const { data: storeReqData } = useQuery({ queryKey: ['store-requests-pending-count'], queryFn: () => storeRequestApi.getPendingCount(), refetchInterval: usePoll(60000) });
+  const { data: productReqData } = useQuery({ queryKey: ['product-requests-pending-count'], queryFn: () => productRequestApi.getPendingCount(), refetchInterval: usePoll(60000) });
   const pendingCount: number = (pendingData?.data?.data?.count ?? analytics?.pendingRequestsCount ?? 0)
     + (storeReqData?.data?.data?.count ?? 0) + (productReqData?.data?.data?.count ?? 0);
 
   // Everything else waiting on the manager, all their stores (same queries as the menu badges, so no extra calls)
-  const { data: disputesData } = useQuery({ queryKey: ['disputes-pending-count'], queryFn: () => disputeApi.getMyStoresPendingCount(), refetchInterval: 60000 });
-  const { data: shiftReqData } = useQuery({ queryKey: ['scheduling-pending-count'], queryFn: () => schedulingApi.getPendingCount(), refetchInterval: 60000 });
-  const { data: chatData } = useQuery({ queryKey: ['chat-unread-count'], queryFn: () => chatApi.getUnreadCount(), refetchInterval: 30000 });
-  const { data: supportData } = useQuery({ queryKey: ['support-unread'], queryFn: () => supportApi.getUnreadCount(), enabled: isStoreManagerOrAbove(user?.role), refetchInterval: 30000 });
+  const { data: disputesData } = useQuery({ queryKey: ['disputes-pending-count'], queryFn: () => disputeApi.getMyStoresPendingCount(), refetchInterval: usePoll(60000) });
+  const { data: shiftReqData } = useQuery({ queryKey: ['scheduling-pending-count'], queryFn: () => schedulingApi.getPendingCount(), refetchInterval: usePoll(60000) });
+  const { data: chatData } = useQuery({ queryKey: ['chat-unread-count'], queryFn: () => chatApi.getUnreadCount(), refetchInterval: usePoll(30000) });
+  const { data: supportData } = useQuery({ queryKey: ['support-unread'], queryFn: () => supportApi.getUnreadCount(), enabled: isStoreManagerOrAbove(user?.role), refetchInterval: usePoll(30000) });
   const attention = [
     { key: 'disputes', n: disputesData?.data?.data?.count ?? 0, title: 'managerHome.attentionDisputes', sub: 'managerHome.attentionDisputesSub', route: '/(manager)/disputes', color: '#DC2626', Icon: AlertTriangleIcon },
     { key: 'shifts', n: shiftReqData?.data?.data?.count ?? 0, title: 'managerHome.attentionShifts', sub: 'managerHome.attentionShiftsSub', route: '/(manager)/schedule', color: '#7C3AED', Icon: CalendarIcon },
@@ -150,7 +151,7 @@ export default function ManagerHome() {
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
     queryFn: () => notificationsApi.getUnreadCount(),
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 

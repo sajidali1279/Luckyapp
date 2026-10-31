@@ -30,6 +30,7 @@ import KeyboardSafe from './KeyboardSafe';
 import { useLargeTitleScroll } from './LargeTitleHeader';
 import StoreChips, { startStore } from './StoreChips';
 import { useAuthStore } from '../store/authStore';
+import { usePoll } from '../hooks/usePoll';
 
 export function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
   const p = { size, color, strokeWidth: 1.75 };
@@ -164,9 +165,9 @@ export default function ManagerRequestsScreen() {
   // What waits at each store, per kind (2026-10-10): the screen used to open on "Select a store" with 12 chips and no hint where the requests were
   const { user } = useAuthStore();
   const multi = stores.length > 1;
-  const alertsByStoreQ = useQuery({ queryKey: ['store-requests-pending-by-store'], queryFn: () => storeRequestApi.getPendingByStore(), enabled: multi, refetchInterval: 60000 });
-  const stockByStoreQ = useQuery({ queryKey: ['employee-requests-pending-by-store'], queryFn: () => employeeRequestApi.getPendingByStore(), enabled: multi, refetchInterval: 60000 });
-  const productsByStoreQ = useQuery({ queryKey: ['product-requests-pending-by-store'], queryFn: () => productRequestApi.getPendingByStore(), enabled: multi, refetchInterval: 60000 });
+  const alertsByStoreQ = useQuery({ queryKey: ['store-requests-pending-by-store'], queryFn: () => storeRequestApi.getPendingByStore(), enabled: multi, refetchInterval: usePoll(60000) });
+  const stockByStoreQ = useQuery({ queryKey: ['employee-requests-pending-by-store'], queryFn: () => employeeRequestApi.getPendingByStore(), enabled: multi, refetchInterval: usePoll(60000) });
+  const productsByStoreQ = useQuery({ queryKey: ['product-requests-pending-by-store'], queryFn: () => productRequestApi.getPendingByStore(), enabled: multi, refetchInterval: usePoll(60000) });
   const alertsBy: Record<string, number> = alertsByStoreQ.data?.data?.data ?? {};
   const stockBy: Record<string, number> = stockByStoreQ.data?.data?.data ?? {};
   const productsBy: Record<string, number> = productsByStoreQ.data?.data?.data ?? {};
@@ -190,7 +191,7 @@ export default function ManagerRequestsScreen() {
     queryKey: ['manager-store-requests', effectiveStoreId, statusFilter],
     queryFn: () => storeRequestApi.getStoreRequests(effectiveStoreId!, statusFilter || undefined),
     enabled: !!effectiveStoreId && mainTab === 'alerts',
-    refetchInterval: 15000,
+    refetchInterval: usePoll(15000),
   });
   const requests: StoreRequest[] = requestsData?.data?.data || [];
   const pending = requests.filter(r => r.status === 'PENDING');
@@ -202,7 +203,7 @@ export default function ManagerRequestsScreen() {
     queryKey: ['manager-employee-requests', effectiveStoreId, empFilter],
     queryFn: () => employeeRequestApi.forStore(effectiveStoreId!, empFilter || undefined),
     enabled: !!effectiveStoreId && mainTab === 'stock',
-    refetchInterval: 15000,
+    refetchInterval: usePoll(15000),
   });
   const empRequests: EmployeeItemRequest[] = empData?.data?.data || [];
   const pendingEmp = empRequests.filter(r => r.status === 'PENDING');
@@ -214,7 +215,7 @@ export default function ManagerRequestsScreen() {
     queryKey: ['manager-product-requests', effectiveStoreId],
     queryFn: () => productRequestApi.getStoreRequests(effectiveStoreId!),
     enabled: !!effectiveStoreId && mainTab === 'products',
-    refetchInterval: 15000,
+    refetchInterval: usePoll(15000),
   });
   const productRequests: ProductRequest[] = productRequestsData?.data?.data || [];
   const pendingProducts = productRequests.filter(r => r.status === 'PENDING');

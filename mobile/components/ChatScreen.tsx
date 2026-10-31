@@ -1,5 +1,6 @@
 import {
   View,
+  AppState,
   TouchableOpacity,
   FlatList,
   StyleSheet,
@@ -30,6 +31,7 @@ import KeyboardSafe from './KeyboardSafe';
 import ErrorState from './ErrorState';
 import ModalToastHost from './ModalToastHost';
 import FocusStatusBar from './FocusStatusBar';
+import { usePoll, useScreenShown } from '../hooks/usePoll';
 
 const ROLE_COLORS: Record<string, string> = {
   DEV_ADMIN:     '#2DC653',
@@ -123,7 +125,7 @@ export default function ChatScreen() {
   });
   // Unread messages per store (2026-10-10): the chat opens on the store that has new messages, and the switcher shows each count.
   // It used to open on the first store alphabetically, so a multi-store employee saw "4 unread" in the menu and an empty chat.
-  const unreadQ = useQuery({ queryKey: ['chat-unread-by-store'], queryFn: () => chatApi.getUnreadByStore(), refetchInterval: 30_000 });
+  const unreadQ = useQuery({ queryKey: ['chat-unread-by-store'], queryFn: () => chatApi.getUnreadByStore(), refetchInterval: usePoll(30_000) });
   const unreadBy: Record<string, number> = unreadQ.data?.data?.data ?? {};
 
   const { notices: visibleNotices, dismiss: dismissNotice } = usePinnedNotices(selectedStoreId);
@@ -198,11 +200,14 @@ export default function ChatScreen() {
     }
   }, [selectedStoreId, lastTimestamp]);
 
+  // New messages every 8 seconds while this screen is shown and the app is in front (it kept polling behind other screens, 2026-10-31)
+  const shown = useScreenShown();
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(poll, 8000);
+    if (!shown) return;
+    pollRef.current = setInterval(() => { if (AppState.currentState === 'active') poll(); }, 8000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [poll]);
+  }, [poll, shown]);
 
   // Choosing a photo or a PDF to send (2026-10-24): the camera, the photo library or a PDF from Files. It waits above the box until Send.
   async function takePhoto(camera: boolean) {

@@ -10,6 +10,7 @@ import { Text } from '../ScaledText';
 import { engagementApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { haptic } from '../../utils/haptics';
+import { usePoll } from '../../hooks/usePoll';
 
 type Flash = { id: string; title: string; titleEs: string | null; body: string; bodyEs: string | null; url: string | null; endsAt: string };
 
@@ -20,7 +21,7 @@ export default function FlashDealBanner({ storeId, enabled }: { storeId?: string
   const q = useQuery({
     queryKey: ['flash-deal', storeId ?? ''],
     queryFn: async () => (await engagementApi.flashActive(storeId)).data.data as Flash | null,
-    enabled: enabled && isCustomer, staleTime: 60_000, refetchInterval: 120_000, retry: 1,
+    enabled: enabled && isCustomer, staleTime: 60_000, refetchInterval: usePoll(120_000), retry: 1,
   });
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(timer); }, []);

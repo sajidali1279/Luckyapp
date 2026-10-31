@@ -30,6 +30,7 @@ import { useCurrentStoreId } from '../../utils/geo';
 import { pctLabel } from '../../utils/offerRate';
 import { roleName } from '../../utils/roleName';
 import FocusStatusBar from '../../components/FocusStatusBar';
+import { usePoll } from '../../hooks/usePoll';
 
 function getGreeting(t: (key: string) => string) {
   const h = new Date().getHours();
@@ -64,7 +65,7 @@ export default function EmployeeHomeScreen() {
     queryKey: ['gas-prices'],
     queryFn: () => storesApi.getGasPrices(),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: usePoll(60_000),
   });
   const allStoresWithPrices: any[] = gasPricesData?.data?.data || [];
   const storeId = useCurrentStoreId(allStoresWithPrices, user?.storeIds);
@@ -142,14 +143,14 @@ export default function EmployeeHomeScreen() {
   const { data: pendingData } = useQuery({
     queryKey: ['hot-food-pending-count'],
     queryFn: () => hotFoodApi.getMyStoresPendingCount(),
-    refetchInterval: 20_000,
+    refetchInterval: usePoll(20_000),
   });
   const pendingCount: number = pendingData?.data?.data?.count ?? 0;
 
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
     queryFn: () => notificationsApi.getUnreadCount(),
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 

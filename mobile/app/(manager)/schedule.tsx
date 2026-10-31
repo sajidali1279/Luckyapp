@@ -30,6 +30,7 @@ import {
 } from '../../utils/schedule';
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import StoreChips, { startStore } from '../../components/StoreChips';
+import { usePoll } from '../../hooks/usePoll';
 
 // This file indexes SHIFT_LABELS/SHIFT_TIMES with untyped strings from API
 // responses (e.g. req.shiftType), so both are re-typed loosely here rather
@@ -66,7 +67,7 @@ export default function ManagerScheduleScreen() {
     queryKey: ['schedule-pending-by-store'],
     queryFn: () => schedulingApi.getPendingByStore(),
     enabled: stores.length > 1,
-    refetchInterval: 60000,
+    refetchInterval: usePoll(60000),
   });
   const pendingBy: Record<string, number> = byStoreQ.data?.data?.data ?? {};
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function ManagerScheduleScreen() {
     queryKey: ['manager-roster', storeId],
     queryFn: () => schedulingApi.getTodayRoster(storeId!),
     enabled: !!storeId && tab === 'roster',
-    refetchInterval: 5 * 60_000,
+    refetchInterval: usePoll(5 * 60_000),
   });
 
   const {

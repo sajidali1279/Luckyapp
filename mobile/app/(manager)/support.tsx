@@ -23,6 +23,7 @@ import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
+import { usePoll } from '../../hooks/usePoll';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -242,7 +243,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['support-thread', thread.id],
     queryFn: () => supportApi.getThread(thread.id),
-    refetchInterval: 15000,
+    refetchInterval: usePoll(15000),
   });
 
   const messages: Message[] = data?.data?.data?.messages || [];
@@ -380,7 +381,7 @@ export default function SupportScreen() {
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['support-threads'],
     queryFn: () => supportApi.getMyThreads(),
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
     enabled: hasAccess,
   });
 

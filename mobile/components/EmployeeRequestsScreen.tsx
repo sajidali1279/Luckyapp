@@ -24,6 +24,7 @@ import { usePullRefresh } from '../hooks/usePullRefresh';
 import ErrorState from './ErrorState';
 import KeyboardSafe from './KeyboardSafe';
 import LargeTitleHeader, { useLargeTitleScroll } from './LargeTitleHeader';
+import { usePoll } from '../hooks/usePoll';
 
 const PRIORITY_COLORS: Record<string, string> = {
   HIGH: '#E63946', MEDIUM: '#f59e0b', LOW: '#2DC653',
@@ -97,7 +98,7 @@ export default function EmployeeRequestsScreen() {
   const { data: myRequestsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-store-requests'],
     queryFn: () => storeRequestApi.getMine(),
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
   });
   const myRequests: StoreRequest[] = myRequestsData?.data?.data || [];
   const { refreshing, onRefresh } = usePullRefresh([() => refetch()]);

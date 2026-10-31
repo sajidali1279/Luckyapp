@@ -103,6 +103,7 @@
     }
   },
   "missing": {
+    "cannotOpenLink": "Could not open the link.",
     "title": "Missing person",
     "helpFind": "Help find",
     "helpFindUrgent": "Urgent: help find",
@@ -2475,6 +2476,7 @@
     "addToCatalogA11y": "Add product to catalog"
   },
   "customerHome": {
+    "cannotCall": "This device cannot make calls.",
     "ageLockTitle": "Age-restricted offer",
     "ageLockTap": "Tap to verify your age",
     "greeting": "Hey {{name}}!",

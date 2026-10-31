@@ -9,6 +9,7 @@ import { Text } from './ScaledText';
 import { COLORS } from '../constants';
 import { staffApi } from '../services/api';
 import ErrorState from './ErrorState';
+import { usePoll } from '../hooks/usePoll';
 
 type Status = 'ON_SITE' | 'ELSEWHERE' | 'NO_CHECK_IN' | 'UNSCHEDULED' | 'OFF' | 'UPCOMING';
 interface Entry {
@@ -45,7 +46,7 @@ export default function WhereStaffAre({ storeId, accent = COLORS.managerPrimary 
     queryKey: ['staff-attendance', storeId, range.from],
     queryFn: () => staffApi.attendance({ ...range, storeId }),
     enabled: !!storeId,
-    refetchInterval: 60_000,
+    refetchInterval: usePoll(60_000),
   });
   const data = q.data?.data?.data as { today: string; days: { day: string; entries: Entry[] }[] } | undefined;
 

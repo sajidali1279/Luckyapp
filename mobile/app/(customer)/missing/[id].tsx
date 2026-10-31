@@ -79,7 +79,7 @@ export default function MissingPosterScreen() {
           <Text style={s.note}>{t('missing.tipsNote')}</Text>
           <View style={s.row}>
             <TouchableOpacity style={s.link} onPress={share} accessibilityRole="button"><Text style={s.linkText}>{t('missing.share')}</Text></TouchableOpacity>
-            {p.sourceUrl ? <TouchableOpacity style={s.link} onPress={() => Linking.openURL(p.sourceUrl!)} accessibilityRole="link"><Text style={s.linkText}>{t('missing.officialAlert')}</Text></TouchableOpacity> : null}
+            {p.sourceUrl ? <TouchableOpacity style={s.link} onPress={() => Linking.openURL(p.sourceUrl!).catch(() => Toast.show({ type: 'error', text1: t('missing.cannotOpenLink') }))} accessibilityRole="link"><Text style={s.linkText}>{t('missing.officialAlert')}</Text></TouchableOpacity> : null}
           </View>
           <TouchableOpacity onPress={report} disabled={reporting} accessibilityRole="button" style={{ marginTop: 18, alignSelf: 'center' }}>
             <Text style={s.report}>{reporting ? '…' : t('missing.reportLink')}</Text>

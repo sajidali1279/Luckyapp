@@ -32,6 +32,7 @@ import { askForRatingSoon } from '../../utils/ratePrompt';
 import { tellGuide } from '../../components/cuatro/guideEvents';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useAppSettings } from '../../hooks/useAppSettings';
+import { usePoll } from '../../hooks/usePoll';
 
 
 
@@ -392,7 +393,7 @@ export default function RewardsScreen() {
     queryKey: ['my-benefit-status'],
     queryFn: () => pointsApi.getMyBenefitStatus(),
     enabled: tier !== 'BRONZE',
-    refetchInterval: 60000,
+    refetchInterval: usePoll(60000),
   });
   const benefitStatus = benefitData?.data?.data;
 
@@ -404,7 +405,7 @@ export default function RewardsScreen() {
   const { data: redemptionsData } = useQuery({
     queryKey: ['my-redemptions'],
     queryFn: () => catalogApi.getMyRedemptions(),
-    refetchInterval: 15000,
+    refetchInterval: usePoll(15000),
   });
 
   // Set on the first tap: redeemMutation.isPending only disables the button on the next render, so a quick double tap sent two redemptions

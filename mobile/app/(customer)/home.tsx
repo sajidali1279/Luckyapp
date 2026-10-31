@@ -26,6 +26,7 @@ import { useFocusEffect, useLocalSearchParams, router } from 'expo-router';
 import { hoursText } from '../../utils/offerHours';
 import { useCallback, useMemo, useRef, useState, useEffect, memo } from 'react';
 import * as Location from 'expo-location';
+import { quickPosition } from '../../utils/geo';
 import { useTranslation } from 'react-i18next';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -60,6 +61,7 @@ import { tierBenefitLines } from '../../utils/tierLines';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { usePointsExpiry, expiryDate } from '../../hooks/usePointsExpiry';
 import MissingPersonsCard from '../../components/MissingPersonsCard';
+import { usePoll } from '../../hooks/usePoll';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -758,15 +760,15 @@ function CustomerHomeScreen() {
   const { data: notifData } = useQuery({
     queryKey: ['unread-count'],
     queryFn: () => notificationsApi.getUnreadCount(),
-    refetchInterval: 30000,
+    refetchInterval: usePoll(30000),
   });
   const unreadCount: number = notifData?.data?.data?.count ?? 0;
 
-  const { data: gasPricesData, refetch: refetchGasPrices } = useQuery({
+  const { data: gasPricesData, isError: gasPricesFailed, refetch: refetchGasPrices } = useQuery({
     queryKey: ['gas-prices'],
     queryFn: () => storesApi.getGasPrices(),
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: usePoll(60_000),
   });
   const allStores: any[] = gasPricesData?.data?.data ?? [];
   const engFlags = useEngagementFlags();   // HQ's engagement switches (a price alert link shows under the gas prices while alerts are on)
@@ -794,7 +796,8 @@ function CustomerHomeScreen() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted' || cancelled) { if (!cancelled) setLocationStatus('none'); return; }
-        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const pos = await quickPosition();   // never waits more than a few seconds (indoors or location off it could wait forever)
+        if (!pos) { if (!cancelled) setLocationStatus('none'); return; }
         const { latitude: uLat, longitude: uLon } = pos.coords;
         const storesWithCoords = allStores.filter((s: any) => s.latitude != null && s.longitude != null);
         if (storesWithCoords.length === 0 || cancelled) { if (!cancelled) setLocationStatus('none'); return; }
@@ -823,6 +826,13 @@ function CustomerHomeScreen() {
     if (allStores.length > 0) detect();
     return () => { cancelled = true; };
   }, [allStores.length]);
+  // The offers and banners wait for this: never for long. The store list failing, or anything else slow, shows every store's offers
+  // after 10 seconds (a store found later still narrows them down)
+  useEffect(() => {
+    if (gasPricesFailed) { setLocationStatus((st) => (st === 'detecting' ? 'none' : st)); return; }
+    const guard = setTimeout(() => setLocationStatus((st) => (st === 'detecting' ? 'none' : st)), 10_000);
+    return () => clearTimeout(guard);
+  }, [gasPricesFailed]);
 
   const locationReady = locationStatus !== 'detecting';
 
@@ -849,7 +859,7 @@ function CustomerHomeScreen() {
     queryFn: () => hotFoodApi.getCustomerMenu(nearestStore!.id),
     enabled: !!nearestStore,
     staleTime: 60 * 1000,
-    refetchInterval: 60 * 1000,   // open / closed follows the clock while Home is open
+    refetchInterval: usePoll(60 * 1000),   // open / closed follows the clock while Home is open
   });
   const hotFoodMenu: any[] = hotFoodData?.data?.data ?? [];
   // Outside the store's hot food hours the section is not shown (the menu still comes back, so ordering would only fail);
@@ -1425,7 +1435,7 @@ function CustomerHomeScreen() {
                     )}
                     {!nearestStore && store.phone && (
                       <TouchableOpacity
-                        onPress={() => Linking.openURL(`tel:${store.phone.replace(/\D/g, '')}`)}
+                        onPress={() => Linking.openURL(`tel:${store.phone.replace(/\D/g, '')}`).catch(() => Toast.show({ type: 'error', text1: t('customerHome.cannotCall') }))}
                         activeOpacity={0.7}
                         style={{ alignSelf: 'flex-start', marginBottom: 5 }}
                         accessibilityRole="link"

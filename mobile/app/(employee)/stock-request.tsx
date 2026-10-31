@@ -28,6 +28,7 @@ import { useHighlightParam } from '../../hooks/useHighlightParam';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ErrorState from '../../components/ErrorState';
 import FocusStatusBar from '../../components/FocusStatusBar';
+import { usePoll } from '../../hooks/usePoll';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -409,7 +410,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['my-item-requests'],
     queryFn: employeeRequestApi.mine,
-    refetchInterval: 60_000,
+    refetchInterval: usePoll(60_000),
   });
   const requests: MyRequest[] = data?.data?.data || [];
 
