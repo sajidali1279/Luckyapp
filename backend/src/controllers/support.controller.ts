@@ -162,7 +162,7 @@ export async function resolveThread(req: AuthRequest, res: Response) {
 }
 
 // ─── PATCH /support/threads/:threadId/priority ───────────────────────────────
-// DevAdmin only — change thread priority
+// DevAdmin only, change thread priority
 export async function updatePriority(req: AuthRequest, res: Response) {
   const { threadId } = req.params;
   const { priority } = req.body as { priority?: string };
@@ -195,7 +195,7 @@ export async function getUnreadCount(req: AuthRequest, res: Response) {
 }
 
 // ─── GET /support/stats ───────────────────────────────────────────────────────
-// DevAdmin only — summary stats for the inbox header
+// DevAdmin only, summary stats for the inbox header
 export async function getSupportStats(req: AuthRequest, res: Response) {
   const now = new Date();
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);

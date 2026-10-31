@@ -2,12 +2,12 @@ import { Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import { AuthRequest } from '../types';
 
-// Lazy — only instantiated on first request so a missing key doesn't crash startup
+// Lazy, only instantiated on first request so a missing key doesn't crash startup
 let _client: Anthropic | null = null;
 function getClient(): Anthropic {
   if (!_client) {
     if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY is not configured - add it in Render Environment Variables');
+      throw new Error('ANTHROPIC_API_KEY is not configured: add it in Render Environment Variables');
     }
     _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   }
@@ -52,7 +52,7 @@ export async function extractFromPhoto(req: AuthRequest, res: Response) {
 
     const raw = response.content[0].type === 'text' ? response.content[0].text.trim() : '';
 
-    // Extract JSON array — handles any leading/trailing text the model might add
+    // Extract JSON array, handles any leading/trailing text the model might add
     const match = raw.match(/\[[\s\S]*\]/);
     if (!match) {
       res.status(422).json({ success: false, error: 'No products found in image' });
@@ -80,7 +80,7 @@ export async function extractFromPhoto(req: AuthRequest, res: Response) {
 
   } catch (err: any) {
     if (err?.status === 401 || err?.status === 403) {
-      res.status(500).json({ success: false, error: 'ANTHROPIC_API_KEY not set on server - add it in Render environment variables' });
+      res.status(500).json({ success: false, error: 'ANTHROPIC_API_KEY not set on server: add it in Render environment variables' });
     } else {
       console.error('[catalogImport]', err?.message || err);
       res.status(500).json({ success: false, error: err?.message || 'Image processing failed' });

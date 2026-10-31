@@ -53,7 +53,7 @@ export async function generateReceiptToken(req: Request, res: Response) {
 
   const { txRef, total, items } = parsed.data;
 
-  // Upsert — if same txRef printed again, return same token (idempotent)
+  // Upsert, if same txRef printed again, return same token (idempotent)
   const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
   const token = await prisma.receiptToken.upsert({
     where: { storeId_txRef: { storeId: store.id, txRef } },
@@ -216,7 +216,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Daily self-grant cap — limits abuse if a store API key is compromised
+  // Daily self-grant cap, limits abuse if a store API key is compromised
   const todayStart = storeDayStart();
   const todaySelfGrantCount = await prisma.pointsTransaction.count({
     where: { customerId: customer.id, grantedById: customer.id, challengeId: null, referralId: null, createdAt: { gte: todayStart } },   // a challenge or referral reward is not a scan
@@ -304,7 +304,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       const devCut = parseFloat((cashbackIssued * devCutRate).toFixed(4)); // % of cashback, not purchase
       const pointsAwarded = cashbackIssued; // customer gets full cashback
 
-      // Gas tier bonus — extra per-gallon bonus for Gold+ (stacks on top)
+      // Gas tier bonus, extra per-gallon bonus for Gold+ (stacks on top)
       const gasBonusRate = isGasItem ? gasBonusPerGallon(customerTier) : 0;
       const gasBonusPoints = isGasItem && estimatedGallons != null
         ? parseFloat((estimatedGallons * gasBonusRate).toFixed(4))
@@ -317,7 +317,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       return prisma.pointsTransaction.create({
         data: {
           customerId: customer.id,
-          grantedById: customer.id, // self-grant — no employee in the loop
+          grantedById: customer.id, // self-grant, no employee in the loop
           storeId: token.storeId,
           purchaseAmount: item.amount,
           pointsAwarded,
@@ -330,7 +330,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
           gasBonusPoints,
           offerId: offer && offerAdded > 0 ? offer.id : null,
           offerCashback: offer && offerAdded > 0 ? offerAdded : null,
-          status: 'APPROVED',    // Auto-approved — QR token is the receipt proof
+          status: 'APPROVED',    // Auto-approved, QR token is the receipt proof
           receiptImageUrl: null, // No photo needed; QR token IS the proof
           notes: `Self-grant via receipt QR (txRef: ${token.txRef})`,
         },
@@ -345,7 +345,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   totalPointsAwarded = parseFloat(totalPointsAwarded.toFixed(2));
   totalDevCut = parseFloat(totalDevCut.toFixed(2));
 
-  // Update customer balance + atomically claim the token — prevents double-claim race condition
+  // Update customer balance + atomically claim the token, prevents double-claim race condition
   let updatedCustomer: Awaited<ReturnType<typeof prisma.user.update>>;
   try {
     updatedCustomer = await prisma.$transaction(async (tx) => {
@@ -409,9 +409,9 @@ export async function selfGrant(req: AuthRequest, res: Response) {
   });
 }
 
-// ─── GET /billing/stores/:storeId/api-key  (DevAdmin — check/regenerate) ─────
+// ─── GET /billing/stores/:storeId/api-key  (DevAdmin, check/regenerate) ─────
 // Only the hash is ever stored, so the raw key can't be shown after the
-// fact — this reports whether one exists, not what it is. Regenerating is
+// fact, this reports whether one exists, not what it is. Regenerating is
 // the only way to get a usable raw key, and it's shown exactly once.
 
 export async function getStoreApiKey(req: AuthRequest, res: Response) {

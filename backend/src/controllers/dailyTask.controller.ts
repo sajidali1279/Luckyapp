@@ -22,7 +22,7 @@ const DEFAULT_TASKS: { shift: ShiftType; title: string; description: string; sor
   // ── Opening (Morning Shift) ──
   { shift: 'OPENING', title: 'Open Store', description: 'Unlock doors, turn on lights, check signage, verify lottery machines are on, and turn on POS systems.', sortOrder: 1 },
   { shift: 'OPENING', title: 'Refrigeration & Bathrooms', description: 'Verify refrigeration temperatures, inspect bathrooms, and sweep the entrance to maintain cleanliness.', sortOrder: 2 },
-  { shift: 'OPENING', title: 'Exterior', description: 'Sweep the parking lot, check fuel dispensers for hazards, refill windshield washer fluids, and make sure the squeegee is in great shape - replace it if not.', sortOrder: 3 },
+  { shift: 'OPENING', title: 'Exterior', description: 'Sweep the parking lot, check fuel dispensers for hazards, refill windshield washer fluids, and make sure the squeegee is in great shape (replace it if not).', sortOrder: 3 },
   { shift: 'OPENING', title: 'Perimeter', description: 'Clear trash from exterior bins and sweep the entryway.', sortOrder: 4 },
   { shift: 'OPENING', title: 'Coffee & Fountain', description: 'Brew fresh coffee, wipe down condiment stations, restock cups/lids/straws, and check for expired products.', sortOrder: 5 },
   { shift: 'OPENING', title: 'Food Service', description: 'Turn on hot dog rollers, warmers, and breakfast ovens. Wash utensils and lay out fresh foil liners.', sortOrder: 6 },
@@ -49,7 +49,7 @@ const DEFAULT_TASKS: { shift: ShiftType; title: string; description: string; sor
   { shift: 'CLOSING', title: 'Secure Store', description: 'Set the alarm system and lock all doors to secure the store at closing.', sortOrder: 6 },
 ];
 
-// GET /daily-tasks?storeId=xxx  — mobile: returns global + store-specific tasks
+// GET /daily-tasks?storeId=xxx , mobile: returns global + store-specific tasks
 export async function getTasks(req: Request, res: Response) {
   try {
     const { storeId } = req.query;
@@ -76,14 +76,14 @@ export async function getTasks(req: Request, res: Response) {
   }
 }
 
-// GET /admin/daily-tasks?storeId=xxx|global  — admin panel
+// GET /admin/daily-tasks?storeId=xxx|global , admin panel
 export async function adminGetTasks(req: AuthRequest, res: Response) {
   try {
     const user = req.user!;
     const { storeId } = req.query;
 
     // A Store Manager (below SuperAdmin) can only ever see chain-wide tasks
-    // plus their own store(s)' — ignore any other storeId they pass. Uses
+    // plus their own store(s)', ignore any other storeId they pass. Uses
     // the manager's FULL store list, not just the first one, so a manager
     // assigned to more than one store sees all of them.
     if (!hasMinRole(user.role, Role.SUPER_ADMIN)) {
@@ -128,7 +128,7 @@ export async function createTask(req: AuthRequest, res: Response) {
     if (problem) return res.status(400).json({ success: false, error: problem });
 
     // A Store Manager can only ever create a task scoped to one of their own
-    // stores — never chain-wide, and never a store they're not assigned to.
+    // stores, never chain-wide, and never a store they're not assigned to.
     // Honors a requested storeId if it's genuinely theirs (a manager with
     // more than one store picks which); otherwise falls back to their first.
     let storeId: string | null = req.body.storeId || null;
@@ -254,7 +254,7 @@ export async function deleteTask(req: AuthRequest, res: Response) {
   }
 }
 
-// POST /admin/daily-tasks/seed-defaults  — one-time seed of the standard checklists
+// POST /admin/daily-tasks/seed-defaults , one-time seed of the standard checklists
 export async function seedDefaultTasks(req: Request, res: Response) {
   try {
     const existing = await prisma.dailyTask.count({ where: { storeId: null } });

@@ -22,7 +22,7 @@ function generateCode(): string {
   return crypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
 }
 
-// GET /catalog — active items (all authenticated)
+// GET /catalog, active items (all authenticated)
 export async function getCatalog(req: AuthRequest, res: Response) {
   const items = await prisma.redemptionCatalogItem.findMany({
     where: { isActive: true },
@@ -43,7 +43,7 @@ function mayChange(mine: string[] | null, storeId: string | null): boolean {
 }
 const CHAIN_WIDE_IS_HQ = 'Chain-wide rewards are set by HQ. You can add or change rewards for your own store.';
 
-// GET /catalog/all — all items including inactive (SuperAdmin+)
+// GET /catalog/all, all items including inactive (SuperAdmin+)
 export async function getAllCatalog(req: AuthRequest, res: Response) {
   const mine = await managerStores(req);
   const items = await prisma.redemptionCatalogItem.findMany({
@@ -101,7 +101,7 @@ async function storeName(id: string): Promise<string> {
 
 const rewardWords = (r: { title: string; pointsCost: number; isActive: boolean }) => `${r.title} (${r.pointsCost.toLocaleString('en-US')} pts${r.isActive ? '' : ', off'})`;
 
-// POST /catalog — create item
+// POST /catalog, create item
 export async function createCatalogItem(req: AuthRequest, res: Response) {
   const parsed = createRewardSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
@@ -181,7 +181,7 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   res.json({ success: true, data: item });
 }
 
-// DELETE /catalog/:id — switched off, kept for history (codes already handed out can still be used)
+// DELETE /catalog/:id, switched off, kept for history (codes already handed out can still be used)
 export async function deleteCatalogItem(req: AuthRequest, res: Response) {
   const { id } = req.params;
   const before = await prisma.redemptionCatalogItem.findUnique({ where: { id } });
@@ -242,7 +242,7 @@ export async function customerInitiateRedemption(req: AuthRequest, res: Response
     if (existing) {
       return { ok: false as const, status: 400, body: { success: false, error: 'You already have an active redemption for this item', data: { redemptionId: existing.id } } };
     }
-    // Concurrent redemption cap — prevents holding many items in limbo simultaneously
+    // Concurrent redemption cap, prevents holding many items in limbo simultaneously
     const activePendingCount = await tx.catalogRedemption.count({
       where: { customerId: customer.id, status: 'PENDING', expiresAt: { gt: new Date() } },
     });
@@ -347,7 +347,7 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
   // The mobile client sends the employee's GPS-detected current store
   // (useCurrentStoreId in scan.tsx) specifically so a multi-store employee's
   // work gets attributed to wherever they're actually standing, not always
-  // their first assigned store — prefer that over storeIds[0].
+  // their first assigned store, prefer that over storeIds[0].
   const storeId = req.body.storeId || req.user!.storeIds?.[0];
   // The reward is counted at a store the cashier works at (HQ may name any store)
   if (req.body.storeId && !hasMinRole(req.user!.role, Role.SUPER_ADMIN) && !(req.user!.storeIds ?? []).includes(req.body.storeId)) {
@@ -372,9 +372,9 @@ export async function confirmRedemption(req: AuthRequest, res: Response) {
     return;
   }
   if (redemption.expiresAt && redemption.expiresAt < new Date()) {
-    // Expired — refund if not already done (the expiry job or a second tap may have got there first: only one of them refunds)
+    // Expired, refund if not already done (the expiry job or a second tap may have got there first: only one of them refunds)
     await prisma.$transaction((tx) => settlePendingRedemption(tx, redemption, 'EXPIRED', { refund: true }));
-    res.status(400).json({ success: false, error: 'Redemption has expired - points have been refunded' }); return;
+    res.status(400).json({ success: false, error: 'This redemption has expired, and the points were given back.' }); return;
   }
 
   const completed = await prisma.$transaction((tx) =>

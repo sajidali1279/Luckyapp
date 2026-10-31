@@ -60,7 +60,7 @@ export async function getItemSuggestions(req: AuthRequest, res: Response) {
     ORDER BY count DESC LIMIT 20
   `;
 
-  // Deduplicate by name — keep top category
+  // Deduplicate by name, keep top category
   const seen = new Map<string, { name: string; category: string | null; count: number }>();
   for (const r of results) {
     const key = r.name.toLowerCase();
@@ -71,7 +71,7 @@ export async function getItemSuggestions(req: AuthRequest, res: Response) {
 }
 
 // ─── GET /order-lists/store/:storeId/quick-add ───────────────────────────────
-// Top 16 most frequently ordered items for this store — powers the Quick Pad tiles
+// Top 16 most frequently ordered items for this store, powers the Quick Pad tiles
 
 export async function getQuickAddItems(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
@@ -380,7 +380,7 @@ export async function restoreItems(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'closedListId and itemIds[] required' }); return;
   }
   const openList = await prisma.orderList.findFirst({ where: { storeId, status: 'OPEN' } });
-  if (!openList) { res.status(400).json({ success: false, error: 'No open list for this store - open one first' }); return; }
+  if (!openList) { res.status(400).json({ success: false, error: 'No open list for this store. Open one first.' }); return; }
 
   const sourceItems = await prisma.orderListItem.findMany({
     where: { id: { in: itemIds }, listId: closedListId, status: { not: 'REMOVED' } },

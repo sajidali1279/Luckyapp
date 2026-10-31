@@ -8,7 +8,7 @@ export interface StoreLabelOverride {
 
 /**
  * A store's effective price for a catalog item: its own override if it has
- * one, otherwise the catalog's base price — which can itself be null (a
+ * one, otherwise the catalog's base price, which can itself be null (a
  * Label created from a scan, before anyone has set a price). Every layer
  * that needs an effective price calls this instead of reimplementing the
  * fallback; a null result means "no price at all," which every caller must

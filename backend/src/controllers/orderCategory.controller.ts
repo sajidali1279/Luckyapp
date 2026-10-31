@@ -25,7 +25,7 @@ export async function adminGetCategories(req: AuthRequest, res: Response) {
   res.json({ success: true, data: cats });
 }
 
-// GET /order-categories/admin/pending-count — badge count for DevAdmin
+// GET /order-categories/admin/pending-count, badge count for DevAdmin
 export async function getPendingCategoryCount(_req: AuthRequest, res: Response) {
   const count = await prisma.orderCategory.count({ where: { status: 'PENDING' } });
   res.json({ success: true, data: { count } });
@@ -72,7 +72,7 @@ export async function submitCategory(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Already pending/rejected — just return existing record
+  // Already pending/rejected, just return existing record
   res.json({ success: true, data: existing });
 }
 

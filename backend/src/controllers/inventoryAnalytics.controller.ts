@@ -82,7 +82,7 @@ export async function getInventoryAnalytics(req: AuthRequest, res: Response) {
     pct: totalItems > 0 ? Math.round((r._count.id / totalItems) * 100) : 0,
   }));
 
-  // Store breakdown (admin only) — using Prisma
+  // Store breakdown (admin only), using Prisma
   let storeBreakdown: { storeId: string; storeName: string; itemCount: number }[] = [];
   if (isAdmin) {
     const lists = await prisma.orderList.findMany({

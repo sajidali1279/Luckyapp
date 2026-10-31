@@ -168,7 +168,7 @@ export async function assignShift(req: AuthRequest, res: Response) {
   sendPushToUser(
     employeeId,
     'Shift Assigned 📅',
-    `You've been scheduled for ${SHIFT_LABELS[shiftType]} (${startTime}–${endTime}) every ${DAY_LABELS[dayOfWeek]} at ${store?.name || 'your store'}.`,
+    `You've been scheduled for ${SHIFT_LABELS[shiftType]} (${startTime} to ${endTime}) every ${DAY_LABELS[dayOfWeek]} at ${store?.name || 'your store'}.`,
     'SCHEDULE',
     scheduleUrl(storeRole.role)
   );
@@ -371,7 +371,7 @@ export async function getStoreRequests(req: AuthRequest, res: Response) {
 }
 
 // ─── GET /schedule/requests/pending-count ─────────────────────────────────────
-// Badge count — all stores for platform admins, own stores for manager
+// Badge count, all stores for platform admins, own stores for manager
 
 export async function getRequestsPendingCount(req: AuthRequest, res: Response) {
   const user = req.user!;
@@ -522,7 +522,7 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
       sendPushToUser(
         shiftRequest.employeeId,
         'Fill-In Approved ✅',
-        `Your request to fill the ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} has been approved.`,
+        `Your request to fill the ${SHIFT_LABELS[shiftType]} shift (${times.startTime} to ${times.endTime}) on ${dateStr} at ${storeName} has been approved.`,
         'SHIFT_REQUEST',
         shiftRequestUrlEmployee(requestDate.toISOString())
       );
@@ -600,7 +600,7 @@ export async function updateShiftRequest(req: AuthRequest, res: Response) {
         sendPushToUser(
           empId,
           'Shift Available 📅',
-          `${employeeName}'s ${SHIFT_LABELS[shiftType]} shift (${times.startTime}–${times.endTime}) on ${dateStr} at ${storeName} is open.`,
+          `${employeeName}'s ${SHIFT_LABELS[shiftType]} shift (${times.startTime} to ${times.endTime}) on ${dateStr} at ${storeName} is open.`,
           'SCHEDULE',
           scheduleUrl(employee.role)
         );

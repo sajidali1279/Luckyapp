@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'crypto';
 import prisma from '../config/prisma';
 
-// Store.apiKey holds a SHA-256 hash, never the raw key — the raw value is
+// Store.apiKey holds a SHA-256 hash, never the raw key, the raw value is
 // shown to DevAdmin exactly once, at generation time, and is not
 // recoverable afterward (matching what the merchant agreement already
 // told store owners: API keys are hashed before storage). A fast,

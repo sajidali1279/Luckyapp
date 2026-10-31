@@ -90,7 +90,7 @@ export async function submitDispute(req: AuthRequest, res: Response) {
     data: { customerId: req.user!.id, storeId: store.id, transactionId, description, estimatedAmt },
   });
 
-  // Notify employees only — cashiers handled the transaction and can escalate
+  // Notify employees only, cashiers handled the transaction and can escalate
   sendPushToStoreEmployees(
     storeId,
     'New Missing-Points Report',
@@ -164,7 +164,7 @@ export async function getStoreDisputes(req: AuthRequest, res: Response) {
   res.json({ success: true, data: disputes });
 }
 
-// GET /disputes/store/:storeId/pending-count — badge count for mobile manager nav
+// GET /disputes/store/:storeId/pending-count, badge count for mobile manager nav
 export async function getStorePendingDisputeCount(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
@@ -178,7 +178,7 @@ export async function getStorePendingDisputeCount(req: AuthRequest, res: Respons
   res.json({ success: true, data: { count } });
 }
 
-// GET /disputes/my-stores/pending-count — badge count across every store the
+// GET /disputes/my-stores/pending-count, badge count across every store the
 // manager is assigned to (a multi-store manager previously only ever saw
 // their first store's pending-dispute count on the tab bar).
 export async function getMyStoresPendingDisputeCount(req: AuthRequest, res: Response) {
@@ -262,7 +262,7 @@ class AlreadyDecided extends Error {}
 class AlreadyCredited extends Error { constructor(public amount: number) { super('already credited'); } }
 
 /**
- * PATCH /disputes/:id/resolve — a report is decided ONCE. The decision only takes effect if the report is still pending at the moment it is
+ * PATCH /disputes/:id/resolve, a report is decided ONCE. The decision only takes effect if the report is still pending at the moment it is
  * written, so two approvals (a double click, the admin and the mobile manager screen, two managers) cannot both credit the customer, and the
  * credit and the decision are one transaction. Approving needs an amount: before, an approval with no amount credited nothing while telling
  * everyone that points were credited. Every decision is written to the Activity Log with who, how much and the note.

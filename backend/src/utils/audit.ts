@@ -1,7 +1,7 @@
 /**
  * audit.ts
  * Fire-and-forget audit logging helper.
- * Never throws — audit failures must not block responses.
+ * Never throws, audit failures must not block responses.
  */
 
 import prisma from '../config/prisma';

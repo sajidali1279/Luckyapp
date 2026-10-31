@@ -1,5 +1,5 @@
 /**
- * Test offers/deals seed — for manual UI testing of the customer home
+ * Test offers/deals seed, for manual UI testing of the customer home
  * "Today's Deals" section. Safe to run multiple times (checks before creating).
  * Run: cd backend && npx ts-node src/utils/seed-deals-test.ts
  */

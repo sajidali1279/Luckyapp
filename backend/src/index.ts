@@ -39,14 +39,14 @@ app.set('trust proxy', 1);
 // ─── Security Middleware ──────────────────────────────────────────────────────
 app.use(helmet());
 
-// CORS — allow only known origins (mobile app has no origin, so passes through)
+// CORS, allow only known origins (mobile app has no origin, so passes through)
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .split(',')
   .map((o) => o.trim());
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    // No origin = React Native / Postman / server-to-server — always allow
+    // No origin = React Native / Postman / server-to-server, always allow
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     // Allow any Vercel preview/production deployment for this project
@@ -61,10 +61,10 @@ const corsOptions: cors.CorsOptions = {
 app.options('*' as string, cors(corsOptions));
 app.use(cors(corsOptions));
 
-// Rate limiting — prevent brute force
+// Rate limiting, prevent brute force
 // Most sensitive: login and PIN reset (brute-force targets)
 // NOTE: dispute-submission rate limiting lives on the specific POST /api/disputes
-// route in routes/index.ts, not here — app.use('/api/disputes', ...) would match
+// route in routes/index.ts, not here, app.use('/api/disputes', ...) would match
 // every method/sub-path under that prefix (GET /disputes/all, /pending-count,
 // /mine, etc.), starving normal admin reads on the same 5-per-hour budget meant
 // only for customer submission abuse.
@@ -86,7 +86,7 @@ app.use(express.urlencoded({ extended: true }));
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api', routes);
 
-// Health check — public, used by UptimeRobot and monitoring
+// Health check, public, used by UptimeRobot and monitoring
 app.get('/health', async (_, res) => {
   let db = 'ok';
   try {

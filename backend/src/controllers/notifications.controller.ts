@@ -8,7 +8,7 @@ import { sendExpoBatch } from '../utils/pushSend';
 import { refuse } from '../utils/refusal';
 import { BROADCAST_TARGETS, BroadcastTarget, resolveAudience, countAudience, targetWords } from '../utils/audience';
 
-// GET /notifications/my — paginated list for current user
+// GET /notifications/my, paginated list for current user
 export async function getMyNotifications(req: AuthRequest, res: Response) {
   const page  = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = 20;
@@ -54,7 +54,7 @@ export async function markOneRead(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
-// GET /notifications/unread-count — lightweight for badge polling
+// GET /notifications/unread-count, lightweight for badge polling
 export async function getUnreadCount(req: AuthRequest, res: Response) {
   const now = new Date();
   const count = await prisma.userNotification.count({
@@ -105,7 +105,7 @@ async function storeFor(target: BroadcastTarget, storeId?: string): Promise<{ st
   return { store: { id: store.id, name: store.name } };
 }
 
-// GET /notifications/audience?target=&storeId= — who a message would reach, in people and phones, before anything is sent
+// GET /notifications/audience?target=&storeId=, who a message would reach, in people and phones, before anything is sent
 export async function getBroadcastAudience(req: AuthRequest, res: Response) {
   const parsed = audienceQuery.safeParse(req.query);
   if (!parsed.success) { refuse(res, parsed.error); return; }
@@ -201,7 +201,7 @@ export async function broadcastNotification(req: AuthRequest, res: Response) {
   }
 }
 
-// GET /notifications/broadcasts — the last 50 sends (from the Activity Log), newest first
+// GET /notifications/broadcasts, the last 50 sends (from the Activity Log), newest first
 export async function listBroadcasts(_req: AuthRequest, res: Response) {
   const rows = await prisma.auditLog.findMany({ where: { action: 'BROADCAST' }, orderBy: { createdAt: 'desc' }, take: 50 });
   const data = rows.map((r) => {

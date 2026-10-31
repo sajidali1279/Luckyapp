@@ -1,5 +1,5 @@
 /**
- * reset-data.ts — clears all sale/billing data for a clean demo
+ * reset-data.ts, clears all sale/billing data for a clean demo
  *
  * Deletes:
  *   - points_transactions

@@ -40,7 +40,7 @@ interface DaySchedule {
 function scheduleLabel(s: DaySchedule): string {
   if (s.isClosed) return 'Closed';
   if (s.isOpen24Hours) return 'Open 24 Hours';
-  if (s.openTime && s.closeTime) return `${formatTime12h(s.openTime)} - ${formatTime12h(s.closeTime)}`;
+  if (s.openTime && s.closeTime) return `${formatTime12h(s.openTime)} – ${formatTime12h(s.closeTime)}`;
   return 'Hours not set';
 }
 

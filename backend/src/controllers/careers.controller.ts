@@ -75,7 +75,7 @@ export async function submitApplication(req: AuthRequest, res: Response) {
   res.status(201).json({ success: true, data: { id: application.id } });
 }
 
-// ─── GET /careers/applications  (admin — list all) ────────────────────────────
+// ─── GET /careers/applications  (admin, list all) ────────────────────────────
 
 export async function getApplications(req: AuthRequest, res: Response) {
   const { status, position, storeId, page = '1' } = req.query as Record<string, string>;
@@ -108,7 +108,7 @@ export async function getNewApplicationCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
-// ─── PATCH /careers/applications/:id  (admin — update status / notes) ────────
+// ─── PATCH /careers/applications/:id  (admin, update status / notes) ────────
 
 const updateSchema = z.object({
   status: z.enum(['NEW', 'REVIEWED', 'INTERVIEW', 'HIRED', 'REJECTED']).optional(),
@@ -144,7 +144,7 @@ export async function updateApplication(req: AuthRequest, res: Response) {
   res.json({ success: true, data: app });
 }
 
-// ─── DELETE /careers/applications/:id  (admin — delete) ──────────────────────
+// ─── DELETE /careers/applications/:id  (admin, delete) ──────────────────────
 
 export async function deleteApplication(req: AuthRequest, res: Response) {
   const { id } = req.params;

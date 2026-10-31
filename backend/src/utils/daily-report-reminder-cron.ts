@@ -1,19 +1,19 @@
 /**
- * Daily report reminder cron — runs daily at 7:30am local time.
+ * Daily report reminder cron, runs daily at 7:30am local time.
  *
  * NOTE: unlike the other crons in this file (which use UTC because the
  * exact wall-clock time doesn't matter for month/day boundaries), this one
- * is inherently about a specific local time — opening shift starts at 6am
+ * is inherently about a specific local time, opening shift starts at 6am
  * per SHIFT_TIMES in the mobile app. The Store model has no timezone field
  * today, so REMINDER_TIMEZONE is hardcoded to the stores' actual zone
- * (Central) — revisit if stores ever span multiple timezones. node-cron
+ * (Central), revisit if stores ever span multiple timezones. node-cron
  * resolves named IANA zones (incl. DST) via its `timezone` option, so this
  * only needs to be a single correct zone name.
  *
  * For each active store with no DailyReport submitted yet today: finds
  * employees on an OPENING ShiftTemplate for today's day-of-week, excludes
  * anyone with an APPROVED TIME_OFF request for today, and pushes a reminder
- * to whoever's left. Safe to run multiple times — a store is skipped
+ * to whoever's left. Safe to run multiple times, a store is skipped
  * entirely once any employee has submitted that day's report.
  */
 import cron from 'node-cron';
@@ -21,7 +21,7 @@ import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
 import { DayOfWeek, RequestStatus, ShiftRequestType, ShiftType } from '@prisma/client';
 
-const REMINDER_TIMEZONE = 'America/Chicago'; // Central Time — stores are in Texas
+const REMINDER_TIMEZONE = 'America/Chicago'; // Central Time, stores are in Texas
 
 const DAY_ABBR_TO_ENUM: Record<string, DayOfWeek> = {
   Sun: DayOfWeek.SUN, Mon: DayOfWeek.MON, Tue: DayOfWeek.TUE, Wed: DayOfWeek.WED,

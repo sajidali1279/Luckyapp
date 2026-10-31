@@ -4,7 +4,7 @@ import { Role } from '@prisma/client';
 import { AuthRequest, AuthUser } from '../types';
 import prisma from '../config/prisma';
 
-// Role hierarchy — higher index = more privilege
+// Role hierarchy, higher index = more privilege
 const ROLE_HIERARCHY: Role[] = [
   Role.CUSTOMER,
   Role.EMPLOYEE,
@@ -47,12 +47,12 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   }
 
   // Confirm the account still exists and hasn't been deactivated, and refresh
-  // storeIds from the DB — a JWT signature alone doesn't reflect deletions,
+  // storeIds from the DB, a JWT signature alone doesn't reflect deletions,
   // deactivations, or store-assignment changes that happened after it was
   // issued (tokens are valid for up to 30 days). storeIds specifically is
   // mutable post-issuance (addUserStore/removeUserStore), and a real security
   // audit (2026-09-10) found many store-scoped routes trust req.user.storeIds
-  // directly with no live requireStoreAccess check backing them up — a
+  // directly with no live requireStoreAccess check backing them up, a
   // manager removed from a store could otherwise keep acting on it for up to
   // 30 days. role is deliberately left alone here: nothing in this codebase
   // updates a user's role after account creation, so there's no equivalent
@@ -113,7 +113,7 @@ export async function requireStoreAccess(req: AuthRequest, res: Response, next: 
     return;
   }
 
-  // Check allStoresAccess flag — grants a STORE_MANAGER chain-wide access
+  // Check allStoresAccess flag, grants a STORE_MANAGER chain-wide access
   // (used for the single manager who oversees all stores)
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },

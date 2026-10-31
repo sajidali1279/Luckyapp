@@ -17,7 +17,7 @@ import { endedSaleView, saleEnded, parseSaleEnd, planPriceSave, describeStorePri
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
 // allStoresAccess or an explicit UserStoreRole for this specific store.
-// Matches hasStoreAccess in orderList.controller.ts — see that file for the
+// Matches hasStoreAccess in orderList.controller.ts, see that file for the
 // canonical version of this check.
 async function canTouchStore(userId: string, userRole: Role, storeId: string): Promise<boolean> {
   if (hasMinRole(userRole, Role.SUPER_ADMIN)) return true;
@@ -30,9 +30,9 @@ async function canTouchStore(userId: string, userRole: Role, storeId: string): P
 type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
 
 // printedAt alone can't tell "never printed" apart from "was printed, then a
-// later edit reset it" — both look identical (null). everPrinted never
+// later edit reset it", both look identical (null). everPrinted never
 // resets, so it's the only reliable way to split those two states apart.
-// A null effectivePrice wins over everything except "not added at all" — a
+// A null effectivePrice wins over everything except "not added at all", a
 // Label (or its store override) that resolves to no price can never be
 // 'printed'/'needs_reprint'/queued, even if it happened to be printed once
 // before the price was since cleared.
@@ -58,10 +58,10 @@ const createLabelSchema = z.object({
   storeId: z.string().uuid('That store is not valid.').optional(),
 });
 
-// GET /labels — the global catalog (base price only). ?myStoreId=X is
+// GET /labels, the global catalog (base price only). ?myStoreId=X is
 // explicit client-supplied context (mobile sends its own resolved store;
-// admin never sends this — DevAdmin/SuperAdmin have no "own store" to
-// infer) — when present, each row is annotated with that store's
+// admin never sends this, DevAdmin/SuperAdmin have no "own store" to
+// infer), when present, each row is annotated with that store's
 // StoreLabel (if any) so a caller can show "already in my queue" inline.
 export async function getAllLabels(req: AuthRequest, res: Response) {
   const { myStoreId } = req.query;
@@ -105,7 +105,7 @@ export async function getAllLabels(req: AuthRequest, res: Response) {
   res.json({ success: true, data });
 }
 
-// GET /store-labels?storeId=X — every catalog Label left-joined with that
+// GET /store-labels?storeId=X, every catalog Label left-joined with that
 // store's StoreLabel, resolved price, and print status. This is the "By
 // Store" view (admin, unfiltered) and mobile's "My Prints" (filtered to
 // printedAt IS NULL by the caller after fetching, or via ?unprinted=true).
@@ -160,7 +160,7 @@ function isUnclaimedPlaceholder(l: { priceText: string | null; dealText: string 
   return l.priceText == null && l.dealText == null && l.storeLabels.every((sl) => !sl.everPrinted && sl.priceText == null);
 }
 
-// POST /labels — creates a brand-new catalog entry AND the creating user's
+// POST /labels, creates a brand-new catalog entry AND the creating user's
 // own StoreLabel in one step, so the person who just made this immediately
 // has it in their own print queue. Only called when the barcode has no
 // existing catalog match (client-side dedupe, same as before this feature).
@@ -248,7 +248,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
     });
   }
 
-  // Keep the shared scan-lookup cache (ScannedProduct) in sync — a Label
+  // Keep the shared scan-lookup cache (ScannedProduct) in sync, a Label
   // created directly here (with a barcode) should be findable the next
   // time someone scans it in Order List/Stock Request/Catalog. A failure
   // here should not roll back the Label write; it's logged, not swallowed.
@@ -299,7 +299,7 @@ async function labelImpact(labelId: string) {
   };
 }
 
-// GET /labels/:labelId/impact — SuperAdmin+. What changing this item's price, or removing it, would do at the stores, so the
+// GET /labels/:labelId/impact, SuperAdmin+. What changing this item's price, or removing it, would do at the stores, so the
 // admin can say so in the box before anything is sent.
 export async function getLabelImpact(req: AuthRequest, res: Response) {
   const { labelId } = req.params;
@@ -308,12 +308,12 @@ export async function getLabelImpact(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { ...label, ...(await labelImpact(labelId)) } });
 }
 
-// PATCH /labels/:labelId — edits the base catalog record. Only a REAL
+// PATCH /labels/:labelId, edits the base catalog record. Only a REAL
 // change counts (the phone sends every field on every edit), and who may
 // make it depends on what it changes: the chain-wide price needs HQ, the
 // item's name/barcode/category/deal/design needs a store manager or above.
 // A real change to priceText cascades a reprint flag, and only to stores
-// still inheriting the base price (no override of their own) — a store with
+// still inheriting the base price (no override of their own), a store with
 // its own override has an unchanged effective price. A real change to any
 // other field means the physical label content itself is stale, so it
 // cascades to every store regardless of price override. The Activity Log
@@ -378,11 +378,11 @@ export async function updateLabel(req: AuthRequest, res: Response) {
       if (printedUnchanged) {
         // Nothing on the paper changed: no store needs to reprint
       } else if (priceOnly) {
-        // Only the base price changed — only stores inheriting it are affected.
+        // Only the base price changed, only stores inheriting it are affected.
         flagged = (await tx.storeLabel.updateMany({ where: { labelId, priceText: null }, data: { printedAt: null } })).count;
         keptOwnPrice = await tx.storeLabel.count({ where: { labelId, priceText: { not: null } } });
       } else {
-        // Content itself changed — every store's printed copy is now stale.
+        // Content itself changed, every store's printed copy is now stale.
         flagged = (await tx.storeLabel.updateMany({ where: { labelId }, data: { printedAt: null } })).count;
       }
       return updated;
@@ -395,10 +395,10 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     throw err;
   }
 
-  // Same sync as createLabel — a barcode edited/confirmed here should stay
+  // Same sync as createLabel, a barcode edited/confirmed here should stay
   // findable from the scan-lookup cache. Not rolled back on failure. Only
   // overwrite name/category on the ScannedProduct side if THIS request
-  // actually touched them — a price-only edit shouldn't resync a stale
+  // actually touched them, a price-only edit shouldn't resync a stale
   // productName/category that a manager may have already corrected
   // directly on ScannedProduct via its own Edit modal.
   if (label.barcode) {
@@ -431,7 +431,7 @@ export async function updateLabel(req: AuthRequest, res: Response) {
   res.json({ success: true, data: label, changed: true, reprint: { stores: flagged, keptOwnPrice } });
 }
 
-// DELETE /labels/:labelId — HQ only. Removing an item removes every store's copy of it with its print history and sale prices, so
+// DELETE /labels/:labelId, HQ only. Removing an item removes every store's copy of it with its print history and sale prices, so
 // the Activity Log keeps what it was (price, barcode) and how much went with it.
 export async function deleteLabel(req: AuthRequest, res: Response) {
   const { labelId } = req.params;
@@ -524,7 +524,7 @@ async function savePlanned(
 
 const CHANGED_UNDERFOOT = 'Someone changed this price a moment ago. Reload the page and look at the price before changing it again.';
 
-// POST /store-labels — "Add from Catalog." Adds a store's own copy of a catalog item, at the base price or, when a price is given, at
+// POST /store-labels, "Add from Catalog." Adds a store's own copy of a catalog item, at the base price or, when a price is given, at
 // that store price. Adding what is already there changes nothing (it used to put the base price back over the store's own price).
 // Giving a price for an item the store already has is the same as PATCH /store-labels/:id.
 export async function upsertStoreLabel(req: AuthRequest, res: Response) {
@@ -595,7 +595,7 @@ export async function upsertStoreLabel(req: AuthRequest, res: Response) {
 
 const updateStoreLabelSchema = z.object(storeLabelBody);
 
-// PATCH /store-labels/:storeLabelId — set one store's own price (with an end date), or clear it (null) to go back to the base price.
+// PATCH /store-labels/:storeLabelId, set one store's own price (with an end date), or clear it (null) to go back to the base price.
 // Only a real change counts: the same price and end again records nothing and does not flag the label for reprint. The label is flagged
 // only when the price on the shelf really changes. A price sent without an end date keeps the sale's end date; null clears it.
 export async function updateStoreLabel(req: AuthRequest, res: Response) {
@@ -633,7 +633,7 @@ export async function updateStoreLabel(req: AuthRequest, res: Response) {
   res.json({ success: true, data: outcome.row, changed: true, needsReprint: outcome.plan.priceChanged });
 }
 
-// DELETE /store-labels/:storeLabelId — HQ only. Takes an item out of ONE store's list, for an item that was added there by mistake (or by
+// DELETE /store-labels/:storeLabelId, HQ only. Takes an item out of ONE store's list, for an item that was added there by mistake (or by
 // "Push to all stores") and never printed. A label that has been printed there stays on record, and the chain-wide item is not touched.
 export async function removeStoreLabel(req: AuthRequest, res: Response) {
   const { storeLabelId } = req.params;
@@ -677,7 +677,7 @@ export interface NotMarked {
   currentPrice?: string | null;
 }
 
-// POST /labels/print — stamps printedAt on specific StoreLabel rows (not
+// POST /labels/print, stamps printedAt on specific StoreLabel rows (not
 // the shared Label anymore), so printing at one store never affects
 // another store's queue. Called after the person confirms the paper came
 // out. Each label is judged on its own: one that is gone, has lost its
@@ -744,7 +744,7 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { printedCount: good.length, totalCopies, notMarked } });
 }
 
-// GET /labels/lookup?storeId=X&barcode=Y — mobile Price Check. Resolves a
+// GET /labels/lookup?storeId=X&barcode=Y, mobile Price Check. Resolves a
 // single scanned barcode straight to this store's price, without pulling
 // the whole catalog down for a one-item lookup.
 export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response) {
@@ -791,11 +791,11 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
   });
 }
 
-// GET /labels/coverage — SuperAdmin+ only. Every catalog label against
+// GET /labels/coverage, SuperAdmin+ only. Every catalog label against
 // every active store in one shot, for the cross-store coverage view. Fetches
 // the three tables independently and stitches them in memory instead of a
 // per-label query, since this is meant to render the whole catalog x store
-// grid at once (currently ~90 labels x ~12 stores — trivial either way, but
+// grid at once (currently ~90 labels x ~12 stores, trivial either way, but
 // N+1 here would mean 90 round trips for no reason).
 export async function getLabelsCoverage(req: AuthRequest, res: Response) {
   if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
@@ -845,8 +845,8 @@ export async function getLabelsCoverage(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { stores, labels: data } });
 }
 
-// POST /labels/:labelId/push-to-all — SuperAdmin+ only. Adds this label, at
-// its base price, to every active store that doesn't already have it —
+// POST /labels/:labelId/push-to-all, SuperAdmin+ only. Adds this label, at
+// its base price, to every active store that doesn't already have it , 
 // closing the "add once, chase 12 stores individually" gap the coverage
 // view exists to surface. Stores that already have this label (in any
 // state) are left untouched, so this is safe to call repeatedly, even
@@ -898,7 +898,7 @@ export async function pushLabelToAllStores(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { added: addedCount, storeNames } });
 }
 
-// GET /labels/health-summary — SuperAdmin+ only. A cheap, chain-wide count
+// GET /labels/health-summary, SuperAdmin+ only. A cheap, chain-wide count
 // (not the full per-item breakdown Coverage returns) for the Dashboard's
 // "one glance" stat card: how many labels can be printed right now, and
 // which stores are behind. It counts only what can really be printed: a

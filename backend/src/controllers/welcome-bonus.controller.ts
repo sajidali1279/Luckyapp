@@ -98,7 +98,7 @@ export function getDayNumber(createdAt: Date, now: Date = new Date()): number {
   return storeDaysBetween(storeDateKey(createdAt), storeDateKey(now)) + 1;
 }
 
-// GET /welcome-bonus — customer views their current bonus status
+// GET /welcome-bonus, customer views their current bonus status
 export async function getWelcomeBonusStatus(req: Request, res: Response) {
   try {
     const customerId = req.user!.id;
@@ -143,7 +143,7 @@ export async function getWelcomeBonusStatus(req: Request, res: Response) {
   }
 }
 
-// POST /welcome-bonus/claim — customer claims today's reward (body: { rewardType })
+// POST /welcome-bonus/claim, customer claims today's reward (body: { rewardType })
 export async function claimWelcomeBonus(req: Request, res: Response) {
   try {
     const customerId = req.user!.id;
@@ -162,7 +162,7 @@ export async function claimWelcomeBonus(req: Request, res: Response) {
       return res.status(400).json({ success: false, error: 'Welcome bonus has expired' });
     }
 
-    // Already claimed today — return existing
+    // Already claimed today, return existing
     const existing = await prisma.welcomeBonusClaim.findUnique({
       where: { customerId_day: { customerId, day: dayNumber } },
     });
@@ -210,7 +210,7 @@ export async function claimWelcomeBonus(req: Request, res: Response) {
   }
 }
 
-// GET /welcome-bonus/customer/:qrCode — employee fetches unconfirmed claim for a customer
+// GET /welcome-bonus/customer/:qrCode, employee fetches unconfirmed claim for a customer
 export async function getCustomerWelcomeBonus(req: Request, res: Response) {
   try {
     const { qrCode } = req.params;
@@ -265,7 +265,7 @@ export async function getCustomerWelcomeBonus(req: Request, res: Response) {
   }
 }
 
-// POST /welcome-bonus/confirm — employee confirms the claim
+// POST /welcome-bonus/confirm, employee confirms the claim
 export async function confirmWelcomeBonus(req: Request, res: Response) {
   try {
     const { claimCode, storeId } = req.body as { claimCode?: string; storeId?: string };

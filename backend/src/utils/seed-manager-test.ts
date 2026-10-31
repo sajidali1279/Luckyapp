@@ -1,5 +1,5 @@
 /**
- * Test Store Manager account seed — for manual/UI testing.
+ * Test Store Manager account seed, for manual/UI testing.
  * Safe to run multiple times (checks before creating).
  * Run: cd backend && npx ts-node src/utils/seed-manager-test.ts
  */

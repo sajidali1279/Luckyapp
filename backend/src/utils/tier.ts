@@ -109,7 +109,7 @@ export const TIER_LABELS: Record<string, string> = {
 };
 
 // Extracts the promo bonus rate for a given tier. A per-tier promotion (tierBonusRates is a real map) pays each tier only the rate
-// typed in for it — a tier the admin left blank gets nothing, not the top tier's rate. A plain flat-rate promotion (tierBonusRates
+// typed in for it, a tier the admin left blank gets nothing, not the top tier's rate. A plain flat-rate promotion (tierBonusRates
 // null, one bonusRate for every tier) still falls back to bonusRate, since that IS the whole promotion.
 export function getTierBonusRate(
   offer: { bonusRate: number | null; tierBonusRates: unknown } | null,

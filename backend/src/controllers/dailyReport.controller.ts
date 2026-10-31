@@ -35,7 +35,7 @@ export async function createReport(req: AuthRequest, res: Response) {
   const user = req.user!;
   const userId = user.id;
   const requestedStoreId: string | undefined = req.body.storeId;
-  // A client-supplied storeId must actually belong to this employee — don't
+  // A client-supplied storeId must actually belong to this employee, don't
   // trust it blindly, only fall back to their own store if none was sent.
   // SuperAdmin+ are exempt (no UserStoreRole assignments of their own),
   // matching getReportsByDate/getTodayReports below.
@@ -110,7 +110,7 @@ export async function createReport(req: AuthRequest, res: Response) {
 export async function getTodayReports(req: AuthRequest, res: Response) {
   const user = req.user!;
   const requestedStoreId = req.query.storeId as string | undefined;
-  // A client-supplied storeId must actually belong to this employee — don't
+  // A client-supplied storeId must actually belong to this employee, don't
   // trust it blindly, only fall back to their own store if none was sent.
   // SuperAdmin+ have no UserStoreRole assignments of their own (chain-wide
   // access comes from role hierarchy instead), so they're exempt from the
@@ -140,7 +140,7 @@ export async function getTodayReports(req: AuthRequest, res: Response) {
   res.json({ success: true, data: reports });
 }
 
-// GET /daily-reports?storeId=xxx&date=YYYY-MM-DD  (manager view — any date)
+// GET /daily-reports?storeId=xxx&date=YYYY-MM-DD  (manager view, any date)
 export async function getReportsByDate(req: AuthRequest, res: Response) {
   const user = req.user!;
   const { storeId, date } = req.query as { storeId?: string; date?: string };
@@ -149,7 +149,7 @@ export async function getReportsByDate(req: AuthRequest, res: Response) {
   if (date) where.reportDate = date;
 
   // A Store Manager (below SuperAdmin) can only ever see their own store's
-  // reports — ignore any other storeId they pass and fall back to their own.
+  // reports, ignore any other storeId they pass and fall back to their own.
   if (hasMinRole(user.role, Role.SUPER_ADMIN)) {
     if (storeId) where.storeId = storeId;
   } else {

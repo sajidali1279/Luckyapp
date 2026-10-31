@@ -319,7 +319,7 @@ router.post('/points/self-grant', authenticate, requireRole(Role.CUSTOMER), self
 router.get('/points/my-history', authenticate, requireRole(Role.CUSTOMER), getMyTransactions);
 
 // ─── Points (Employee) ────────────────────────────────────────────────────────
-// Customer info lookup (cashier use — before grant/redeem)
+// Customer info lookup (cashier use, before grant/redeem)
 router.get('/points/customer-info/:qrCode', authenticate, requireRole(Role.EMPLOYEE), getCustomerInfo);
 // HQ's Grant & Redeem page (2026-10-15): find a customer when the QR photo will not read, and the store's staff for "Served by"
 router.get('/points/hq/customers', authenticate, requireRole(Role.SUPER_ADMIN), hqFindCustomers);
@@ -443,7 +443,7 @@ router.post('/stores', authenticate, requireRole(Role.DEV_ADMIN), createStore); 
 router.get('/stores/accessible', authenticate, requireRole(Role.STORE_MANAGER), getAccessibleStores);    // Manager+: own stores (or all if allStoresAccess)
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
-// Must stay above the GET /stores/:storeId wildcard below — Express matches routes in
+// Must stay above the GET /stores/:storeId wildcard below, Express matches routes in
 // registration order, and ":storeId" matches any single path segment including the
 // literal string "my-keyword-mappings", which would otherwise route printer-agent
 // requests (X-Store-API-Key auth, no JWT) into getStoreById's authenticate/JWT chain
@@ -451,7 +451,7 @@ router.get('/stores/gas-prices', authenticate, getAllGasPrices);                
 router.get('/stores/my-keyword-mappings', getMyMappings);                                                    // Printer agent (API key auth, no JWT)
 router.get('/stores/:storeId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getStoreById); // Manager+: own store info
 router.patch('/stores/:storeId/gas-prices', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateGasPrices); // Manager+ per store
-router.patch('/stores/:storeId/order-instructions', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateOrderInstructions); // Manager+ per store — standing note
+router.patch('/stores/:storeId/order-instructions', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateOrderInstructions); // Manager+ per store, standing note
 router.get('/stores/:storeId/label-printer', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getLabelPrinter);        // Anyone at the store: the printer fine-tune the app applies
 router.put('/stores/:storeId/label-printer', authenticate, requireRole(Role.SUPER_ADMIN), updateLabelPrinter);                     // HQ only sets it (admin Stores page)
 router.put('/label-printer/all-stores', authenticate, requireRole(Role.SUPER_ADMIN), applyLabelPrinterToAllStores);                    // HQ: the same numbers for every open store
@@ -517,13 +517,13 @@ router.get('/billing/notifications', authenticate, requireRole(Role.DEV_ADMIN), 
 router.get('/billing/stores/:storeId/api-key', authenticate, requireRole(Role.DEV_ADMIN), getStoreApiKey);
 router.post('/billing/stores/:storeId/api-key/regenerate', authenticate, requireRole(Role.DEV_ADMIN), regenerateStoreApiKey);
 
-// ─── SuperAdmin — invoices & notifications ────────────────────────────────────
+// ─── SuperAdmin, invoices & notifications ────────────────────────────────────
 router.get('/my-invoices', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminInvoices);
 router.get('/billing/pending-count', authenticate, requireRole(Role.SUPER_ADMIN), getBillingPendingCount); // Badge count
 router.get('/notifications', authenticate, requireRole(Role.SUPER_ADMIN), getSuperAdminNotifications);
 router.post('/admin/notifications/read', authenticate, requireRole(Role.SUPER_ADMIN), setAdminNotificationsRead);   // HQ alerts read (or unread) for every HQ admin
 
-// ─── Admin shell — every sidebar badge count in one request (shell audit batch S3) ────────────────────────
+// ─── Admin shell, every sidebar badge count in one request (shell audit batch S3) ────────────────────────
 router.get('/admin/badges', authenticate, requireRole(Role.SUPER_ADMIN), getAdminBadgeCounts);
 
 // ─── Push Broadcast (SuperAdmin+) ────────────────────────────────────────────
@@ -592,7 +592,7 @@ router.post('/catalog/redeem/:id/confirm', authenticate, requireRole(Role.EMPLOY
 
 // ─── Business Promotions ──────────────────────────────────────────────────────
 router.post('/promotions/request', authenticate, requireRole(Role.CUSTOMER), upload.single('image'), submitPromotionRequest);    // Customer submits (optional logo)
-router.get('/promotions', authenticate, getPublishedPromotions);                                                                  // All authenticated — see published ads
+router.get('/promotions', authenticate, getPublishedPromotions);                                                                  // All authenticated, see published ads
 router.get('/promotions/settings', authenticate, requireRole(Role.DEV_ADMIN), getPromotionSettings);                                // Featured-ads limit (DevAdmin)
 router.put('/promotions/settings', authenticate, requireRole(Role.DEV_ADMIN), updatePromotionSettings);                             // Set it
 router.get('/promotions/my', authenticate, requireRole(Role.CUSTOMER), getMyPromotionRequest);                                    // Customer checks their own request
@@ -632,8 +632,8 @@ router.patch('/careers/applications/:id', authenticate, requireRole(Role.SUPER_A
 router.delete('/careers/applications/:id', authenticate, requireRole(Role.DEV_ADMIN), deleteApplication);
 
 // ─── Job Openings ─────────────────────────────────────────────────────────────
-router.get('/careers/openings', authenticate, getActiveOpenings);                                        // All authenticated — customers see active openings
-router.get('/careers/openings/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllOpenings);        // Admin — all openings incl. inactive
+router.get('/careers/openings', authenticate, getActiveOpenings);                                        // All authenticated, customers see active openings
+router.get('/careers/openings/all', authenticate, requireRole(Role.SUPER_ADMIN), getAllOpenings);        // Admin, all openings incl. inactive
 router.post('/careers/openings', authenticate, requireRole(Role.SUPER_ADMIN), createOpening);            // Admin creates opening
 router.patch('/careers/openings/:id', authenticate, requireRole(Role.SUPER_ADMIN), updateOpening);       // Admin edits opening
 router.delete('/careers/openings/:id', authenticate, requireRole(Role.SUPER_ADMIN), deleteOpening);      // Admin deletes opening
@@ -662,7 +662,7 @@ router.get('/product-requests/store/:storeId', authenticate, requireRole(Role.ST
 router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STORE_MANAGER), respondToProductRequest);
 
 // ─── Order Lists (Procurement Ticketing) ─────────────────────────────────────
-router.get('/order-lists/suggestions',                          authenticate, requireRole(Role.STORE_MANAGER), getItemSuggestions);                    // Item name autocomplete — all stores combined, no store filter needed
+router.get('/order-lists/suggestions',                          authenticate, requireRole(Role.STORE_MANAGER), getItemSuggestions);                    // Item name autocomplete, all stores combined, no store filter needed
 router.get('/order-lists/admin/all',                            authenticate, requireRole(Role.SUPER_ADMIN),   adminGetAllLists);                          // All lists across stores
 router.get('/order-lists/store/:storeId/quick-add',             authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getQuickAddItems);       // Top 16 items for Quick Pad
 router.get('/order-lists/store/:storeId/active',                authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getActiveList);         // Current OPEN list with items
@@ -681,7 +681,7 @@ router.delete('/order-lists/items/:itemId',                     authenticate, re
 
 // ─── Employee Item Requests ───────────────────────────────────────────────────
 router.get('/employee-requests/suggestions',                     authenticate, requireRole(Role.EMPLOYEE),      getEmployeeSuggestions);              // Item name + category autocomplete
-router.get('/employee-requests/pending-count',                   authenticate, requireRole(Role.STORE_MANAGER), getItemRequestsPendingCount);          // Badge count — all stores for admin, own stores for manager
+router.get('/employee-requests/pending-count',                   authenticate, requireRole(Role.STORE_MANAGER), getItemRequestsPendingCount);          // Badge count, all stores for admin, own stores for manager
 router.get('/employee-requests/pending-by-store',                authenticate, requireRole(Role.STORE_MANAGER), getItemRequestsPendingCountByStore);   // Per-store breakdown for multi-store sidebar
 router.get('/employee-requests/admin/all',                       authenticate, requireRole(Role.SUPER_ADMIN),   adminGetAllItemRequests);              // Admin: all requests across stores
 router.post('/employee-requests',                                authenticate, requireRole(Role.EMPLOYEE),      submitItemRequest);                    // Employee submits multi-item form
@@ -694,7 +694,7 @@ router.patch('/employee-requests/:requestId/review',             authenticate, r
 router.get   ('/scanned-products/barcode/:barcode', authenticate, requireRole(Role.EMPLOYEE),  lookupBarcode);  // Look up by barcode (employee + manager)
 router.post  ('/scanned-products',                  authenticate, requireRole(Role.EMPLOYEE),  saveProduct);    // Save/upsert a barcode→name mapping
 router.get   ('/scanned-products',                  authenticate, requireRole(Role.STORE_MANAGER), listProducts);   // Browse catalog (managers+)
-router.patch ('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), updateProduct);  // Edit name/category/brand (managers+) — barcode not editable
+router.patch ('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), updateProduct);  // Edit name/category/brand (managers+), barcode not editable
 router.delete('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), deleteProduct);  // Remove bad entry (managers+)
 router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), extractFromPhoto); // AI photo import
 
@@ -739,13 +739,13 @@ router.patch('/order-categories/:id',    authenticate, requireRole(Role.DEV_ADMI
 router.delete('/order-categories/:id',   authenticate, requireRole(Role.DEV_ADMIN),    adminDeleteCategory);   // Hard delete
 
 // ─── Hot Food ─────────────────────────────────────────────────────────────────
-// Menu — admin CRUD (STORE_MANAGER = read-only, SUPER_ADMIN+ = write)
+// Menu, admin CRUD (STORE_MANAGER = read-only, SUPER_ADMIN+ = write)
 router.get('/hot-food/menu/categories', authenticate, requireRole(Role.EMPLOYEE),      getHotFoodMenuCategories);
 router.get('/hot-food/menu',            authenticate, requireRole(Role.STORE_MANAGER), getHotFoodMenu);
 router.post('/hot-food/menu',           authenticate, requireRole(Role.EMPLOYEE),      upload.single('image'), createHotFoodItem);
 router.patch('/hot-food/menu/:id',      authenticate, requireRole(Role.EMPLOYEE),      upload.single('image'), updateHotFoodItem);
 router.delete('/hot-food/menu/:id',     authenticate, requireRole(Role.EMPLOYEE),      deleteHotFoodItem);
-// Orders — admin board (specific routes before :id param)
+// Orders, admin board (specific routes before :id param)
 router.get('/hot-food/orders/admin/pending-count', authenticate, requireRole(Role.SUPER_ADMIN), getHotFoodAdminPendingCount); // Badge count, all stores
 router.get('/hot-food/stores-status', authenticate, requireRole(Role.SUPER_ADMIN), getHotFoodStoresStatus); // On/off and open-now for every store
 router.get('/hot-food/pickup-stores', authenticate, getHotFoodPickupStores);     // Where a customer can pick up hot food: address, location, open now
@@ -753,17 +753,17 @@ router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGE
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);
 router.post('/hot-food/orders/:id/cancel', authenticate, requireRole(Role.CUSTOMER), cancelMyHotFoodOrder);   // the customer, while it is still waiting
-// Orders — employee per-store board
+// Orders, employee per-store board
 router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStorePendingCount);
 router.get('/hot-food/orders/my-stores/pending-count',       authenticate, requireRole(Role.EMPLOYEE), getMyStoresPendingCount);
 router.get('/hot-food/orders/store/:storeId',               authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStoreOrders);  // names and phone numbers: own store only
 // Employee availability management (all items + catalog availability toggle)
 router.get('/hot-food/store/:storeId/all-items',                                  authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStoreAllItems);
 router.patch('/hot-food/store/:storeId/catalog/:catalogItemId/availability',      authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, updateCatalogStoreAvailability);
-// Menu + orders — customer / mobile
+// Menu + orders, customer / mobile
 router.get('/hot-food/store/:storeId/menu', authenticate, requireRole(Role.CUSTOMER), getStoreMenu);
 router.post('/hot-food/orders',             authenticate, requireRole(Role.CUSTOMER), placeOrder);
-// Catalog — admin (global item library with store assignment)
+// Catalog, admin (global item library with store assignment)
 // Store menus grid (2026-10-20): which stores carry which item, and what is in stock today, set for many at once
 router.get('/hot-food/menu-grid',                      authenticate, requireRole(Role.SUPER_ADMIN),   getMenuGrid);
 router.post('/hot-food/menu-grid',                     authenticate, requireRole(Role.SUPER_ADMIN),   applyMenuGrid);

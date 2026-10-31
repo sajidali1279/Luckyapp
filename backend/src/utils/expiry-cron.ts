@@ -1,11 +1,11 @@
 /**
- * Expiry cron — runs daily at 08:00 UTC.
+ * Expiry cron, runs daily at 08:00 UTC.
  * Finds offers expiring within the next 24 hours and notifies:
  *   - SPECIFIC_STORE offers → the store's managers
  *   - ALL_STORES offers     → all store managers across all stores
  *
  * Idempotent: skips offers already notified today (checked via a simple
- * "last notified" field we track in memory per run — safe for single-instance).
+ * "last notified" field we track in memory per run, safe for single-instance).
  */
 import cron from 'node-cron';
 import prisma from '../config/prisma';
@@ -52,7 +52,7 @@ export async function runExpiryCheck() {
         .filter((m) => m.storeId === offer.storeId)
         .map((m) => m.userId);
     } else {
-      // ALL_STORES — notify every manager
+      // ALL_STORES, notify every manager
       managerIds = [...new Set(allManagers.map((m) => m.userId))];
     }
 

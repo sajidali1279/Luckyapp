@@ -30,7 +30,7 @@ export async function getEmployeeSuggestions(req: AuthRequest, res: Response) {
     LIMIT 10
   `;
 
-  // Deduplicate by name — keep the highest-count category for each name
+  // Deduplicate by name, keep the highest-count category for each name
   const seen = new Map<string, { name: string; category: string | null; count: number }>();
   for (const r of results) {
     const key = r.name.toLowerCase();
@@ -160,7 +160,7 @@ export async function getItemRequestsPendingCount(req: AuthRequest, res: Respons
   const user = req.user!;
   const isAdmin = user.role === Role.DEV_ADMIN || user.role === Role.SUPER_ADMIN;
 
-  // Admins see the global count across all stores — no UserStoreRole lookup needed
+  // Admins see the global count across all stores, no UserStoreRole lookup needed
   if (isAdmin) {
     const count = await prisma.employeeItemRequest.count({ where: { status: 'PENDING' } });
     res.json({ success: true, data: { count } });
@@ -232,7 +232,7 @@ export async function reviewRequest(req: AuthRequest, res: Response) {
 
   const user = req.user!;
 
-  // Resolve the target list — use provided listId, or auto-find/create the store's OPEN list
+  // Resolve the target list, use provided listId, or auto-find/create the store's OPEN list
   let targetListId = parsed.data.listId;
   if (!targetListId) {
     let activeList = await prisma.orderList.findFirst({

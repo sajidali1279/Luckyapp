@@ -134,7 +134,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
   const lastDayReminder = req.body?.lastDayReminder === undefined ? true : flag(req.body.lastDayReminder);
 
   // Store managers can only create store-specific offers for a store they're
-  // actually assigned to — prefer the store they picked in the UI (a real
+  // actually assigned to, prefer the store they picked in the UI (a real
   // store-selector exists for multi-store managers), only falling back to
   // their first assigned store if they didn't pick one of their own.
   if (isManager) {
@@ -529,7 +529,7 @@ export async function createBanner(req: AuthRequest, res: Response) {
   const win = bannerWindow(parsed.data.startDate, parsed.data.endDate);
   if ('error' in win) { res.status(400).json({ success: false, error: win.error }); return; }
 
-  // Store managers can target any of their assigned stores — prefer the
+  // Store managers can target any of their assigned stores, prefer the
   // store picked in the UI, falling back to their first store if the
   // requested one isn't actually theirs (or none was specified).
   const requestedBannerStoreId = parsed.data.storeId;
@@ -692,7 +692,7 @@ export const OFFER_RECORDING_START = startOfStoreDate('2026-09-28');
 const money = (n: number) => Math.round(n * 100) / 100;
 export { LIFT_MIN_SALES } from '../utils/offerLift';
 
-// GET /offers/:offerId/results (HQ) — what a promotion did: the sales it raised, the customers, the extra cashback it paid, and the
+// GET /offers/:offerId/results (HQ), what a promotion did: the sales it raised, the customers, the extra cashback it paid, and the
 // category's sales while it ran against the same length of time just before it. A deal changes no cashback, so it has no results.
 //
 // Did it bring extra sales (lift)? The sales it touched were compared with sales it did not touch over the same two stretches: a

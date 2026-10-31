@@ -62,7 +62,7 @@ export async function saveProduct(req: AuthRequest, res: Response) {
   });
 
   // Every scan that reaches this endpoint should also exist as a (possibly
-  // priceless) Label — this is what lets Order List/Stock Request/mobile
+  // priceless) Label, this is what lets Order List/Stock Request/mobile
   // Catalog/Price Check feed the printable catalog without each caller
   // doing anything extra. A sync hiccup here must not break the primary
   // scan-save response, so it's logged, not thrown.
@@ -82,7 +82,7 @@ export async function saveProduct(req: AuthRequest, res: Response) {
 }
 
 // ─── GET /scanned-products ────────────────────────────────────────────────────
-// STORE_MANAGER minimum (so StoreManager, SuperAdmin, DevAdmin) — browse the full catalog (for review/cleanup)
+// STORE_MANAGER minimum (so StoreManager, SuperAdmin, DevAdmin), browse the full catalog (for review/cleanup)
 
 export async function listProducts(req: AuthRequest, res: Response) {
   const { q, source } = req.query as { q?: string; source?: string };
@@ -99,7 +99,7 @@ export async function listProducts(req: AuthRequest, res: Response) {
 }
 
 // ─── DELETE /scanned-products/:id ────────────────────────────────────────────
-// STORE_MANAGER minimum (so StoreManager, SuperAdmin, DevAdmin) — remove a bad entry
+// STORE_MANAGER minimum (so StoreManager, SuperAdmin, DevAdmin), remove a bad entry
 
 export async function deleteProduct(req: AuthRequest, res: Response) {
   const { id } = req.params;
@@ -108,7 +108,7 @@ export async function deleteProduct(req: AuthRequest, res: Response) {
 }
 
 // ─── PATCH /scanned-products/:id ───────────────────────────────────────────────
-// Edits name/category/brand. barcode is NOT editable here — it's the upsert
+// Edits name/category/brand. barcode is NOT editable here, it's the upsert
 // key everywhere else in this system; correcting a wrong barcode is still
 // delete + recreate, unchanged from today. STORE_MANAGER minimum, same gate
 // as listProducts/deleteProduct on this controller.

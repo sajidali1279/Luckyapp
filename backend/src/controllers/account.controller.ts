@@ -52,7 +52,7 @@ export async function getAccount(req: AuthRequest, res: Response) {
   });
 }
 
-// PATCH /auth/email-alerts  (Super Admin+) — { off: [...] }: the HQ emails this person does not want
+// PATCH /auth/email-alerts  (Super Admin+), { off: [...] }: the HQ emails this person does not want
 export async function updateEmailAlerts(req: AuthRequest, res: Response) {
   const off = req.body?.off;
   if (!Array.isArray(off) || !off.every((k) => typeof k === 'string')) {
@@ -66,7 +66,7 @@ export async function updateEmailAlerts(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { emailAlertsOff: list } });
 }
 
-// POST /auth/sign-out-others — every other session of this account ends (a lost laptop, a shared computer); this one carries on with a new token
+// POST /auth/sign-out-others, every other session of this account ends (a lost laptop, a shared computer); this one carries on with a new token
 export async function signOutOthers(req: AuthRequest, res: Response) {
   const me = req.user!;
   const now = new Date();

@@ -1,5 +1,5 @@
 /**
- * Test data seed — populates billing, transactions, redemptions, and category rates
+ * Test data seed, populates billing, transactions, redemptions, and category rates
  * Safe to run multiple times (uses upsert / checks before creating).
  * Run: cd backend && npx ts-node src/utils/seed-test-data.ts
  */
@@ -29,7 +29,7 @@ const TEST_CUSTOMERS = [
   { phone: '5550000005', name: 'Emma Davis' },
 ];
 
-// ─── Test Employee (store #1 — used for all test transactions) ─────────────────
+// ─── Test Employee (store #1, used for all test transactions) ─────────────────
 const TEST_EMPLOYEE = { phone: '5559990001', name: 'Test Cashier', pin: '1234' };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -231,7 +231,7 @@ async function seed() {
   }
   console.log(`  ✅ Created ${redemptionCount} credit redemptions`);
 
-  // ── 7. Billing Records (subscription payments — 3 months) ─────────────────
+  // ── 7. Billing Records (subscription payments, 3 months) ─────────────────
   console.log('\n💳 Creating billing records (3 months of subscription payments)...');
   const months = ['2025-12', '2026-01', '2026-02'];
   let billingCreated = 0;

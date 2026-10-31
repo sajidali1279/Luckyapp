@@ -11,7 +11,7 @@ const DEV_ADMIN_PIN   = '0000';
 const DEV_ADMIN_NAME  = 'Dev Admin';
 
 // ─── LUCKY STOP STORES ─────────────────────────────────────────────────────────
-// Legacy bootstrap placeholders only — matched/skipped by name against whatever
+// Legacy bootstrap placeholders only, matched/skipped by name against whatever
 // already exists in the DB. The real 12-store roster (names, addresses, real
 // coordinates) is now managed live via the admin Stores page, not this file.
 // #1, #3, #13, #14 were removed 2026-08-03: they never became real stores, and
@@ -48,7 +48,7 @@ async function seed() {
         pinHash,
         role: Role.DEV_ADMIN,
         isProfileComplete: true,
-        // No QR code — DevAdmin doesn't earn points
+        // No QR code, DevAdmin doesn't earn points
       },
     });
     console.log(`✅ DevAdmin created`);

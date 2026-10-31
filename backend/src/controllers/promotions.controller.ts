@@ -69,7 +69,7 @@ async function uploadToCloudinary(buffer: Buffer, folder: string): Promise<strin
   });
 }
 
-// POST /promotions/request — customer submits a promotion request
+// POST /promotions/request, customer submits a promotion request
 export async function submitPromotionRequest(req: AuthRequest, res: Response) {
   const userId = req.user!.id;
   let fields;
@@ -110,7 +110,7 @@ export async function submitPromotionRequest(req: AuthRequest, res: Response) {
   res.status(201).json({ success: true, data: promo });
 }
 
-// GET /promotions — published ads visible to all customers
+// GET /promotions, published ads visible to all customers
 // How many of the newest live ads are "featured" in the app (its Featured tab); the rest are under All Businesses. Set by the developer
 // account on the Business Promotions page. Kept in app_config.
 const FEATURED_ADS_KEY = 'FEATURED_ADS_LIMIT';
@@ -183,7 +183,7 @@ export async function updatePromotionSettings(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { featuredLimit: n } });
 }
 
-// GET /promotions/my — customer checks their own request status
+// GET /promotions/my, customer checks their own request status
 export async function getMyPromotionRequest(req: AuthRequest, res: Response) {
   const userId = req.user!.id;
   const promo = await prisma.businessPromotion.findFirst({
@@ -193,7 +193,7 @@ export async function getMyPromotionRequest(req: AuthRequest, res: Response) {
   res.json({ success: true, data: promo || null });
 }
 
-// GET /promotions/requests — DevAdmin sees all requests
+// GET /promotions/requests, DevAdmin sees all requests
 export async function getAllPromotionRequests(req: AuthRequest, res: Response) {
   const { status } = req.query;
   const promos = await prisma.businessPromotion.findMany({
@@ -206,13 +206,13 @@ export async function getAllPromotionRequests(req: AuthRequest, res: Response) {
   res.json({ success: true, data: promos });
 }
 
-// GET /promotions/requests/pending-count — badge count for DevAdmin
+// GET /promotions/requests/pending-count, badge count for DevAdmin
 export async function getPendingPromotionCount(req: AuthRequest, res: Response) {
   const count = await prisma.businessPromotion.count({ where: { status: 'PENDING' } });
   res.json({ success: true, data: { count } });
 }
 
-// POST /promotions/:id/publish — DevAdmin approves and publishes an ad
+// POST /promotions/:id/publish, DevAdmin approves and publishes an ad
 /** A push and an inbox entry for the customer who asked for an ad. Only customers: an ad HQ made itself has the Dev Admin as its requester. */
 function tellRequester(requesterId: string, title: string, body: string) {
   // Never allowed to fail the publish or decline that caused it
@@ -269,11 +269,11 @@ export async function publishPromotion(req: AuthRequest, res: Response) {
   res.json({ success: true, data: promo });
 }
 
-// POST /promotions/manual — DevAdmin creates and publishes a promotion
+// POST /promotions/manual, DevAdmin creates and publishes a promotion
 // directly, with no preceding customer request at all (an in-house promo,
 // or a business that called in rather than using the app's own request
 // flow). requesterId is set to the creating DevAdmin purely to satisfy the
-// schema's foreign key — it does not need to represent whoever the ad is
+// schema's foreign key, it does not need to represent whoever the ad is
 // actually for.
 export async function createManualPromotion(req: AuthRequest, res: Response) {
   const user = req.user!;
@@ -315,7 +315,7 @@ export async function createManualPromotion(req: AuthRequest, res: Response) {
   res.status(201).json({ success: true, data: promo });
 }
 
-// PATCH /promotions/:id/reject — DevAdmin rejects a request
+// PATCH /promotions/:id/reject, DevAdmin rejects a request
 export async function rejectPromotion(req: AuthRequest, res: Response) {
   const { id } = req.params;
   let note: string | null;
@@ -339,7 +339,7 @@ export async function rejectPromotion(req: AuthRequest, res: Response) {
   res.json({ success: true, data: promo });
 }
 
-// DELETE /promotions/:id — DevAdmin deletes a promotion
+// DELETE /promotions/:id, DevAdmin deletes a promotion
 export async function deletePromotion(req: AuthRequest, res: Response) {
   const { id } = req.params;
   const current = await prisma.businessPromotion.findUnique({ where: { id }, select: { businessName: true } });

@@ -63,7 +63,7 @@ export async function deleteMapping(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
-// GET /stores/my-keyword-mappings  (Printer agent — store API key auth)
+// GET /stores/my-keyword-mappings  (Printer agent, store API key auth)
 export async function getMyMappings(req: AuthRequest, res: Response) {
   const apiKey = req.headers['x-store-api-key'] as string;
   if (!apiKey) {

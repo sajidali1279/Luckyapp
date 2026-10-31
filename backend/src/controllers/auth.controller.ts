@@ -168,7 +168,7 @@ export async function register(req: Request, res: Response) {
     return;
   }
 
-  // Clean up the Firebase Auth user — we manage sessions ourselves
+  // Clean up the Firebase Auth user, we manage sessions ourselves
   admin.auth().deleteUser(decodedToken.uid).catch(() => {});
 
   const existing = await prisma.user.findUnique({ where: { phone: accountPhone } });
@@ -477,7 +477,7 @@ export async function deleteAvatar(req: AuthRequest, res: Response) {
   try {
     await cloudinary.uploader.destroy(`lucky-stop/avatars/avatar_${user.id}`);
   } catch {
-    // Non-fatal — may not exist on Cloudinary yet
+    // Non-fatal, may not exist on Cloudinary yet
   }
   await prisma.user.update({ where: { id: user.id }, data: { avatarUrl: null } });
   res.json({ success: true });
@@ -1096,7 +1096,7 @@ export async function verifyFirebaseReset(req: Request, res: Response) {
   const firebaseDigits = (decodedToken.phone_number ?? '').replace(/\D/g, '');
   const phone = firebaseDigits.slice(-10);
 
-  // Clean up Firebase Auth user — we manage sessions ourselves
+  // Clean up Firebase Auth user, we manage sessions ourselves
   admin.auth().deleteUser(decodedToken.uid).catch(() => {});
 
   const user = await prisma.user.findUnique({ where: { phone } });

@@ -1,4 +1,4 @@
-// Daily gas/diesel price staleness reminder — once a day at 9am Central, pushes each active store's own
+// Daily gas/diesel price staleness reminder, once a day at 9am Central, pushes each active store's own
 // managers when a price they HAVE set has gone more than 2 days without an update. A price that was
 // never set at all is a launch-readiness gap the Stores page's readiness line already flags (see
 // getStores' READINESS_FRESH_DAYS in billing.controller.ts) - this only nudges about a price that used
@@ -12,7 +12,7 @@ import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
 import { rule } from './appSettings';
 
-const REMINDER_TIMEZONE = 'America/Chicago'; // Central Time — stores are in Texas
+const REMINDER_TIMEZONE = 'America/Chicago'; // Central Time, stores are in Texas
 /** HQ's days (Settings > Staff > Gas prices, 2026-10-17): it was 2 days here and 3 on the Stores page */
 export const staleAfterMs = () => rule('priceStaleDays') * 24 * 60 * 60 * 1000;
 

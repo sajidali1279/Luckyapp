@@ -18,7 +18,7 @@ const openingSchema = z.object({
   isActive:     z.boolean().default(true),
 });
 
-// GET /careers/openings — customers see active openings
+// GET /careers/openings, customers see active openings
 export async function getActiveOpenings(_req: AuthRequest, res: Response) {
   const openings = await prisma.jobOpening.findMany({
     where: { isActive: true },
@@ -28,7 +28,7 @@ export async function getActiveOpenings(_req: AuthRequest, res: Response) {
   res.json({ success: true, data: openings });
 }
 
-// GET /careers/openings/all — admins see all (including inactive)
+// GET /careers/openings/all, admins see all (including inactive)
 export async function getAllOpenings(_req: AuthRequest, res: Response) {
   const openings = await prisma.jobOpening.findMany({
     include: {
@@ -58,7 +58,7 @@ export async function createOpening(req: AuthRequest, res: Response) {
   if (opening.isActive) {
     broadcastToCustomers(
       '🧑‍💼 New Job Opening!',
-      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'} - check it out!`,
+      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'}. Check it out!`,
       'JOB_OPENING',
       undefined,
       careersUrl(),
@@ -90,7 +90,7 @@ export async function updateOpening(req: AuthRequest, res: Response) {
   if (existing && existing.isActive === false && opening.isActive === true) {
     broadcastToCustomers(
       '🧑‍💼 New Job Opening!',
-      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'} - check it out!`,
+      `${opening.title} at ${opening.store?.name ?? 'any Lucky Stop location'}. Check it out!`,
       'JOB_OPENING',
       undefined,
       careersUrl(),

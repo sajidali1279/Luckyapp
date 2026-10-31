@@ -123,7 +123,7 @@ export async function createItem(req: AuthRequest, res: Response) {
   const checked = itemFields(req.body, { creating: true, priceMin: 0 });
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
 
-  // Employees/managers are scoped to their own store(s) — prefer an explicit
+  // Employees/managers are scoped to their own store(s), prefer an explicit
   // storeId from the client if it's actually one of their assigned stores,
   // only falling back to their first store otherwise.
   const user = req.user!;
@@ -183,7 +183,7 @@ export async function updateItem(req: AuthRequest, res: Response) {
   if (category !== undefined) data.category = cleanCategory(category);
   if (isAvailable !== undefined) data.isAvailable = isAvailable === true || isAvailable === 'true';
 
-  // Image file uploaded — replace via Cloudinary
+  // Image file uploaded, replace via Cloudinary
   if (req.file) {
     data.imageUrl = await uploadToCloudinary(req.file.buffer);
   }
@@ -219,7 +219,7 @@ export async function deleteItem(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
-// GET /hot-food/menu/categories — distinct category values for autocomplete
+// GET /hot-food/menu/categories, distinct category values for autocomplete
 export async function getMenuCategories(req: AuthRequest, res: Response) {
   const { storeId } = req.query as { storeId?: string };
   const items = await prisma.hotFoodMenuItem.findMany({
@@ -284,7 +284,7 @@ export async function getAllOrders(req: AuthRequest, res: Response) {
   res.json({ success: true, data: orders });
 }
 
-// PATCH /hot-food/orders/:id — move an order to its next step. Only staff of the order's own store (or HQ) may, and only along
+// PATCH /hot-food/orders/:id, move an order to its next step. Only staff of the order's own store (or HQ) may, and only along
 // NEXT_STATUS. Asking for the step it is already at does nothing (a double tap), so the customer is never told twice. Two people
 // pressing at once: the first wins and the second is told what happened.
 export async function updateOrderStatus(req: AuthRequest, res: Response) {
@@ -364,7 +364,7 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
   res.json({ success: true, data: updated, changed: true });
 }
 
-// POST /hot-food/orders/:id/cancel (the customer) — only while it is still waiting: once the store has accepted it, it is being made
+// POST /hot-food/orders/:id/cancel (the customer), only while it is still waiting: once the store has accepted it, it is being made
 export async function customerCancelOrder(req: AuthRequest, res: Response) {
   const { id } = req.params;
   const order = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { id: true, customerId: true, status: true, orderNumber: true, storeId: true } });
@@ -384,7 +384,7 @@ export async function customerCancelOrder(req: AuthRequest, res: Response) {
 
 // ─── Menu (customer / mobile) ─────────────────────────────────────────────────
 
-// GET /hot-food/store/:storeId/menu — available items only (customer ordering)
+// GET /hot-food/store/:storeId/menu, available items only (customer ordering)
 export async function getStoreMenu(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
@@ -428,7 +428,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   res.json({ success: true, data: all, hours, combos, categories, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
 }
 
-// GET /hot-food/store/:storeId/all-items — all items with availability (employee management view)
+// GET /hot-food/store/:storeId/all-items, all items with availability (employee management view)
 export async function getStoreAllItems(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
 
@@ -466,7 +466,7 @@ export async function getStoreAllItems(req: AuthRequest, res: Response) {
   res.json({ success: true, data: all });
 }
 
-// PATCH /hot-food/store/:storeId/catalog/:catalogItemId/availability — employee toggles per-store catalog availability
+// PATCH /hot-food/store/:storeId/catalog/:catalogItemId/availability, employee toggles per-store catalog availability
 export async function updateCatalogStoreAvailability(req: AuthRequest, res: Response) {
   const { storeId, catalogItemId } = req.params;
   const { isAvailable } = req.body;
@@ -495,7 +495,7 @@ export async function updateCatalogStoreAvailability(req: AuthRequest, res: Resp
 
 // ─── Orders (customer / mobile) ───────────────────────────────────────────────
 
-// POST /hot-food/orders — place order
+// POST /hot-food/orders, place order
 export async function placeOrder(req: AuthRequest, res: Response) {
   const customerId = req.user!.id;
   const { storeId, items, note } = req.body;
@@ -564,7 +564,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   });
   const menuMap = new Map(menuItemRows.map(m => [m.id, m]));
 
-  // Any IDs not found in the legacy table — try catalog (must be assigned to this store)
+  // Any IDs not found in the legacy table, try catalog (must be assigned to this store)
   const unmatchedIds = itemIds.filter(id => !menuMap.has(id));
   const catalogMap = new Map<string, any>();
   if (unmatchedIds.length > 0) {
@@ -685,7 +685,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   res.status(201).json({ success: true, data: order, ...(pointsBalance != null ? { pointsBalance } : {}) });
 }
 
-// GET /hot-food/orders/mine — customer's own orders
+// GET /hot-food/orders/mine, customer's own orders
 export async function getMyOrders(req: AuthRequest, res: Response) {
   const customerId = req.user!.id;
   const orders = await prisma.hotFoodOrder.findMany({
@@ -704,9 +704,9 @@ export async function getMyOrders(req: AuthRequest, res: Response) {
   res.json({ success: true, data: orders });
 }
 
-// ─── Orders (mobile — per store) ─────────────────────────────────────────────
+// ─── Orders (mobile, per store) ─────────────────────────────────────────────
 
-// GET /hot-food/orders/store/:storeId — for manager/employee mobile
+// GET /hot-food/orders/store/:storeId, for manager/employee mobile
 export async function getStoreOrders(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const orders = await prisma.hotFoodOrder.findMany({
@@ -722,7 +722,7 @@ export async function getStoreOrders(req: AuthRequest, res: Response) {
   res.json({ success: true, data: orders });
 }
 
-// GET /hot-food/orders/store/:storeId/pending-count — badge count for mobile nav
+// GET /hot-food/orders/store/:storeId/pending-count, badge count for mobile nav
 export async function getStorePendingCount(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const count = await prisma.hotFoodOrder.count({
@@ -731,7 +731,7 @@ export async function getStorePendingCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
-// GET /hot-food/orders/my-stores/pending-count — badge count across every
+// GET /hot-food/orders/my-stores/pending-count, badge count across every
 // store the caller is assigned to (an employee/manager working more than
 // one store previously only ever saw their first store's count).
 export async function getMyStoresPendingCount(req: AuthRequest, res: Response) {
@@ -743,7 +743,7 @@ export async function getMyStoresPendingCount(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count } });
 }
 
-// GET /hot-food/orders/admin/pending-count — badge count for DevAdmin/SuperAdmin, all stores
+// GET /hot-food/orders/admin/pending-count, badge count for DevAdmin/SuperAdmin, all stores
 export async function getAdminPendingCount(req: AuthRequest, res: Response) {
   const count = await prisma.hotFoodOrder.count({ where: { status: 'PENDING' } });
   res.json({ success: true, data: { count } });
@@ -891,14 +891,14 @@ export async function removeCatalogItemFromStore(req: AuthRequest, res: Response
 
 // ─── Hot food hours ───────────────────────────────────────────────────────────
 
-// GET /stores/:storeId/hot-food-hours — the week as set (empty = follows the store's hours) and whether ordering is open now
+// GET /stores/:storeId/hot-food-hours, the week as set (empty = follows the store's hours) and whether ordering is open now
 export async function getHotFoodHours(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const schedules = await schedulesFor(storeId);
   res.json({ success: true, data: { weekly: schedules.hotFood, followsStore: schedules.hotFood.length === 0, storeHoursSet: schedules.storeWeekly.length > 0, now: hotFoodState(schedules) } });
 }
 
-// PUT /stores/:storeId/hot-food-hours — the whole week at once, checked like store hours
+// PUT /stores/:storeId/hot-food-hours, the whole week at once, checked like store hours
 export async function updateHotFoodHours(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const parsed = updateHoursSchema.safeParse(req.body);
@@ -938,7 +938,7 @@ export async function updateHotFoodHours(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { weekly: schedules.hotFood, followsStore: false, storeHoursSet: schedules.storeWeekly.length > 0, now: hotFoodState(schedules) }, changed: diffs.length > 0 });
 }
 
-// DELETE /stores/:storeId/hot-food-hours — back to following the store's own hours
+// DELETE /stores/:storeId/hot-food-hours, back to following the store's own hours
 export async function clearHotFoodHours(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true } });
@@ -956,7 +956,7 @@ export async function clearHotFoodHours(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { weekly: [], followsStore: true, storeHoursSet: schedules.storeWeekly.length > 0, now: hotFoodState(schedules) } });
 }
 
-// GET /hot-food/stores-status — every store: hot food on or off, and whether ordering is open right now (HQ's Availability view)
+// GET /hot-food/stores-status, every store: hot food on or off, and whether ordering is open right now (HQ's Availability view)
 /**
  * GET /hot-food/pickup-stores (any signed-in customer, 2026-10-11): every store a customer can order hot food from (active, hot food on),
  * with its address and location for the distance, and whether it takes orders right now. The app lists them closest first and lets the

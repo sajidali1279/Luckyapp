@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import prisma from '../config/prisma';
 
-// Run once daily — permanently delete notifications older than 30 days.
+// Run once daily, permanently delete notifications older than 30 days.
 // Replaces the old manual "clear all" action with an automatic retention
 // policy so nobody's inbox grows forever and nobody has to remember to clear it.
 export function startNotificationRetentionCron() {

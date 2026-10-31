@@ -106,7 +106,7 @@ function dayWords(d: DayHours | undefined): string | null {
   if (!d) return null;
   if (d.isClosed) return 'Closed';
   if (d.isOpen24Hours) return 'Open 24 Hours';
-  return d.openTime && d.closeTime ? `${formatTime12h(d.openTime)} - ${formatTime12h(d.closeTime)}` : null;
+  return d.openTime && d.closeTime ? `${formatTime12h(d.openTime)} – ${formatTime12h(d.closeTime)}` : null;
 }
 
 export function hotFoodState(s: HotFoodSchedules, now: Date = new Date()): HotFoodState {

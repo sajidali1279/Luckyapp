@@ -204,7 +204,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Soft flags — create as FLAGGED, hold points for manager review
+  // Soft flags, create as FLAGGED, hold points for manager review
   const fraudFlags: string[] = [...rateCappedFlags];
   // The amounts and counts are HQ's (Settings > Sales review); the defaults are $500, $800, 4 a day and 15 an hour
   if (purchaseAmount > rule('reviewHighAmount') && !isGasCategory) fraudFlags.push('HIGH_AMOUNT');
@@ -225,7 +225,7 @@ export async function initiateGrant(req: AuthRequest, res: Response) {
 
   const isFlagged = fraudFlags.length > 0;
 
-  // Create transaction in PENDING (or FLAGGED) state — no points credited yet
+  // Create transaction in PENDING (or FLAGGED) state, no points credited yet
   const transaction = await prisma.pointsTransaction.create({
     data: {
       customerId: customer.id,
@@ -336,7 +336,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     return;
   }
 
-  // Duplicate receipt detection — hash file bytes to prevent reusing the same photo
+  // Duplicate receipt detection, hash file bytes to prevent reusing the same photo
   const receiptHash = req.file ? createHash('sha256').update(req.file.buffer).digest('hex') : null;
   // A multi-item sale (gas + groceries on one receipt) is one transaction per item, and the phone sends the same photo to each. Those
   // siblings (same customer, cashier and store, made within two minutes of each other) may share it; any other sale may not. Before,
@@ -378,7 +378,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   const wasFlagged = transaction.status === TransactionStatus.FLAGGED && !hqEntry;
 
   if (wasFlagged) {
-    // Flagged: save receipt but hold points — manager must review
+    // Flagged: save receipt but hold points, manager must review
     // Only while it is still waiting (it may have been cancelled or decided while the photo uploaded)
     const saved = await prisma.pointsTransaction.updateMany({
       where: { id: transactionId, status: TransactionStatus.FLAGGED },
@@ -390,7 +390,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     if (transaction.addOn) tellAddOn(transaction, employee, true).catch(() => {});
     res.json({
       success: true,
-      message: 'Receipt uploaded. This transaction is flagged - a manager must approve it before points are credited.',
+      message: 'Receipt uploaded. This sale is held: a manager must approve it before points are credited.',
       flagged: true,
       data: updatedTransaction,
     });
@@ -477,7 +477,7 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     return;
   }
   if (!isCustomerAccount(customer)) { res.status(403).json({ success: false, error: NOT_A_CUSTOMER }); return; }
-  // Dev cut is taken at grant time — no cut applied on redemption.
+  // Dev cut is taken at grant time, no cut applied on redemption.
   // One customer at a time, the balance read inside the lock, and the same redemption a moment ago refused: a double tap used to pass
   // the balance check twice and deduct twice, even below zero.
   const outcome = await prisma.$transaction(async (tx) => {
@@ -682,7 +682,7 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
     return;
   }
 
-  // APPROVE — credit points now, once: the update only happens if the sale is still flagged
+  // APPROVE, credit points now, once: the update only happens if the sale is still flagged
   const totalPoints = transaction.pointsAwarded + transaction.gasBonusPoints;
   const updatedCustomer = await prisma.$transaction((db) => approveAndCredit(db, transaction, TransactionStatus.FLAGGED));
   if (!updatedCustomer) {
@@ -701,7 +701,7 @@ const VOID_REASON_MAX = 300;
 
 // SuperAdmin+: undo an approved sale after the fact. Unlike Reject (which never credited anything), voiding
 // claws the points back from the customer's current balance. A reason is REQUIRED here, not optional like a
-// reject's — this is the one action on this page that takes money back from a customer after the fact, and
+// reject's, this is the one action on this page that takes money back from a customer after the fact, and
 // it needs a real explanation on the record every time. The policy for a balance already partly or fully
 // spent: it is simply decremented, and can go negative (the response says so) rather than the admin having to
 // chase a partial recovery by hand; there is no separate debt-repayment mechanism.
@@ -1083,7 +1083,7 @@ export async function getStoreHealth(_req: AuthRequest, res: Response) {
   res.json({ success: true, data });
 }
 
-// GET /points/pending-count — badge count: transactions with an action waiting (PENDING + FLAGGED).
+// GET /points/pending-count, badge count: transactions with an action waiting (PENDING + FLAGGED).
 // All stores for platform admins, own stores for manager.
 export async function getTransactionsPendingCount(req: AuthRequest, res: Response) {
   const user = req.user!;
@@ -1103,7 +1103,7 @@ export async function getTransactionsPendingCount(req: AuthRequest, res: Respons
   res.json({ success: true, data: { count } });
 }
 
-// GET /points/customer-info/:qrCode — cashier fetches customer tier + benefit status before choosing action
+// GET /points/customer-info/:qrCode, cashier fetches customer tier + benefit status before choosing action
 export async function getCustomerInfo(req: AuthRequest, res: Response) {
   const { qrCode } = req.params;
   const customer = await prisma.user.findUnique({ where: { qrCode } });
@@ -1177,7 +1177,7 @@ export async function hqStoreStaff(req: AuthRequest, res: Response) {
   res.json({ success: true, data: await storeStaff(req.params.storeId) });
 }
 
-// GET /points/my-benefit-status — customer checks their own benefit availability
+// GET /points/my-benefit-status, customer checks their own benefit availability
 export async function getMyBenefitStatus(req: AuthRequest, res: Response) {
   const userId = req.user!.id;
   const customer = await prisma.user.findUnique({ where: { id: userId } });
@@ -1398,7 +1398,7 @@ function parseTransactionFilters(q: Record<string, unknown>):
   }
 
   // Test sales (the seed-test-data route, or a sale flagged by hand) are left out by default, the same as
-  // Analytics, billing and the store health figures — this page's own numbers should match those without
+  // Analytics, billing and the store health figures, this page's own numbers should match those without
   // asking. "includeTestData=true" shows both; there is no "test data only" mode, since nothing needs it yet.
   if (includeTestData !== 'true') where.isTestData = false;
   // Only receipts a cashier added after the customer left (2026-10-18)
@@ -1450,7 +1450,7 @@ export async function getAllTransactions(req: AuthRequest, res: Response) {
     prisma.pointsTransaction.aggregate({
       where: { ...where, status: 'APPROVED' },
       // gasBonusPoints too: a Gold+ customer's per-gallon bonus is real cashback, credited on top of
-      // pointsAwarded, not folded into it (docs/confidential/admin-audit/04-transactions.md finding #10 —
+      // pointsAwarded, not folded into it (docs/confidential/admin-audit/04-transactions.md finding #10 , 
       // this summary used to under-count it).
       _sum: { purchaseAmount: true, pointsAwarded: true, gasBonusPoints: true },
     }),

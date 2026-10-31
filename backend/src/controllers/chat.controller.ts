@@ -57,7 +57,7 @@ export async function getMessages(req: AuthRequest, res: Response) {
     });
     res.json({ success: true, data: messages.map(presentMessage) });
   } else {
-    // Initial load: last 50 messages — this is when the user is actually looking
+    // Initial load: last 50 messages, this is when the user is actually looking
     // at the room, so mark it read up to now
     const [messages] = await Promise.all([
       prisma.chatMessage.findMany({
@@ -246,7 +246,7 @@ export async function getChatPeople(req: AuthRequest, res: Response) {
 // ─── DELETE /chat/:storeId/messages ───────────────────────────────────────────
 // Permanently deletes this store's entire chat history. There is one shared
 // thread per store, not a separate copy per viewer, so this clears it for
-// that store's own staff too, not just the admin who clicked it — route-gated
+// that store's own staff too, not just the admin who clicked it, route-gated
 // to SUPER_ADMIN+ accordingly, not left to a StoreManager acting alone on a
 // conversation other people rely on.
 

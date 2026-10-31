@@ -1,4 +1,4 @@
-// Shared runtime constants — read once from env at startup
+// Shared runtime constants, read once from env at startup
 export const DEFAULT_CASHBACK_RATE = parseFloat(process.env.DEFAULT_CASHBACK_RATE || '0.05'); // fallback only
 // The platform fee is a share of the CASHBACK issued (the deal is 10%). This is the rate a store gets when none is set; every store has its own
 // rate (Billing > Stores) and that is the one billed. A store added later starts here.
@@ -16,10 +16,10 @@ export const DEFAULT_TIER_RATES: Record<string, number> = {
   PLATINUM: 0.05,
 };
 
-// Compound cashback rate guard — prevents misconfigured category/promo rates from over-issuing.
+// Compound cashback rate guard, prevents misconfigured category/promo rates from over-issuing.
 // Warn flag added above WARN, hard-cap applied at CAP (transaction still processes, just capped).
-export const CASHBACK_RATE_WARN = 0.075; // 7.5% — flag for admin review
-export const CASHBACK_RATE_CAP  = 0.10;  // 10% — hard ceiling, never exceeded
+export const CASHBACK_RATE_WARN = 0.075; // 7.5%, flag for admin review
+export const CASHBACK_RATE_CAP  = 0.10;  // 10%, hard ceiling, never exceeded
 
 // What the Rates page will accept (utils/rateRules.ts; the admin repeats these in lib/rateRules.ts). A sale never pays more than the cap
 // above, but a rate typed wrong still holds every sale it touches for a manager, so the page refuses the slips before they are saved.

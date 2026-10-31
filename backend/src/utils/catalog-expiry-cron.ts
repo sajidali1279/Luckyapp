@@ -4,7 +4,7 @@ import { sendPushToUser } from './push';
 import { redemptionUrl } from './notificationRoutes';
 import { settlePendingRedemption } from './moneyGuards';
 
-// Run every 5 minutes — expire PENDING catalog redemptions older than their expiresAt
+// Run every 5 minutes, expire PENDING catalog redemptions older than their expiresAt
 // and refund points to the customer
 export function startCatalogExpiryCron() {
   cron.schedule('*/5 * * * *', async () => {
@@ -25,7 +25,7 @@ export function startCatalogExpiryCron() {
         sendPushToUser(
           r.customerId,
           '⏰ Redemption Expired',
-          `Your "${r.catalogItem.title}" redemption wasn't scanned in time - ${r.pointsSpent} pts have been refunded.`,
+          `Your "${r.catalogItem.title}" redemption wasn't scanned in time, so ${r.pointsSpent} pts were given back.`,
           'REDEMPTION',
           redemptionUrl(r.id),
         );

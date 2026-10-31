@@ -145,7 +145,7 @@ export async function createNotice(req: AuthRequest, res: Response) {
   res.status(201).json({ success: true, data: { ...notice, sentTo } });
 }
 
-// PUT /admin/notices/:id  (StoreManager+) — edit, extend, bring back; `notify: true` tells staff again
+// PUT /admin/notices/:id  (StoreManager+), edit, extend, bring back; `notify: true` tells staff again
 export async function updateNotice(req: AuthRequest, res: Response) {
   const existing = await noticeFor(req, res);
   if (!existing) return;
@@ -184,7 +184,7 @@ export async function updateNotice(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { ...notice, sentTo } });
 }
 
-// GET /admin/notices  (StoreManager+) — management list, includes scheduled, ended and taken-down ones
+// GET /admin/notices  (StoreManager+), management list, includes scheduled, ended and taken-down ones
 export async function getAllNotices(req: AuthRequest, res: Response) {
   const user = req.user!;
   // A Store Manager sees chain-wide notices plus any that include one of their stores, never another store's alone
@@ -213,7 +213,7 @@ export async function getAllNotices(req: AuthRequest, res: Response) {
   });
 }
 
-// PATCH /admin/notices/:id  (StoreManager+) — take down early (PUT with isActive: true brings it back)
+// PATCH /admin/notices/:id  (StoreManager+), take down early (PUT with isActive: true brings it back)
 export async function deactivateNotice(req: AuthRequest, res: Response) {
   const existing = await noticeFor(req, res);
   if (!existing) return;
@@ -241,7 +241,7 @@ export async function deleteNotice(req: AuthRequest, res: Response) {
   res.json({ success: true, message: 'Notice deleted' });
 }
 
-// GET /notices/active  (staff — EMPLOYEE+) — the live notices for the caller's stores and role, urgent ones first
+// GET /notices/active  (staff, EMPLOYEE+), the live notices for the caller's stores and role, urgent ones first
 export async function getActiveNotices(req: AuthRequest, res: Response) {
   const user = req.user!;
   const now = new Date();

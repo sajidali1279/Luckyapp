@@ -84,17 +84,17 @@ export async function getAdminBadgeCounts(req: AuthRequest, res: Response) {
     chatUnreadPromise,
     // schedule.controller.ts getRequestsPendingCount
     prisma.shiftRequest.count({ where: { storeId: { in: storeIds }, status: RequestStatus.PENDING } }),
-    // promotions.controller.ts getPendingPromotionCount — DevAdmin's own review queue only
+    // promotions.controller.ts getPendingPromotionCount, DevAdmin's own review queue only
     isDevAdmin ? prisma.businessPromotion.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
     // hotFood.controller.ts getAdminPendingCount
     prisma.hotFoodOrder.count({ where: { status: 'PENDING' } }),
-    // orderCategory.controller.ts getPendingCategoryCount — DevAdmin's own review queue only
+    // orderCategory.controller.ts getPendingCategoryCount, DevAdmin's own review queue only
     isDevAdmin ? prisma.orderCategory.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
     // billing.controller.ts getBillingPendingCount
     prisma.billingRecord.findMany({ where: { isPaid: false }, select: { period: true }, distinct: ['period'] }),
     // careers.controller.ts getNewApplicationCount
     prisma.jobApplication.count({ where: { status: 'NEW' } }),
-    // support.controller.ts getUnreadCount — a DevAdmin sees every non-DevAdmin sender; anyone else (here,
+    // support.controller.ts getUnreadCount, a DevAdmin sees every non-DevAdmin sender; anyone else (here,
     // always a SuperAdmin) sees only replies on threads they themselves started
     isDevAdmin
       ? prisma.supportMessage.count({ where: { isRead: false, senderRole: { not: 'DEV_ADMIN' } } })

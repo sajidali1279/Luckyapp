@@ -26,7 +26,7 @@ import { rule } from '../utils/appSettings';
 import { addLot } from '../utils/pointLots';
 import { checkGasAlerts } from '../utils/engagement-cron';
 
-// STORE_MANAGER+ — single store info (for scheduling page)
+// STORE_MANAGER+, single store info (for scheduling page)
 /** PUMP_OUT_OF_ORDER as "Pump out of order" (a store alert with no note showed the code) */
 const alertWords = (t: string) => { const w = String(t ?? '').replace(/_/g, ' ').toLowerCase(); return w.charAt(0).toUpperCase() + w.slice(1); };
 
@@ -105,7 +105,7 @@ export async function getStores(_req: AuthRequest, res: Response) {
   res.json({ success: true, data: withTodayHours });
 }
 
-// STORE_MANAGER+ — returns stores accessible to the caller
+// STORE_MANAGER+, returns stores accessible to the caller
 // SuperAdmin/DevAdmin → all stores; allStoresAccess manager → all stores; regular manager → their stores
 export async function getAccessibleStores(req: AuthRequest, res: Response) {
   const user = req.user!;
@@ -135,7 +135,7 @@ export async function getAccessibleStores(req: AuthRequest, res: Response) {
   res.json({ success: true, data: assignments.map(a => a.store) });
 }
 
-// SuperAdmin+ — update store details (name, address, lat/lng, etc.). Closing or reopening a store (isActive) is Dev Admin only, here on the
+// SuperAdmin+, update store details (name, address, lat/lng, etc.). Closing or reopening a store (isActive) is Dev Admin only, here on the
 // server and not only on the page. Every change is checked with a sentence for the person, written to the Activity Log, and a request that changes
 // nothing is a harmless repeat. The phone is stored as +1 and ten digits; clearing it now clears it.
 const storeText = (what: string, max: number) =>
@@ -278,7 +278,7 @@ export async function updateStore(req: AuthRequest, res: Response) {
   res.json({ success: true, data: store, changed: true });
 }
 
-// DevAdmin only — change billing type for a store
+// DevAdmin only, change billing type for a store
 const billingSchema = z.object({
   billingType: z.enum(['MONTHLY_SUBSCRIPTION', 'PER_TRANSACTION', 'HYBRID'], { errorMap: () => ({ message: 'Choose a plan: Monthly Subscription, Per Transaction or Hybrid.' }) }),
   subscriptionPrice: z.coerce.number().positive('The monthly price must be above $0.00.').max(10000, 'The monthly price can be at most $10,000.00.').optional(),
@@ -325,14 +325,14 @@ export async function getAllStoresBilling(_req: AuthRequest, res: Response) {
         billing: { orderBy: { createdAt: 'desc' }, take: 3 },
       },
     }),
-    // Per-store transaction totals — last 30 days
+    // Per-store transaction totals, last 30 days
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
       where: { status: 'APPROVED', isTestData: false, createdAt: { gte: thirtyDaysAgo } },
       _sum: { purchaseAmount: true, pointsAwarded: true },
       _count: true,
     }),
-    // Per-store transaction totals — last 90 days
+    // Per-store transaction totals, last 90 days
     prisma.pointsTransaction.groupBy({
       by: ['storeId'],
       where: { status: 'APPROVED', isTestData: false, createdAt: { gte: ninetyDaysAgo } },
@@ -951,7 +951,7 @@ export async function buildBillForPeriod(
 ): Promise<{ amount: number; notes: BillNotes } | null> {
   const { start, end } = periodBounds(period);
 
-  // Use actual per-transaction data — rates are already baked in at grant time,
+  // Use actual per-transaction data, rates are already baked in at grant time,
   // so changing rates later doesn't retroactively alter historical bills.
   const txRows = await prisma.pointsTransaction.groupBy({
     by: ['category'],
@@ -978,11 +978,11 @@ export async function buildBillForPeriod(
 
   const needsSub        = store.billingType === 'MONTHLY_SUBSCRIPTION' || store.billingType === 'HYBRID';
   const subscriptionFee = needsSub ? store.subscriptionPrice : 0;
-  // Cashback info — informational only (shows store's loyalty program spend)
+  // Cashback info, informational only (shows store's loyalty program spend)
   const cashbackFee     = cashbackIssued;
 
   // Total owed to developer = subscription fee (if any) + dev cut earned from cashback pool
-  // Transaction fees are not charged — dev cut is the only per-transaction revenue
+  // Transaction fees are not charged, dev cut is the only per-transaction revenue
   const totalAmountOwed = parseFloat((subscriptionFee + devCutEarned).toFixed(2));
 
   // Skip stores with nothing to bill
@@ -1172,7 +1172,7 @@ export async function recalculateBillingRecord(req: AuthRequest, res: Response) 
   res.json({ success: true, data: { current: rec.amount, recalculated: next.amount, difference, record: await prisma.billingRecord.findUnique({ where: { id: rec.id } }) } });
 }
 
-// ─── Seed test transactions (DevAdmin only — for demo/testing) ────────────────
+// ─── Seed test transactions (DevAdmin only, for demo/testing) ────────────────
 
 const WEIGHTED_CATEGORIES = [
   ...Array(12).fill('GAS'),   ...Array(8).fill('GROCERIES'),
@@ -1284,7 +1284,7 @@ export async function sendBillingReport(req: AuthRequest, res: Response) {
   const totalPaid = records.filter((r: any) => r.isPaid).reduce((s: number, r: any) => s + r.amount, 0);
   const unpaid = records.filter((r: any) => !r.isPaid).length;
 
-  const title = `📋 Billing Report - ${period}`;
+  const title = `📋 Billing report: ${period}`;
   const body  = `${records.length} stores · Total owed: $${totalOwed.toFixed(2)} · Collected: $${totalPaid.toFixed(2)} · ${unpaid} unpaid`;
 
   let sent = 0;
@@ -1347,7 +1347,7 @@ export async function getMonthlyRecords(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { records, grouped } });
 }
 
-// SuperAdmin — same invoice data, read-only, no management fields
+// SuperAdmin, same invoice data, read-only, no management fields
 export async function getSuperAdminInvoices(_req: AuthRequest, res: Response) {
   const rawRecords = await (prisma.billingRecord as any).findMany({
     include: { store: { select: { id: true, name: true, city: true } } },
@@ -1385,8 +1385,8 @@ export async function getSuperAdminInvoices(_req: AuthRequest, res: Response) {
   res.json({ success: true, data: invoices });
 }
 
-// GET /billing/pending-count — badge count: billing periods with at least one unpaid record.
-// Same underlying data for DevAdmin's /billing and SuperAdmin's /my-billing — both consolidate
+// GET /billing/pending-count, badge count: billing periods with at least one unpaid record.
+// Same underlying data for DevAdmin's /billing and SuperAdmin's /my-billing, both consolidate
 // the same BillingRecord rows, just grouped differently.
 export async function getBillingPendingCount(_req: AuthRequest, res: Response) {
   const unpaidPeriods = await prisma.billingRecord.findMany({
@@ -1397,7 +1397,7 @@ export async function getBillingPendingCount(_req: AuthRequest, res: Response) {
   res.json({ success: true, data: { count: unpaidPeriods.length } });
 }
 
-// DevAdmin — a heartbeat for the monthly billing job: when it last actually ran (from AppConfig, written
+// DevAdmin, a heartbeat for the monthly billing job: when it last actually ran (from AppConfig, written
 // on every tick whether or not it made a bill), and how many of today's active stores have a usage bill
 // for the last finished period. A store with nothing owed for a quiet month is not a failure, so this
 // reports the count plainly rather than flagging it - only staleUpdate (the cron itself going quiet for
@@ -1434,7 +1434,7 @@ export async function getBillingHeartbeat(_req: AuthRequest, res: Response) {
   });
 }
 
-// DevAdmin+ — one store's billing plan history, read from the Activity Log (STORE_BILLING_UPDATE entries
+// DevAdmin+, one store's billing plan history, read from the Activity Log (STORE_BILLING_UPDATE entries
 // updateStoreBilling already writes) rather than a new table: no schema change, and the log is already the
 // one place a change's who/when/before/after lives.
 export async function getStorePlanHistory(req: AuthRequest, res: Response) {
@@ -1457,7 +1457,7 @@ export async function getStorePlanHistory(req: AuthRequest, res: Response) {
   });
 }
 
-// SuperAdmin — derived notification feed (no DB table needed)
+// SuperAdmin, derived notification feed (no DB table needed)
 /** Rewards a store manager added, changed or switched off in the last 14 days. The chain's catalog is HQ's, so HQ is told. */
 export async function rewardChangeNotifications(now: Date) {
   // Never allowed to take the whole list down: any problem reading the log just leaves these lines out
@@ -1549,7 +1549,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       orderBy: { createdAt: 'desc' },
     });
   } catch {
-    // Gracefully degrade — schedule notifications simply won't appear
+    // Gracefully degrade, schedule notifications simply won't appear
   }
 
   let pendingDisputes: any[] = [];
@@ -1559,9 +1559,9 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       include: { customer: { select: { name: true, phone: true } }, store: { select: { name: true } } },
       orderBy: { createdAt: 'desc' },
     });
-  } catch { /* Gracefully degrade — dispute notifications simply won't appear */ }
+  } catch { /* Gracefully degrade, dispute notifications simply won't appear */ }
 
-  // Each request-type query degrades independently — one failing query no
+  // Each request-type query degrades independently, one failing query no
   // longer takes the other two down with it (previously a single shared
   // try/catch dropped all three on any one failure).
   const [pendingStoreAlerts, pendingProductRequests, pendingStockRequests] = await Promise.all([
@@ -1614,7 +1614,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
         id: `invoice-paid-${period}`,
         type: 'BILLING',
         category: 'billing',
-        title: `Invoice Paid - ${monthName}`,
+        title: `Invoice paid: ${monthName}`,
         message: `$${total.toFixed(2)} platform fee has been settled. Download your invoice for records.`,
         createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
         isRead: true,
@@ -1630,7 +1630,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
         id: `invoice-due-${period}`,
         type: 'BILLING',
         category: 'billing',
-        title: `Invoice Due - ${monthName}`,
+        title: `Invoice due: ${monthName}`,
         message: `$${total.toFixed(2)} in platform fees outstanding across ${storeCount} store${storeCount !== 1 ? 's' : ''}.`,
         createdAt: new Date(y, m, 1).toISOString(),
         isRead: false,
@@ -1680,7 +1680,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     });
   }
 
-  // Schedule notifications — pending shift requests
+  // Schedule notifications, pending shift requests
   const SHIFT_TYPE_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
   for (const req of pendingShiftRequests) {
     const dateStr = new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: STORE_TIMEZONE });
@@ -1691,8 +1691,8 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       type: 'SCHEDULE',
       category: 'scheduling',
       title: isTimeOff
-        ? `Time Off Request - ${req.employee.name}`
-        : `Extra Shift Request - ${req.employee.name}`,
+        ? `Time off request: ${req.employee.name}`
+        : `Extra shift request: ${req.employee.name}`,
       message: isTimeOff
         ? `${req.employee.name} requested time off on ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: "${req.notes}"` : ''}`
         : `${req.employee.name} wants to fill in on ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: "${req.notes}"` : ''}`,
@@ -1712,7 +1712,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       id: `dispute-${d.id}`,
       type: 'DISPUTE',
       category: 'disputes',
-      title: `Missing-Points Report - ${d.customer?.name || d.customer?.phone}`,
+      title: `Missing-points report: ${d.customer?.name || d.customer?.phone}`,
       message: `${d.description} (${d.store?.name || 'Unknown store'})`,
       createdAt: d.createdAt.toISOString(),
       isRead: false,
@@ -1727,7 +1727,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       id: `emp-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Store Alert - ${r.submitterName || 'Employee'}`,
+      title: `Store alert: ${r.submitterName || 'Employee'}`,
       message: `${r.notes || alertWords(r.type)} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -1742,7 +1742,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       id: `product-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Product Request - "${r.productName}"`,
+      title: `Product request: "${r.productName}"`,
       message: `${r.customer?.name || r.customer?.phone} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -1757,7 +1757,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
       id: `stock-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Stock Request - ${r.submittedBy?.name || 'Employee'}`,
+      title: `Stock request: ${r.submittedBy?.name || 'Employee'}`,
       message: `${r.lines.length} item${r.lines.length !== 1 ? 's' : ''} requested at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -1774,7 +1774,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
   res.json({ success: true, data: await withSharedReads(notifications) });   // read by any HQ admin, on any computer
 }
 
-// DevAdmin — platform-owner notification feed
+// DevAdmin, platform-owner notification feed
 export async function getDevAdminNotifications(_req: AuthRequest, res: Response) {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -1880,7 +1880,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
         id: `dev-paid-${period}`,
         type: 'REVENUE',
         category: 'billing',
-        title: `Payment Received - ${monthName}`,
+        title: `Payment received: ${monthName}`,
         message: `$${total.toFixed(2)} in platform fees collected across ${info.stores.size} store${info.stores.size !== 1 ? 's' : ''}.`,
         createdAt: info.paidAt ?? new Date(y, m, 1).toISOString(),
         isRead: true,
@@ -1896,7 +1896,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
         id: `dev-due-${period}`,
         type: 'REVENUE',
         category: 'billing',
-        title: `Payment Pending - ${monthName}`,
+        title: `Payment pending: ${monthName}`,
         message: `$${total.toFixed(2)} outstanding from ${info.unpaidStores.size} store${info.unpaidStores.size !== 1 ? 's' : ''}. Mark as paid once received.`,
         createdAt: new Date(y, m, 1).toISOString(),
         isRead: false,
@@ -1941,7 +1941,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
     });
   }
 
-  // Schedule requests — same as SuperAdmin sees
+  // Schedule requests, same as SuperAdmin sees
   const SHIFT_TYPE_LABELS: Record<string, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
   for (const req of pendingShiftRequests) {
     const dateStr = new Date(req.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: STORE_TIMEZONE });
@@ -1951,7 +1951,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `shift-request-${req.id}`,
       type: 'SCHEDULE',
       category: 'scheduling',
-      title: isTimeOff ? `Time Off Request - ${req.employee.name}` : `Extra Shift Request - ${req.employee.name}`,
+      title: isTimeOff ? `Time off request: ${req.employee.name}` : `Extra shift request: ${req.employee.name}`,
       message: isTimeOff
         ? `${req.employee.name} requested time off for ${dateStr} (${shiftLabel} shift) at ${req.store.name}.${req.notes ? ` Note: ${req.notes}` : ''}`
         : `${req.employee.name} wants to pick up the ${shiftLabel} shift on ${dateStr} at ${req.store.name}.${req.notes ? ` Note: ${req.notes}` : ''}`,
@@ -1971,7 +1971,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `dispute-${d.id}`,
       type: 'DISPUTE',
       category: 'disputes',
-      title: `Missing-Points Report - ${d.customer?.name || d.customer?.phone}`,
+      title: `Missing-points report: ${d.customer?.name || d.customer?.phone}`,
       message: `${d.description} (${d.store?.name || 'Unknown store'})`,
       createdAt: d.createdAt.toISOString(),
       isRead: false,
@@ -1986,7 +1986,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `emp-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Store Alert - ${r.submitterName || 'Employee'}`,
+      title: `Store alert: ${r.submitterName || 'Employee'}`,
       message: `${r.notes || alertWords(r.type)} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -2001,7 +2001,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `product-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Product Request - "${r.productName}"`,
+      title: `Product request: "${r.productName}"`,
       message: `${r.customer?.name || r.customer?.phone} at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -2016,7 +2016,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
       id: `stock-request-${r.id}`,
       type: 'REQUEST',
       category: 'requests',
-      title: `Stock Request - ${r.submittedBy?.name || 'Employee'}`,
+      title: `Stock request: ${r.submittedBy?.name || 'Employee'}`,
       message: `${r.lines.length} item${r.lines.length !== 1 ? 's' : ''} requested at ${r.store.name}`,
       createdAt: r.createdAt.toISOString(),
       isRead: false,
@@ -2196,7 +2196,7 @@ export async function getAnalytics(req: AuthRequest, res: Response) {
     }
 
     // Fill quiet days with zeros so a $0 day reads as a $0 day instead of a line skipping over it. Only the
-    // displayed (current) period — in "range" mode fromDate/toDate also cover the earlier comparison period,
+    // displayed (current) period, in "range" mode fromDate/toDate also cover the earlier comparison period,
     // which has no chart of its own here.
     for (let key = storeDateKey(displayFrom), last = storeDateKey(displayTo), guard = 0; key <= last && guard < 400; key = addStoreDays(key, 1), guard++) {
       if (!byDate[key]) byDate[key] = { date: key, transactions: 0, purchaseVolume: 0, pointsAwarded: 0, redemptions: 0, redeemedAmount: 0, devCut: 0 };
@@ -2365,7 +2365,7 @@ const gasPriceSchema = z.object({
 });
 
 /**
- * PATCH /stores/:storeId/gas-prices — SuperAdmin or StoreManager. A price that is already the saved price changes nothing: no write, no message to the
+ * PATCH /stores/:storeId/gas-prices, SuperAdmin or StoreManager. A price that is already the saved price changes nothing: no write, no message to the
  * store's staff, no line in customers' inboxes (a double click, or saving the form without touching a box, used to send them all again). Each real change
  * is an Activity Log entry with the old and new price.
  */
@@ -2386,7 +2386,7 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
   });
   if (!before) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
 
-  // Each commodity tracks its own updatedAt — a diesel-only edit must not
+  // Each commodity tracks its own updatedAt, a diesel-only edit must not
   // make mobile's "change needed" indicator blink for gas too, and vice versa.
   const now = new Date();
   const updateData: Record<string, unknown> = {};
@@ -2447,8 +2447,8 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
   // Push + in-app → employees only (they update pump displays; managers don't need push)
   sendPushToStoreEmployees(
     storeId,
-    `⛽ Gas Prices Updated - ${store.name}`,
-    `${priceText} - update pump display now`,
+    `⛽ Gas prices updated: ${store.name}`,
+    `${priceText}. Update the pump display now.`,
     'GAS_PRICE_UPDATE',
     gasPriceUrlEmployee(),
   );
@@ -2469,7 +2469,7 @@ export async function updateGasPrices(req: AuthRequest, res: Response) {
   res.json({ success: true, data: store, changed: true });
 }
 
-// STORE_MANAGER+ (own store) or SUPER_ADMIN+ (any store) — standing order instructions
+// STORE_MANAGER+ (own store) or SUPER_ADMIN+ (any store), standing order instructions
 const orderInstructionsSchema = z.object({
   instructions: z.string().trim().max(300).nullable(),
 });
@@ -2490,7 +2490,7 @@ export async function updateOrderInstructions(req: AuthRequest, res: Response) {
   res.json({ success: true, data: store });
 }
 
-/** GET /stores/gas-prices — all authenticated users (for home screen display) */
+/** GET /stores/gas-prices, all authenticated users (for home screen display) */
 export async function getAllGasPrices(_req: AuthRequest, res: Response) {
   const stores = await prisma.store.findMany({
     where: { isActive: true },
@@ -2514,7 +2514,7 @@ export async function getAllGasPrices(_req: AuthRequest, res: Response) {
 
 // ─── Cashback-to-Sales Health (DevAdmin only) ──────────────────────────────────
 
-// Same value as CASHBACK_RATE_WARN (config/constants.ts) by coincidence, not by reference —
+// Same value as CASHBACK_RATE_WARN (config/constants.ts) by coincidence, not by reference , 
 // that one caps a single transaction at grant time; this one flags a 30-day aggregate trend.
 // Keep them as separate constants even if one changes.
 const CASHBACK_HEALTH_WARN = 0.075;
