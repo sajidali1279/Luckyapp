@@ -36,7 +36,7 @@ import { customerSearchWhere } from '../utils/customerSearch';
 import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { useLots, voidSaleLots, expiredPartOfSale, expirySummary, lotsMatch, undoExpiry } from '../utils/pointLots';
 import { UNFINISHED, SHOWN, AWAITING_DECISION, NOT_A_SALE, cancelUnfinished } from '../utils/unfinishedSales';
-import { canUseStore } from '../utils/storeAccess';
+import { canUseStore, usableStoreIds } from '../utils/storeAccess';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
 const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
@@ -1111,19 +1111,24 @@ export async function getStoreHealth(_req: AuthRequest, res: Response) {
 export async function getTransactionsPendingCount(req: AuthRequest, res: Response) {
   const user = req.user!;
 
-  const storeIds = hasMinRole(user.role, Role.SUPER_ADMIN)
-    ? (await prisma.store.findMany({ where: { isActive: true }, select: { id: true } })).map((s) => s.id)
-    : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+  // Every store the person can review: HQ and a chain-wide manager all open stores, any other manager their own (2026-10-31: a
+  // chain-wide manager's badge counted only the stores they were assigned to)
+  const storeIds = await usableStoreIds(user.id, user.role);
 
   if (storeIds.length === 0) {
-    res.json({ success: true, data: { count: 0 } });
+    res.json({ success: true, data: { count: 0, byStore: {} } });
     return;
   }
 
-  const count = await prisma.pointsTransaction.count({
+  // byStore: how many wait at each store, for the store picker a manager with several stores gets on Transactions
+  const rows = await prisma.pointsTransaction.groupBy({
+    by: ['storeId'],
     where: { storeId: { in: storeIds }, ...AWAITING_DECISION, isTestData: false },
+    _count: { _all: true },
   });
-  res.json({ success: true, data: { count } });
+  const byStore = Object.fromEntries(rows.map((r) => [r.storeId, r._count._all]));
+  const count = rows.reduce((n, r) => n + r._count._all, 0);
+  res.json({ success: true, data: { count, byStore } });
 }
 
 // GET /points/customer-info/:qrCode, cashier fetches customer tier + benefit status before choosing action

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useSearchParams, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { pointsApi, storesApi } from '../services/api';
+import { pointsApi, storesApi, chatApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import api from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
@@ -195,17 +195,33 @@ export default function Transactions() {
     enabled: isSuperAdmin,
   });
 
-  // For StoreManager: auto-select their store
+  // A store manager's stores (a chain-wide manager: every open store), and how many sales wait at each. A manager with more than one
+  // store used to be shown only the first one, so sales held at the others were never reviewed here (2026-10-31): they now get a
+  // store picker, and the page opens on a store that has sales waiting.
+  const { data: myStoresData } = useQuery({
+    queryKey: ['chat-stores'],
+    queryFn: () => chatApi.getMyStores(),
+    enabled: !isSuperAdmin,
+  });
+  const myStores: { id: string; name: string; city?: string }[] = myStoresData?.data?.data || [];
+  const { data: waitingData } = useQuery({
+    queryKey: ['tx-waiting-by-store'],
+    queryFn: () => pointsApi.getPendingCount(),
+    enabled: !isSuperAdmin && myStores.length > 1,
+    refetchInterval: 60_000,
+  });
+  const waitingAt: Record<string, number> = waitingData?.data?.data?.byStore || {};
   useEffect(() => {
     if (isSuperAdmin) return; // SuperAdmin starts with "All Stores"
-    if (selectedStore) return;
-    if (user?.storeIds?.length) {
-      setSelectedStore(user.storeIds[0]);
-    } else {
-      const stores = storesData?.data?.data || [];
-      if (stores.length) setSelectedStore(stores[0].id);
+    if (myStores.length === 0) {
+      if (!selectedStore && user?.storeIds?.length) setSelectedStore(user.storeIds[0]);
+      return;
     }
-  }, [storesData, user, selectedStore, isSuperAdmin]);
+    if (selectedStore && myStores.some((st) => st.id === selectedStore)) return;
+    if (myStores.length > 1 && !waitingData) return;   // wait for the counts, to open on a store with sales waiting
+    setSelectedStore((myStores.find((st) => (waitingAt[st.id] ?? 0) > 0) ?? myStores[0]).id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myStores.length, waitingData, user, selectedStore, isSuperAdmin]);
 
   // Needs review is a queue: everything still waiting, whatever its date (the sidebar badge counts it that way), so it ignores the
   // date range; with a range, held sales older than a month were counted on the badge but never listed (2026-10-25)
@@ -244,6 +260,7 @@ export default function Transactions() {
     qc.invalidateQueries({ queryKey: ['all-transactions'] });
     qc.invalidateQueries({ queryKey: ['transactions'] });
     qc.invalidateQueries({ queryKey: ['admin-badge-counts'] });
+    qc.invalidateQueries({ queryKey: ['tx-waiting-by-store'] });
   }
 
   const rejectMutation = useMutation({
@@ -773,6 +790,14 @@ export default function Transactions() {
             {stores.map((store: any) => (
               <option key={store.id} value={store.id}>{store.name}</option>
             ))}
+          </select>
+        )}
+        {!isSuperAdmin && myStores.length > 1 && (
+          <select aria-label="Store" style={s.select} value={selectedStore} onChange={(e) => changeStore(e.target.value)}>
+            {myStores.map((store) => {
+              const waiting = waitingAt[store.id] ?? 0;
+              return <option key={store.id} value={store.id}>{store.name}{waiting > 0 ? ` (${waiting} waiting)` : ''}</option>;
+            })}
           </select>
         )}
 
