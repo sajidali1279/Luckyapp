@@ -432,7 +432,7 @@ export default function RewardsScreen() {
 
   const allItems: any[] = catalogData?.data?.data || [];
 
-  // Derive filter tabs from live data — new categories appear automatically
+  // Derive filter tabs from live data, new categories appear automatically
   const categoryKeys = Array.from(new Set(allItems.map((i: any) => i.category).filter(Boolean))) as string[];
   const categories = [
     { key: 'ALL', label: t('customerRewards.allCategoriesLabel'), emoji: '🏷️', color: COLORS.secondary },

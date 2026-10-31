@@ -42,7 +42,7 @@ function useDismissedNoticeIds() {
 }
 
 // Accepts either one store (e.g. ChatScreen's currently-selected store) or
-// every store an employee is assigned to (e.g. the home screen) — a
+// every store an employee is assigned to (e.g. the home screen), a
 // multi-store employee's relevant notices aren't all scoped to storeIds[0].
 // '*' takes every notice the server sent (it already sends only the caller's stores and role): the home screens use it
 type StoreIdInput = string | (string | null | undefined)[] | null | undefined;

@@ -33,7 +33,7 @@ import StoreChips, { startStore } from '../../components/StoreChips';
 
 // This file indexes SHIFT_LABELS/SHIFT_TIMES with untyped strings from API
 // responses (e.g. req.shiftType), so both are re-typed loosely here rather
-// than with the shared module's literal ShiftKey union — the values still
+// than with the shared module's literal ShiftKey union, the values still
 // come from one source of truth, only the local type is widened.
 const SHIFT_LABELS: Record<string, string> = SHIFT_LABELS_TYPED;
 const SHIFT_TIMES: Record<string, string> = {

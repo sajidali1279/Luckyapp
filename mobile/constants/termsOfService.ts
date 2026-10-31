@@ -1,4 +1,4 @@
-export const TERMS_OF_SERVICE = `# Lucky Stop Loyalty App - Terms of Service
+export const TERMS_OF_SERVICE = `# Lucky Stop Loyalty App: Terms of Service
 
 **Effective Date:** June 1, 2026
 **Last Updated:** May 30, 2026
@@ -93,7 +93,7 @@ New customers may be eligible for a welcome bonus, subject to employee confirmat
 
 ## 11. Rating System
 
-Following qualifying transactions, you may be prompted to rate your experience (1–5). Ratings are anonymous to individual employees and must be submitted in good faith. Submitting false or malicious ratings violates these Terms.
+Following qualifying transactions, you may be prompted to rate your experience (1 to 5). Ratings are anonymous to individual employees and must be submitted in good faith. Submitting false or malicious ratings violates these Terms.
 
 ---
 
@@ -210,7 +210,7 @@ These Terms constitute the entire agreement between you and Lucky Stop regarding
 
 ## 28. Contact Information
 
-**Lucky Stop - Legal / Support**
+**Lucky Stop: Legal / Support**
 Email: support@luckystop.cliffindus.com
 Response Time: 10 business days
 

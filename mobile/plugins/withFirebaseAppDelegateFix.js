@@ -5,7 +5,7 @@ const fs = require('fs');
 // "..."` in AppDelegate.swift to know where to insert `FirebaseApp.configure()`.
 // Expo SDK 55's new AppDelegate.swift template dropped that line entirely
 // (bootstrapping moved to ExpoReactNativeFactory/factory.startReactNative), so
-// the anchor never matches. The plugin doesn't fail the build — it just logs
+// the anchor never matches. The plugin doesn't fail the build, it just logs
 // "Unable to determine correct Firebase insertion point... Skipping Firebase
 // addition." and moves on, so every prebuild silently ships an app that never
 // calls FirebaseApp.configure(). Every Firebase call then throws "No Firebase
@@ -21,7 +21,7 @@ module.exports = function withFirebaseAppDelegateFix(config) {
       if (language !== 'swift') return config; // fix targets the SDK 55 Swift template specifically
 
       let contents = fs.readFileSync(appDelegatePath, 'utf8');
-      if (contents.includes('FirebaseApp.configure()')) return config; // already patched — idempotent across rebuilds
+      if (contents.includes('FirebaseApp.configure()')) return config; // already patched, idempotent across rebuilds
 
       if (!contents.includes('import FirebaseCore')) {
         contents = contents.replace('import React\n', 'import React\nimport FirebaseCore\n');
@@ -30,7 +30,7 @@ module.exports = function withFirebaseAppDelegateFix(config) {
       const anchor = 'let delegate = ReactNativeDelegate()';
       if (!contents.includes(anchor)) {
         throw new Error(
-          'withFirebaseAppDelegateFix: expected anchor not found in AppDelegate.swift — ' +
+          'withFirebaseAppDelegateFix: expected anchor not found in AppDelegate.swift: ' +
           'the Expo template changed again. Update this plugin instead of letting Firebase ' +
           'silently fail to initialize.'
         );

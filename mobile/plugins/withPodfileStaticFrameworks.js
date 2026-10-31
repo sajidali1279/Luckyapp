@@ -10,7 +10,7 @@ const path = require('path');
 // to succeed but not enough for the generated Swift header to be found at
 // compile time, causing "FirebaseAuth-Swift.h file not found" in RNFBAuth.
 // `use_frameworks! :linkage => :static` is React Native Firebase's documented
-// fix — static framework linkage (not dynamic) stays compatible with the New
+// fix, static framework linkage (not dynamic) stays compatible with the New
 // Architecture. expo prebuild regenerates the Podfile from scratch every
 // time, so this has to be injected via a plugin rather than hand-edited.
 module.exports = function withPodfileStaticFrameworks(config) {
@@ -27,12 +27,12 @@ module.exports = function withPodfileStaticFrameworks(config) {
         // same xcodebuild invocation as the app target. The CI archive step
         // forces CODE_SIGN_STYLE=Manual with a specific provisioning profile
         // via command-line overrides, which Xcode applies to *all* targets in
-        // the build graph — but library/framework pod targets (e.g.
+        // the build graph, but library/framework pod targets (e.g.
         // ExpoKeepAwake, libwebp) don't support provisioning profiles and
         // fail with "does not support provisioning profiles". Pods don't need
         // their own signature; they're signed as part of the final app
         // bundle. This has to live in the same post_install hook the
-        // template already declares — a second post_install block would
+        // template already declares, a second post_install block would
         // silently replace it (CocoaPods only keeps the last one).
         //
         // Frameworks also break RNFBApp: its headers pull in React-Core

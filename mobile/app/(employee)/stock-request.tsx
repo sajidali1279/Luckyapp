@@ -494,7 +494,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
                         {line.status === 'REJECTED' && line.rejectionReason && (
                           <Text style={m.rejText}>
                             {line.rejectionReason && REJECTION_LABEL_KEYS[line.rejectionReason] ? t(REJECTION_LABEL_KEYS[line.rejectionReason]) : line.rejectionReason}
-                            {line.rejectionNote ? ` - ${line.rejectionNote}` : ''}
+                            {line.rejectionNote ? `: ${line.rejectionNote}` : ''}
                           </Text>
                         )}
                       </View>

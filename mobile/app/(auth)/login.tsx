@@ -112,7 +112,7 @@ export default function LoginScreen() {
     }
   }, [otp]);
 
-  // Auto-submit login PIN once 4 digits are entered (login mode only — register mode has Confirm PIN after it)
+  // Auto-submit login PIN once 4 digits are entered (login mode only, register mode has Confirm PIN after it)
   useEffect(() => {
     if (screen === 'login' && pin.length === 4 && !loading) {
       Keyboard.dismiss();
@@ -143,7 +143,7 @@ export default function LoginScreen() {
       disableDeviceFallback: false,
     });
     if (!result.success) return;
-    // Biometric passed — retrieve saved PIN and auto-login
+    // Biometric passed, retrieve saved PIN and auto-login
     const savedPin = await getBiometricPin();
     if (!savedPin) {
       Toast.show({ type: 'error', text1: t('auth.bioIncomplete'), text2: t('auth.signInWithPinOnce') });

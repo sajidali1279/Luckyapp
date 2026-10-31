@@ -70,7 +70,7 @@ export default function EmployeeHomeScreen() {
   const storeId = useCurrentStoreId(allStoresWithPrices, user?.storeIds);
   const currentStorePrices = allStoresWithPrices.find((s: any) => s.id === storeId);
 
-  // Staggered entrance — 6 sections fade + slide up on mount
+  // Staggered entrance, 6 sections fade + slide up on mount
   const fadeAnims = useRef([...Array(6)].map(() => new Animated.Value(0))).current;
   const slideAnims = useRef([...Array(6)].map(() => new Animated.Value(18))).current;
   useEffect(() => {
@@ -136,7 +136,7 @@ export default function EmployeeHomeScreen() {
     return () => clearInterval(id);
   }, [shiftTasks.length]);
 
-  // Same query key as (employee)/_layout.tsx's tab badge — shares one cache
+  // Same query key as (employee)/_layout.tsx's tab badge, shares one cache
   // entry, and now covers every store the employee is assigned to rather
   // than just storeIds[0].
   const { data: pendingData } = useQuery({

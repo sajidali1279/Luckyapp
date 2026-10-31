@@ -90,7 +90,7 @@ export default function FriendsBoard({ onScroll, scrollEventThrottle }: { onScro
                     const name = r.name ?? t('friends.aFriend');
                     return (
                       <View key={i} style={[s.row, r.isMe && s.rowMe]} accessible accessibilityLabel={`${r.rank ? `#${r.rank}, ` : ''}${name}${r.isMe ? ` ${t('friends.you')}` : ''}, ${value(r.value)}`}>
-                        <Text style={s.rank}>{r.rank ? `#${r.rank}` : '-'}</Text>
+                        <Text style={s.rank}>{r.rank ? `#${r.rank}` : ''}</Text>
                         <View style={[s.avatar, r.isMe && { backgroundColor: COLORS.primary }]}><Text style={[s.avatarText, r.isMe && { color: '#fff' }]}>{initials(r.name)}</Text></View>
                         <Text style={[s.name, r.isMe && s.nameMe]} numberOfLines={1}>{name}{r.isMe ? ` ${t('friends.you')}` : ''}</Text>
                         <Text style={[s.value, r.isMe && s.nameMe]}>{value(r.value)}</Text>

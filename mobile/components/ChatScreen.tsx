@@ -191,7 +191,7 @@ export default function ChatScreen() {
       }
       setPollOffline(false);
     } catch {
-      // Don't toast on every failed 8s poll — that would be constant spam while
+      // Don't toast on every failed 8s poll, that would be constant spam while
       // offline. Show a persistent inline banner instead, cleared on the next
       // successful poll.
       setPollOffline(true);
@@ -272,7 +272,7 @@ export default function ChatScreen() {
       setLastTimestamp((prev) => prev ?? newMsg.createdAt);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } catch (err: any) {
-      // Keep the typed text in the input — don't make the cashier retype a lost message (and a photo or PDF goes back above the box)
+      // Keep the typed text in the input, don't make the cashier retype a lost message (and a photo or PDF goes back above the box)
       if (tempId && file) { setMessages((prev) => prev.filter((m) => m.id !== tempId)); setPending(file); setInputText(text); }
       Toast.show({ type: 'error', text1: t('sharedChat.sendErrorTitle'), text2: err.response?.data?.error || t('sharedChat.sendErrorDefault') });
     }

@@ -16,7 +16,7 @@ export default function EmployeeLayout() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
 
-  // Across every store the employee is assigned to, not just their first —
+  // Across every store the employee is assigned to, not just their first , 
   // otherwise a multi-store employee's badge only ever reflected one store.
   const { data: hotFoodCountData } = useQuery({
     queryKey: ['hot-food-pending-count'],

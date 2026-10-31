@@ -34,7 +34,7 @@ import FocusStatusBar from '../../components/FocusStatusBar';
 
 // This file indexes SHIFT_COLORS/SHIFT_LABELS/SHIFT_TIMES with untyped
 // strings from API responses, so all three are re-typed loosely here rather
-// than with the shared module's literal ShiftKey union — the values still
+// than with the shared module's literal ShiftKey union, the values still
 // come from one source of truth, only the local type is widened.
 const SHIFT_COLORS: Record<string, string> = SHIFT_COLORS_TYPED;
 const SHIFT_LABELS: Record<string, string> = SHIFT_LABELS_TYPED;
@@ -58,7 +58,7 @@ export default function ScheduleScreen() {
   const [selectedDayKey, setSelectedDayKey] = useState(todayKey);
 
   // Requesting time off for next Monday while today is Sunday needs next
-  // week's dates on screen — the strip below only ever showed the current
+  // week's dates on screen, the strip below only ever showed the current
   // Mon-Sun week, so there was no way to reach that day at all.
   function goThisWeek() {
     setWeekOffset(0);

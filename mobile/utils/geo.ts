@@ -21,11 +21,11 @@ export interface StoreWithLocation {
 
 /**
  * Resolves which of an employee's assigned stores they're currently working
- * at. Employees assigned to just one store never touch Location at all —
+ * at. Employees assigned to just one store never touch Location at all , 
  * there's no ambiguity to resolve, so no permission prompt, no GPS wait.
  * Multi-store employees get GPS-nearest-of-their-own-stores, falling back to
  * their first assigned store on denied permission, GPS failure, or no
- * assigned store within range — never blocks, never leaves the caller with
+ * assigned store within range, never blocks, never leaves the caller with
  * no store id at all as long as they have at least one assignment.
  */
 export function useCurrentStoreId(
@@ -70,7 +70,7 @@ export function useCurrentStoreId(
   return resolvedId;
 }
 
-/** True while `updatedAt` is within the last `windowMinutes` — re-checks
+/** True while `updatedAt` is within the last `windowMinutes`, re-checks
  * every few seconds so a "change needed" indicator settles on its own once
  * the window elapses, without needing the screen to be reopened. */
 export function useRecentlyChanged(updatedAt: string | Date | null | undefined, windowMinutes = 10): boolean {

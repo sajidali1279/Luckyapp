@@ -73,7 +73,7 @@ export default function ManagerHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
-  // Staggered entrance — 4 groups fade + slide up on mount
+  // Staggered entrance, 4 groups fade + slide up on mount
   const fadeAnims  = useRef([...Array(4)].map(() => new Animated.Value(0))).current;
   const slideAnims = useRef([...Array(4)].map(() => new Animated.Value(18))).current;
   useEffect(() => {

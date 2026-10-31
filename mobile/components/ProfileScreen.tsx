@@ -290,11 +290,11 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   }
 
   const storeCount = user?.storeIds?.length ?? 0;
-  // Role isn't repeated here — it's already shown as the colored pill badge
+  // Role isn't repeated here, it's already shown as the colored pill badge
   // in the header above, so a plain-text row here would be pure duplication.
   const staffInfoRows: InfoRowDef[] = [
     { icon: <BuildingIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: t('profile.storeLabel'), value: storeCount > 0 ? t('profile.storeCount', { count: storeCount }) : t('profile.noStoreAssigned') },
-    { icon: <PhoneIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: t('profile.phoneLabel'), value: user?.phone || ' - ' },
+    { icon: <PhoneIcon size={18} color={COLORS.textMuted} strokeWidth={1.75} />, label: t('profile.phoneLabel'), value: user?.phone || t('profile.notSet') },
   ];
 
   const customerInfoRows: InfoRowDef[] = [

@@ -1,4 +1,4 @@
-# Lucky Stop Platform - Super Administrator User Manual
+# Lucky Stop Platform: Super Administrator User Manual
 
 **Role:** Super Admin (Lucky Stop HQ)
 **Access Level:** All stores, all features (except billing management)
@@ -11,17 +11,17 @@
 
 1. [Your Role and Responsibilities](#1-your-role-and-responsibilities)
 2. [Accessing the Platform](#2-accessing-the-platform)
-3. [Dashboard - Overview](#3-dashboard--overview)
+3. [Dashboard: Overview](#3-dashboard--overview)
 4. [Managing Stores](#4-managing-stores)
 5. [Managing Staff Accounts](#5-managing-staff-accounts)
 6. [Managing Customers](#6-managing-customers)
-7. [Transactions - Viewing and Auditing](#7-transactions--viewing-and-auditing)
+7. [Transactions: Viewing and Auditing](#7-transactions--viewing-and-auditing)
 8. [Offers Management](#8-offers-management)
 9. [Banners Management](#9-banners-management)
 10. [Redemption Catalog Management](#10-redemption-catalog-management)
-11. [Notifications - Broadcasting Messages](#11-notifications--broadcasting-messages)
+11. [Notifications: Broadcasting Messages](#11-notifications--broadcasting-messages)
 12. [Leaderboard](#12-leaderboard)
-13. [Careers - Job Applications](#13-careers--job-applications)
+13. [Careers: Job Applications](#13-careers--job-applications)
 14. [Business Promotions](#14-business-promotions)
 15. [Billing and Invoices](#15-billing-and-invoices)
 16. [Cashback Rates](#16-cashback-rates)
@@ -32,7 +32,7 @@
 21. [Requests Hub & Procurement](#21-requests-hub--procurement)
 22. [Daily Reports](#22-daily-reports)
 23. [Daily Tasks](#23-daily-tasks)
-24. [Common Tasks - Quick Reference](#24-common-tasks--quick-reference)
+24. [Common Tasks: Quick Reference](#24-common-tasks--quick-reference)
 25. [Troubleshooting](#25-troubleshooting)
 
 ---
@@ -61,7 +61,7 @@ As a **Super Administrator**, you are a Lucky Stop headquarters-level user with 
 
 1. Open a web browser and navigate to: **admin.luckystop.cliffindus.com**
 2. Enter your registered phone number.
-3. You will receive a One-Time Password (OTP) via SMS - enter it to log in.
+3. You will receive a One-Time Password (OTP) via SMS: enter it to log in.
 4. Enter your 4-digit PIN.
 5. You are now logged into the Admin Portal.
 
@@ -90,21 +90,21 @@ Most administrative functions are only available through the web portal.
 
 Every page in the Admin Portal shares the same bar across the top:
 
-- **Menu button** - on a phone or narrow window, opens the navigation as a slide-out; on a wider screen, collapses or expands the sidebar so a long list of stores can fit.
-- **Page title** - shows which page you are on, so a screenshot or a shared screen is unambiguous.
-- **Search** - click Search, or press **Ctrl+K** (**Cmd+K** on a Mac) from anywhere in the admin. It opens a box where you can:
+- **Menu button**: on a phone or narrow window, opens the navigation as a slide-out; on a wider screen, collapses or expands the sidebar so a long list of stores can fit.
+- **Page title**: shows which page you are on, so a screenshot or a shared screen is unambiguous.
+- **Search**: click Search, or press **Ctrl+K** (**Cmd+K** on a Mac) from anywhere in the admin. It opens a box where you can:
   - Type a customer's name or phone number, or a staff member's name or phone number, to jump straight to their record, already searched down to them and highlighted.
   - Type a page name ("billing", "rates", "staff") to jump to that page.
   - See your most recently opened pages under **Recent** when the box is empty.
   - Move through the results with the arrow keys and press Enter, or click a result with the mouse. Escape closes the box without going anywhere.
   - Highlight a page and press **Shift+Enter** to pin or unpin it, instead of opening it. A pinned page shows in its own **Pinned** group at the top of the sidebar, above the usual menu groups, so it is one click away no matter which page you are on. Click the small unpin control next to it in the sidebar, or highlight it in the search box again and press Shift+Enter, to remove it. Up to 8 pages can be pinned at once.
-- **Bell** - shows how many things across the whole admin need your attention (pending and flagged sales, disputes, requests, unread support tickets, and more), even on a page that has none of its own. Click it to see the list and jump straight to any item.
-- **Refresh** - reloads the numbers on the page you are viewing, and the bar says how long ago the page last updated ("Updated just now", "Updated 2m ago").
-- **Recent** - the sidebar also keeps a short list of the pages you opened most recently through Search, above the usual menu groups, so a page you just left stays close by.
+- **Bell**: shows how many things across the whole admin need your attention (pending and flagged sales, disputes, requests, unread support tickets, and more), even on a page that has none of its own. Click it to see the list and jump straight to any item.
+- **Refresh**: reloads the numbers on the page you are viewing, and the bar says how long ago the page last updated ("Updated just now", "Updated 2m ago").
+- **Recent**: the sidebar also keeps a short list of the pages you opened most recently through Search, above the usual menu groups, so a page you just left stays close by.
 
 ---
 
-## 3. Dashboard - Overview
+## 3. Dashboard: Overview
 
 The Dashboard is the first screen you see after logging in. It provides a real-time snapshot of platform-wide activity.
 
@@ -152,7 +152,7 @@ The sidebar navigation on the left side of the Admin Portal contains links to al
 | **Hot Food** | Hot food menu/order oversight (SuperAdmin only) |
 | **Chat** | Store chat monitoring |
 | **Scheduling** | Schedule overview |
-| **Requests** | Unified hub - Alerts, Stock, Product requests |
+| **Requests** | Unified hub: Alerts, Stock, Product requests |
 | **Order List** | Store procurement order lists |
 | **Scanned Products** | Chain-wide barcode → product catalog |
 | **Careers** | Job applications |
@@ -167,7 +167,7 @@ The sidebar navigation on the left side of the Admin Portal contains links to al
 | **Docs** | Legal documents, manuals, technical docs |
 | **Profile** | Your account settings |
 
-### 3.3 Analytics - Trends and Comparisons
+### 3.3 Analytics: Trends and Comparisons
 
 Analytics (Dev Admin only) is where you look past today's snapshot and see how the platform is trending: transactions, purchase volume, cashback awarded and your platform fee, over a range of days, with every store or drilled into one.
 
@@ -335,7 +335,7 @@ A customer is never erased: Delete removes their name, phone number and personal
 
 ### 6.1 Viewing All Customers
 
-Navigate to **Customers** in the sidebar. The header counts every customer (not only the page you are on): **Total**, **Active**, **Restricted** and the **Credits Out** (unspent credit) - these four numbers are always for the whole customer base, even while a filter narrows what the cards below show. Each customer is a card, 50 to a page, showing:
+Navigate to **Customers** in the sidebar. The header counts every customer (not only the page you are on): **Total**, **Active**, **Restricted** and the **Credits Out** (unspent credit): these four numbers are always for the whole customer base, even while a filter narrows what the cards below show. Each customer is a card, 50 to a page, showing:
 - Name and phone number, written as (940) 290-2772, with a small **TEST** tag next to the phone if it looks like one of the team's test numbers (a 111 to 555 area code).
 - The **credit balance**, the number of approved **transactions**, the **total spent** and the **joined** date (a store date in Central time, with the year).
 - **Restricted** in words for a restricted account, followed by the reason you gave.
@@ -392,7 +392,7 @@ There is no PIN reset on the Customers page. A customer who forgets their PIN us
 
 ### 6.6 Reviewing Disputes
 
-Customers can report missing or incorrect points two ways in the App: a generic "Report Missing Points" form, or (for a specific past purchase) a **Dispute This Transaction** button on that transaction's detail view - both land in the same queue here. A store manager sees the reports for their store in the mobile app and can decide them there too; both use the same rules.
+Customers can report missing or incorrect points two ways in the App: a generic "Report Missing Points" form, or (for a specific past purchase) a **Dispute This Transaction** button on that transaction's detail view: both land in the same queue here. A store manager sees the reports for their store in the mobile app and can decide them there too; both use the same rules.
 
 1. Navigate to **Customers** and click the **Disputes** tab. The tab shows how many reports are pending, whatever filter is on.
 2. Filter by **Store** and **Status** (Pending, Approved, Rejected). A list cut at its limit says how many reports there are in all.
@@ -407,14 +407,14 @@ A dispute tapped from a push notification scrolls to and highlights the matching
 
 ---
 
-## 7. Transactions - Viewing and Auditing
+## 7. Transactions: Viewing and Auditing
 
 ### 7.1 All Transactions
 
 Navigate to **Transactions** in the sidebar. It opens on **Needs review**: every flagged sale, then every sale still waiting for a receipt, the same set the sidebar badge counts. Filters:
 - **Store, Status, Category, date range.**
-- **Search** - a customer's or employee's name or phone, or a transaction's own ID. Useful for "a customer says they got no points" without paging through the list.
-- **More filters** - an amount range, and a checkbox to include test data (left out by default, so the numbers here always match Analytics and billing).
+- **Search**: a customer's or employee's name or phone, or a transaction's own ID. Useful for "a customer says they got no points" without paging through the list.
+- **More filters**: an amount range, and a checkbox to include test data (left out by default, so the numbers here always match Analytics and billing).
 
 Every filter is kept in the page's address, so a particular view (a store's flagged sales, one customer's history) can be bookmarked or sent to someone else.
 
@@ -424,7 +424,7 @@ Every filter is kept in the page's address, so a particular view (a store's flag
 |---|---|
 | **Approved** | Transaction processed and points credited. |
 | **Pending** | Transaction initiated but not yet fully processed (rare). |
-| **Flagged** | System flagged this transaction for potential issues - requires manager review. |
+| **Flagged** | System flagged this transaction for potential issues: requires manager review. |
 | **Rejected** | Transaction was rejected by a store manager. Points not credited. |
 
 ### 7.3 Reviewing a Transaction
@@ -432,7 +432,7 @@ Every filter is kept in the page's address, so a particular view (a store's flag
 Click **Details** on any row, or highlight it and press **Enter** (see 7.6), to open a panel with:
 - The full sale (amount, category, points, store, employee, time).
 - The receipt photo, if one has been uploaded.
-- That customer's last sales, and that employee's recent grants - so a decision rarely needs another window.
+- That customer's last sales, and that employee's recent grants, so a decision rarely needs another window.
 
 A flagged sale can be approved or rejected from inside the panel as well as from its row. Approve is disabled, and says why, until a receipt has been uploaded.
 
@@ -457,10 +457,10 @@ Sometimes an already-approved sale turns out to be wrong (the wrong customer was
 
 1. Open the sale's **Details** panel.
 2. Click **Void this sale**.
-3. Type a reason. Unlike Reject, a reason is **required** here — it is kept in the Activity Log.
+3. Type a reason. Unlike Reject, a reason is **required** here: it is kept in the Activity Log.
 4. Confirm.
 
-The credited points are taken back from the customer's balance immediately, even if they have already spent some or all of it — their balance can go negative, and the confirmation says so when it does. The customer is notified. This cannot be undone, so it is worth being sure before confirming.
+The credited points are taken back from the customer's balance immediately, even if they have already spent some or all of it, so their balance can go negative, and the confirmation says so when it does. The customer is notified. This cannot be undone, so it is worth being sure before confirming.
 
 ### 7.8 Sales That Expire on Their Own
 
@@ -593,7 +593,7 @@ Navigate to **Catalog** in the sidebar. You will see all catalog items, active a
 
 ---
 
-## 11. Notifications - Broadcasting Messages
+## 11. Notifications: Broadcasting Messages
 
 ### 11.1 Sending a Push Notification
 
@@ -634,7 +634,7 @@ Each email says what happened and has a button into the right page. A **morning 
 - Keep titles short (under 50 characters for full display on most devices).
 - Keep the body informative and action-oriented.
 - Always send yourself a test first, on an iPhone as well as an Android phone if you can.
-- Avoid sending multiple broadcasts on the same day - notification fatigue reduces engagement.
+- Avoid sending multiple broadcasts on the same day: notification fatigue reduces engagement.
 
 ---
 
@@ -658,7 +658,7 @@ Use this to recognize top-performing staff.
 
 ---
 
-## 13. Careers - Job Applications
+## 13. Careers: Job Applications
 
 ### 13.1 Viewing Applications
 
@@ -726,7 +726,7 @@ For billing questions or disputes, contact the Developer (DevAdmin) via the Supp
 
 ### 15.4 Monitoring the Monthly Billing Job (Dev Admin only)
 
-At the top of **Monthly Bills**, a line shows whether the automatic monthly billing job is actually running: "✅ Billing job last ran Xm ago" in green when it is healthy, or "⚠️ ... that is longer than expected" in amber if it has gone quiet longer than its hourly check should allow (the server may be asleep or down). It also says how many of today's active stores already have a bill for the last finished month, and names any that do not - a store with no sales that month legitimately has nothing to bill, so this is informational, not necessarily a problem.
+At the top of **Monthly Bills**, a line shows whether the automatic monthly billing job is actually running: "✅ Billing job last ran Xm ago" in green when it is healthy, or "⚠️ ... that is longer than expected" in amber if it has gone quiet longer than its hourly check should allow (the server may be asleep or down). It also says how many of today's active stores already have a bill for the last finished month, and names any that do not: a store with no sales that month legitimately has nothing to bill, so this is informational, not necessarily a problem.
 
 The moment the job makes a store's bill, that store's own Super Admin is emailed the invoice automatically. This does not replace the **Notify Super Admin** button on this tab, which resends every record for a chosen period (including already-paid ones) on demand.
 
@@ -754,11 +754,11 @@ There is nothing to type for a new release. **Billing** → **Platform Settings*
 
 Navigate to **Cashback Rates** in the sidebar (Reports). The page shows:
 
-**Tier table** - for Bronze, Silver, Gold, Diamond and Platinum: the cashback percentage earned on every purchase, an optional gas rate in cents per gallon, and the **points to reach the tier** in a half-year (100 points = $1 of cashback, so 5,000 points is $50.00). Under the table it says who last changed a rate and what they changed.
+**Tier table**: for Bronze, Silver, Gold, Diamond and Platinum: the cashback percentage earned on every purchase, an optional gas rate in cents per gallon, and the **points to reach the tier** in a half-year (100 points = $1 of cashback, so 5,000 points is $50.00). Under the table it says who last changed a rate and what they changed.
 
-**Category bonus table** - a permanent extra percentage for a product category (for example Groceries +1%). The columns to the right show the total for each tier. A total over 7.5% is marked with a warning (those sales are held for a manager to review) and a total over 10% is marked as the most a sale can ever pay.
+**Category bonus table**: a permanent extra percentage for a product category (for example Groceries +1%). The columns to the right show the total for each tier. A total over 7.5% is marked with a warning (those sales are held for a manager to review) and a total over 10% is marked as the most a sale can ever pay.
 
-**Gas & Diesel Mode** - gas and diesel are paid either as a percent of the sale or as a flat number of cents per gallon for each tier. In cents-per-gallon mode Gold, Diamond and Platinum also get a fixed extra of 5, 7 and 10 cents a gallon (set in the system, not on this page, and not part of the platform fee). The table shows what a $40 fill pays each tier, extra included.
+**Gas & Diesel Mode**: gas and diesel are paid either as a percent of the sale or as a flat number of cents per gallon for each tier. In cents-per-gallon mode Gold, Diamond and Platinum also get a fixed extra of 5, 7 and 10 cents a gallon (set in the system, not on this page, and not part of the platform fee). The table shows what a $40 fill pays each tier, extra included.
 
 ### 16.2 Changing a rate
 
@@ -900,7 +900,7 @@ Your open and resolved tickets appear in the Support inbox. You will receive an 
 
 ## 20. Important Notices
 
-Notices are pinned announcements shown at the top of every affected store's staff chat - for time-sensitive HQ messages (e.g. a health inspection, a system outage window) that shouldn't get lost in normal chat traffic.
+Notices are pinned announcements shown at the top of every affected store's staff chat: for time-sensitive HQ messages (e.g. a health inspection, a system outage window) that shouldn't get lost in normal chat traffic.
 
 ### 20.1 Posting a Notice
 
@@ -908,7 +908,7 @@ Notices are pinned announcements shown at the top of every affected store's staf
 2. Click **New Notice**.
 3. Fill in:
    - **Title** (max 100 characters).
-   - **Body** - the message text.
+   - **Body**: the message text.
    - **Target:** All Stores, or a specific store.
    - **End Date:** when the notice stops showing (defaults to one week out).
 4. Click **Post Notice**.
@@ -921,7 +921,7 @@ Each notice shows a status: **Active**, **Expired** (past its end date), or **De
 
 ## 21. Requests Hub & Procurement
 
-This is where store-level inventory operations - stock alerts, item requests, and order lists - are coordinated across the chain.
+This is where store-level inventory operations: stock alerts, item requests, and order lists: are coordinated across the chain.
 
 ### 21.1 The Requests Hub
 
@@ -931,7 +931,7 @@ Navigate to **Requests** in the sidebar (badge shows total pending count). It ha
 - **Stock:** Employee item requests awaiting a manager decision (Accept → added to the store's order list, or Deny).
 - **Product:** Customer product requests forwarded from the App.
 
-Select a store from the store picker at the top, or choose **All Stores** to see pending stock requests across every location at once (the All Stores view only applies to the Stock tab - Alerts and Product require a single store to be selected).
+Select a store from the store picker at the top, or choose **All Stores** to see pending stock requests across every location at once (the All Stores view only applies to the Stock tab: Alerts and Product require a single store to be selected).
 
 ### 21.2 Order Lists
 
@@ -946,7 +946,7 @@ Navigate to **Order List** in the sidebar. Each store maintains one active procu
 Navigate to **Scanned Products** in the sidebar. This is the chain-wide barcode → product name/category/brand catalog that gets built up automatically as managers scan items while building order lists on mobile.
 
 - **Search** by product name.
-- **+ Add Product** to seed or correct an entry manually (barcode, name, category, brand) without waiting for it to be scanned first - saving the same barcode again updates the existing entry rather than creating a duplicate.
+- **+ Add Product** to seed or correct an entry manually (barcode, name, category, brand) without waiting for it to be scanned first: saving the same barcode again updates the existing entry rather than creating a duplicate.
 - **Delete** to remove an incorrect entry; the next scan of that barcode will prompt for a fresh name.
 
 ### 21.4 Shelf/Price Labels
@@ -962,8 +962,8 @@ Navigate to **Labels** in the sidebar. This is a chain-wide catalog of printable
 - **Removing an item** asks first and says how many stores hold it and what goes with it (print records, store prices, sale prices). It cannot be undone, and the Activity Log keeps what it was.
 - **Search and select-all** to work through a batch quickly.
 - **Printing, on the By Store tab, asks "Did the labels print?"** after the print window opens. The label stays in that store's queue until you say yes; a cancelled print, a jam or a closed window leaves it queued instead of quietly disappearing. If the price changed at the moment of printing, that label is not marked and the box says which one and why.
-- **A store's own price ("sale price")** is set from By Store: **Set Price** for one item, or type it right in the print tray for a one-off (the tray price only changes what is on the paper; it does not become the store's price unless you press **Save as this store's price**). An **end date** is optional — the price goes back to the base price by itself at the end of that day (Texas time), and correcting the price (say $1.99 to $1.79) keeps that end date rather than clearing it. A sale that has ended is treated as over the moment you look at it, not just after the next cleanup run.
-- **Coverage's "Push to All"** asks first, names every store it will add to and what each gets, and warns when the item has no price yet. A label added this way and never printed at a store can be taken back out with **Remove** (on that store's row in By Store, or on its chip in Coverage) — this only works before the label has ever printed there; once printed, it stays on record.
+- **A store's own price ("sale price")** is set from By Store: **Set Price** for one item, or type it right in the print tray for a one-off (the tray price only changes what is on the paper; it does not become the store's price unless you press **Save as this store's price**). An **end date** is optional: the price goes back to the base price by itself at the end of that day (Texas time), and correcting the price (say $1.99 to $1.79) keeps that end date rather than clearing it. A sale that has ended is treated as over the moment you look at it, not just after the next cleanup run.
+- **Coverage's "Push to All"** asks first, names every store it will add to and what each gets, and warns when the item has no price yet. A label added this way and never printed at a store can be taken back out with **Remove** (on that store's row in By Store, or on its chip in Coverage); this only works before the label has ever printed there; once printed, it stays on record.
 - **Barcodes on the printed sheet are drawn by the admin itself**, not fetched from an outside website, so a store's network cannot block them.
 - **Print for All Stores (Coverage)** is one combined print job, but each store's sheets are preceded by a heading page with that store's name and how many labels follow, so the stack can be split apart correctly afterward.
 - **Every checkbox, list and store picker on this page has a name a screen reader can read**, and the amber "needs attention" text and table headers read at a clear contrast.
@@ -989,7 +989,7 @@ Navigate to **Daily Tasks** in the sidebar to configure the checklist items empl
 
 ---
 
-## 24. Common Tasks - Quick Reference
+## 24. Common Tasks: Quick Reference
 
 | Task | Where to Go | Steps |
 |---|---|---|
@@ -1043,7 +1043,7 @@ Navigate to **Daily Tasks** in the sidebar to configure the checklist items empl
 - If it's a store-specific offer, confirm the customer is shopping at that store.
 
 **Problem: A store manager says they can't see their order list.**
-- Confirm the store actually has an open order list - the Order Lists tab flags stores with none.
+- Confirm the store actually has an open order list: the Order Lists tab flags stores with none.
 - Confirm the manager's account is still assigned to that store under Staff.
 
 **Problem: The Activity Log shows an unauthorized action.**

@@ -19,7 +19,7 @@ import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTit
 import { useEngagement } from '../../hooks/useEngagement';
 
 type Fuel = 'GAS' | 'DIESEL';
-const price = (n: number | null | undefined) => (n == null ? '-' : `$${Number(n).toFixed(2)}`);
+const price = (n: number | null | undefined, none: string) => (n == null ? none : `$${Number(n).toFixed(2)}`);
 
 export default function GasAlertsScreen() {
   const { t } = useTranslation();
@@ -81,7 +81,7 @@ export default function GasAlertsScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-              <Text style={s.muted}>{t('engagement.gasNow', { price: price(current) })}</Text>
+              <Text style={s.muted}>{t('engagement.gasNow', { price: price(current, t('profile.notSet')) })}</Text>
               <Text style={s.label}>{t('engagement.gasMax')}</Text>
               <View style={s.row}>
                 <Text style={s.dollar}>$</Text>
@@ -97,7 +97,7 @@ export default function GasAlertsScreen() {
               <View key={a.id} style={[s.card, s.alertRow]}>
                 <View style={{ flex: 1 }}>
                   <Text style={s.alertTitle}>{nameOf(a.storeId)}</Text>
-                  <Text style={s.muted}>{t('engagement.alertLine', { fuel: a.fuel === 'GAS' ? t('engagement.gas') : t('engagement.diesel'), price: price(a.maxPrice) })}</Text>
+                  <Text style={s.muted}>{t('engagement.alertLine', { fuel: a.fuel === 'GAS' ? t('engagement.gas') : t('engagement.diesel'), price: price(a.maxPrice, t('profile.notSet')) })}</Text>
                 </View>
                 <TouchableOpacity onPress={() => remove.mutate(a.id)} disabled={remove.isPending} style={s.del} accessibilityRole="button" accessibilityLabel={t('engagement.alertRemove')}>
                   <Text style={s.delText}>{t('engagement.alertRemove')}</Text>

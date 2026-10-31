@@ -271,7 +271,7 @@ interface ItemRowProps {
 function ItemRow({ item, onEdit, onRemove, onMarkOrdered, onMarkReceived, selectMode, selected, onToggleSelect, onStartSelect }: ItemRowProps) {
   const { t } = useTranslation();
   const isUrgent = item.priority === 'URGENT' && item.status === 'PENDING';
-  // Backend only allows updateItem while PENDING (orderList.controller.ts) — don't offer
+  // Backend only allows updateItem while PENDING (orderList.controller.ts), don't offer
   // an edit that will fail on save for ORDERED/RECEIVED items.
   const canEdit = item.status === 'PENDING';
   const canRemove = item.status !== 'RECEIVED';
@@ -411,7 +411,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
   const [note,          setNote]          = useState('');
   const inputRef = useRef<any>(null);
 
-  // Quick Pad — top-16 most ordered items for this store
+  // Quick Pad, top-16 most ordered items for this store
   const { data: quickData } = useQuery({
     queryKey: ['quick-items-mobile', storeId],
     queryFn: () => orderListApi.getQuickItems(storeId),
@@ -1508,7 +1508,7 @@ export default function ManagerOrderListScreen() {
   const categories: string[] = catData?.data?.data || [];
 
   // Pull-to-refresh on the active list should refresh everything else this
-  // screen shows too, not just the list itself — stores/categories/the
+  // screen shows too, not just the list itself, stores/categories/the
   // QuickAddBar's own most-ordered-items cache all had long staleTimes with
   // no refresh path of their own.
   function handleRefresh() {
@@ -2320,7 +2320,7 @@ const t = StyleSheet.create({
   },
   statusLetter: { fontSize: 11, fontWeight: '800' },
 
-  // Add row inputs (legacy — kept so StyleSheet compile doesn't fail; unused in UI)
+  // Add row inputs (legacy, kept so StyleSheet compile doesn't fail; unused in UI)
   addInput: {
     backgroundColor: '#fff', borderWidth: 1, borderColor: '#E5E7EB',
     borderRadius: 8, paddingHorizontal: 8, paddingVertical: 7,
@@ -2344,7 +2344,7 @@ const qa = StyleSheet.create({
     shadowOpacity: 0.06, shadowRadius: 8, elevation: 8,
   },
 
-  // Suggestion dropdown — appears at top of wrapper (above inputs)
+  // Suggestion dropdown, appears at top of wrapper (above inputs)
   suggBox: {
     borderBottomWidth: 1, borderBottomColor: '#F1F3F5',
     backgroundColor: '#fff',

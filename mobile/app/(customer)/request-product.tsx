@@ -238,7 +238,7 @@ export default function RequestProductScreen() {
                   accessibilityLabel={selectedStore ? t('customerRequestProduct.changeStoreA11y', { store: selectedStore.name }) : t('customerRequestProduct.selectStoreA11y')}
                 >
                   <Text style={[styles.storePickerText, !selectedStore && styles.placeholder]}>
-                    {selectedStore ? `${selectedStore.name} - ${selectedStore.city}, ${selectedStore.state}` : t('customerRequestProduct.selectStorePlaceholder')}
+                    {selectedStore ? `${selectedStore.name} (${selectedStore.city}, ${selectedStore.state})` : t('customerRequestProduct.selectStorePlaceholder')}
                   </Text>
                   <ChevronRightIcon size={16} color="#adb5bd" strokeWidth={1.5} />
                 </TouchableOpacity>

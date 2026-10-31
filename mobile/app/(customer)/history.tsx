@@ -89,7 +89,7 @@ export default function HistoryScreen() {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     } else if (!hasNextPage) {
-      // Paged through everything and it's still not there — give up gracefully.
+      // Paged through everything and it's still not there, give up gracefully.
       setSearchId(null);
       router.setParams({ highlightId: '' });
     }

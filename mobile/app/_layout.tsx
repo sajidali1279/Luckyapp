@@ -49,7 +49,7 @@ export default function RootLayout() {
 
     async function navigate() {
       if (!user) {
-        // Check if first-time user — show welcome/onboarding
+        // Check if first-time user, show welcome/onboarding
         const onboardingDone = await AsyncStorage.getItem('onboarding_complete');
         if (!onboardingDone) {
           router.replace('/(auth)/welcome');
@@ -59,7 +59,7 @@ export default function RootLayout() {
         return;
       }
 
-      // Logged in — check if role tour has been shown
+      // Logged in, check if role tour has been shown
       const tourSeen = await AsyncStorage.getItem(`tour_seen_${user.role}`);
       if (!tourSeen) {
         router.replace('/role-tour');
@@ -79,7 +79,7 @@ export default function RootLayout() {
       // landing route above with wherever that notification actually points.
       // getLastNotificationResponseAsync() returns the OS's cached last-tapped
       // response and does NOT consume it, so we must explicitly clear it
-      // afterward — otherwise a later re-run of this effect (user object
+      // afterward, otherwise a later re-run of this effect (user object
       // changes on login/profile update/token refresh) or a later unrelated
       // relaunch would silently replay this same stale destination.
       const lastResponse = await Notifications.getLastNotificationResponseAsync();

@@ -30,7 +30,7 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-// Each template maps to a CSS class (below) that carries its whole look —
+// Each template maps to a CSS class (below) that carries its whole look , 
 // border style, corner radius, stripe placement, and (for two of them) font
 // family all vary per template, not just color, so they read as genuinely
 // different label styles at a glance rather than the same shape recolored.
@@ -67,7 +67,7 @@ function renderLabel(label: PrintableLabel): string {
   const barcode = label.barcode?.trim();
   const deal = label.dealText?.trim();
   // A long name gets a smaller font tier instead of being clamped to fewer
-  // lines — the name always keeps its full 2 lines, it just shrinks to fit.
+  // lines, the name always keeps its full 2 lines, it just shrinks to fit.
   const nameClass = deal
     ? (label.productName.length > 30 ? 'label-name has-deal-long' : 'label-name has-deal')
     : 'label-name';
@@ -141,8 +141,8 @@ const letterLayout = (s: SheetSettings) => {
 const LABEL_STYLE = `
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    /* Every label is the exact same fixed physical size — matching the
-       sheet's actual die-cut label size (1in x 2.625in) — regardless of
+    /* Every label is the exact same fixed physical size, matching the
+       sheet's actual die-cut label size (1in x 2.625in), regardless of
        whether it carries a barcode. Content is organized to fit inside,
        never the other way around. */
     .label {
@@ -160,11 +160,11 @@ const LABEL_STYLE = `
       -webkit-print-color-adjust: exact;
     }
     /* Templates: each gets a genuinely different frame, not just a
-       different color — border style, corner radius, stripe placement, and
+       different color, border style, corner radius, stripe placement, and
        (for two of them) font family all vary, so they read as distinct
        label styles at a glance. Every one still gets its contrast from
        text/border color only, never a background fill (see the rule
-       above) — the outline-based double borders below are exempt from
+       above), the outline-based double borders below are exempt from
        that concern since outline-color, like border-color, prints by
        default even with background graphics off. */
     .tmpl-classic { border: 2px solid #1a1a1a; border-top: 6px solid #b91c1c; }
@@ -221,7 +221,7 @@ const LABEL_STYLE = `
       flex-direction: column;
       justify-content: space-between;
       /* stretch (not flex-start) so children get a real width to shrink
-         against — flex-start sizes children to fit-content, which makes
+         against, flex-start sizes children to fit-content, which makes
          max-width/ellipsis/line-clamp below resolve against a circular,
          effectively-unconstrained width and never actually engage. */
       align-items: stretch;
@@ -239,7 +239,7 @@ const LABEL_STYLE = `
       overflow: hidden;
       word-break: break-word;
     }
-    /* The name always keeps its full 2 lines — a deal shrinks the font
+    /* The name always keeps its full 2 lines, a deal shrinks the font
        instead of cutting a line off, so long names still read in full. */
     .label-name.has-deal { font-size: 5.5pt; }
     .label-name.has-deal-long { font-size: 5pt; }
@@ -268,7 +268,7 @@ const LABEL_STYLE = `
       font-size: 6pt;
     }
     /* Deal text is meant to grab attention on its own, not read like a
-       caption under the price — bold, in the template's bright accent
+       caption under the price, bold, in the template's bright accent
        color, with a border-only "badge" outline (never a background fill,
        so it stays legible with print backgrounds off by default). */
     .price-deal {

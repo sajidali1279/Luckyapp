@@ -5,7 +5,7 @@ const fs = require('fs');
 // AppDelegate's open-url handler so the reCAPTCHA-fallback redirect (used
 // when phone-auth can't verify silently via APNs) isn't forwarded to Expo
 // Router's deep-link handler as an unwanted navigation. That plugin only
-// knows how to patch Objective-C AppDelegates — on a Swift AppDelegate (this
+// knows how to patch Objective-C AppDelegates, on a Swift AppDelegate (this
 // project's template since SDK 55) it throws a hard build-breaking error
 // (`// TODO: Support Swift`), so it's deliberately not registered anywhere in
 // this app's plugins array. This is the Swift equivalent, ported from
@@ -22,12 +22,12 @@ module.exports = function withIosCaptchaOpenUrlFix(config) {
       if (language !== 'swift') return config; // fix targets the Swift template specifically
 
       let contents = fs.readFileSync(appDelegatePath, 'utf8');
-      if (contents.includes('firebaseauth')) return config; // already patched — idempotent across rebuilds
+      if (contents.includes('firebaseauth')) return config; // already patched, idempotent across rebuilds
 
       const anchor = 'return super.application(app, open: url, options: options) || RCTLinkingManager.application(app, open: url, options: options)';
       if (!contents.includes(anchor)) {
         throw new Error(
-          'withIosCaptchaOpenUrlFix: expected anchor not found in AppDelegate.swift — ' +
+          'withIosCaptchaOpenUrlFix: expected anchor not found in AppDelegate.swift: ' +
           'the Expo template changed again. Update this plugin instead of shipping the ' +
           'reCAPTCHA-redirect navigation glitch unfixed.'
         );

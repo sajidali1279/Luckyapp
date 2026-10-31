@@ -35,7 +35,7 @@ export default function PulseHighlight({
     <Animated.View
       style={[
         style,
-        // Only merge the pulse overlay in while active — `style` often carries the
+        // Only merge the pulse overlay in while active, `style` often carries the
         // item's own borderWidth/borderColor/shadowOpacity/elevation (card shadows,
         // hairline borders), and those must render untouched the rest of the time.
         // Interpolated values already settle back to 0/transparent by the time the

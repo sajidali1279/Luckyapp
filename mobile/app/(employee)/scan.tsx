@@ -63,7 +63,7 @@ const CATEGORIES: { value: Category; labelKey: string; icon: string }[] = [
 ];
 
 // Tier-based pts multiplier: rate% × 100 (e.g. Bronze 1% → ×1, Gold 3% → ×3)
-// Fallback multiplier — overridden by live tier rates fetched on mount
+// Fallback multiplier, overridden by live tier rates fetched on mount
 const TIER_PTS_MULT_FALLBACK: Record<string, number> = { BRONZE: 1, SILVER: 2, GOLD: 3, DIAMOND: 4, PLATINUM: 5 };
 
 
@@ -276,7 +276,7 @@ export default function EmployeeScanScreen() {
   // Store gas prices + enabled categories (fetched once on mount)
   const [storeGasPrices, setStoreGasPrices] = useState<Record<string, { gasPricePerGallon?: number; dieselPricePerGallon?: number; enabledCategories?: string[] }>>({});
   // Raw store list (with lat/lon) for GPS-resolving which of the employee's
-  // assigned stores they're currently at — see useCurrentStoreId below.
+  // assigned stores they're currently at, see useCurrentStoreId below.
   const [allStoresRaw, setAllStoresRaw] = useState<any[]>([]);
   // Tier rates: cashbackRate (%) and gasCentsPerGallon per tier
   const [tierRates, setTierRates] = useState<Record<string, { cashbackRate: number; gasCentsPerGallon: number | null }>>({});
@@ -284,7 +284,7 @@ export default function EmployeeScanScreen() {
   const [categoryRates, setCategoryRates] = useState<Record<string, number>>({});
 
   // Every transaction below (points grant, redemption, tier claim, catalog
-  // redemption, welcome bonus) is recorded against this store — GPS-resolved
+  // redemption, welcome bonus) is recorded against this store, GPS-resolved
   // for multi-store employees so it reflects the store they're actually
   // standing in, not just their first assignment.
   const storeId = useCurrentStoreId(allStoresRaw, user?.storeIds);
@@ -477,7 +477,7 @@ export default function EmployeeScanScreen() {
     setConfirmedWelcomeBonus(null);
   }
 
-  // Warn before discarding entered amounts/line items/receipt photo — a stray tap
+  // Warn before discarding entered amounts/line items/receipt photo, a stray tap
   // shouldn't silently lose real work. No confirmation needed right after a scan,
   // since nothing has been entered yet at that point.
   function confirmReset() {
@@ -500,7 +500,7 @@ export default function EmployeeScanScreen() {
 
   async function handleQrScan({ data }: { data: string }) {
     if (scanned) return;
-    // Validate UUID format — customer QR codes are plain UUIDs
+    // Validate UUID format, customer QR codes are plain UUIDs
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!UUID_RE.test(data)) {
       Toast.show({ type: 'error', text1: t('employeeScan.notLuckyStopQr') });
@@ -525,7 +525,7 @@ export default function EmployeeScanScreen() {
       setPendingRedemptions(pendingList);
       setWelcomeBonus(wb);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      // Grant Points is by far the most common action — skip straight to it unless
+      // Grant Points is by far the most common action, skip straight to it unless
       // something else needs the cashier's attention first (a pending redemption to
       // confirm, an unconfirmed welcome bonus, or an available tier benefit). Those
       // still land on mode-select so nothing gets missed. "Other options" on the
@@ -649,7 +649,7 @@ export default function EmployeeScanScreen() {
       }
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Keep the captured photo — most failures here are transient network/server
+      // Keep the captured photo, most failures here are transient network/server
       // errors unrelated to the photo itself, so let the cashier just retry the
       // upload instead of forcing a full camera retake.
       Toast.show({ type: 'error', text1: t('employeeScan.uploadFailedRetry'), text2: err.response?.data?.error });
@@ -1238,7 +1238,7 @@ export default function EmployeeScanScreen() {
                 <View style={[s.amountBox, { flex: 1, backgroundColor: '#f0f8f0', borderColor: '#2DC653' }]}>
                   <Text style={[s.gasUnit, { color: '#2DC653' }]}>{t('employeeScan.gal')}</Text>
                   <Text style={[s.amountInput, { fontSize: 28, color: validGallons ? '#1a7a1a' : COLORS.textMuted, textAlignVertical: 'center' }]}>
-                    {validGallons ? parsedGallons.toFixed(3) : ' - '}
+                    {validGallons ? parsedGallons.toFixed(3) : '0.000'}
                   </Text>
                 </View>
               </View>

@@ -1,6 +1,6 @@
 // Shared between (employee)/schedule.tsx and (manager)/schedule.tsx. The two
-// screens intentionally render shift times at different verbosity — Employee
-// has room for "6:00 am – 2:00 pm", Manager's denser layout uses "6am–2pm" —
+// screens intentionally render shift times at different verbosity, Employee
+// has room for "6:00 am – 2:00 pm", Manager's denser layout uses "6am–2pm" , 
 // but both derive from the same SHIFT_HOURS so a shift-time change only has
 // to happen in one place instead of two independently-maintained copies.
 import { COLORS } from '../constants';
@@ -26,7 +26,7 @@ export const SHIFT_ORDER: ShiftKey[] = ['OPENING', 'MIDDLE', 'CLOSING'];
 export const SHIFT_LABELS: Record<ShiftKey, string> = { OPENING: 'Opening', MIDDLE: 'Middle', CLOSING: 'Closing' };
 export const SHIFT_COLORS: Record<ShiftKey, string> = { OPENING: COLORS.accent, MIDDLE: COLORS.success, CLOSING: COLORS.secondary };
 
-// Canonical shift hours (24h clock) — the single source of truth for shift times.
+// Canonical shift hours (24h clock), the single source of truth for shift times.
 export const SHIFT_HOURS: Record<ShiftKey, { start: number; end: number }> = {
   OPENING: { start: 6, end: 14 },
   MIDDLE: { start: 10, end: 18 },

@@ -1,4 +1,4 @@
-// Mirrors admin's src/utils/labelStatus.ts — keep the five states in sync
+// Mirrors admin's src/utils/labelStatus.ts, keep the five states in sync
 // with the backend's printStatus() in labels.controller.ts.
 export type LabelPrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
 

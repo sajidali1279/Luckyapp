@@ -49,7 +49,7 @@ interface Label {
   createdByStoreId: string | null;
   updatedAt: string;
   // Only present in responses from getAllWithMyStore(storeId) when a
-  // storeId was actually supplied — absent (not just null) otherwise, e.g.
+  // storeId was actually supplied, absent (not just null) otherwise, e.g.
   // when no store has resolved yet. Always check truthiness, not `!== null`.
   myStoreLabel?: {
     id: string;
@@ -82,7 +82,7 @@ const STORE_ROW_CONCURRENCY = 6;
 // The order status filter chips appear in: the ones that ask for action come first.
 const STATUS_FILTER_ORDER: LabelPrintStatus[] = ['needs_reprint', 'new', 'needs_price', 'printed', 'not_added'];
 
-// Sentinel for the "Uncategorized" filter chip — distinct from `null`
+// Sentinel for the "Uncategorized" filter chip, distinct from `null`
 // (which means "no filter, show everything").
 const UNCATEGORIZED = '__uncategorized__';
 
@@ -476,7 +476,7 @@ export default function LabelsScreen() {
 
 
   // "Fill as you go": as the catalog grows, suggest matching product names
-  // from labels the chain has already created — picking one auto-fills the
+  // from labels the chain has already created, picking one auto-fills the
   // price too, so a repeat item takes one tap instead of full re-entry.
   // Only offered while creating (not editing) an existing label.
   const nameQuery = formProductName.trim().toLowerCase();
@@ -668,7 +668,7 @@ export default function LabelsScreen() {
   }
 
   // Used when a search for a barcode/name comes up empty everywhere in the
-  // catalog — skips the dedupe lookup above since we already know there's
+  // catalog, skips the dedupe lookup above since we already know there's
   // no match, and pre-fills whichever field the search term looks like.
   function openQuickAddFromSearch() {
     const term = searchTerm;
@@ -730,7 +730,7 @@ export default function LabelsScreen() {
     const wasCreate = !editingLabel;
     if (!productName || (!priceText && !priceLocked) || saving) return;
     setSaving(true);
-    // Silently submit a brand-new category for DevAdmin approval — same
+    // Silently submit a brand-new category for DevAdmin approval, same
     // pipeline BarcodeScannerModal/Order List/Stock Request already feed.
     if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
       orderCategoriesApi.submitNew(category).catch(() => {});
@@ -1160,7 +1160,7 @@ export default function LabelsScreen() {
 
       <Modal visible={!!priceSheetItem} animationType="fade" transparent onRequestClose={() => setPriceSheetItem(null)}>
         <KeyboardSafe style={s.addSheetOverlay}>
-          {/* Same keyboardHeight safety net as the main form sheet above —
+          {/* Same keyboardHeight safety net as the main form sheet above , 
               this card has no maxHeight cap of its own, and on a small phone
               the keyboard would otherwise cover the Confirm button. */}
           <View style={[s.addSheetCard, keyboardHeight > 0 && { maxHeight: screenHeight - keyboardHeight - insets.top - insets.bottom - 48 }]}>

@@ -21,7 +21,7 @@ interface Ad {
 const CARD_HEIGHT = 168;
 
 // A single featured local-business ad on Home, shown as a compact card that
-// flips (not scrolls) to reveal more detail — location + directions/website
+// flips (not scrolls) to reveal more detail, location + directions/website
 // live only on the back, so the front stays a clean teaser rather than a
 // wall of text. When there's no active ad, shows the "advertise your
 // business" entry point instead of an empty/flippable card.
@@ -67,7 +67,7 @@ export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
   const backOpacity = flipAnim.interpolate({ inputRange: [0, 0.5, 0.5, 1], outputRange: [0, 0, 1, 1] });
 
   // ad is guaranteed non-null here (the `if (!ad) return` above already
-  // handled that case) — TS just can't see that guarantee across these
+  // handled that case), TS just can't see that guarantee across these
   // nested function declarations, hence the assertions.
   function openDirections() {
     if (!ad!.location) return;

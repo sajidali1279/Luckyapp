@@ -44,7 +44,7 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Auto-handle 401 (token expired — log user out)
+// Auto-handle 401 (token expired, log user out)
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -544,7 +544,7 @@ export const receiptScanApi = {
 export const hotFoodApi = {
   // deals=1: this app knows deals with no drink ("2 corn dogs for $3.50", 2026-10-16); older apps are not sent them
   getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`, { params: { deals: 1 } }),
-  // Employee management view — legacy + catalog items merged with availability + source
+  // Employee management view, legacy + catalog items merged with availability + source
   getStoreAllItems: (storeId: string) => api.get(`/hot-food/store/${storeId}/all-items`),
   placeOrder:     (data: { storeId: string; items: ({ menuItemId: string; quantity: number } | { comboId: string; drink?: string; quantity: number })[]; note?: string; payWithPoints?: boolean; expectedTotal?: number }) =>
     api.post('/hot-food/orders', data),

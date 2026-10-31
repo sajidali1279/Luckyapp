@@ -70,7 +70,7 @@ export default function MarkdownView({ children }: Props) {
       i++; continue;
     }
 
-    // Empty line — skip
+    // Empty line, skip
     if (line.trim() === '') { i++; continue; }
 
     // Paragraph

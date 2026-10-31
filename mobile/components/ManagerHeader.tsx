@@ -27,7 +27,7 @@ interface ManagerHeaderProps {
 // Shared header for Manager-role screens. Centralizing this also fixes a
 // recurring bug where screens wrapped their whole body (light background) in
 // the top-inset SafeAreaView instead of just the colored header, leaving the
-// status-bar notch area the wrong color — here the SafeAreaView itself always
+// status-bar notch area the wrong color, here the SafeAreaView itself always
 // carries the managerPrimary background.
 export default function ManagerHeader({
   title, eyebrow, subtitle, size = 'md', showBack = false, icon, rightSlot,

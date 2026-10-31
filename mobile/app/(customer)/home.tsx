@@ -341,10 +341,10 @@ type PromoSlide = { id: PromoKind; bg: string; deco: string; eyebrow: string; he
 
 // bg is a soft tint and deco the accent (2026-10-12; they were full-colour blocks)
 const PROMO_SLIDES: PromoSlide[] = [
-  { id: 'cashback', bg: '#FEF2F2', deco: '#B91C1C', eyebrow: 'EARN CASH BACK',     headline: 'Every Visit Pays Off',          body: 'Get 1–5% back on every purchase - automatically added when the cashier scans your QR',  cta: 'View Earnings',  route: '/(customer)/history' },
-  { id: 'rewards',  bg: '#FFF7ED', deco: '#C2410C', eyebrow: 'REDEEM POINTS',     headline: 'Free Products Await You',      body: 'Trade your points for real in-store items - no catch, no extra purchase',     cta: 'Browse Rewards', route: '/(customer)/rewards' },
+  { id: 'cashback', bg: '#FEF2F2', deco: '#B91C1C', eyebrow: 'EARN CASH BACK',     headline: 'Every Visit Pays Off',          body: 'Get 1 to 5% back on every purchase, added automatically when the cashier scans your QR',  cta: 'View Earnings',  route: '/(customer)/history' },
+  { id: 'rewards',  bg: '#FFF7ED', deco: '#C2410C', eyebrow: 'REDEEM POINTS',     headline: 'Free Products Await You',      body: 'Trade your points for real in-store items: no catch, no extra purchase',     cta: 'Browse Rewards', route: '/(customer)/rewards' },
   { id: 'tiers',   bg: '#F5F3FF', deco: '#6D28D9', eyebrow: 'LOYALTY TIERS',     headline: 'Rise from Bronze to Platinum', body: 'Higher tier = higher cashback rate + free refills + gas bonuses. Climb every period', cta: 'My Status',      route: '/(customer)/profile' },
-  { id: 'network', bg: '#F0FDFA', deco: '#0F766E', eyebrow: '12 LOCATIONS',      headline: '1 Account. Every Location.',   body: 'Your balance and rewards follow you to any Lucky Stop - shop anywhere',       cta: null,             route: null },
+  { id: 'network', bg: '#F0FDFA', deco: '#0F766E', eyebrow: '12 LOCATIONS',      headline: '1 Account. Every Location.',   body: 'Your balance and rewards follow you to any Lucky Stop, so shop anywhere',       cta: null,             route: null },
 ];
 
 function promoIcon(kind: PromoKind, size: number, color = '#fff') {
@@ -683,7 +683,7 @@ function CustomerHomeScreen() {
   const sheetMaxHeight = windowHeight - insets.top - 24;
   const modalImageHeight = Math.min(190, windowHeight * 0.24);
 
-  // Staggered entrance — 7 sections fade + slide up on mount
+  // Staggered entrance, 7 sections fade + slide up on mount
   const fadeAnims = useRef([...Array(9)].map(() => new Animated.Value(0))).current;
   const slideAnims = useRef([...Array(9)].map(() => new Animated.Value(18))).current;
   useEffect(() => {
@@ -783,7 +783,7 @@ function CustomerHomeScreen() {
       (categoryEnabled(s, 'GAS') && s.gasPricePerGallon != null) ||
       (categoryEnabled(s, 'DIESEL') && s.dieselPricePerGallon != null)
   );
-  // When near a store — show only that store's prices. Otherwise show all.
+  // When near a store, show only that store's prices. Otherwise show all.
   const gasPrices: any[] = nearestStore
     ? storesWithPrices.filter((s: any) => s.id === nearestStore.id)
     : storesWithPrices;
@@ -867,7 +867,7 @@ function CustomerHomeScreen() {
   const catalogItems: any[] = catalogData?.data?.data ?? [];
 
   // Same query key as the Ads tab (published-promotions) so the two share
-  // one cached fetch — Home just features the single most recent one.
+  // one cached fetch, Home just features the single most recent one.
   const { data: promoData } = useQuery({
     queryKey: ['published-promotions'],
     queryFn: () => promotionsApi.getPublished(),
@@ -1536,7 +1536,7 @@ function CustomerHomeScreen() {
       <ReceiptPhotoCard />
 
       {/* ── Local Businesses (distinct from "Active Promotions" above, which
-          is Lucky Stop's own store offers — this is third-party local
+          is Lucky Stop's own store offers, this is third-party local
           business ads) ── */}
       <Animated.View style={{ opacity: fadeAnims[8], transform: [{ translateY: slideAnims[8] }] }}>
         <View style={styles.section}>
@@ -1638,7 +1638,7 @@ function CustomerHomeScreen() {
                     setPendingAgeGateStore(null);
                     setShow21Gate(false);
                   } catch {
-                    // silent — gate stays open, user can retry
+                    // silent, gate stays open, user can retry
                   } finally {
                     setConfirming21(false);
                   }

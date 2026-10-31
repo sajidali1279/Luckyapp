@@ -5,8 +5,8 @@ import { GasPumpIcon, TruckIcon } from './Icons';
 import { useRecentlyChanged } from '../utils/geo';
 import { useTranslation } from 'react-i18next';
 
-function fmtPrice(n: number | null | undefined) {
-  return n != null ? `$${n.toFixed(3)}` : '-';
+function fmtPrice(n: number) {
+  return `$${n.toFixed(3)}`;
 }
 
 function PriceRow({
@@ -39,7 +39,7 @@ function PriceRow({
             <Text style={s.changeTagText}>{t('gasPriceCard.changeNeeded')}</Text>
           </Animated.View>
         )}
-        <Text style={[s.price, changed && s.priceChanged]}>{fmtPrice(price)}/gal</Text>
+        <Text style={[s.price, changed && s.priceChanged]}>{price != null ? `${fmtPrice(price)}/gal` : t('profile.notSet')}</Text>
       </View>
     </View>
   );

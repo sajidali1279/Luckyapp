@@ -74,7 +74,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
   const [manualBarcode, setManualBarcode] = useState('');
   const manualInputRef = useRef<TextInput>(null);
 
-  // Naming/registration phase (unrecognized barcode) — same lightweight
+  // Naming/registration phase (unrecognized barcode), same lightweight
   // pattern as BarcodeScannerModal's "name this product" prompt.
   const [productName, setProductName] = useState('');
   const [category, setCategory] = useState('');
@@ -178,7 +178,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
     const cat = category.trim();
     if (!name || registering) return;
     setRegistering(true);
-    // Silently submit a brand-new category for DevAdmin approval — same
+    // Silently submit a brand-new category for DevAdmin approval, same
     // pipeline BarcodeScannerModal/Order List/Stock Request already feed.
     if (cat && !approvedCats.some(c => c.toLowerCase() === cat.toLowerCase())) {
       orderCategoriesApi.submitNew(cat).catch(() => {});

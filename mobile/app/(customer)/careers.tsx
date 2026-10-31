@@ -212,7 +212,7 @@ export default function CareersScreen() {
         ) : (
           openings.map(opening => {
             const meta = POSITION_META[opening.position] ?? { emoji: '💼', descKey: '' };
-            const location = opening.store ? `${opening.store.name} - ${opening.store.city}` : t('customerCareers.anyLocation');
+            const location = opening.store ? `${opening.store.name} (${opening.store.city})` : t('customerCareers.anyLocation');
             const positionLabelText = POSITION_LABEL_KEYS[opening.position] ? t(POSITION_LABEL_KEYS[opening.position]) : opening.position;
             const employTypeText = opening.employType === 'FULL_TIME' ? t('customerCareers.fullTime') : t('customerCareers.partTime');
             return (

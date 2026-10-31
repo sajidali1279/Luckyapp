@@ -90,13 +90,13 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
   const nameRef     = useRef<TextInput>(null);
   const manualInputRef = useRef<TextInput>(null);
 
-  // Manual entry — a fallback for a worn/damaged barcode, or just faster
+  // Manual entry, a fallback for a worn/damaged barcode, or just faster
   // than lining up the camera when the number's already visible/known.
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualBarcode,   setManualBarcode]   = useState('');
 
   // The camera fires onBarcodeScanned on every frame it can decode, not
-  // once per code — without a confirmation delay, a brief/incidental read
+  // once per code, without a confirmation delay, a brief/incidental read
   // (camera shake, a neighboring product's barcode drifting into frame)
   // gets acted on immediately. Require the same code to be read
   // consistently for SCAN_CONFIRM_DELAY_MS before it's accepted.
@@ -172,7 +172,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
     }, SCAN_CONFIRM_DELAY_MS);
   }
 
-  // ── Confirmed scan — actually look up/act on the code ───────────────────────
+  // ── Confirmed scan, actually look up/act on the code ───────────────────────
   async function handleScan({ data }: { data: string }) {
     if (phase !== 'scanning' || data === lastCode) return;
 
@@ -200,7 +200,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
         return;
       }
     } catch {
-      // Network error on lookup — don't silently drop to naming form,
+      // Network error on lookup, don't silently drop to naming form,
       // fall through to Open Food Facts instead
     }
 
@@ -269,7 +269,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
     const cat = category.trim();
     if (!name || saving) return;
     setSaving(true);
-    // Silently submit a brand-new category for DevAdmin approval — same
+    // Silently submit a brand-new category for DevAdmin approval, same
     // pipeline Order List/Stock Request already feed, so a category typed
     // here (from any caller of this modal, including Labels) doesn't
     // silently bypass approval.
@@ -447,7 +447,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
             )}
           </View>
 
-        /* ── Found — show details + qty input ────────────────────────────── */
+        /* ── Found, show details + qty input ────────────────────────────── */
         ) : phase === 'found' ? (
           <KeyboardSafe style={{ flex: 1 }}>
             <ScrollView
@@ -522,7 +522,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
             </ScrollView>
           </KeyboardSafe>
 
-        /* ── Naming — product not found anywhere ─────────────────────────── */
+        /* ── Naming, product not found anywhere ─────────────────────────── */
         ) : phase === 'naming' ? (
           <KeyboardSafe style={{ flex: 1 }}>
             <ScrollView

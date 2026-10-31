@@ -128,7 +128,7 @@ function ScanTab() {
   }
 
   // The camera fires onBarcodeScanned on every frame it can decode, not once
-  // per code — without a confirmation delay, a brief/incidental read (camera
+  // per code, without a confirmation delay, a brief/incidental read (camera
   // shake, a neighboring product's barcode drifting into frame) gets acted
   // on immediately. Require the same code to be read consistently for
   // SCAN_CONFIRM_DELAY_MS before it's accepted.
@@ -194,7 +194,7 @@ function ScanTab() {
       }
     } catch {}
 
-    // 3. Unknown — ask for name
+    // 3. Unknown, ask for name
     setNameInput('');
     setCatInput('');
     setPhase('needs_name');
@@ -425,7 +425,7 @@ function ManualTab() {
       setRecentItems(prev => [{ name: trimName, category: cat }, ...prev].slice(0, 30));
       setName('');
       setBarcode('');
-      // keep category — manager is likely batch-adding from the same section of their book
+      // keep category, manager is likely batch-adding from the same section of their book
       qc.invalidateQueries({ queryKey: ['catalog-list'] });
       nameRef.current?.focus();
     } catch (err: any) {

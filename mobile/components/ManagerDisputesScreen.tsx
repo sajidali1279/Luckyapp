@@ -278,7 +278,7 @@ export default function ManagerDisputesScreen() {
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
             onScrollToIndexFailed={(info) => {
-              // Item not measured yet (common right after mount) — retry once the layout settles.
+              // Item not measured yet (common right after mount), retry once the layout settles.
               setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);
             }}
           />

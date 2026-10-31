@@ -38,7 +38,7 @@ export default function GameRules({ prizes, since, endsOn }: { prizes: Prize[]; 
           {(['r1', 'r2', 'r3', 'r4'] as const).map((k) => <Text key={k} style={s.rule}>{t(`games.${k}`)}</Text>)}
           {odds}
           {(['r5', 'r6'] as const).map((k) => <Text key={k} style={s.rule}>{t(`games.${k}`)}</Text>)}
-          <Text style={s.rule}>{t('games.r7', { since: since ? date(since) : '-', until: endsOn ? t('games.untilDate', { date: date(endsOn) }) : t('games.untilOpen') })}</Text>
+          <Text style={s.rule}>{t('games.r7', { since: since ? date(since) : t('profile.notSet'), until: endsOn ? t('games.untilDate', { date: date(endsOn) }) : t('games.untilOpen') })}</Text>
           {(['r8', 'r9', 'r10'] as const).map((k) => <Text key={k} style={s.rule}>{t(`games.${k}`)}</Text>)}
         </View>
       )}

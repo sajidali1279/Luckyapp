@@ -65,7 +65,7 @@ export default function ManagerLayout() {
   });
   const supportUnread: number = supportUnreadData?.data?.data?.count ?? 0;
 
-  // Across every store the manager is assigned to, not just their first —
+  // Across every store the manager is assigned to, not just their first , 
   // otherwise a multi-store manager's badge only ever reflected one store.
   const { data: disputesCountData } = useQuery({
     queryKey: ['disputes-pending-count'],

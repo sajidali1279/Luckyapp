@@ -54,7 +54,7 @@ export default function ManagerLeaderboardScreen() {
   }, [stores]);
   const storeId = selectedStoreId || user?.storeIds?.[0];
 
-  // Customer leaderboard — filtered to the selected store (store chips above change storeId and re-trigger this query)
+  // Customer leaderboard, filtered to the selected store (store chips above change storeId and re-trigger this query)
   const { data: custData, isLoading: custLoading, isError: custError, refetch: refetchCust } = useQuery({
     queryKey: ['leaderboard-customers-mgr', storeId],
     queryFn: () => leaderboardApi.getCustomers(storeId),
