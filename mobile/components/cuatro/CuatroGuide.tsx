@@ -82,13 +82,17 @@ const arc = (y0: number, y1: number, rise: number) => {
   return (t: number) => (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * c + t * t * y1;
 };
 
-function useKeyboardUp(): boolean {
-  const [up, setUp] = useState(false);
+/** Whether the keyboard is up. Asked again on every screen change and on coming back to the app: a "hidden" event missed (the
+ *  screen left or the app put away with the keyboard up) used to keep him away until the keyboard opened and closed again. */
+function useKeyboardUp(screen: string): boolean {
+  const [up, setUp] = useState(() => Keyboard.isVisible?.() ?? false);
   useEffect(() => {
     const a = Keyboard.addListener('keyboardDidShow', () => setUp(true));
     const b = Keyboard.addListener('keyboardDidHide', () => setUp(false));
-    return () => { a.remove(); b.remove(); };
+    const c = AppState.addEventListener('change', (st) => { if (st === 'active') setUp(Keyboard.isVisible?.() ?? false); });
+    return () => { a.remove(); b.remove(); c.remove(); };
   }, []);
+  useEffect(() => { setUp(Keyboard.isVisible?.() ?? false); }, [screen]);
   return up;
 }
 
@@ -109,7 +113,7 @@ export default function CuatroGuide() {
   const isCustomer = useAuthStore((s) => s.user?.role === 'CUSTOMER');
   const bar = useShellBar();
   const screen = usePathname().split('/').filter(Boolean).pop() ?? '';
-  const keyboard = useKeyboardUp();
+  const keyboard = useKeyboardUp(screen);
   const covered = useGuideCovered();
   const [ready, setReady] = useState(!!saved && savedFor === userId);
   useEffect(() => {
@@ -202,7 +206,15 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const dims = useRef({ w, h, top: insets.top + 4, reduce, menuOpen });
   dims.current = { w, h, top: insets.top + 4, reduce, menuOpen };
 
-  const setMode = (m: Mode) => { modeRef.current = m; setModeState(m); };
+  // Back on the bar: his feet on the bar's top edge as it is NOW. A move works out the floor when it starts; when the bar's height
+  // settles a moment later (right after the app opens, a bigger text size), he used to land where the edge had been, half hidden
+  // behind the bar, and stay there (2026-10-31).
+  const seat = () => {
+    const fy = floorY(), { w: ww } = dims.current;
+    const nx = clamp(pos.current.x, 6, ww - SIZE - 6);
+    if (Math.abs(pos.current.y - fy) > 0.5 || nx !== pos.current.x) place(nx, fy);
+  };
+  const setMode = (m: Mode) => { modeRef.current = m; setModeState(m); if (m === 'bar') seat(); };
   const setFace = (f: Face) => { faceRef.current = f; setFaceState(f); };
   const later = (ms: number, f: () => void) => {
     const id = setTimeout(() => { timers.current.delete(id); if (live.current) f(); }, ms);
@@ -919,8 +931,13 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     });
     return () => sub.remove();
   }, [talking]);   // eslint-disable-line react-hooks/exhaustive-deps
-  // the screen changed size (the bar grew with bigger text, say): back onto the bar
+  // the screen changed size (the bar grew with bigger text, say): back onto the bar (mid-move, setMode('bar') seats him at the end)
   useEffect(() => { if (modeRef.current === 'bar') place(spotX(), floorY()); }, [w, h]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // back from the background: a move cut short there can leave him off the bar's edge
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active' && modeRef.current === 'bar') seat(); });
+    return () => sub.remove();
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   // reduce motion switched on: no more breathing and swaying
   useEffect(() => {
     if (!reduce) return;

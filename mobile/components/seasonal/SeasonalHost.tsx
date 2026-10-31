@@ -9,6 +9,8 @@ import PumpkinIntro from '../halloween/PumpkinIntro';
 import TurkeyIntro from './TurkeyIntro';
 import GiftIntro from './GiftIntro';
 import KickoffIntro from './KickoffIntro';
+import { useShellCover } from '../DrawerShell';
+import { useGuideCover } from '../cuatro/guideCover';
 
 type Intro = ComponentType<{ onPop: () => void; onDone: () => void }>;
 /** Each preset's opening. One this version does not know (added by HQ after this build) plays nothing. */
@@ -47,10 +49,20 @@ export default function SeasonalHost({ children }: { children: ReactNode }) {
   const onPop = () => Animated.spring(pop, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start();
   const Playing = playing;
 
+  // The opening fills the whole screen, over the bottom bar (2026-10-31: drawn inside Home, the bar showed on top of the pumpkin): the
+  // shell draws it. Cuatro steps away until it is over.
+  const cover = useShellCover();
+  useGuideCover(!!Playing);
+  useEffect(() => {
+    if (!cover) return;
+    cover(Playing ? <Playing onPop={onPop} onDone={() => setPlaying(null)} /> : null);
+    return () => cover(null);
+  }, [Playing]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <View style={{ flex: 1 }}>
       <Animated.View style={{ flex: 1, transform: [{ scale: pop }] }}>{children}</Animated.View>
-      {Playing && <Playing onPop={onPop} onDone={() => setPlaying(null)} />}
+      {Playing && !cover && <Playing onPop={onPop} onDone={() => setPlaying(null)} />}
     </View>
   );
 }

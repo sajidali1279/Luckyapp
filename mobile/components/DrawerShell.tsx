@@ -53,6 +53,11 @@ interface Props {
 const ShellBarContext = createContext({ height: 0, hidden: true, menuOpen: false });
 export const useShellBar = () => useContext(ShellBarContext);
 
+/** A screen's full-screen moment (the seasonal opening, 2026-10-31): drawn by the shell over everything, the bottom bar and Cuatro too.
+ *  A screen's own overlay can never cover the bar, which is drawn over the screens. Null outside a shell. */
+const ShellCoverContext = createContext<((node: ReactNode) => void) | null>(null);
+export const useShellCover = () => useContext(ShellCoverContext);
+
 export default function DrawerShell({ children, bottomItems, groups, headerColor, floating }: Props) {
   const { user, logout } = useAuthStore();
   const { t } = useTranslation();
@@ -118,10 +123,11 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
   const isFullscreen = FULLSCREEN_ROUTES.some((r) => pathname.endsWith(r));
   const [barH, setBarH] = useState(0);
   const barInfo = useMemo(() => ({ height: barH, hidden: isFullscreen, menuOpen: open }), [barH, isFullscreen, open]);
+  const [cover, setCover] = useState<ReactNode>(null);
 
   return (
     <View style={s.root}>
-      <View style={s.content}>{children}</View>
+      <View style={s.content}><ShellCoverContext.Provider value={setCover}>{children}</ShellCoverContext.Provider></View>
 
       {/* Bottom mini bar */}
       {!isFullscreen && (
@@ -172,6 +178,8 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
       )}
 
       {floating ? <ShellBarContext.Provider value={barInfo}>{floating}</ShellBarContext.Provider> : null}
+
+      {cover ? <View style={s.cover} pointerEvents="box-none">{cover}</View> : null}
 
       {/* Drawer overlay + panel */}
       {open && (
@@ -318,6 +326,8 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
     zIndex: 10,
   },
+  // above the bottom bar (elevation 10) and Cuatro's layer
+  cover: { ...StyleSheet.absoluteFillObject, zIndex: 30, elevation: 30 },
 
   drawer: {
     position: 'absolute', top: 0, left: 0, bottom: 0,
