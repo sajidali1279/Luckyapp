@@ -44,13 +44,14 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
   .split(',')
   .map((o) => o.trim());
 
+// Only the addresses in ALLOWED_ORIGINS (2026-10-31). Any *.vercel.app used to be let in too, and anyone can put a site there under
+// any name (even one that looks like this account's preview addresses). The admin is used from its own domain, which is in the
+// list; to open it from another address (a Vercel preview, say), add that address to ALLOWED_ORIGINS on Render.
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // No origin = React Native / Postman / server-to-server, always allow
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    // Allow any Vercel preview/production deployment for this project
-    if (origin.endsWith('.vercel.app')) return callback(null, true);
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
