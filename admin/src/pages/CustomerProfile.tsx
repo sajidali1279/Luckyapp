@@ -20,7 +20,7 @@ import { useLimits } from '../components/SettingsCards';
 import CustomerPointsExpiry from '../components/CustomerPointsExpiry';
 
 type Tab = 'overview' | 'activity' | 'referrals' | 'notes' | 'devices' | 'cards' | 'history';
-const fmt$ = (n: number | null | undefined) => (n == null ? '-' : `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+const fmt$ = (n: number | null | undefined) => (n == null ? 'None' : `${n < 0 ? '-' : ''}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const KIND_LABEL: Record<string, string> = { all: 'Everything', sales: 'Purchases', rewards: 'Rewards', redemptions: 'Redemptions', disputes: 'Reports', hotfood: 'Hot food', credits: 'Credits' };
 const STATUS_TONE: Record<string, 'success' | 'warning' | 'danger' | 'neutral' | 'info'> = {
@@ -38,7 +38,7 @@ function Facts({ rows }: { rows: [string, React.ReactNode][] }) {
       {rows.map(([k, v]) => (
         <div key={k} style={{ display: 'contents' }}>
           <dt style={{ color: C.muted }}>{k}</dt>
-          <dd style={{ margin: 0, color: C.text, overflowWrap: 'anywhere' }}>{v ?? '-'}</dd>
+          <dd style={{ margin: 0, color: C.text, overflowWrap: 'anywhere' }}>{v ?? 'None'}</dd>
         </div>
       ))}
     </dl>
@@ -131,11 +131,11 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
         <Card>
           <SectionTitle>Account</SectionTitle>
           <Facts rows={[
-            ['Phone', c.phone], ['Email', c.email ? <>{c.email} {c.emailVerified ? <Badge tone="success">verified</Badge> : <Badge>not verified</Badge>}</> : '-'],
+            ['Phone', c.phone], ['Email', c.email ? <>{c.email} {c.emailVerified ? <Badge tone="success">verified</Badge> : <Badge>not verified</Badge>}</> : 'None'],
             ['Language', c.language === 'es' ? 'Spanish' : 'English'],
             ['Birthday', c.birthMonth ? `${MONTHS[c.birthMonth - 1]} ${c.birthDay}` : 'Not given'],
             ['21 or older', c.age21Confirmed ? 'Confirmed' : 'Not confirmed'],
-            ['Joined', storeDayLong(c.createdAt)], ['Last sign-in', c.lastSignInAt ? storeDayTime(c.lastSignInAt) : '-'],
+            ['Joined', storeDayLong(c.createdAt)], ['Last sign-in', c.lastSignInAt ? storeDayTime(c.lastSignInAt) : 'Not recorded'],
             ['Invite code', c.referralCode ?? 'Not made yet'],
           ]} />
         </Card>
@@ -151,7 +151,7 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
           <Facts rows={[
             ['Purchases', `${s.sales.toLocaleString('en-US')} (${s.salesLast30} in the last 30 days)`], ['Spent', fmt$(s.spent)], ['Average', fmt$(s.avgTicket)],
             ['First / last', s.firstPurchaseAt ? `${storeDayLong(s.firstPurchaseAt)} / ${storeDayLong(s.lastPurchaseAt)}` : 'No purchase yet'],
-            ['Usual store', s.favoriteStore ?? '-'],
+            ['Usual store', s.favoriteStore ?? 'None'],
             ['Waiting', s.pending || s.flagged ? <>{s.pending ? <Badge tone="warning">{s.pending} pending</Badge> : null} {s.flagged ? <Badge tone="warning">{s.flagged} held for review</Badge> : null}</> : 'Nothing'],
             ['Missing-points reports', disputes || 'None'], ['Hot food orders', s.hotFoodOrders],
           ]} />
@@ -222,7 +222,7 @@ function Activity({ id }: { id: string }) {
                       <div style={{ fontWeight: 600 }}>{it.title}{it.receiptImageUrl && <> · <a href={it.receiptImageUrl} target="_blank" rel="noopener noreferrer">receipt</a></>}</div>
                       {it.detail && <div style={{ fontSize: FONT.caption, color: C.muted }}>{it.detail}</div>}
                     </TableCell>
-                    <TableCell style={{ color: C.text2 }}>{it.store ?? '-'}</TableCell>
+                    <TableCell style={{ color: C.text2 }}>{it.store ?? ''}</TableCell>
                     <TableCell style={num}>{it.amount == null ? '' : fmt$(it.amount)}</TableCell>
                     <TableCell style={{ ...num, color: it.points == null ? undefined : it.points < 0 ? C.danger : C.success, fontWeight: 600 }}>{it.points == null ? '' : `${it.points < 0 ? '' : '+'}${fmt$(it.points)}`}</TableCell>
                     <TableCell>{it.status ? <Badge tone={STATUS_TONE[it.status] ?? 'neutral'}>{statusText(it.status)}</Badge> : null}</TableCell>
@@ -252,7 +252,7 @@ function Referrals({ d }: { d: any }) {
     <div style={grid}>
       <Card>
         <SectionTitle>Their invite code</SectionTitle>
-        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: 3, color: C.text }}>{r.code ?? '-'}</div>
+        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: 3, color: C.text }}>{r.code ?? 'None'}</div>
         <p style={{ color: C.muted, fontSize: FONT.small, margin: '6px 0 12px' }}>{r.code ? 'Made when they first opened Invite friends in the app.' : 'They have not opened Invite friends yet.'}</p>
         <Facts rows={[['Friends invited', total], ['Paid', inv.REWARDED ?? 0], ['Waiting for a purchase', inv.PENDING ?? 0], ['Expired', inv.EXPIRED ?? 0], ['They earned', fmt$(r.earnedAsReferrer)]]} />
       </Card>

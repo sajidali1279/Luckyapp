@@ -76,7 +76,7 @@ export default function WhereStaffPanel({ storeId }: { storeId: string }) {
                     return (
                       <div key={e.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? `1px solid ${C.border}` : 'none', flexWrap: 'wrap', background: e.status === 'ELSEWHERE' ? C.dangerTint : undefined }}>
                         <div style={{ flex: 1, minWidth: 220 }}>
-                          <div style={{ fontWeight: 600, color: C.text }}>{e.name ?? '-'}{e.role === 'STORE_MANAGER' ? <span style={{ color: C.muted, fontWeight: 400 }}> · Manager</span> : null}</div>
+                          <div style={{ fontWeight: 600, color: C.text }}>{e.name ?? ''}{e.role === 'STORE_MANAGER' ? <span style={{ color: C.muted, fontWeight: 400 }}> · Manager</span> : null}</div>
                           {e.scheduled && <div style={{ fontSize: FONT.small, color: C.text2 }}>Scheduled at {e.scheduled.storeName}, {e.scheduled.startTime} to {e.scheduled.endTime}</div>}
                           {e.checkIns.length > 0 && (
                             <div style={{ fontSize: FONT.small, color: C.text2 }}>

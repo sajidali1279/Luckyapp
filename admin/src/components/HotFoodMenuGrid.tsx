@@ -233,7 +233,7 @@ function Cell({ mode, e, edited, onClick, label }: { mode: Mode; e: Edit; edited
   const off = mode === 'stock' && !e.carried;
   let face: { bg: string; fg: string; text: string; border: string } = { bg: C.surface, fg: C.muted, text: '', border: C.borderStrong };
   if (mode === 'carry') face = e.carried ? { bg: C.success, fg: '#fff', text: '✓', border: C.success } : face;
-  else if (!e.carried) face = { bg: C.subtle, fg: C.borderStrong, text: '–', border: C.border };
+  else if (!e.carried) face = { bg: C.subtle, fg: C.borderStrong, text: '·', border: C.border };
   else face = e.available ? { bg: C.successTint, fg: C.success, text: 'In', border: '#b9dfc7' } : { bg: C.dangerTint, fg: C.danger, text: 'Out', border: '#efc2c6' };
   const state = mode === 'carry' ? (e.carried ? 'on the menu' : 'not carried') : !e.carried ? 'not carried' : e.available ? 'in stock' : 'sold out';
   return (

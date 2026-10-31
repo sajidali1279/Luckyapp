@@ -16,7 +16,7 @@ import { Plus } from 'lucide-react';
 type Params = { storeId?: string; period: string };
 const fmt$ = (n: number) => `$${(n ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtN = (n: number) => (n ?? 0).toLocaleString('en-US');
-const hoursText = (h: number | null) => (h == null ? '-' : h < 48 ? `${h} h` : `${Math.round((h / 24) * 10) / 10} days`);
+const hoursText = (h: number | null) => (h == null ? 'None' : h < 48 ? `${h} h` : `${Math.round((h / 24) * 10) / 10} days`);
 const hourText = (h: number) => (h === 0 ? '12a' : h < 12 ? `${h}a` : h === 12 ? '12p' : `${h - 12}p`);
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const REASONS: Record<string, string> = { NO_SUPPLIER: 'No supplier', OUT_OF_BUDGET: 'Over budget', IN_STOCK: 'Already in stock', DUPLICATE: 'Already on the list', OTHER: 'Other' };
@@ -289,7 +289,7 @@ export function RewardsHotFoodTab({ params }: { params: Params }) {
             <StatTile label="Taken in" value={fmt$(h.revenue)} hint="Completed orders" />
             <StatTile label="Average order" value={fmt$(h.avgTicket)} />
             <StatTile label="Cancelled" value={`${h.cancelRate ?? 0}%`} hint={`${fmtN(h.cancelled)} orders`} />
-            <StatTile label="Ready time promised" value={h.avgPromisedMinutes == null ? '-' : `${h.avgPromisedMinutes} min`} hint="Average when accepted" />
+            <StatTile label="Ready time promised" value={h.avgPromisedMinutes == null ? 'None' : `${h.avgPromisedMinutes} min`} hint="Average when accepted" />
           </div>
           {h.orders === 0 ? <EmptyState title="No hot food orders in this period" /> : (
             <>

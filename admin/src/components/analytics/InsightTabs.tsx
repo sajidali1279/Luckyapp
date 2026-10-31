@@ -272,9 +272,9 @@ export function StaffTab({ params, enabled }: { params: InsightParams; enabled: 
                     {d.staff.map((s: any) => (
                       <TableRow key={s.id}>
                         <TableCell style={{ fontWeight: 600 }}>{s.name}</TableCell>
-                        <TableCell style={{ color: C.text2 }}>{s.store || '-'}</TableCell>
+                        <TableCell style={{ color: C.text2 }}>{s.store || ''}</TableCell>
                         <TableCell style={num}>{fmtN(s.sales)}</TableCell>
-                        <TableCell style={num}>{total ? `${Math.round((s.sales / total) * 100)}%` : '-'}</TableCell>
+                        <TableCell style={num}>{total ? `${Math.round((s.sales / total) * 100)}%` : ''}</TableCell>
                         <TableCell style={num}>{fmt$(s.amount)}</TableCell>
                         <TableCell style={num}>{fmt$(s.avgTicket)}</TableCell>
                         <TableCell style={num}>{s.flaggedRate > Math.max(5, flaggedAvg * 2) ? <Badge tone="danger">{s.flaggedRate}%</Badge> : `${s.flaggedRate}%`}</TableCell>
@@ -302,7 +302,7 @@ export function StaffTab({ params, enabled }: { params: InsightParams; enabled: 
                         <TableCell style={num}>{fmtN(r.opened)}</TableCell>
                         <TableCell style={num}>{fmtN(r.resolved)}</TableCell>
                         <TableCell style={num}>{r.pending > 0 ? <Badge tone="warning">{r.pending}</Badge> : 0}</TableCell>
-                        <TableCell style={num}>{r.avgHoursToResolve == null ? '-' : r.avgHoursToResolve < 24 ? `${r.avgHoursToResolve} h` : `${Math.round((r.avgHoursToResolve / 24) * 10) / 10} days`}</TableCell>
+                        <TableCell style={num}>{r.avgHoursToResolve == null ? '' : r.avgHoursToResolve < 24 ? `${r.avgHoursToResolve} h` : `${Math.round((r.avgHoursToResolve / 24) * 10) / 10} days`}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

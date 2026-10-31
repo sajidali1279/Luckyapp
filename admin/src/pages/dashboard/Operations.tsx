@@ -103,13 +103,13 @@ function KpiRow({ range }: { range: Range }) {
       <KPI icon="🎟️" label="Average Ticket" value={fmt$(cur.avgTicket)} color="#8a5300" bg="#fdf6e8" spark={sparkTicket}
         delta={<Delta cur={cur.avgTicket} prev={prev.avgTicket} label={vs} />} />
       {platformQ.isError ? (
-        <KPI icon="⏳" label="Pending Reviews" value="–" color="#c42130" bg="#fdf2f2" sub="Couldn't check" />
+        <KPI icon="⏳" label="Pending Reviews" value="?" color="#c42130" bg="#fdf2f2" sub="Couldn't check" />
       ) : (
         <KPI icon="⏳" label="Pending Reviews" value={platform ? formatInteger(awaiting) : '…'}
           color={awaiting > 0 ? '#c42130' : '#1a7f45'} bg={awaiting > 0 ? '#fdf2f2' : '#edf7f0'}
           sub={awaiting > 0 ? ((platform?.flagged ?? 0) > 0 ? `${formatInteger(platform.flagged)} flagged` : 'Need action') : 'All clear'} />
       )}
-      <KPI icon="💰" label="Credits Outstanding" value={platform ? fmt$(platform.totalCreditsOutstanding) : platformQ.isError ? '–' : '…'}
+      <KPI icon="💰" label="Credits Outstanding" value={platform ? fmt$(platform.totalCreditsOutstanding) : platformQ.isError ? '?' : '…'}
         color="#1D3557" bg="#eef2f7" sub="Unredeemed by customers" />
     </div>
   );
@@ -390,7 +390,7 @@ function ReviewFeed() {
                   <div key={tx.id} style={{ ...s.recentRow, background: isFlagged ? '#fff8f8' : undefined }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={s.recentCustomer}>{who}</div>
-                      <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || ' - '} · {since(tx.createdAt)}</div>
+                      <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || 'no category'} · {since(tx.createdAt)}</div>
                       {flags.map((f) => <div key={f} style={s.recentFlags}>• {FRAUD_FLAG_LABELS[f] || f}</div>)}
                       {isFlagged && !tx.receiptImageUrl && <div style={s.recentFlags}>• Waiting for the cashier's receipt</div>}
                     </div>
@@ -429,7 +429,7 @@ function ReviewFeed() {
             <div key={tx.id} style={{ ...s.recentRow, cursor: 'pointer' }} {...activate(() => navigate('/transactions'))}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={s.recentCustomer}>{tx.customer?.name || tx.customer?.phone || 'Customer'}</div>
-                <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || ' - '}</div>
+                <div style={s.recentMeta}>{tx.store?.name} · {tx.category?.replace(/_/g, ' ') || 'no category'}</div>
               </div>
               <StatusChip status={tx.status} />
               <div style={{ textAlign: 'right' as const, flexShrink: 0, minWidth: 74 }}>
@@ -513,7 +513,7 @@ export default function OperationsView() {
   const { disputesPendingCount } = useAdminBadges();
 
   const activeOffersList: any[] = offersQ.data?.data?.data || [];
-  const count = (q: { isLoading: boolean; isError: boolean }, n: number) => (q.isLoading ? '…' : q.isError ? '–' : formatInteger(n));
+  const count = (q: { isLoading: boolean; isError: boolean }, n: number) => (q.isLoading ? '…' : q.isError ? '?' : formatInteger(n));
   const totalStaleLabels: number = labelQ.data?.data?.data?.totalStale ?? 0;
 
   return (
@@ -538,7 +538,7 @@ export default function OperationsView() {
       {/* ── Stores ── */}
       <div className="dash-fade-in" style={{ animationDelay: '30ms' }}>
         <SectionHeader
-          title={storeView === 'board' ? 'Store Health' : 'Store Performance - This Month'}
+          title={storeView === 'board' ? 'Store Health' : 'Store performance this month'}
           subtitle={storeView === 'board' ? 'Every active store right now. Tiles that need a look come first.' : 'Every active store this month, including any with no sales.'}
           action={{ label: 'Full Leaderboard', to: '/leaderboard' }}
           right={<Segmented value={storeView} onChange={pickStoreView} label="Store view" options={[{ id: 'board', label: 'Board' }, { id: 'table', label: 'Table' }]} />}

@@ -565,7 +565,7 @@ export default function Offers() {
     const catLabel = postedCategory(quickCategory, 'All Categories');
     const durationLabel = { today: 'Today', '3d': '3 Days', '1w': 'This Week', '2w': '2 Weeks', '1m': 'This Month' }[quickDuration];
     const bonusDisplay = useCpg ? `+${cpg}¢/gal` : `+${bonus}%`;
-    const autoTitle = `${bonusDisplay} ${catLabel} Bonus - ${durationLabel}`;
+    const autoTitle = `${bonusDisplay} ${catLabel} Bonus · ${durationLabel}`;
 
     // From now until the end of the last store day (so "1 Week" is seven store days, today included)
     const startMs = Date.now();

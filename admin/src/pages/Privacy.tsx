@@ -46,7 +46,7 @@ export default function Privacy() {
 
       <p style={s.intro}>
         Lucky Stop Inc. ("Lucky Stop", "we", "our", or "us") operates the Lucky Stop mobile application
-        (the "App") - a loyalty and rewards platform for Lucky Stop gas stations and convenience stores.
+        (the "App"): a loyalty and rewards platform for Lucky Stop gas stations and convenience stores.
         This Privacy Policy explains what personal information we collect, why we collect it, how we use
         and protect it, and the choices and rights available to you. By using the App, you agree to the
         practices described in this policy.
@@ -116,7 +116,7 @@ export default function Privacy() {
         </thead>
         <tbody>
           {[
-            ['Unique QR code', 'A unique identifier assigned to your account. Used by store cashiers to look up your account when granting rewards. Never contains personal data - it is an opaque code that maps to your account.'],
+            ['Unique QR code', 'A unique identifier assigned to your account. Used by store cashiers to look up your account when granting rewards. Never contains personal data: it is an opaque code that maps to your account.'],
             ['Transaction history', 'A record of each purchase for which you earned cashback: the store location, purchase amount, product category (e.g. groceries, gas, hot food), cashback amount awarded, and timestamp.'],
             ['Rewards balance', 'Your running total of cashback credits earned and redeemed.'],
             ['Points record', 'Each batch of points you earn, with its date and what it came from (a purchase, a reward, a credit), and which batches each redemption used. It lets us spend your oldest points first and, if points expiry is in effect, show and apply when points expire.'],
@@ -142,7 +142,7 @@ export default function Privacy() {
       <ul style={s.ul}>
         <li style={s.li}>We do <strong>not</strong> collect your precise GPS location or track your movements.</li>
         <li style={s.li}>We do <strong>not</strong> collect payment card numbers or any financial account information.</li>
-        <li style={s.li}>We do <strong>not</strong> collect biometric data (fingerprints or face geometry) - biometric login uses your device's own secure enclave and the result (pass/fail) is never sent to our servers.</li>
+        <li style={s.li}>We do <strong>not</strong> collect biometric data (fingerprints or face geometry): biometric login uses your device's own secure enclave and the result (pass/fail) is never sent to our servers.</li>
         <li style={s.li}>We do <strong>not</strong> access your contacts, calendar, or other device apps.</li>
         <li style={s.li}>We do <strong>not</strong> collect data from children under 13.</li>
       </ul>
@@ -150,10 +150,10 @@ export default function Privacy() {
       {/* 3 */}
       <h2 style={s.h2}>3. How We Collect Your Data</h2>
       <ul style={s.ul}>
-        <li style={s.li}><strong>Directly from you</strong> - when you create an account, update your profile, submit a dispute, or request a product.</li>
-        <li style={s.li}><strong>From store staff</strong> - when a cashier scans your QR code and enters your purchase amount, or uploads a receipt photo to verify a transaction.</li>
-        <li style={s.li}><strong>Automatically</strong> - device tokens for push notifications are generated automatically by Firebase when you first log in. Crash and error data is collected automatically when the app encounters a problem.</li>
-        <li style={s.li}><strong>From Firebase Authentication</strong> - when you verify your phone number via OTP, Firebase processes your phone number on our behalf to confirm your identity.</li>
+        <li style={s.li}><strong>Directly from you</strong>: when you create an account, update your profile, submit a dispute, or request a product.</li>
+        <li style={s.li}><strong>From store staff</strong>: when a cashier scans your QR code and enters your purchase amount, or uploads a receipt photo to verify a transaction.</li>
+        <li style={s.li}><strong>Automatically</strong>: device tokens for push notifications are generated automatically by Firebase when you first log in. Crash and error data is collected automatically when the app encounters a problem.</li>
+        <li style={s.li}><strong>From Firebase Authentication</strong>: when you verify your phone number via OTP, Firebase processes your phone number on our behalf to confirm your identity.</li>
       </ul>
 
       {/* 4 */}
@@ -202,7 +202,7 @@ export default function Privacy() {
         <tbody>
           {[
             ['You (customer)', 'Your own rewards balance, transaction history, redemptions, disputes, and profile.'],
-            ['Cashier / Employee', 'Your display name and current rewards balance - only when they scan your QR code to process a transaction. They cannot browse customer accounts.'],
+            ['Cashier / Employee', 'Your display name and current rewards balance: only when they scan your QR code to process a transaction. They cannot browse customer accounts.'],
             ['Store Manager', 'Transaction history and rewards activity for customers at their assigned store(s) only. They cannot see data from other stores.'],
             ['Lucky Stop HQ (Super Admin)', 'Aggregated data and transaction history across all stores for operational oversight, analytics, and fraud investigation.'],
             ['System Administrator (Cliff Industries)', 'Full system access for maintenance, security monitoring, and technical support. Access is logged and audited.'],
@@ -235,7 +235,7 @@ export default function Privacy() {
         </thead>
         <tbody>
           {[
-            ['Firebase Authentication (Google)', 'Phone number OTP verification - confirms your identity when you log in', 'Phone number'],
+            ['Firebase Authentication (Google)', 'Phone number OTP verification: confirms your identity when you log in', 'Phone number'],
             ['Firebase Cloud Messaging (Google)', 'Delivery of push notifications to your device', 'Push device token'],
             ['Cloudinary', 'Storage for receipt photos, profile avatars, and promotional images', 'Uploaded images'],
             ['Anthropic (Claude)', 'Reads receipt photos (when you scan a receipt, or staff send one to head office) to fill in the store, date, items, totals and payment details; suggests Spanish translations of promotion text', 'Receipt photos only, never your name or phone number'],
@@ -304,31 +304,31 @@ export default function Privacy() {
       </p>
       <ul style={s.ul}>
         <li style={s.li}>
-          <strong>Access</strong> - Request a copy of the personal information we hold about you.
+          <strong>Access</strong>: Request a copy of the personal information we hold about you.
         </li>
         <li style={s.li}>
-          <strong>Correction</strong> - Ask us to correct inaccurate or incomplete data. You can update your
+          <strong>Correction</strong>: Ask us to correct inaccurate or incomplete data. You can update your
           name, email, and profile photo directly in the app under Profile → Account Settings.
         </li>
         <li style={s.li}>
-          <strong>Deletion</strong> - Request deletion of your account and all associated personal data.
+          <strong>Deletion</strong>: Request deletion of your account and all associated personal data.
           You can initiate this directly in the app under Profile → Delete My Account, or by emailing us.
           Deletion is processed within 30 days. Some records may be retained where required by law (e.g.
           transaction records for tax purposes).
         </li>
         <li style={s.li}>
-          <strong>Portability</strong> - Request an export of your data in a machine-readable format (JSON or CSV).
+          <strong>Portability</strong>: Request an export of your data in a machine-readable format (JSON or CSV).
         </li>
         <li style={s.li}>
-          <strong>Opt out of push notifications</strong> - Disable notifications at any time in your device
+          <strong>Opt out of push notifications</strong>: Disable notifications at any time in your device
           settings (Settings → Notifications → Lucky Stop) without affecting your rewards account.
         </li>
         <li style={s.li}>
-          <strong>Withdraw consent</strong> - Where we rely on your consent to process data, you may
+          <strong>Withdraw consent</strong>: Where we rely on your consent to process data, you may
           withdraw consent at any time. This will not affect processing that occurred before withdrawal.
         </li>
         <li style={s.li}>
-          <strong>Lodge a complaint</strong> - You may lodge a complaint with the data protection authority
+          <strong>Lodge a complaint</strong>: You may lodge a complaint with the data protection authority
           in your jurisdiction if you believe we have processed your data unlawfully.
         </li>
       </ul>
@@ -385,20 +385,20 @@ export default function Privacy() {
       </p>
       <ul style={s.ul}>
         <li style={s.li}>
-          <strong>Right to Know</strong> - You may request disclosure of the categories and specific pieces
+          <strong>Right to Know</strong>: You may request disclosure of the categories and specific pieces
           of personal information we have collected about you in the past 12 months, the sources, our
           business purpose for collecting it, and the categories of third parties with whom we share it.
         </li>
         <li style={s.li}>
-          <strong>Right to Delete</strong> - You may request deletion of your personal information, subject
+          <strong>Right to Delete</strong>: You may request deletion of your personal information, subject
           to certain exceptions permitted by law.
         </li>
         <li style={s.li}>
-          <strong>Right to Opt Out of Sale</strong> - We do not sell personal information. No opt-out is
+          <strong>Right to Opt Out of Sale</strong>: We do not sell personal information. No opt-out is
           required, but you may still submit a request to confirm this.
         </li>
         <li style={s.li}>
-          <strong>Right to Non-Discrimination</strong> - We will not deny you service, charge different
+          <strong>Right to Non-Discrimination</strong>: We will not deny you service, charge different
           prices, or provide a different level of service because you exercised any CCPA right.
         </li>
       </ul>
@@ -428,12 +428,12 @@ export default function Privacy() {
         information, including:
       </p>
       <ul style={s.ul}>
-        <li style={s.li}><strong>Encryption in transit</strong> - all data between the app and our servers is encrypted using HTTPS/TLS.</li>
-        <li style={s.li}><strong>Encryption at rest</strong> - database records and stored files are encrypted at the infrastructure level.</li>
-        <li style={s.li}><strong>Token-based authentication</strong> - access tokens are short-lived and rotate automatically. No passwords are stored.</li>
-        <li style={s.li}><strong>Role-based access control (RBAC)</strong> - every API endpoint enforces the minimum access level required for each role. Staff cannot access data outside their assigned store.</li>
-        <li style={s.li}><strong>Audit logging</strong> - sensitive administrative actions (account changes, point grants, account deletions) are recorded in an immutable audit log.</li>
-        <li style={s.li}><strong>Receipt photo storage</strong> - receipt images are stored with Cloudinary at long, random web addresses that are not listed or searchable; only staff and admin screens link to them.</li>
+        <li style={s.li}><strong>Encryption in transit</strong>: all data between the app and our servers is encrypted using HTTPS/TLS.</li>
+        <li style={s.li}><strong>Encryption at rest</strong>: database records and stored files are encrypted at the infrastructure level.</li>
+        <li style={s.li}><strong>Token-based authentication</strong>: access tokens are short-lived and rotate automatically. No passwords are stored.</li>
+        <li style={s.li}><strong>Role-based access control (RBAC)</strong>: every API endpoint enforces the minimum access level required for each role. Staff cannot access data outside their assigned store.</li>
+        <li style={s.li}><strong>Audit logging</strong>: sensitive administrative actions (account changes, point grants, account deletions) are recorded in an immutable audit log.</li>
+        <li style={s.li}><strong>Receipt photo storage</strong>: receipt images are stored with Cloudinary at long, random web addresses that are not listed or searchable; only staff and admin screens link to them.</li>
       </ul>
       <p style={s.p}>
         No system is completely secure. If you believe your account has been compromised, contact us

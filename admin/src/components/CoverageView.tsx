@@ -155,7 +155,7 @@ export default function CoverageView() {
     }
     const queue = [...groups.values()];
     if (queue.length === 0) {
-      toast('Nothing to print - every selected item is already up to date everywhere', { icon: 'ℹ️' });
+      toast('Nothing to print: every selected item is already up to date everywhere', { icon: 'ℹ️' });
       return;
     }
     setBulkPrintQueue(queue);

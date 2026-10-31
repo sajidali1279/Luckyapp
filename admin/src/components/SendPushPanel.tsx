@@ -147,7 +147,7 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
           <label style={s.label} htmlFor="push-store">Store</label>
           <select id="push-store" style={s.select} value={storeId} onChange={(e) => { setStoreId(e.target.value); setError(''); }}>
             <option value="">- Select a store -</option>
-            {openStores.map((st) => <option key={st.id} value={st.id}>{st.name}{st.city ? ` - ${st.city}` : ''}</option>)}
+            {openStores.map((st) => <option key={st.id} value={st.id}>{st.name}{st.city ? ` (${st.city})` : ''}</option>)}
           </select>
         </div>
       )}

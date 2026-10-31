@@ -29,7 +29,7 @@ interface ListRow {
   downloadedAt: string | null;
 }
 
-export const dollars = (cents: number | null | undefined) => (cents == null ? '-' : (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
+export const dollars = (cents: number | null | undefined) => (cents == null ? '' : (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }));
 export const STATUS: Record<string, { label: string; tone: Tone }> = {
   READING: { label: 'Reading', tone: 'info' },
   READ: { label: 'To check', tone: 'warning' },
@@ -119,11 +119,11 @@ export default function PdiInvoices() {
                           <td style={s.td}><button type="button" style={s.linkBtn} onClick={(e) => { e.stopPropagation(); navigate(`/pdi-invoices/${r.id}`); }}>{storeDayTime(r.createdAt)}</button></td>
                           <td style={s.td}>{r.store.name}</td>
                           <td style={s.td}>{r.vendor ? r.vendor.name : r.status === 'READ' ? <Badge tone="warning" title="Say which vendor it is on the invoice">New: {r.vendorRead ?? 'not read'}</Badge> : <span style={{ color: TEXT_MUTED }}>{r.vendorRead ?? '-'}</span>}</td>
-                          <td style={s.td}>{r.invoiceNumber ?? '-'}</td>
-                          <td style={s.td}>{r.invoiceDate ?? '-'}</td>
+                          <td style={s.td}>{r.invoiceNumber ?? ''}</td>
+                          <td style={s.td}>{r.invoiceDate ?? ''}</td>
                           <td style={{ ...s.td, textAlign: 'right' }}>{dollars(r.totalCents)}</td>
                           <td style={s.td}><Badge tone={STATUS[r.status]?.tone ?? 'neutral'}>{STATUS[r.status]?.label ?? r.status}</Badge></td>
-                          <td style={{ ...s.td, color: TEXT_MUTED }}>{r.createdBy ?? '-'}</td>
+                          <td style={{ ...s.td, color: TEXT_MUTED }}>{r.createdBy ?? ''}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -192,7 +192,7 @@ function Vendors({ hq }: { hq: boolean }) {
                     <td style={s.td}>{v.pdiCode ?? <Badge tone="warning">Not set</Badge>}</td>
                     <td style={s.td}>{SELLS_BY[v.sellsBy] ?? v.sellsBy}</td>
                     <td style={s.td}>{ITEM_DIGITS[v.itemDigits] ?? v.itemDigits}{v.itemLength ? ` (${v.itemLength} printed)` : ''}</td>
-                    <td style={{ ...s.td, whiteSpace: 'normal', maxWidth: 260, color: TEXT_MUTED, fontSize: FONT.small }}>{v.aliases.join(', ') || '-'}</td>
+                    <td style={{ ...s.td, whiteSpace: 'normal', maxWidth: 260, color: TEXT_MUTED, fontSize: FONT.small }}>{v.aliases.join(', ') || 'None'}</td>
                     <td style={{ ...s.td, textAlign: 'right' }}>{v.invoiceCount}</td>
                     <td style={{ ...s.td, textAlign: 'right' }}>{v.productCount}</td>
                     <td style={{ ...s.td, textAlign: 'right' }}>

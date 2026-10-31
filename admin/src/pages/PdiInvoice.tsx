@@ -286,7 +286,7 @@ export default function PdiInvoice() {
                                   {l.unitsFrom && units[i] === undefined && <span style={s.from}>{UNITS_FROM[l.unitsFrom] ?? l.unitsFrom}</span>}
                                 </div>
                               ) : (
-                                vendor ? <span>{l.line.unitsPerCase || '-'} <span style={s.from}>{l.unitsFrom ? UNITS_FROM[l.unitsFrom] ?? l.unitsFrom : ''}</span></span>
+                                vendor ? <span>{l.line.unitsPerCase || 'Not set'} <span style={s.from}>{l.unitsFrom ? UNITS_FROM[l.unitsFrom] ?? l.unitsFrom : ''}</span></span>
                                   : <span style={s.from}>once the vendor is set</span>
                               )}
                             </td>

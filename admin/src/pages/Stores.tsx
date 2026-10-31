@@ -126,7 +126,7 @@ function formatTime12h(t: string): string {
 function scheduleSummary(s: { isClosed: boolean; isOpen24Hours: boolean; openTime: string | null; closeTime: string | null }): string {
   if (s.isClosed) return 'Closed';
   if (s.isOpen24Hours) return 'Open 24 Hours';
-  if (s.openTime && s.closeTime) return `${formatTime12h(s.openTime)} - ${formatTime12h(s.closeTime)}`;
+  if (s.openTime && s.closeTime) return `${formatTime12h(s.openTime)} to ${formatTime12h(s.closeTime)}`;
   return 'Not set';
 }
 

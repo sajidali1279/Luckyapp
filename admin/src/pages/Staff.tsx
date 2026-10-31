@@ -659,7 +659,7 @@ export default function Staff() {
                     <option value="">Select a store…</option>
                     {stores.map((store: any) => (
                       <option key={store.id} value={store.id} disabled={store.isActive === false}>
-                        {store.name}{store.city ? ` - ${store.city}` : ''}{store.isActive === false ? ' (closed)' : ''}
+                        {store.name}{store.city ? ` (${store.city})` : ''}{store.isActive === false ? ' (closed)' : ''}
                       </option>
                     ))}
                   </select>

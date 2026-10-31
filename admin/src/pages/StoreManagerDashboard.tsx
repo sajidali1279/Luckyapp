@@ -82,7 +82,7 @@ export default function StoreManagerDashboard() {
       {/* Welcome Header */}
       <PageHeader
         title={`${greeting()}, ${user?.name?.split(' ')[0] || 'Manager'}`}
-        description={isLoading ? 'Loading store info…' : summary?.store ? `${summary.store.name} - ${summary.store.city}` : 'Store Dashboard'}
+        description={isLoading ? 'Loading store info…' : summary?.store ? `${summary.store.name} (${summary.store.city})` : 'Store Dashboard'}
         actions={<span style={{ fontSize: 12, fontWeight: 600, color: '#fff', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.24)', borderRadius: 6, padding: '3px 9px' }}>Store Manager</span>}
       />
 
