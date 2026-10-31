@@ -81,7 +81,7 @@ app.use(cors(corsOptions));
 // only for customer submission abuse.
 // Limits are per person, keyed by the real client address (see utils/rateLimitKey.ts), and sized for a store's shared
 // Wi-Fi where several staff and customers share one address. Guessing PINs is stopped per ACCOUNT by the database
-// lockout (5 wrong PINs, 15 minutes); these limits stop floods. A signup also needs a Firebase SMS code.
+// lockout (5 wrong PINs, then 5 minutes, growing to 4 hours); these limits stop floods. A signup also needs a Firebase SMS code.
 const limiter = (windowMs: number, max: number, message?: { success: boolean; error: string }) =>
   rateLimit({ windowMs, max, keyGenerator: clientKey, ...(message ? { message } : {}) });
 app.use('/api/auth/login',    limiter(15 * 60 * 1000, 30, { success: false, error: 'Too many login attempts. Try again in 15 minutes.' }));

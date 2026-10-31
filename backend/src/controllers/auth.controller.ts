@@ -38,10 +38,13 @@ export const jwtLifetimeSeconds = (role: Role) => (role === Role.DEV_ADMIN || ro
 
 // ─── Per-phone login lockout (DB-backed) ──────────────────────────────────────
 const MAX_FAILURES = 5;
-// Each lockout in a row is longer: 15 minutes, then 1 hour, then 4 hours (4 hours from then on). Guessing a four-digit
-// PIN is the weak point, so repeated failures get slower and slower. A good sign-in, Forgot PIN or an admin PIN reset
-// starts over, so nobody stays locked out of their own account for long.
-const LOCKOUT_STEPS_MS = [15 * 60 * 1000, 60 * 60 * 1000, 4 * 60 * 60 * 1000];
+// Each lockout in a row is longer: 5 minutes, then 15 minutes, then 1 hour, then 4 hours (4 hours from then on). Guessing a
+// four-digit PIN is the weak point, so repeated failures get slower and slower. A good sign-in, Forgot PIN or an admin PIN reset
+// starts over, so nobody stays locked out of their own account for long. The first pause was 15 minutes until 2026-10-31: too
+// long for a customer who simply forgot their PIN (the owner); the later steps still make guessing hopeless.
+const LOCKOUT_STEPS_MS = [5 * 60 * 1000, 15 * 60 * 1000, 60 * 60 * 1000, 4 * 60 * 60 * 1000];
+// Shown on every wrong PIN at sign-in, the same for every number (it must not tell whether a number has an account)
+const WRONG_PIN_MESSAGE = 'Incorrect phone number or PIN. After 5 wrong tries, sign-in pauses for a few minutes. Forgot your PIN? Tap "Forgot PIN?" to choose a new one.';
 
 // The helpers take a database client so a test can run them inside a transaction it rolls back.
 type LockoutDb = Prisma.TransactionClient;
@@ -274,7 +277,7 @@ export async function login(req: Request, res: Response) {
   const pinValid = await bcrypt.compare(pin, user?.pinHash ?? dummyHash);
 
   if (!user || !pinValid) {
-    res.status(401).json({ success: false, error: 'Incorrect phone number or PIN' });
+    res.status(401).json({ success: false, error: WRONG_PIN_MESSAGE });
     return;
   }
 
