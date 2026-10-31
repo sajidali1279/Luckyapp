@@ -208,11 +208,11 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
 
   // Back on the bar: his feet on the bar's top edge as it is NOW. A move works out the floor when it starts; when the bar's height
   // settles a moment later (right after the app opens, a bigger text size), he used to land where the edge had been, half hidden
-  // behind the bar, and stay there (2026-10-31).
+  // behind the bar, and stay there (2026-10-31). Always set, never skipped because pos says he is there already: what pos says and
+  // what the phone draws can differ (see along).
   const seat = () => {
-    const fy = floorY(), { w: ww } = dims.current;
-    const nx = clamp(pos.current.x, 6, ww - SIZE - 6);
-    if (Math.abs(pos.current.y - fy) > 0.5 || nx !== pos.current.x) place(nx, fy);
+    const { w: ww } = dims.current;
+    place(clamp(pos.current.x, 6, ww - SIZE - 6), floorY());
   };
   const setMode = (m: Mode) => { modeRef.current = m; setModeState(m); if (m === 'bar') seat(); };
   const setFace = (f: Face) => { faceRef.current = f; setFaceState(f); };
@@ -228,7 +228,10 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const to = (v: Animated.Value, toValue: number, duration: number, easing: (t: number) => number = Easing.inOut(Easing.quad)) =>
     Animated.timing(v, { toValue, duration, easing, ...N });
   const spring = (v: Animated.Value, toValue: number, o: Record<string, number> = {}) => Animated.spring(v, { toValue, friction: 5, tension: 150, ...o, ...N });
-  /** v along any curve (f gives the position at t, 0 to 1): worked out up front, so it still runs on the native thread. */
+  /** v along any curve (f gives the position at t, 0 to 1): worked out up front, so it still runs on the native thread. Its toValue is a
+   *  stand-in (from + 1), so when it ends the app's own copy of the value is left near the START of the curve, and the next redraw on the
+   *  phone put him back there: after a jump up from behind the bar he sank out of sight and could not be tapped (2026-10-31, seen on the
+   *  owner's phone). Every move made with it must end with place() at the real end. */
   const along = (v: Animated.Value, f: (t: number) => number, duration: number) => {
     const from = f(0);
     v.setValue(from);
@@ -248,7 +251,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const spotX = () => { const { w: ww } = dims.current; return clamp((saved?.spot ?? 1) * (ww - SIZE - 12) + 6, 6, ww - SIZE - 6); };
   const place = (nx: number, ny: number) => { x.setValue(nx); y.setValue(ny); pos.current = { x: nx, y: ny }; };
   const arms = (l: number, r: number, ms = 260) => Animated.parallel([to(rig.armL, l, ms), to(rig.armR, r, ms)]);
-  const rest = () => { setGloves(['fist', 'fist']); play(Animated.parallel([arms(-62, -62), to(rig.legL, 0, 200), to(rig.legR, 0, 200), to(rig.gazeX, 0, 200), to(rig.gazeY, 0, 200)])); };
+  // also straight up again: a tickle cut short by the next tap used to leave him leaning over (2026-10-31)
+  const rest = () => { setGloves(['fist', 'fist']); play(Animated.parallel([arms(-62, -62), to(rig.legL, 0, 200), to(rig.legR, 0, 200), to(rig.gazeX, 0, 200), to(rig.gazeY, 0, 200), to(lean, 0, 200), to(spin, 0, 200)])); };
 
   const ctx = (): Ctx => ({
     qc, t: t as Ctx['t'], es: !!i18n.language?.startsWith('es'),
@@ -309,13 +313,12 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       Animated.sequence([Animated.parallel([to(rig.legL, 18, 160), to(rig.legR, 18, 160)]), Animated.parallel([to(rig.legL, 0, ms - 160), to(rig.legR, 0, ms - 160)])]),
     ]));
     if (!still(my)) return false;
-    pos.current = { x: tx, y: ty };
+    place(tx, ty);
     return land(my);
   };
   const hop = async (my: number) => {
     const { x: px, y: py } = pos.current;
-    await play(along(y, arc(py, py, 26), 320));
-    pos.current = { x: px, y: py };
+    if (await play(along(y, arc(py, py, 26), 320))) place(px, py);   // cut short: whatever cut in has placed him
     return land(my, true);
   };
   const look = () => {
@@ -476,7 +479,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     place(tx, dims.current.h + 8);
     await play(along(y, arc(dims.current.h + 8, ty, 40), dims.current.reduce ? 1 : 440));
     if (!still(my)) return;
-    pos.current = { x: tx, y: ty };
+    place(tx, ty);
     if (!(await land(my))) return;
     setFace('happy'); setMode('bar'); run.where = 'bar';
     if (saved?.introduced) {
@@ -728,7 +731,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     // BONK
     stopLoops(); spin.setValue(0);
     const yHit = yAt(secs);
-    pos.current = { x: wallX, y: yHit };
+    place(wallX, yHit);
     haptic.warning();
     setFace('dizzy'); setGloves(['fist', 'fist']);
     setBonk({ side, y: yHit, id: Date.now() });
@@ -867,6 +870,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     // fidgets on the bar, and the tips
     const idle = () => later(6000 + Math.random() * 5000, () => {
       const quiet = modeRef.current === 'bar' && !bubbleRef.current && !asleep.current && !sulking.current && saved?.introduced;
+      // standing about on the bar: put him squarely on its edge again, in case anything left him off it
+      if (modeRef.current === 'bar' && !bubbleRef.current && Date.now() - lastTouch.current > 2000) seat();
       if (quiet && Date.now() - lastTouch.current > (isNight() ? SLEEP_AFTER_NIGHT : SLEEP_AFTER)) sleep();
       else if (quiet) {
         const r = Math.random();
