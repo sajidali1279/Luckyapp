@@ -338,6 +338,18 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
 
   // Duplicate receipt detection, hash file bytes to prevent reusing the same photo
   const receiptHash = req.file ? createHash('sha256').update(req.file.buffer).digest('hex') : null;
+
+  // A held sale keeps the photo it was held with (2026-10-31): a manager decides from that photo, so it cannot be swapped for
+  // another one afterwards. The same photo sent again (the phone retrying after a lost reply) is answered as done.
+  const heldPhoto = transaction.status === TransactionStatus.FLAGGED && !hqEntry && !!transaction.receiptImageUrl;
+  if (heldPhoto) {
+    if (receiptHash && receiptHash === transaction.receiptImageHash) {
+      res.json({ success: true, message: 'Receipt uploaded. This sale is held: a manager must approve it before points are credited.', flagged: true, data: transaction });
+    } else {
+      res.status(409).json({ success: false, code: 'HELD_PHOTO_KEPT', error: 'This held sale already has its receipt photo and a manager is reviewing it. The photo cannot be replaced.' });
+    }
+    return;
+  }
   // A multi-item sale (gas + groceries on one receipt) is one transaction per item, and the phone sends the same photo to each. Those
   // siblings (same customer, cashier and store, made within two minutes of each other) may share it; any other sale may not. Before,
   // the siblings only got through when their uploads happened to overlap: if one finished first, the next was refused as a reused
@@ -379,12 +391,23 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
 
   if (wasFlagged) {
     // Flagged: save receipt but hold points, manager must review
-    // Only while it is still waiting (it may have been cancelled or decided while the photo uploaded)
+    // Only while it is still waiting (it may have been cancelled or decided while the photo uploaded), and only the first photo: two
+    // uploads at once cannot both land (see heldPhoto above)
     const saved = await prisma.pointsTransaction.updateMany({
-      where: { id: transactionId, status: TransactionStatus.FLAGGED },
+      where: { id: transactionId, status: TransactionStatus.FLAGGED, receiptImageUrl: null },
       data: { receiptImageUrl: uploadResult.secure_url, receiptImageHash: receiptHash },
     });
-    if (saved.count === 0) { res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE }); return; }
+    if (saved.count === 0) {
+      const now = await prisma.pointsTransaction.findUnique({ where: { id: transactionId }, select: { status: true, receiptImageHash: true } });
+      if (now?.status === TransactionStatus.FLAGGED && now.receiptImageHash === receiptHash) {
+        res.json({ success: true, message: 'Receipt uploaded. This sale is held: a manager must approve it before points are credited.', flagged: true, data: transaction });
+      } else if (now?.status === TransactionStatus.FLAGGED) {
+        res.status(409).json({ success: false, code: 'HELD_PHOTO_KEPT', error: 'This held sale already has its receipt photo and a manager is reviewing it. The photo cannot be replaced.' });
+      } else {
+        res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
+      }
+      return;
+    }
     const updatedTransaction = await prisma.pointsTransaction.findUniqueOrThrow({ where: { id: transactionId } });
     await alertHeldSale(updatedTransaction, employee).catch((e) => console.error('[points] held-sale alert failed:', e?.message ?? e));
     if (transaction.addOn) tellAddOn(transaction, employee, true).catch(() => {});
