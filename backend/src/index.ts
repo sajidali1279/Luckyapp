@@ -30,6 +30,16 @@ import { startPriceReminderCron } from './utils/price-reminder-cron';
 import { clientKey } from './utils/rateLimitKey';
 import { startSettingsRefresh } from './utils/appSettings';
 
+// Sign-in tokens are signed with JWT_SECRET (2026-10-31). Without it the server used to start anyway and fail on every sign-in (or,
+// worse, sign with an empty key), so it now refuses to start and says why. A short one only warns: refusing it could keep the live
+// server down after a deploy.
+const jwtSecret = process.env.JWT_SECRET?.trim() ?? '';
+if (!jwtSecret) {
+  console.error('[startup] JWT_SECRET is not set. Set it in the server environment (Render > the API service > Environment) and restart.');
+  process.exit(1);
+}
+if (jwtSecret.length < 32) console.warn('[startup] JWT_SECRET is shorter than 32 characters: a longer random one is safer (changing it signs everyone out).');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
