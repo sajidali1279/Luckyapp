@@ -648,7 +648,14 @@ export async function reviewFlaggedTransaction(req: AuthRequest, res: Response) 
     }
   }
 
-  // High-value flagged transactions require SUPER_ADMIN to approve — prevents colluding manager sign-off
+  // Nobody signs off their own held sale (2026-10-31): the person who rang it up cannot approve it, another manager or HQ decides.
+  // HQ entering a sale for a store (Grant & Redeem) is the top of the chain, so it is not stopped here. Rejecting stays open.
+  if (action === 'APPROVE' && transaction.grantedById === req.user!.id && !hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
+    res.status(403).json({ success: false, code: 'OWN_SALE', error: 'You rang up this sale, so another manager or HQ has to approve it.' });
+    return;
+  }
+
+  // High-value flagged transactions require SUPER_ADMIN to approve: prevents colluding manager sign-off
   let flags: string[] = [];
   try { flags = transaction.fraudFlags ? JSON.parse(transaction.fraudFlags) : []; } catch { /* unreadable flag text: treat as no flags */ }
   if (action === 'APPROVE' && flags.includes('LARGE_PURCHASE') && !hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
