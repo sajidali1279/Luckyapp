@@ -1832,6 +1832,8 @@
     "welcomeLockedNoStore": "Bloqueado: primero se necesita una compra de {{amount}} hoy.",
     "welcomeItemNotHere": "Este artículo no se ofrece en esta tienda. Pide al cliente que elija otro en su app.",
     "welcomeUnlockedNow": "¡Artículo gratis desbloqueado! Toca para darlo ahora",
+    "sameCustomerPurchase": "➕ Agregar su compra (sin escanear otra vez)",
+    "sameCustomerMore": "🎁 Artículo gratis o premio para este cliente (sin escanear otra vez)",
     "anotherReceiptLater": "¿El cliente dejó otro recibo? Agrégalo desde Ventas recientes",
     "heldSub_other": "{{count}} líneas están en revisión: un gerente las revisa antes de agregar los puntos. Dile al cliente que los puntos aparecen cuando se aprueben.",
     "heldSub_one": "Un gerente revisa esta venta antes de agregar los puntos. Dile al cliente que los puntos aparecen cuando se apruebe.",

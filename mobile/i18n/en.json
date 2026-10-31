@@ -1832,6 +1832,8 @@
     "welcomeLockedNoStore": "Locked: a purchase of {{amount}} today is needed first.",
     "welcomeItemNotHere": "This item is not offered at this store. Ask the customer to choose another in their app.",
     "welcomeUnlockedNow": "Free item unlocked! Tap to give it now",
+    "sameCustomerPurchase": "➕ Add their purchase (no new scan)",
+    "sameCustomerMore": "🎁 Free item or reward for them (no new scan)",
     "anotherReceiptLater": "Customer left another receipt? Add it from Recent sales",
     "heldSub_other": "{{count}} lines are held: a manager checks them before the points are added. Tell the customer the points show once approved.",
     "heldSub_one": "A manager checks this sale before the points are added. Tell the customer the points show once it is approved.",

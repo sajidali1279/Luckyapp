@@ -156,11 +156,12 @@ const PARTICLE_COLORS = ['#CC2936', '#F4A261', '#FFD700', '#2DC653', '#7B2FBE', 
 const NUM_PARTICLES = 18;
 
 function CelebrationDone({
-  heading, amount, amountColor = COLORS.success, sub, sub2, extraNode, onNext, nextLabel,
+  heading, amount, amountColor = COLORS.success, sub, sub2, extraNode, onNext, nextLabel, again,
 }: {
   heading: string; amount: string; amountColor?: string;
   sub?: string; sub2?: string; extraNode?: React.ReactNode;
   onNext: () => void; nextLabel: string;
+  again?: { label: string; onPress: () => void; busy?: boolean };   // the same customer's next step, with no new scan
 }) {
   const scale    = useRef(new Animated.Value(0)).current;
   const opacity  = useRef(new Animated.Value(0)).current;
@@ -220,6 +221,12 @@ function CelebrationDone({
       {sub  && <Text style={s.doneSub}>{sub}</Text>}
       {sub2 && <Text style={s.doneSub}>{sub2}</Text>}
       {extraNode}
+
+      {again && (
+        <TouchableOpacity style={s.againBtn} onPress={again.onPress} disabled={again.busy} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={again.label}>
+          {again.busy ? <ActivityIndicator color={COLORS.primary} /> : <Text style={s.againBtnText}>{again.label}</Text>}
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={[s.primaryBtn, s.doneBtn]}
@@ -498,6 +505,63 @@ export default function EmployeeScanScreen() {
     );
   }
 
+  /** Everything the action screen shows for a customer: their info, the rewards, their reserved rewards and the free first-week item. */
+  async function loadCustomer(qr: string) {
+    const [infoRes, catalogRes, pendingRes, wbRes] = await Promise.all([
+      pointsApi.getCustomerInfo(qr),
+      catalogApi.getActive(),
+      catalogApi.getPendingForCustomer(qr),
+      welcomeBonusApi.getForCustomer(qr, storeId ?? undefined).catch(() => null),
+    ]);
+    const pendingList = pendingRes.data.data || [];
+    const wb = wbRes?.data?.data ?? null;
+    setCustomerData(infoRes.data.data);
+    setCatalogItems(catalogRes.data.data || []);
+    setPendingRedemptions(pendingList);
+    setWelcomeBonus(wb);
+    return { infoRes, pendingList, wb };
+  }
+
+  /**
+   * The same customer's next step without scanning their QR again (2026-10-31, the owner): a free item and a purchase used to take two
+   * scans. After a free item or a reward, straight on to their purchase; after a purchase, back to the options (a free item, a reward).
+   * What the last step left behind is cleared as Scan Next Customer clears it; the customer is read again, so balances are fresh.
+   */
+  async function sameCustomer(next: 'grant-amount' | 'mode') {
+    if (busyRef.current || !customerQr) return;
+    busyRef.current = true;
+    setLoading(true);
+    try {
+      const unfinished = [...createdLinesRef.current.values()].map((r: any) => r?.data?.data?.transactionId).filter((id: string | undefined): id is string => !!id && !uploadedIdsRef.current.has(id));
+      if (unfinished.length) pointsApi.cancelGrant(unfinished).catch(() => {});
+      setHeldLines(0);
+      setPurchaseAmount('');
+      setRedeemAmount('');
+      setLineItems([]);
+      setTransactionIds([]);
+      createdLinesRef.current = new Map();
+      setPointsAwarded(0);
+      setGasBonusAwarded(0);
+      setReceiptImage(null);
+      setCategory('OTHER');
+      setPromotionApplied(null);
+      setGasGallons('');
+      setGasPricePerGallon('');
+      setSelectedCatalogItem(null);
+      setConfirmedPending(null);
+      setConfirmedWelcomeBonus(null);
+      setUnlockedGift(null);
+      setCustomerInfo(null);
+      await loadCustomer(customerQr);
+      setStep(next);
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: err.response?.data?.error || t('employeeScan.customerNotFound') });
+    } finally {
+      setLoading(false);
+      busyRef.current = false;
+    }
+  }
+
   async function handleQrScan({ data }: { data: string }) {
     if (scanned) return;
     // Validate UUID format, customer QR codes are plain UUIDs
@@ -512,18 +576,7 @@ export default function EmployeeScanScreen() {
     busyRef.current = true;
     setLoading(true);
     try {
-      const [infoRes, catalogRes, pendingRes, wbRes] = await Promise.all([
-        pointsApi.getCustomerInfo(data),
-        catalogApi.getActive(),
-        catalogApi.getPendingForCustomer(data),
-        welcomeBonusApi.getForCustomer(data, storeId ?? undefined).catch(() => null),
-      ]);
-      const pendingList = pendingRes.data.data || [];
-      const wb = wbRes?.data?.data ?? null;
-      setCustomerData(infoRes.data.data);
-      setCatalogItems(catalogRes.data.data || []);
-      setPendingRedemptions(pendingList);
-      setWelcomeBonus(wb);
+      const { infoRes, pendingList, wb } = await loadCustomer(data);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // Grant Points is by far the most common action, skip straight to it unless
       // something else needs the cashier's attention first (a pending redemption to
@@ -1449,7 +1502,7 @@ export default function EmployeeScanScreen() {
                 </View>
               )}
               {unlockedGift && (
-                <TouchableOpacity onPress={() => { setWelcomeBonus(unlockedGift); setUnlockedGift(null); setStep('mode'); }} accessibilityRole="button" style={s.welcomeUnlockBtn}>
+                <TouchableOpacity onPress={() => sameCustomer('mode')} disabled={loading} accessibilityRole="button" style={s.welcomeUnlockBtn}>
                   <Text style={s.welcomeUnlockText}>🎁 {t('employeeScan.welcomeUnlockedNow')}</Text>
                 </TouchableOpacity>
               )}
@@ -1459,6 +1512,7 @@ export default function EmployeeScanScreen() {
               </TouchableOpacity>
             </>
           }
+          again={unlockedGift ? undefined : { label: t('employeeScan.sameCustomerMore'), onPress: () => sameCustomer('mode'), busy: loading }}
           onNext={reset}
           nextLabel={t('employeeScan.scanNextCustomer')}
         />
@@ -1543,6 +1597,7 @@ export default function EmployeeScanScreen() {
               <Text style={s.newBalanceValue}>{Math.round(Number(customerInfo?.pointsBalance ?? 0) * 100).toLocaleString()} pts</Text>
             </View>
           }
+          again={{ label: t('employeeScan.sameCustomerPurchase'), onPress: () => sameCustomer('grant-amount'), busy: loading }}
           onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
@@ -1560,6 +1615,7 @@ export default function EmployeeScanScreen() {
               {benefitType === 'SILVER_FOUNTAIN' && <Text style={s.newBalanceValue}>{t('employeeScan.refillsRemainingPeriod', { count: silverRemaining - 1 })}</Text>}
             </View>
           }
+          again={{ label: t('employeeScan.sameCustomerPurchase'), onPress: () => sameCustomer('grant-amount'), busy: loading }}
           onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
@@ -1655,6 +1711,7 @@ export default function EmployeeScanScreen() {
               <Text style={[s.newBalanceValue, { color: '#9B5DE5' }]}>-{selectedCatalogItem?.pointsCost?.toLocaleString()} pts</Text>
             </View>
           }
+          again={{ label: t('employeeScan.sameCustomerPurchase'), onPress: () => sameCustomer('grant-amount'), busy: loading }}
           onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
@@ -1671,6 +1728,7 @@ export default function EmployeeScanScreen() {
               <Text style={s.newBalanceLabel}>{t('employeeScan.dayOfSevenRedeemed', { day: confirmedWelcomeBonus?.day, total: confirmedWelcomeBonus?.totalDays ?? 7 })}</Text>
             </View>
           }
+          again={{ label: t('employeeScan.sameCustomerPurchase'), onPress: () => sameCustomer('grant-amount'), busy: loading }}
           onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
@@ -1689,6 +1747,7 @@ export default function EmployeeScanScreen() {
               <Text style={[s.newBalanceValue, { color: '#22C55E', letterSpacing: 4, fontSize: 22 }]}>{confirmedPending?.redemptionCode}</Text>
             </View>
           }
+          again={{ label: t('employeeScan.sameCustomerPurchase'), onPress: () => sameCustomer('grant-amount'), busy: loading }}
           onNext={reset} nextLabel={t('employeeScan.scanNextCustomer')}
         />
       )}
@@ -1975,6 +2034,8 @@ const s = StyleSheet.create({
   doneName: { fontSize: 15, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
   doneSub: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8, textAlign: 'center' },
   doneBtn: { marginTop: 12, width: 260 },
+  againBtn: { marginTop: 18, width: 260, minHeight: 50, borderRadius: 14, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: COLORS.primary + '10', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 10 },
+  againBtnText: { color: COLORS.primary, fontSize: 15, fontWeight: '800', textAlign: 'center' },
   newBalanceCard: {
     backgroundColor: COLORS.white, borderRadius: 16, padding: 16,
     alignItems: 'center', marginBottom: 28, marginTop: 10,
