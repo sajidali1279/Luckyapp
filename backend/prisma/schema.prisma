@@ -886,6 +886,8 @@ model BillingRecord {
 
   store Store? @relation(fields: [storeId], references: [id])
 
+  // Also a partial unique index made in SQL (migration 20261031120000_billing_one_usage_bill_per_month): one usage bill per store
+  // and month, extra charges (CUSTOM) excluded. Prisma cannot describe it, so never let a generated migration drop it.
   @@map("billing_records")
 }
 

@@ -19,7 +19,7 @@
 import cron from 'node-cron';
 import prisma from '../config/prisma';
 import { BillingType, Role } from '@prisma/client';
-import { buildBillForPeriod, BILLING_HEARTBEAT_KEY } from '../controllers/billing.controller';
+import { buildBillForPeriod, createUsageBill, BILLING_HEARTBEAT_KEY } from '../controllers/billing.controller';
 import { lastFinishedPeriod, periodLabel } from './billingPeriods';
 import { audit } from './audit';
 import { sendBillingInvoiceEmail } from './email';
@@ -62,16 +62,15 @@ export async function runMonthlyBilling(now: Date = new Date()) {
       const bill = await buildBillForPeriod(store, period);
       if (!bill) { nothingToBill++; continue; }
 
-      await (prisma.billingRecord as any).create({
-        data: {
-          storeId: store.id,
-          billingType: store.billingType as BillingType,
-          amount: bill.amount,
-          period,
-          notes: JSON.stringify({ ...bill.notes, generatedBy: 'cron' }),
-          isPaid: false,
-        },
+      // Another server copy (or the Generate button) may have made it a moment ago: the database refuses a second one
+      const made = await createUsageBill({
+        storeId: store.id,
+        billingType: store.billingType as BillingType,
+        amount: bill.amount,
+        period,
+        notes: JSON.stringify({ ...bill.notes, generatedBy: 'cron' }),
       });
+      if (!made) { alreadyBilled++; continue; }
       createdBills.push({ storeId: store.id, storeName: store.name, amount: bill.amount });
       console.log(`[billing-cron]   made ${store.name}: $${bill.amount.toFixed(2)} (${store.billingType}) for ${period}`);
     }

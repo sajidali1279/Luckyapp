@@ -1012,6 +1012,19 @@ async function usageBillKeys(where: { period?: string }): Promise<Set<string>> {
   return new Set(rows.map((r) => `${r.storeId}:${r.period}`));
 }
 
+/** Makes a store's usage bill for a month, or answers false when that bill already exists. The database holds one usage bill per
+ *  store and month (a partial unique index, migration 20261031120000), so two server copies, or the monthly job racing the Generate
+ *  button, can never bill a store twice: the second one lands here as "already billed". */
+export async function createUsageBill(data: { storeId: string; billingType: BillingType; amount: number; period: string; notes: string }): Promise<boolean> {
+  try {
+    await prisma.billingRecord.create({ data: { ...data, isPaid: false } });
+    return true;
+  } catch (e: any) {
+    if (e?.code === 'P2002') return false;
+    throw e;
+  }
+}
+
 const billsWord = (n: number) => `${n} bill${n === 1 ? '' : 's'}`;
 
 // ─── Generate usage bills for one FINISHED month (default = the last one) ─────
@@ -1044,10 +1057,8 @@ export async function generateMonthlyBilling(req: AuthRequest, res: Response) {
     if (have.has(`${store.id}:${period}`)) { alreadyBilled++; continue; }
     const bill = await buildBillForPeriod(store, period);
     if (!bill) { nothingToBill++; continue; }
-    await (prisma.billingRecord as any).create({
-      data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) },
-    });
-    created++;
+    const made = await createUsageBill({ storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) });
+    if (made) created++; else alreadyBilled++;
   }
 
   audit({
@@ -1082,9 +1093,8 @@ export async function generateAllMissingBills(req: AuthRequest, res: Response) {
       if (have.has(`${store.id}:${period}`)) { alreadyBilled++; continue; }
       const bill = await buildBillForPeriod(store, period);
       if (!bill) { nothingToBill++; continue; }
-      await (prisma.billingRecord as any).create({
-        data: { storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) },
-      });
+      const made = await createUsageBill({ storeId: store.id, billingType: store.billingType as BillingType, amount: bill.amount, period, notes: JSON.stringify({ ...bill.notes, generatedBy: 'manual' }) });
+      if (!made) { alreadyBilled++; continue; }
       results.push({ store: store.name, period, amount: bill.amount, action: 'created' });
       created++;
     }
