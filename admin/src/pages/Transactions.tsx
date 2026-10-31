@@ -1096,7 +1096,8 @@ const s: Record<string, React.CSSProperties> = {
   voidBtn: { flex: 1, background: 'none', border: '1px solid #4f6d8f', color: '#4f6d8f', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', fontSize: 14, fontWeight: 600 },
   approveOff: { background: '#e4e7ec', border: '1px solid #ced4da', color: '#5a6472', cursor: 'not-allowed' },
   actionNote: { fontSize: 12, color: TEXT_MUTED, maxWidth: 130 },
-  actionCol: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6 },
+  // the pinned column is only as wide as this (index.css, 2026-10-31): wide enough for a short note under the buttons
+  actionCol: { display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, minWidth: 112, whiteSpace: 'normal' },
   rowBtn: { background: '#fff', border: '1px solid #c9d2de', color: PRIMARY, borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit' },
   voidRowBtn: { background: 'none', border: '1px solid #4f6d8f', color: '#4f6d8f', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit' },
   dialogFlags: { textAlign: 'left', color: '#a51b28', fontSize: 13, fontWeight: 600, margin: '8px auto 0', paddingLeft: 20, maxWidth: 320 },

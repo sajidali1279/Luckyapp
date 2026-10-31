@@ -479,6 +479,17 @@ tr:hover > .ui-sticky-end { background-image: linear-gradient(rgb(241 243 246 / 
 [data-slot="table-container"] tbody tr:hover > td:last-child:has(button, input, select, [role="button"]) {
   background-image: linear-gradient(rgb(241 243 246 / 0.5), rgb(241 243 246 / 0.5));
 }
+/* ...and on a laptop or desktop it is only as wide as its buttons (2026-10-31, the owner's screenshot of Customers at 1890 px): a wide
+   table gave its spare width to every column, the pinned one too, so the actions column stretched across a third of the table, its
+   line stood in the middle of the rows and the buttons sat far off at the edge. width: 1% makes the browser give the spare width to the
+   other columns; nowrap keeps the buttons in one row. Phones keep wrapping (a wide pinned column would cover the table there). */
+@media (min-width: 900px) {
+  [data-slot="table-container"] tbody tr > td:last-child:has(button, input, select, [role="button"]),
+  [data-slot="table-container"]:has(tbody tr > td:last-child :is(button, input, select, [role="button"])) thead tr > th:last-child,
+  .ui-sticky-end { width: 1%; white-space: nowrap; }
+  [data-slot="table-container"] tbody tr > td:last-child:has(button, input, select, [role="button"]) > *,
+  .ui-sticky-end > * { flex-wrap: nowrap !important; }
+}
 
 /* A store list beside its panel (Scheduling, Requests, Chat): on a phone the list stacks on top, a third of the screen at most and
    scrolling on its own, and the panel fills the rest with its own scrolling (2026-10-25: side by side, the list took 70% of the
