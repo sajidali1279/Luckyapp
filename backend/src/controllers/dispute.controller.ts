@@ -12,6 +12,7 @@ import { emailHQ } from '../utils/adminEmail';
 import { rule } from '../utils/appSettings';
 import { addLot } from '../utils/pointLots';
 import { canUseStore } from '../utils/storeAccess';
+import { lockCustomer } from '../utils/moneyGuards';
 
 const submitSchema = z.object({
   storeId:       z.string().uuid().optional(),
@@ -61,6 +62,13 @@ export async function submitDispute(req: AuthRequest, res: Response) {
     });
     if (existingPending) {
       res.status(409).json({ success: false, error: 'You already have a pending report for this transaction.' });
+      return;
+    }
+    // A sale is made good once: after a report on it was approved and credited, another report on it would credit it again
+    const credited = await prisma.pointsDispute.findFirst({ where: { transactionId, status: 'APPROVED' }, select: { creditedAmt: true } });
+    if (credited) {
+      const pts = Math.round((credited.creditedAmt ?? 0) * 100).toLocaleString('en-US');
+      res.status(409).json({ success: false, code: 'ALREADY_CREDITED', error: `This sale was already reported and ${pts} points were added. If something is still wrong, ask at the store.` });
       return;
     }
     storeId = transaction.storeId;
@@ -251,6 +259,7 @@ const resolveSchema = z.object({
 });
 
 class AlreadyDecided extends Error {}
+class AlreadyCredited extends Error { constructor(public amount: number) { super('already credited'); } }
 
 /**
  * PATCH /disputes/:id/resolve — a report is decided ONCE. The decision only takes effect if the report is still pending at the moment it is
@@ -300,12 +309,19 @@ export async function resolveDispute(req: AuthRequest, res: Response) {
 
   try {
     await prisma.$transaction(async (tx) => {
+      // The customer's row is held first, so two approvals for one customer run one after the other and the second sees the first
+      if (finalCreditedAmt) await lockCustomer(tx, dispute.customerId);
       // Only if it is still pending: the row is claimed by whoever writes first
       const claimed = await tx.pointsDispute.updateMany({
         where: { id, status: 'PENDING' },
         data: { status: action, resolvedById: user.id, resolvedNote: note ?? null, creditedAmt: finalCreditedAmt },
       });
       if (claimed.count === 0) throw new AlreadyDecided();
+      // Two reports on one sale (sent at once, or one sent after another was approved): only the first approval credits
+      if (finalCreditedAmt && dispute.transactionId) {
+        const other = await tx.pointsDispute.findFirst({ where: { transactionId: dispute.transactionId, status: 'APPROVED', id: { not: id } }, select: { creditedAmt: true } });
+        if (other) throw new AlreadyCredited(other.creditedAmt ?? 0);
+      }
 
       if (finalCreditedAmt) {
         const after = await tx.user.update({
@@ -316,6 +332,10 @@ export async function resolveDispute(req: AuthRequest, res: Response) {
       }
     });
   } catch (err) {
+    if (err instanceof AlreadyCredited) {
+      res.status(409).json({ success: false, code: 'ALREADY_CREDITED', error: `Another report on this sale was already approved for $${err.amount.toFixed(2)}, so this one cannot credit it again. Reject it instead.` });
+      return;
+    }
     if (err instanceof AlreadyDecided) {
       const now = await prisma.pointsDispute.findUnique({ where: { id }, select: { status: true, creditedAmt: true } });
       res.status(409).json({ success: false, error: alreadyText(now?.status ?? 'decided', now?.creditedAmt ?? null) });
