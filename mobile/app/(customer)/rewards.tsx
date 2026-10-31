@@ -29,6 +29,7 @@ import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTit
 import { haptic } from '../../utils/haptics';
 import ProgressRing from '../../components/ProgressRing';
 import { askForRatingSoon } from '../../utils/ratePrompt';
+import { tellGuide } from '../../components/cuatro/guideEvents';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { useAppSettings } from '../../hooks/useAppSettings';
 
@@ -414,6 +415,7 @@ export default function RewardsScreen() {
       setSelectedItem(null);
       setSuccessData(res.data.data);
       askForRatingSoon();   // a reward just redeemed is the best moment to ask (once ever, HQ's switch)
+      tellGuide('redeemed');   // Cuatro, if he is on: heart eyes once the code's pop-up is closed
       qc.invalidateQueries({ queryKey: ['my-redemptions'] });
       qc.invalidateQueries({ queryKey: ['catalog'] });
     },

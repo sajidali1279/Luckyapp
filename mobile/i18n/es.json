@@ -3664,6 +3664,24 @@
     "greet_HALLOWEEN": "¡Feliz Halloween! 🎃 ¿Te gusta mi sombrero?",
     "greet_THANKSGIVING": "¡Feliz Día de Acción de Gracias! 🦃 ¿Te gusta mi sombrero?",
     "greet_CHRISTMAS": "¡Feliz Navidad! 🎄 ¡Jo, jo, jo!",
-    "greet_GAME_DAY": "¡Hoy hay partido! 🏈 ¿Te gusta mi gorra?"
+    "greet_GAME_DAY": "¡Hoy hay partido! 🏈 ¿Te gusta mi gorra?",
+    "gotPoints": "¡+{{pts}} puntos! ¡Yupi! 🎉",
+    "gotPointsBig": "¡¡+{{pts}} puntos!! ¡Estamos forrados! 🤑",
+    "redeemed": "¡Disfruta tu premio! 💚",
+    "tickle1": "¡Ji ji! ¡Me haces cosquillas! 😆",
+    "tickle2": "¡Para, ja ja! 🤭",
+    "tickle3": "¡La panza no! 😂",
+    "poked": "¡Oye! ¡Basta de picarme! 😤",
+    "pokedForgive": "Bueno, bueno... te perdono. 😉",
+    "hug": "¡Aww, un abrazo! 🥰",
+    "splat": "¡Plaf! 😵",
+    "yawn": "Aaaah... qué sueño 😪",
+    "wake": "¿¡Eh!? ¡Estoy despierto! ¡Despierto! 😳",
+    "morning": "¡Buenos días! ☕ El café está recién hecho.",
+    "afternoon": "¿Hora de un antojito? 🌮",
+    "evening": "¡Buenas tardes! ¿Cargas gasolina de camino a casa? ⛽",
+    "night": "Ya es tarde... 😴 ¡No olvides tus puntos!",
+    "weekend": "¡Feliz fin de semana! 🎉",
+    "sulkHint": "(Tócame para hacer las paces.)"
   }
 }

@@ -3664,6 +3664,24 @@
     "greet_HALLOWEEN": "Happy Halloween! 🎃 Like my hat?",
     "greet_THANKSGIVING": "Happy Thanksgiving! 🦃 Like my hat?",
     "greet_CHRISTMAS": "Merry Christmas! 🎄 Ho ho ho!",
-    "greet_GAME_DAY": "It's game day! 🏈 Like my cap?"
+    "greet_GAME_DAY": "It's game day! 🏈 Like my cap?",
+    "gotPoints": "+{{pts}} points! Woohoo! 🎉",
+    "gotPointsBig": "+{{pts}} points!! We are rolling in it! 🤑",
+    "redeemed": "Enjoy your treat! 💚",
+    "tickle1": "Hee hee! That tickles! 😆",
+    "tickle2": "Stop it, ha ha! 🤭",
+    "tickle3": "Not the belly! 😂",
+    "poked": "Hey! Enough poking! 😤",
+    "pokedForgive": "Okay, okay... I forgive you. 😉",
+    "hug": "Aww, a hug! 🥰",
+    "splat": "Splat! 😵",
+    "yawn": "Yaaawn... 😪",
+    "wake": "Huh?! I'm awake! I'm awake! 😳",
+    "morning": "Good morning! ☕ The coffee is fresh.",
+    "afternoon": "Snack time? 🌮",
+    "evening": "Evening! Filling up on the way home? ⛽",
+    "night": "It's late... 😴 Don't forget your points!",
+    "weekend": "Happy weekend! 🎉",
+    "sulkHint": "(Tap me to make up.)"
   }
 }

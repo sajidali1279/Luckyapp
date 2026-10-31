@@ -7,6 +7,11 @@
 // He shows only on the customer's main screens (never over a form, the camera, ordering or the keyboard), steps away while a screen's
 // own pop-up is open (guideCover.ts), and the phone remembers per customer whether he was introduced or sent away. Mounted by the
 // customer layout in DrawerShell's floating slot: above the screens and the bottom bar, under the side menu.
+// More character (2026-10-31, the owner: "more expressions and reactions"): he cheers with confetti when points land and makes heart
+// eyes when a reward is redeemed; a quick second tap tickles him, a poking spree makes him grumpy until he forgives you, holding him
+// still gives a hug, he smiles when carried gently and goes "splat" when dropped from high up; left alone he yawns and falls asleep
+// (a tap wakes him with a start); he says good morning, good night or happy weekend once per app run; and thrown out, he comes
+// back sulking until you tap him to make up.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, AppState, BackHandler, Easing, Keyboard, PanResponder, Pressable, StyleSheet, TouchableOpacity, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,6 +31,7 @@ import { ASPECT, FEET, PIVOT, DROP, VIEWBOX, COSTUMES, COSTUME_RISE, star, type 
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGuideCovered } from './guideCover';
 import { tips, answer, TOPICS, type Ctx, type Line, type Topic } from './guideTips';
+import { hasGuideEvent, takeGuideEvent } from './guideEvents';
 
 const SIZE = 76;                          // his width on screen
 const H = SIZE * ASPECT;                  // and height
@@ -61,7 +67,11 @@ function remember(patch: Partial<Saved>) {
   AsyncStorage.setItem(keyFor(savedFor), JSON.stringify(saved)).catch(() => {});
 }
 // Where he was this app run, so leaving a screen and coming back puts him back there
-const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false };
+// The balance he last saw and the points that landed since (cheered once he is on the bar), so he notices points that arrived while
+// a pop-up or another screen hid him
+const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false, balance: null as number | null, balanceFor: null as string | null, cheer: 0 };
+const SLEEP_AFTER = 60_000, SLEEP_AFTER_NIGHT = 25_000;   // untouched this long on the bar, he dozes off
+const isNight = () => { const hr = new Date().getHours(); return hr >= 21 || hr < 5; };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
@@ -168,7 +178,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const [face, setFaceState] = useState<Face>('happy');
   const [gloves, setGloves] = useState<[Glove, Glove]>(['fist', 'fist']);
   const [fx, setFx] = useState<Extras>({});
-  const [bits, setBits] = useState<{ stars?: boolean; drops?: boolean; steam?: boolean }>({});
+  const [bits, setBits] = useState<{ stars?: boolean; drops?: boolean; steam?: boolean; confetti?: number; hearts?: boolean; zzz?: boolean }>({});
   const [bubble, setBubbleState] = useState<(Bubble & { id: number; at: { x: number; bottom: number } }) | null>(null);
   const [mode, setModeState] = useState<Mode>('off');
   const [tabMood, setTabMood] = useState<Mood | null>(null);
@@ -184,6 +194,11 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const modeRef = useRef<Mode>('off');
   const faceRef = useRef<Face>('happy');
   const bubbleRef = useRef<Bubble | null>(null);
+  const asleep = useRef(false);
+  const sulking = useRef(false);
+  const lastTouch = useRef(Date.now());
+  const taps = useRef<number[]>([]);
+  const hug = useRef({ on: false, timer: null as ReturnType<typeof setTimeout> | null });
   const dims = useRef({ w, h, top: insets.top + 4, reduce, menuOpen });
   dims.current = { w, h, top: insets.top + 4, reduce, menuOpen };
 
@@ -296,6 +311,104 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     play(Animated.sequence([to(rig.gazeX, side, 180), Animated.delay(700), to(rig.gazeX, -side, 260), Animated.delay(500), to(rig.gazeX, 0, 200)]));
   };
 
+  // ------------------------------------------------------------ moods and reactions (2026-10-31)
+  const touched = () => { lastTouch.current = Date.now(); };
+  /** Back to his everyday self on the bar after a reaction. */
+  const settle = (my: number, ms: number) => later(ms, () => { if (scene.current === my && modeRef.current === 'bar') { setBits({}); setFx({}); setFace('happy'); rest(); } });
+
+  /** Points just landed: arms up, two hops, confetti. */
+  const celebrate = async (pts: number) => {
+    const my = fresh(); stopLoops(); closeBubble(); setMode('busy'); touched();
+    haptic.success();
+    setFace('joy'); setFx({}); setGloves(['open', 'open']); setBits({ confetti: Date.now() });
+    play(arms(80, 80, 200));
+    if (!dims.current.reduce) { if (!(await hop(my)) || !(await hop(my))) return; }
+    if (!still(my)) return;
+    setMode('bar');
+    say(t(pts >= 500 ? 'guide.gotPointsBig' : 'guide.gotPoints', { pts: pts.toLocaleString() }), 3200);
+    settle(my, 3300);
+  };
+  /** A reward was just redeemed: heart eyes and hearts. */
+  const adore = () => {
+    const my = fresh(); stopLoops(); closeBubble(); touched();
+    haptic.success();
+    setFace('love'); setFx({}); setGloves(['open', 'open']); setBits({ hearts: true });
+    play(arms(24, 24, 260));
+    say(t('guide.redeemed'), 3200);
+    settle(my, 3300);
+  };
+  /** A quick second tap: he giggles and wriggles. */
+  const tickle = () => {
+    const my = fresh(); stopLoops(); closeBubble(); touched();
+    haptic.select();
+    setFace('joy'); setFx({ sweat: true }); setGloves(['fist', 'fist']);
+    play(arms(-20, -20, 140));
+    if (!dims.current.reduce) loop(Animated.sequence([to(lean, -7, 70), to(lean, 7, 70)]), 4, () => play(to(lean, 0, 80)));
+    say(t(`guide.tickle${1 + Math.floor(Math.random() * 3)}`), 1800);
+    settle(my, 1900);
+  };
+  /** Poked too many times: grumpy, then he forgives you. */
+  const grumpy = async () => {
+    const my = fresh(); stopLoops(); closeBubble(); touched();
+    haptic.warning();
+    setFace('mad'); setFx({ anger: true }); setBits({ steam: true }); setGloves(['fist', 'fist']);
+    play(arms(-30, -30, 160));
+    say(t('guide.poked'), 2600);
+    await pause(2800);
+    if (!still(my) || modeRef.current !== 'bar') return;
+    setBits({}); setFx({}); setFace('wink'); setGloves(['thumb', 'fist']);
+    play(arms(40, -62));
+    say(t('guide.pokedForgive'), 2600);
+    settle(my, 2700);
+  };
+  /** Left alone a while: a big yawn, then asleep with his eyes shut until someone taps him. */
+  const sleep = async () => {
+    const my = fresh(); stopLoops(); closeBubble();
+    setFace('sleepy'); setGloves(['open', 'open']);
+    if (!dims.current.reduce) await play(arms(80, 80, 500));
+    if (!still(my)) return;
+    say(t('guide.yawn'), 1800);
+    await pause(1900);
+    if (!still(my) || modeRef.current !== 'bar') return;
+    asleep.current = true;
+    setGloves(['fist', 'fist']); play(arms(-62, -62, 600));
+    rig.blink.setValue(0.08);
+    setBits({ zzz: true });
+  };
+  /** Woken with a start. */
+  const wake = async () => {
+    const my = fresh(); stopLoops(); closeBubble(); touched();
+    asleep.current = false;
+    rig.blink.setValue(1); setBits({});
+    haptic.tap();
+    setFace('wow'); setGloves(['open', 'open']); play(arms(70, 70, 120));
+    if (!dims.current.reduce && !(await hop(my))) return;
+    say(t('guide.wake'), 1800);
+    settle(my, 1900);
+  };
+  const stirAwake = () => { if (asleep.current) { asleep.current = false; rig.blink.setValue(1); setBits({}); } };
+  /** Sulking after being thrown out, until a tap makes up. */
+  const forgive = () => {
+    const my = fresh(); stopLoops(); closeBubble(); touched();
+    sulking.current = false;
+    haptic.success();
+    setFx({}); setBits({}); setFace('joy'); setGloves(['thumb', 'thumb']);
+    play(arms(46, 46));
+    say(t('guide.backForgive'), 3200);
+    settle(my, 3300);
+  };
+  /** Once per app run when there is no holiday hello: good morning, good night or happy weekend. */
+  const greetByTime = () => {
+    const now = new Date(), hr = now.getHours(), day = now.getDay();
+    const key = hr >= 21 || hr < 5 ? 'night' : day === 0 || day === 6 ? 'weekend' : hr < 11 ? 'morning' : hr < 17 ? 'afternoon' : 'evening';
+    const my = scene.current;
+    if (key === 'night') { setFace('sleepy'); play(arms(80, 80, 500)); }
+    else if (key === 'morning') { setFace('joy'); setGloves(['open', 'open']); play(arms(80, 80, 400)); }
+    else { setFace('joy'); wave('L', 2); }
+    say(t(`guide.${key}`), 3400);
+    settle(my, 3500);
+  };
+
   // ------------------------------------------------------------ where he goes
   const showTab = (mood: Mood | null) => {
     fresh(); stopAll(); closeBubble();
@@ -361,6 +474,10 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       if (c && !run.greeted) {
         run.greeted = true;
         later(600, () => { if (modeRef.current === 'bar' && !bubbleRef.current) { setFace('joy'); say(t(`guide.greet_${c}`), 3400); later(3500, () => { if (modeRef.current === 'bar') setFace('happy'); }); } });
+      } else if (!run.greeted) {
+        // no holiday: good morning, good night or happy weekend, by the phone's clock
+        run.greeted = true;
+        later(600, () => { if (modeRef.current === 'bar' && !bubbleRef.current && run.cheer === 0) greetByTime(); });
       }
     } else later(900, () => { if (modeRef.current === 'bar' && !bubbleRef.current) say(t('guide.tapAgain'), 4000); });
   };
@@ -396,13 +513,12 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     if (!(await leap(my, spotX(), floorY(), 60))) return;
     setMode('bar'); run.where = 'bar';
     if (mood) {
+      // still sulking: arms crossed, until a tap makes up (or he gets over it by himself after a while)
+      sulking.current = true;
+      play(arms(-20, -20, 200));
       say(t(mood === 'mad' ? 'guide.backMad' : 'guide.backSad'), 2600);
-      await pause(2700);
-      if (!still(my)) return;
-      setFx({}); setFace('joy'); setGloves(['thumb', 'thumb']);
-      play(arms(46, 46));
-      say(t('guide.backForgive'), 3400);
-      later(3500, () => { if (modeRef.current === 'bar') { setFace('happy'); rest(); } });
+      later(6000, () => { if (sulking.current && scene.current === my && !bubbleRef.current) say(t('guide.sulkHint'), 3200); });
+      later(30_000, () => { if (sulking.current && scene.current === my && modeRef.current === 'bar') forgive(); });
     } else if (!saved?.introduced) {
       setFace('happy');
       say(t('guide.tapAgain'), 4000);
@@ -473,8 +589,15 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
 
   // ------------------------------------------------------------ picked up, dropped, thrown
   const press = useRef({ held: false, moved: false, timer: null as ReturnType<typeof setTimeout> | null, bx: 0, by: 0 });
+  const flail = () => loop(Animated.parallel([
+    Animated.sequence([to(rig.armL, 70, 160), to(rig.armL, 40, 160)]),
+    Animated.sequence([to(rig.armR, 40, 160), to(rig.armR, 70, 160)]),
+    Animated.sequence([to(rig.legL, 22, 200), to(rig.legL, -6, 200)]),
+    Animated.sequence([to(rig.legR, -6, 200), to(rig.legR, 22, 200)]),
+  ]));
   const pickUp = () => {
-    fresh(); stopAll(); closeBubble();
+    fresh(); stopAll(); closeBubble(); stirAwake(); touched();
+    sulking.current = false;
     press.current.held = true;
     setMode('held');
     haptic.press();
@@ -482,21 +605,41 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     spin.setValue(0); lean.setValue(0);
     play(Animated.parallel([spring(sx, 1.08), spring(sy, 1.08), to(y, pos.current.y - LIFT, 120)]));
     pos.current = { x: pos.current.x, y: pos.current.y - LIFT };
-    loop(Animated.parallel([
-      Animated.sequence([to(rig.armL, 70, 160), to(rig.armL, 40, 160)]),
-      Animated.sequence([to(rig.armR, 40, 160), to(rig.armR, 70, 160)]),
-      Animated.sequence([to(rig.legL, 22, 200), to(rig.legL, -6, 200)]),
-      Animated.sequence([to(rig.legR, -6, 200), to(rig.legR, 22, 200)]),
-    ]));
+    flail();
+    // held still a moment longer: a hug
+    hug.current.on = false;
+    if (hug.current.timer) clearTimeout(hug.current.timer);
+    hug.current.timer = later(1100, () => {
+      hug.current.timer = null;
+      if (modeRef.current !== 'held') return;
+      hug.current.on = true;
+      stopLoops(); haptic.success();
+      setFace('love'); setFx({}); setBits({ hearts: true }); setGloves(['open', 'open']);
+      play(Animated.parallel([arms(24, 24, 220), to(rig.legL, 0, 200), to(rig.legR, 0, 200), spring(sx, 1.14), spring(sy, 0.96)]));
+      say(t('guide.hug'), 2200);
+    });
   };
   const drag = (nx: number, ny: number, vx: number) => {
     const { w: ww } = dims.current;
     const cx = clamp(nx, -SIZE * 0.35, ww - SIZE * 0.65), cy = clamp(ny, dims.current.top, dims.current.h - H * 0.45);
+    // carried off from where he was picked up: no hug after all
+    const away = Math.hypot(cx - press.current.bx, cy - (press.current.by - LIFT));
+    if (hug.current.timer && away > 8) { clearTimeout(hug.current.timer); hug.current.timer = null; }
+    if (hug.current.on && away > 16) { hug.current.on = false; closeBubble(); setBits({}); setFx({ sweat: true }); flail(); }
     x.setValue(cx); y.setValue(cy); pos.current = { x: cx, y: cy };
-    spin.setValue(Number.isFinite(vx) ? clamp(-vx * 22, -30, 30) : 0);   // he swings against the way he is carried
+    const speed = Number.isFinite(vx) ? vx : 0;
+    spin.setValue(clamp(-speed * 22, -30, 30));   // he swings against the way he is carried
+    rig.gazeX.setValue(clamp(speed * 10, -6, 6));   // and looks where he is going
+    if (!hug.current.on) {
+      // carried gently he enjoys the ride; swung about he panics
+      const f: Face = Math.abs(speed) > 0.45 ? 'wow' : 'joy';
+      if (faceRef.current !== f) { setFace(f); setFx(f === 'wow' ? { sweat: true } : {}); }
+    }
   };
   const release = (rawVx: number, rawVy: number) => {
     const vx = Number.isFinite(rawVx) ? rawVx : 0, vy = Number.isFinite(rawVy) ? rawVy : 0;   // touches in the same instant give no speed
+    if (hug.current.timer) { clearTimeout(hug.current.timer); hug.current.timer = null; }
+    rig.gazeX.setValue(0);
     stopLoops(); setFx({});
     if (Math.abs(vx) > 0.75 && Math.abs(vx) > Math.abs(vy) * 0.6) {
       if (dims.current.reduce) walkOff(vx < 0 ? 'left' : 'right', 'sad');
@@ -505,6 +648,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   };
   const drop = async () => {
     const my = fresh(); setMode('busy');
+    const hugged = hug.current.on;
+    hug.current.on = false;
     const ty = floorY(), { y: y0 } = pos.current;
     play(spring(spin, 0, { friction: 4 }));
     if (y0 > ty) {
@@ -514,8 +659,29 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       await play(Animated.parallel([to(y, ty, ms, Easing.in(Easing.quad)), to(rig.legL, 14, ms), to(rig.legR, 14, ms), spring(sx, 1), spring(sy, 1)]));
       if (!still(my)) return;
       pos.current = { x: pos.current.x, y: ty };
-      if (!(await land(my))) return;
-      if (ty - y0 > dims.current.h * 0.35) say(t('guide.oof'), 1400);
+      const fell = ty - y0;
+      if (fell > dims.current.h * 0.5 && !dims.current.reduce) {
+        // from high up: flat as a pancake, seeing stars, then he pops back into shape
+        haptic.warning();
+        setFace('dizzy'); setFx({}); setBits({ stars: true });
+        await play(Animated.parallel([to(sy, 0.5, 70), to(sx, 1.45, 70), to(rig.legL, 0, 70), to(rig.legR, 0, 70)]));
+        if (!still(my)) return;
+        say(t('guide.splat'), 1600);
+        await pause(900);
+        if (!still(my)) return;
+        wobble();
+        await pause(500);
+        if (!still(my)) return;
+        setBits({});
+      } else {
+        if (!(await land(my))) return;
+        if (fell > dims.current.h * 0.35) say(t('guide.oof'), 1400);
+      }
+    }
+    if (hugged) {
+      setBits({});
+      later(300, () => { if (modeRef.current === 'bar' && !bubbleRef.current) setFace('joy'); });
+      later(1800, () => { if (modeRef.current === 'bar' && faceRef.current === 'joy' && !bubbleRef.current) setFace('happy'); });
     }
     const nx = clamp(pos.current.x, 6, dims.current.w - SIZE - 6);
     if (nx !== pos.current.x) { await play(to(x, nx, 220)); pos.current = { x: nx, y: ty }; }
@@ -524,6 +690,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   };
   const throwOut = async (side: 'left' | 'right', vx: number, vy: number) => {
     const my = fresh(); setMode('busy'); closeBubble();
+    hug.current.on = false; setBits({});
     // he is gone from the moment he is thrown, even if the screen changes before he has walked off
     const mood: Mood = Math.random() < 0.5 ? 'sad' : 'mad';
     remember({ away: true, mood });
@@ -623,6 +790,14 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     const b = bubbleRef.current;
     if (b?.kind === 'intro') { nextIntro(); return; }
     if (!saved?.introduced) { haptic.tap(); doIntro(0); return; }
+    if (asleep.current) { wake(); return; }
+    if (sulking.current) { forgive(); return; }
+    // a second tap right after the first tickles him; five in a few seconds and he has had enough
+    const now = Date.now();
+    taps.current = [...taps.current.filter((at) => now - at < 3000), now];
+    touched();
+    if (taps.current.length >= 5) { taps.current = []; grumpy(); return; }
+    if (taps.current.length >= 2 && now - taps.current[taps.current.length - 2] < 450) { tickle(); return; }
     if (b && b.kind !== 'hint' && b.kind !== 'say') { closeBubble(); setFace('happy'); rest(); return; }
     haptic.tap(); menu();
   };
@@ -670,7 +845,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     else later(run.peeks ? 700 : 1800, () => { peek(); });
     // blinking, now and then, with open eyes
     const blink = () => later(2400 + Math.random() * 3600, () => {
-      if (OPEN_EYES.has(faceRef.current) && modeRef.current !== 'held') {
+      if (OPEN_EYES.has(faceRef.current) && modeRef.current !== 'held' && !asleep.current) {
         Animated.sequence([to(rig.blink, 0.08, 60), to(rig.blink, 1, 90)]).start();
         Animated.sequence([to(tabRig.blink, 0.08, 60), to(tabRig.blink, 1, 90)]).start();
       }
@@ -679,7 +854,9 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     blink();
     // fidgets on the bar, and the tips
     const idle = () => later(6000 + Math.random() * 5000, () => {
-      if (modeRef.current === 'bar' && !bubbleRef.current) {
+      const quiet = modeRef.current === 'bar' && !bubbleRef.current && !asleep.current && !sulking.current && saved?.introduced;
+      if (quiet && Date.now() - lastTouch.current > (isNight() ? SLEEP_AFTER_NIGHT : SLEEP_AFTER)) sleep();
+      else if (quiet) {
         const r = Math.random();
         if (r < 0.4) look();
         else if (r < 0.6) wave(Math.random() < 0.5 ? 'L' : 'R', 2);
@@ -689,11 +866,26 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     });
     idle();
     const tipCheck = () => later(5000, () => {
-      if (modeRef.current === 'bar' && !bubbleRef.current && saved?.introduced && !saved.away && !dims.current.menuOpen
+      if (modeRef.current === 'bar' && !bubbleRef.current && saved?.introduced && !saved.away && !dims.current.menuOpen && !asleep.current && !sulking.current
         && AppState.currentState === 'active' && run.tips < TIPS_PER_RUN && Date.now() >= run.nextTipAt) showTip();
       tipCheck();
     });
     tipCheck();
+    // points that landed and a reward redeemed: reacted to once he is on the bar with nothing on (a sleeping Cuatro wakes up first)
+    const news = () => later(1200, () => {
+      const b = bubbleRef.current;
+      const free = modeRef.current === 'bar' && saved?.introduced && !dims.current.menuOpen && (!b || b.kind === 'say' || b.kind === 'hint');
+      if (free && (run.cheer > 0 || hasGuideEvent())) {
+        if (asleep.current) wake();   // the news next time round, once he is up
+        else {
+          sulking.current = false;    // good news ends a sulk
+          if (run.cheer > 0) { const pts = run.cheer; run.cheer = 0; celebrate(pts); }
+          else if (takeGuideEvent() === 'redeemed') adore();
+        }
+      }
+      news();
+    });
+    news();
     return () => {
       live.current = false;
       timers.current.forEach(clearTimeout); timers.current.clear();
@@ -704,6 +896,19 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
 
   // the side menu opening over him closes what he was saying
   useEffect(() => { if (menuOpen && bubbleRef.current) closeBubble(); }, [menuOpen]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // the balance going up (a purchase, a check-in, a bonus): cheered once he is on the bar (the news loop above). The first value he sees
+  // in an app run is where he starts counting; a drop (a reward, an order) only moves that mark.
+  const balance = useAuthStore((st) => st.user?.pointsBalance);
+  const me = useAuthStore((st) => st.user?.id);
+  useEffect(() => {
+    if (balance == null) return;
+    if (run.balanceFor !== me) { run.balanceFor = me ?? null; run.balance = null; run.cheer = 0; }   // another account: start over
+    const now = Number(balance), before = run.balance;
+    run.balance = now;
+    if (before == null) return;
+    const gained = Math.round((now - before) * 100);
+    if (gained >= 1) run.cheer += gained;
+  }, [balance, me]);
   // Android back closes his bubble before it leaves the screen
   const talking = !!bubble && bubble.kind !== 'hint' && bubble.kind !== 'say';
   useEffect(() => {
@@ -746,6 +951,9 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
           {bits.stars ? <DizzyStars /> : null}
           {bits.drops ? <Drops /> : null}
           {bits.steam ? <Steam /> : null}
+          {bits.hearts ? <Hearts /> : null}
+          {bits.zzz ? <Zzz /> : null}
+          {bits.confetti && !reduce ? <Confetti key={bits.confetti} /> : null}
         </Animated.View>
       </Animated.View>
 
@@ -912,6 +1120,73 @@ function Steam() {
   );
 }
 
+/** Little hearts floating up off him (a hug, a reward redeemed). */
+function Hearts() {
+  const rise = useRef(new Animated.Value(0)).current;
+  useEffect(() => { const l = Animated.loop(Animated.timing(rise, { toValue: 1, duration: 1400, easing: Easing.out(Easing.quad), ...N })); l.start(); return () => l.stop(); }, [rise]);
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {[{ fx: 0.08, d: -10, ph: 0 }, { fx: 0.78, d: 10, ph: 0.45 }, { fx: 0.44, d: 0, ph: 0.75 }].map(({ fx, d, ph }, k) => {
+        const p = Animated.modulo(Animated.add(rise, ph), 1);
+        return (
+          <Animated.View key={k} style={[s.float, { left: SIZE * fx, top: SIZE * 0.1, opacity: p.interpolate({ inputRange: [0, 0.15, 0.8, 1], outputRange: [0, 1, 0.9, 0] }), transform: [
+            { translateY: p.interpolate({ inputRange: [0, 1], outputRange: [0, -34] }) },
+            { translateX: p.interpolate({ inputRange: [0, 1], outputRange: [0, d] }) },
+            { scale: p.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.5, 1.1, 0.9] }) },
+          ] }]}><Text style={s.heart} maxFontSizeMultiplier={1}>💚</Text></Animated.View>
+        );
+      })}
+    </View>
+  );
+}
+
+/** "z z Z" drifting up while he sleeps. */
+function Zzz() {
+  const rise = useRef(new Animated.Value(0)).current;
+  useEffect(() => { const l = Animated.loop(Animated.timing(rise, { toValue: 1, duration: 2600, easing: Easing.linear, ...N })); l.start(); return () => l.stop(); }, [rise]);
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {[0, 1 / 3, 2 / 3].map((ph, k) => {
+        const p = Animated.modulo(Animated.add(rise, ph), 1);
+        return (
+          <Animated.View key={k} style={[s.float, { left: SIZE * 0.7, top: SIZE * 0.05, opacity: p.interpolate({ inputRange: [0, 0.2, 0.8, 1], outputRange: [0, 1, 0.8, 0] }), transform: [
+            { translateY: p.interpolate({ inputRange: [0, 1], outputRange: [0, -36] }) },
+            { translateX: p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 8, 2] }) },
+            { scale: p.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.25] }) },
+          ] }]}><Text style={s.zzz} maxFontSizeMultiplier={1}>z</Text></Animated.View>
+        );
+      })}
+    </View>
+  );
+}
+
+const CONFETTI = ['#16A34A', '#FFC533', '#D62839', '#3B82F6', '#F97316', '#A855F7', '#16A34A', '#FFC533', '#D62839', '#3B82F6'];
+/** One burst of confetti out of his top, falling as it spins (points landed). */
+function Confetti() {
+  const go = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(go, { toValue: 1, duration: 1500, easing: Easing.linear, ...N }).start(); }, [go]);
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {CONFETTI.map((color, k) => {
+        const angle = -Math.PI / 2 + ((k / (CONFETTI.length - 1)) - 0.5) * 2.4;   // a fan, up and out
+        const reach = 38 + (k % 3) * 12;
+        const dx = Math.cos(angle) * reach, up = Math.sin(angle) * reach;
+        const steps = [0, 0.25, 0.5, 0.75, 1];
+        return (
+          <Animated.View key={k} style={{ position: 'absolute', left: SIZE / 2 - 3, top: SIZE * 0.12, width: 6, height: k % 2 ? 10 : 6, borderRadius: k % 2 ? 1 : 3, backgroundColor: color,
+            opacity: go.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1, 0] }),
+            transform: [
+              { translateX: go.interpolate({ inputRange: steps, outputRange: steps.map((t) => dx * Math.min(1, t * 1.6)) }) },
+              // out with the burst, then gravity takes it
+              { translateY: go.interpolate({ inputRange: steps, outputRange: steps.map((t) => up * Math.min(1, t * 1.6) + 70 * t * t) }) },
+              { rotate: go.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${(k % 2 ? 1 : -1) * 540}deg`] }) },
+            ] }} />
+        );
+      })}
+    </View>
+  );
+}
+
 /** The comic "BONK!" where he hits the side. */
 function Bonk({ side, y, w, text, onDone }: { side: 'left' | 'right'; y: number; w: number; text: string; onDone: () => void }) {
   const pop = useRef(new Animated.Value(0)).current;
@@ -961,6 +1236,9 @@ const s = StyleSheet.create({
     shadowColor: '#0F2038', shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 2, height: 3 }, elevation: 6, overflow: 'hidden',
   },
   tabPeek: { position: 'absolute', left: -20, top: 2 },
+  float: { position: 'absolute' },
+  heart: { fontSize: 16 },
+  zzz: { fontSize: 15, fontWeight: '900', color: '#1E3A8A' },
   puff: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#CBD5E1' },
   bonk: { position: 'absolute', backgroundColor: '#FFC533', borderColor: '#0F2038', borderWidth: 2.5, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   bonkText: { fontSize: 20, fontWeight: '900', color: '#0F2038', letterSpacing: 0.5 },
