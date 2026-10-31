@@ -12,7 +12,7 @@ import { updateHoursSchema, dayProblem, dayWords, DAY_NAMES } from './storeHours
 import { refuse } from '../utils/refusal';
 import { audit } from '../utils/audit';
 import { tellStoreAboutOrder } from '../utils/hotFoodRouting';
-import { placeWithPoints, returnOrderPoints, recordPointsPickup, pts } from '../utils/hotFoodPoints';
+import { placeOrderHeld, cancelOrder, recordPointsPickup, pts } from '../utils/hotFoodPoints';
 import { combosAt, comboLineName, DRINKS } from '../utils/hotFoodCombos';
 import { cleanCategory, orderCategories } from '../utils/hotFoodCategories';
 import { rule, feature } from '../utils/appSettings';
@@ -339,16 +339,17 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     Object.assign(updateData, { cancelledBy: 'STORE', cancelReason: reason || null, cancelledAt: new Date() });
   }
 
-  // Only moves the order if nobody else moved it first
-  const moved = await prisma.hotFoodOrder.updateMany({ where: { id, status: current }, data: updateData });
+  // Only moves the order if nobody else moved it first. Declined: the points go back in the same transaction (utils/hotFoodPoints.ts)
+  const cancelled = next === 'CANCELLED' ? await cancelOrder(id, current, updateData, true) : undefined;
+  const moved = cancelled !== undefined ? { count: cancelled ? 1 : 0 } : await prisma.hotFoodOrder.updateMany({ where: { id, status: current }, data: updateData });
   if (moved.count === 0) {
     const fresh = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { status: true } });
     const now = (fresh?.status ?? current) as OrderStatus;
     res.status(409).json({ success: false, error: `Someone else just changed this order. It is ${STATUS_WORD[now]} now.` });
     return;
   }
-  // A points order: the points go back when it is declined; picked up, it counts as a redemption at the store (utils/hotFoodPoints.ts)
-  const returned = next === 'CANCELLED' ? await returnOrderPoints(id) : 0;
+  // A points order picked up counts as a redemption at the store (utils/hotFoodPoints.ts)
+  const returned = cancelled?.returned ?? 0;
   if (next === 'COMPLETED' && order.paidWithPoints && !order.pointsReturnedAt) await recordPointsPickup(order, req.user!.id);
   const updated = await prisma.hotFoodOrder.findUnique({ where: { id }, include });
 
@@ -369,15 +370,13 @@ export async function customerCancelOrder(req: AuthRequest, res: Response) {
   const order = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { id: true, customerId: true, status: true, orderNumber: true, storeId: true } });
   if (!order || order.customerId !== req.user!.id) { res.status(404).json({ success: false, error: 'Order not found' }); return; }
   if (order.status === 'CANCELLED') { res.json({ success: true, changed: false }); return; }
-  const moved = await prisma.hotFoodOrder.updateMany({
-    where: { id, status: 'PENDING' },
-    data: { status: 'CANCELLED', cancelledBy: 'CUSTOMER', cancelReason: 'Cancelled by you', cancelledAt: new Date() },
-  });
-  if (moved.count === 0) {
+  // Paid with points: they go back in the same transaction that cancels it
+  const cancelled = await cancelOrder(id, 'PENDING', { cancelledBy: 'CUSTOMER', cancelReason: 'Cancelled by you', cancelledAt: new Date() }, true);
+  if (!cancelled) {
     res.status(409).json({ success: false, error: 'The store has already started your order, so it cannot be cancelled in the app. Ask at the counter.' });
     return;
   }
-  const returned = await returnOrderPoints(id);   // paid with points: they go back
+  const returned = cancelled.returned;
   // The staff board refreshes on its own; a push tells whoever is on shift not to start it
   tellStoreAboutOrder({ id: order.id, storeId: order.storeId }, 'Order cancelled', `The customer cancelled order #${order.orderNumber}. Do not make it.`).catch(() => {});
   res.json({ success: true, changed: true, pointsReturned: pts(returned) });
@@ -544,13 +543,6 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     }
   }
 
-  // A few open orders at a time (a mistake or a prank should not fill a kitchen): pending, being made or ready, at any store
-  const open = await prisma.hotFoodOrder.count({ where: { customerId: req.user!.id, status: { in: ['PENDING', 'ACCEPTED', 'READY'] } } });
-  if (open >= rule('hotFoodMaxOpenOrders')) {
-    res.status(429).json({ success: false, code: 'TOO_MANY_OPEN_ORDERS', error: `You already have ${open} orders open. Pick them up or cancel one before ordering again.` });
-    return;
-  }
-
   const store = await prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodEnabled: true, name: true, isActive: true } });
   if (!store?.hotFoodEnabled || store.isActive === false) {
     res.status(403).json({ success: false, error: 'Hot food ordering is not available at this location' });
@@ -627,17 +619,6 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       error: `A price changed since you opened the menu. The order is now $${totalAmount.toFixed(2)}. Check it and order again.` });
     return;
   }
-  // The same order sent twice (a double tap, a retry after a slow network): the first one is the order, nothing is taken twice
-  const sameLines = (a: { name: string; quantity: number }[]) => a.map((l) => `${l.quantity}x${l.name}`).sort().join('|');
-  const recent = await prisma.hotFoodOrder.findFirst({
-    where: { customerId, storeId, status: { not: 'CANCELLED' }, totalAmount, paidWithPoints: req.body?.payWithPoints === true, createdAt: { gte: new Date(Date.now() - 60_000) } },
-    include: { store: { select: { id: true, name: true } }, items: true },
-    orderBy: { createdAt: 'desc' },
-  });
-  if (recent && sameLines(recent.items) === sameLines(orderLines)) {
-    res.status(200).json({ success: true, data: recent, duplicate: true });
-    return;
-  }
   // Paying with points: the whole order, only when the balance covers all of it (no part payments)
   const payWithPoints = req.body?.payWithPoints === true;
   if (payWithPoints && !feature('hotFoodPayWithPoints')) {
@@ -669,20 +650,32 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     ...(payWithPoints ? { paidWithPoints: true, pointsAmount: totalAmount } : {}),
   };
   const include = { store: { select: { id: true, name: true } }, items: true };
-  let order: any;
-  let pointsBalance: number | undefined;
-  if (payWithPoints) {
-    const r = await placeWithPoints(customerId, totalAmount, (tx) => tx.hotFoodOrder.create({ data, include }));
-    if ('short' in r) {
-      res.status(400).json({ success: false, code: 'NOT_ENOUGH_POINTS', need: pts(totalAmount), have: pts(r.balance),
-        error: `This order needs ${pts(totalAmount)} points and you have ${pts(r.balance)}. Points pay only for a whole order.` });
-      return;
-    }
-    order = r.order;
-    pointsBalance = r.balance;
-  } else {
-    order = await prisma.hotFoodOrder.create({ data, include });
+  // Checked while the customer's row is held, in the transaction that places the order, so two taps at the same moment cannot both
+  // pass: a few open orders at a time (a mistake or a prank should not fill a kitchen), and the same order sent twice (a double tap, a
+  // retry after a slow network) is the first one, nothing taken twice
+  const sameLines = (a: { name: string; quantity: number }[]) => a.map((l) => `${l.quantity}x${l.name}`).sort().join('|');
+  const check = async (tx: any): Promise<{ open: number } | { duplicate: any } | null> => {
+    const open = await tx.hotFoodOrder.count({ where: { customerId, status: { in: ['PENDING', 'ACCEPTED', 'READY'] } } });
+    const recent = await tx.hotFoodOrder.findFirst({
+      where: { customerId, storeId, status: { not: 'CANCELLED' }, totalAmount, paidWithPoints: payWithPoints, createdAt: { gte: new Date(Date.now() - 60_000) } },
+      include, orderBy: { createdAt: 'desc' },
+    });
+    if (recent && sameLines(recent.items) === sameLines(orderLines)) return { duplicate: recent };
+    return open >= rule('hotFoodMaxOpenOrders') ? { open } : null;
+  };
+  const r = await placeOrderHeld(customerId, payWithPoints ? totalAmount : null, check, (tx) => tx.hotFoodOrder.create({ data, include }));
+  if ('refused' in r) {
+    if ('duplicate' in r.refused) { res.status(200).json({ success: true, data: r.refused.duplicate, duplicate: true }); return; }
+    res.status(429).json({ success: false, code: 'TOO_MANY_OPEN_ORDERS', error: `You already have ${r.refused.open} orders open. Pick them up or cancel one before ordering again.` });
+    return;
   }
+  if ('short' in r) {
+    res.status(400).json({ success: false, code: 'NOT_ENOUGH_POINTS', need: pts(totalAmount), have: pts(r.balance),
+      error: `This order needs ${pts(totalAmount)} points and you have ${pts(r.balance)}. Points pay only for a whole order.` });
+    return;
+  }
+  const order: any = r.order;
+  const pointsBalance = r.balance;
 
   // The people working at the store now (from the schedule), else everyone assigned there (utils/hotFoodRouting.ts). Managers hear only
   // when nobody accepts it in a few minutes.

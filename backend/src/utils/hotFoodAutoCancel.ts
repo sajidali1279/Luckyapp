@@ -5,7 +5,7 @@ import prisma from '../config/prisma';
 import { sendPushToUser } from './push';
 import { customerHotFoodUrl } from './notificationRoutes';
 import { escalateWaitingHotFoodOrders, ESCALATE_MINUTES, tellStoreAboutOrder } from './hotFoodRouting';
-import { returnOrderPoints, recordPointsPickup, pts } from './hotFoodPoints';
+import { cancelOrder, recordPointsPickup, pts } from './hotFoodPoints';
 import { rule, feature } from './appSettings';
 import { hotFoodWords } from './hotFoodWords';
 
@@ -47,18 +47,15 @@ export async function closeUnpickedHotFoodOrders(now: Date = new Date()): Promis
   const hours = minutes % 60 === 0 ? `${minutes / 60} hour${minutes === 60 ? '' : 's'}` : `${minutes} minutes`;
   let done = 0;
   for (const o of left) {
-    const moved = await prisma.hotFoodOrder.updateMany({
-      where: { id: o.id, status: 'READY' },
-      data: { status: 'CANCELLED', cancelledBy: 'NO_SHOW', cancelReason: `Not picked up within ${hours} of being ready`, cancelledAt: now },
-    });
-    if (moved.count === 0) continue;   // picked up or cancelled a moment ago
+    // Points back (when HQ chose that) in the same transaction that closes it; a failure leaves it READY for the next run
+    const giveBack = o.paidWithPoints && feature('hotFoodNoShowPointsBack');
+    const closed = await cancelOrder(o.id, 'READY', { cancelledBy: 'NO_SHOW', cancelReason: `Not picked up within ${hours} of being ready`, cancelledAt: now }, giveBack, now)
+      .catch((e) => { console.error('[hot-food-no-show] not closed:', o.id, e?.message ?? e); return null; });
+    if (!closed) continue;   // picked up or cancelled a moment ago (or failed: tried again next run)
     done++;
-    let back = 0;
-    if (o.paidWithPoints) {
-      if (feature('hotFoodNoShowPointsBack')) back = await returnOrderPoints(o.id, now).catch((e) => { console.error('[hot-food-no-show] points not returned:', o.id, e?.message ?? e); return 0; });
-      // Kept: they count as used at that store, recorded with the customer as the one who used them (nobody handed it over)
-      else await recordPointsPickup(o, o.customerId).catch((e) => console.error('[hot-food-no-show] redemption not recorded:', o.id, e?.message ?? e));
-    }
+    const back = closed.returned;
+    // Kept: they count as used at that store, recorded with the customer as the one who used them (nobody handed it over)
+    if (o.paidWithPoints && !giveBack) await recordPointsPickup(o, o.customerId).catch((e) => console.error('[hot-food-no-show] redemption not recorded:', o.id, e?.message ?? e));
     const m = hotFoodWords.closed(o.customer?.language === 'es', o.orderNumber, o.store.name, minutes, o.paidWithPoints, back ? pts(back) : 0);
     sendPushToUser(o.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
     tellStoreAboutOrder(o, `Order #${o.orderNumber} closed, not picked up`, `It was ready for ${hours}. It is off the board${o.paidWithPoints ? (back ? '; the customer\'s points went back' : '; paid with points') : ''}.`, now).catch(() => {});
@@ -76,13 +73,12 @@ export async function cancelStaleHotFoodOrders(now: Date = new Date()): Promise<
   });
   let done = 0;
   for (const o of stale) {
-    const moved = await prisma.hotFoodOrder.updateMany({
-      where: { id: o.id, status: 'PENDING' },
-      data: { status: 'CANCELLED', cancelledBy: 'AUTO', cancelReason: `Not accepted within ${minutes} minutes`, cancelledAt: now },
-    });
-    if (moved.count === 0) continue;   // accepted or cancelled a moment ago
+    // The points go back in the same transaction that cancels it; a failure leaves it PENDING for the next run
+    const cancelled = await cancelOrder(o.id, 'PENDING', { cancelledBy: 'AUTO', cancelReason: `Not accepted within ${minutes} minutes`, cancelledAt: now }, true, now)
+      .catch((e) => { console.error('[hot-food-auto-cancel] not cancelled:', o.id, e?.message ?? e); return null; });
+    if (!cancelled) continue;   // accepted or cancelled a moment ago (or failed: tried again next run)
     done++;
-    const returned = await returnOrderPoints(o.id, now).catch((e) => { console.error('[hot-food-auto-cancel] points not returned:', o.id, e?.message ?? e); return 0; });
+    const returned = cancelled.returned;
     const m = hotFoodWords.timedOut(o.customer?.language === 'es', o.orderNumber, o.store.name, minutes, returned ? pts(returned) : 0);
     sendPushToUser(o.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
   }
