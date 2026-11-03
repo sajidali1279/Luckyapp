@@ -338,8 +338,8 @@ export function fileUpc(printed: string | null | undefined, manufacturer?: strin
     return { upc: body, problems: [] };
   }
   if (d.length === 6) {
-    const body = upcEtoA('0', d);
-    return no(`The UPC ${printed} has 6 digits, read as a short UPC-E code: the file gets ${body} (the full UPC ${body}${gs1CheckDigit(body)}). Compare it with the barcode on the product.`, body, false);
+    // blocking (2026-11-03): six digits are far more often an item code or a cut-off UPC than a short barcode (AMS Wholesale 088125)
+    return no(`The UPC ${printed} has only 6 digits: type the full UPC from the product, or the 8 digits under a short barcode.`, null, true);
   }
   if (d.length === 14) return no(`The UPC ${printed} has 14 digits: it looks like the case code, not the item's own UPC. Type the 12-digit UPC of one item.`, null, true);
   if (d.length === 13) return no(`The UPC ${printed} has 13 digits (an international EAN code), and PDI's file holds a 12-digit UPC: type the item's UPC if it has one, or compare with the paper.`, null, true);
@@ -419,10 +419,15 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
   const who = vendor.name || 'This vendor';
   // no UPC on the paper: the one used for this item code on an earlier file, if there is one (typed once per product, not every time)
-  const memoryUpc = noUpcPrinted(p.upc) && itemKey(p.item) ? ctx.knownUpc?.(itemKey(p.item)) : undefined;
-  const u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : fileUpc(p.upc, p.manufacturer);
-  if (!memoryUpc && noUpcPrinted(p.upc) && itemKey(p.item)) {
-    u.problems = [{ field: 'upc', message: `No UPC is printed for item ${p.item}: type its UPC once (from the product) and it is remembered for ${who}'s next invoices.`, blocking: true }];
+  // One column holding a UPC on some lines and the vendor's own item code on others (AMS Wholesale, 2026-11-03): the reader copies the
+  // code into both. It is a UPC only when it is a whole barcode that checks out; otherwise the line has an item code and no UPC.
+  const checked = fileUpc(p.upc, p.manufacturer);
+  const sameAsItem = !noUpcPrinted(p.upc) && !!itemKey(p.item) && itemKey(p.upc) === itemKey(p.item);
+  const itemOnly = noUpcPrinted(p.upc) || (sameAsItem && (!checked.upc || checked.problems.length > 0));
+  const memoryUpc = itemOnly && itemKey(p.item) ? ctx.knownUpc?.(itemKey(p.item)) : undefined;
+  const u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : itemOnly && itemKey(p.item) ? { upc: null as string | null, problems: [] as Problem[] } : checked;
+  if (!memoryUpc && itemOnly && itemKey(p.item)) {
+    u.problems = [{ field: 'upc', message: `No UPC is printed for item ${p.item}: type its UPC once (from the product) and it is remembered for ${vendor.name ? vendor.name + "'s" : "this vendor's"} next invoices.`, blocking: true }];
   }
   problems.push(...u.problems);
   const description = typeof p.description === 'string' ? p.description : '';

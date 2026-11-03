@@ -54,7 +54,8 @@ const FIELDS = `What to give:
     such as "MANUFACTURER: 28400" that gives the rest: copy the digits as printed and give that heading's number as manufacturer on every
     line under it.
   - description: the product name as printed.
-  - item: the vendor's own item number, code or ID for the product, if printed.
+  - item: the vendor's own item number, code or ID for the product, if printed. When one column holds a barcode on some lines and the
+    vendor's own code on others, give the barcode as upc and the other codes as item only (upc "" on those lines).
   - quantity: how many were delivered, as the vendor counts them (cases, or single items).
   - per: the unit the quantity counts when the invoice prints one per line (a U/M or unit column: CS, EA, CTN, BX), as printed; "" when not.
   - units: the number of single units, only when the invoice prints it as its own column besides the quantity (for example "Cases 2
