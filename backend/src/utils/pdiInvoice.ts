@@ -455,11 +455,17 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   else if (!vendor.code) say('supplier', `Set ${vendor.name}'s code in PDI to make the file.`, true);
   const printedNumber = typeof paper.invoiceNumber === 'string' ? paper.invoiceNumber.trim() : '';
   const digits = printedNumber.replace(/[\s\p{Pd}]/gu, '');
-  const invoiceNumber = digits.replace(/^0+(?=\d)/, '');
+  // The file holds 10 digits (PDI reads the A line by column): a longer number keeps its last 10, the part that changes from one invoice
+  // to the next, and a person ticks it once (2026-11-03, Blue Bell prints 12 digits: 020122966546 -> 0122966546)
+  const significant = digits.replace(/^0+(?=\d)/, '');
+  const invoiceNumber = significant.length > 10 ? significant.slice(-10).replace(/^0+(?=\d)/, '') : significant;
   if (!printedNumber) say('invoice', 'The invoice number could not be read.', true);
   else if (!/^\d+$/.test(digits)) say('invoice', `The invoice number "${printedNumber}" should be digits only.`, true);
   else if (/[\s\p{Pd}]/u.test(printedNumber)) {   // a dash or space inside: joined, but a person says whether all of it is the number
     say('invoice', `The invoice number was printed "${printedNumber}"; the file will say ${invoiceNumber}. Is all of it the invoice number?`);
+  }
+  if (/^\d+$/.test(digits) && significant.length > 10) {
+    say('invoice', `The invoice number ${printedNumber} is longer than the file's 10 places, so the file gets the last 10: ${significant.slice(-10)}. Check that PDI shows this invoice the same way.`);
   }
   const totalCents = printedCents(paper.total);
   if (totalCents === null) say('total', partCent(paper.total) ? `The invoice total ${paper.total} has part of a cent: type it in whole cents.` : `The invoice total "${paper.total ?? ''}" could not be read: type it in.`, true);
