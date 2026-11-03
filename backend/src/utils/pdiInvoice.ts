@@ -37,7 +37,7 @@ export interface PdiLine {
 }
 
 export type ProblemField =
-  'supplier' | 'invoice' | 'date' | 'total' | 'lines' | 'group' | 'upc' | 'description' | 'item' | 'price' | 'units' | 'quantity' | 'amount';
+  'supplier' | 'invoice' | 'date' | 'total' | 'lines' | 'group' | 'upc' | 'description' | 'item' | 'price' | 'units' | 'quantity' | 'amount' | 'handwriting';
 /** Something a person should look at, and which part of the line or invoice it is about. Blocking: it must be corrected, not accepted. */
 export interface Problem { field: ProblemField; message: string; blocking?: boolean }
 
@@ -243,6 +243,7 @@ export interface PaperLine {
   isReturn?: boolean;           // a return or credit line
   manufacturer?: string | null; // a manufacturer number printed over a section of short UPCs (Frito-Lay: 28400)
   group?: string | null;        // the package or section header the line is under ("11OZ PL 1/12 TBG")
+  handwritten?: string | null;  // anything written by hand on the line ("5 crossed out, 4 written"): the printed values are in the fields
 }
 
 /** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
@@ -448,6 +449,10 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   else if (price !== null && price >= 0 && qty !== null && Math.abs(amount) !== price * qty) {
     say('amount', `${qty} at ${money(price)} is ${money(price * qty)}, but the line says ${String(p.amount).trim()}.`);
   }
+  // A driver's handwriting (a crossed-out quantity, "1 short") is what was really delivered, but the reader copies only the print: a
+  // person looks and corrects the cells (2026-11-03; a short delivery otherwise passed every check with the printed numbers)
+  const hand = typeof p.handwritten === 'string' ? p.handwritten.trim() : '';
+  if (hand) say('handwriting', `Handwriting on this line: "${hand.slice(0, 120)}". The file uses the values in the cells: if it changes the quantity or price, correct them.`);
   const line: PdiLine = {
     upc: u.upc ?? '', description, itemNumber: item, priceCents: price !== null && price >= 0 ? price : 0, unitsPerCase: units,
     quantity: qty === null ? 0 : p.isReturn ? -qty : qty,
@@ -467,6 +472,7 @@ export interface PaperInvoice {
   groups?: { name: string; cases?: number; units?: number; amount?: string }[];
   summary?: { cases?: number; units?: number };
   charges?: { name: string; amount: string | null }[];
+  handwritten?: string | null;      // anything written by hand outside the lines
 }
 
 /** A whole paper invoice as the file's header and lines, with every line's problems and the invoice's own. `vendor` is null until a
@@ -506,6 +512,8 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
     say('date', `The invoice date ${header.date} is far from today: is the date read right?`);
   }
   if (!lines.length) say('lines', 'No item lines were found.', true);
+  const handNote = typeof paper.handwritten === 'string' ? paper.handwritten.trim() : '';
+  if (handNote) say('handwriting', `Handwriting on the invoice: "${handNote.slice(0, 160)}". If it changes the total or what was delivered, correct the invoice to match.`);
   const fileLines = lines.map((c) => c.line);
   const unreadable = fileLines.filter((l) => l.quantity === 0 || l.unitsPerCase === 0).length;
   // units per case depend on the vendor (cases or single items): until it is known, only cases and money are checked

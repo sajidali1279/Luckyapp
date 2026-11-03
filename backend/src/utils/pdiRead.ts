@@ -60,10 +60,14 @@ const FIELDS = `What to give:
     Units 24"); otherwise "".
   - price: the price of one of what the quantity counts, after any discount (the net price), as printed.
   - amount: the line's total as printed.
-  - isReturn: true for a return, credit or pick-up line (its quantity as printed, positive).
+  - isReturn: true for a return, credit or pick-up line (its quantity as printed, positive). On a credit memo (the whole invoice is a credit),
+    every line is a return.
+  - handwritten: anything written by hand on this line (a crossed-out quantity with a new one, "1 short", a changed price), copied as
+    written, for example "5 crossed out, 4 written". "" when there is none. The printed values stay in the other fields.
   - group: the package or section header the line is printed under, when the invoice groups lines under headers that each have a subtotal.
 - groups: one entry per such header, in order, with its printed subtotal (cases, units, amount).
 - summary: the total cases and the total units printed for the whole invoice, if printed.
+- handwritten: anything written by hand on the invoice outside the lines (a changed total, "received short", a signature note), as written; "".
 - charges: amounts added to the invoice that are not item lines (a deposit, a fuel surcharge, a delivery fee, a tax), each with its name and
   amount as printed. Not a discount already taken off a line's net price.`;
 
@@ -106,8 +110,9 @@ export const READ_SCHEMA = {
           isReturn: { type: 'boolean' },
           manufacturer: text(),
           group: text(),
+          handwritten: text('anything written by hand on this line, as written; "" when none'),
         },
-        required: ['upc', 'description', 'item', 'quantity', 'units', 'price', 'amount', 'isReturn', 'manufacturer', 'group'],
+        required: ['upc', 'description', 'item', 'quantity', 'units', 'price', 'amount', 'isReturn', 'manufacturer', 'group', 'handwritten'],
         additionalProperties: false,
       },
     },
@@ -132,8 +137,9 @@ export const READ_SCHEMA = {
       items: { type: 'object', properties: { name: text(), amount: text() }, required: ['name', 'amount'], additionalProperties: false },
     },
     unreadable: { type: 'array', items: { type: 'string' }, description: 'anything that could not be read, and where' },
+    handwritten: text('anything written by hand outside the lines, as written; "" when none'),
   },
-  required: ['vendor', 'invoiceNumber', 'date', 'total', 'lines', 'groups', 'summary', 'charges', 'unreadable'],
+  required: ['vendor', 'invoiceNumber', 'date', 'total', 'lines', 'groups', 'summary', 'charges', 'unreadable', 'handwritten'],
   additionalProperties: false,
 } as const;
 
@@ -148,6 +154,7 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; vendor: InvoiceR
   const lines: PaperLine[] = (Array.isArray(raw?.lines) ? raw.lines : []).map((l: any) => ({
     upc: str(l?.upc), description: str(l?.description), item: str(l?.item), quantity: int(l?.quantity), units: int(l?.units),
     price: str(l?.price), amount: str(l?.amount), isReturn: l?.isReturn === true, manufacturer: str(l?.manufacturer), group: str(l?.group),
+    ...(str(l?.handwritten) ? { handwritten: str(l?.handwritten) } : {}),
   }));
   const groups = (Array.isArray(raw?.groups) ? raw.groups : []).filter((g: any) => str(g?.name)).map((g: any) => ({
     name: str(g.name)!, ...(int(g.cases) !== null ? { cases: int(g.cases)! } : {}), ...(int(g.units) !== null ? { units: int(g.units)! } : {}),
@@ -160,7 +167,8 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; vendor: InvoiceR
   const charges = (Array.isArray(raw?.charges) ? raw.charges : []).filter((c: any) => str(c?.name) || str(c?.amount)).slice(0, 50)
     .map((c: any) => ({ name: str(c.name) ?? 'Charge', amount: str(c.amount) }));
   return {
-    paper: { invoiceNumber: str(raw?.invoiceNumber), date: str(raw?.date), total: str(raw?.total), lines, groups, summary, charges },
+    paper: { invoiceNumber: str(raw?.invoiceNumber), date: str(raw?.date), total: str(raw?.total), lines, groups, summary, charges,
+      ...(str(raw?.handwritten) ? { handwritten: str(raw?.handwritten) } : {}) },
     vendor: { name: str(raw?.vendor?.name), address: str(raw?.vendor?.address), phone: str(raw?.vendor?.phone) },
     unreadable: (Array.isArray(raw?.unreadable) ? raw.unreadable : []).filter((u: unknown) => typeof u === 'string').slice(0, 50),
   };
@@ -168,8 +176,8 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; vendor: InvoiceR
 
 /** For a request without the answer format: the same shape, as plain JSON. */
 const JSON_ONLY = `Answer with only one JSON object, no other text, with exactly these keys: vendor (name, address, phone), invoiceNumber, date,
-total, lines (each with upc, description, item, quantity, units, price, amount, isReturn, manufacturer, group), groups (each with name,
-cases, units, amount), summary (cases, units), charges (each with name, amount) and unreadable (a list of strings). Every value is a
+total, lines (each with upc, description, item, quantity, units, price, amount, isReturn, manufacturer, group, handwritten), groups (each
+with name, cases, units, amount), summary (cases, units), charges (each with name, amount), unreadable (a list of strings) and handwritten. Every value is a
 string ("" when not printed), except isReturn (true or false).`;
 
 /** What the API said, in its own words (shown to the person, and logged): never the request, never the key. */
@@ -207,25 +215,29 @@ export async function readInvoice(photos: InvoicePhoto[], vendorNotes: VendorNot
 
   // The answer is held to READ_SCHEMA. Should the API refuse that format (400), the same model is asked again for plain JSON and its
   // answer parsed, as the receipt reader does; a model this account does not have (404) is skipped for the next one.
-  const ask = (model: string, schema: boolean) => api.messages.stream({
+  const ask = (model: string, schema: boolean, effort: 'high' | 'low' = 'high') => api.messages.stream({
     model,
     max_tokens: MAX_OUTPUT,
     thinking: { type: 'adaptive' },
-    output_config: schema ? { effort: 'high', format: jsonSchemaOutputFormat(READ_SCHEMA as any) } : { effort: 'high' },
+    output_config: schema ? { effort, format: jsonSchemaOutputFormat(READ_SCHEMA as any) } : { effort },
     messages: [{ role: 'user', content: schema ? content : [...content, { type: 'text', text: JSON_ONLY }] }],
   }).finalMessage();
   let message: Anthropic.Message | null = null;
   let model = PDI_READ_MODELS[0];
   let refused: string | null = null;
+  let busy = false;
+  let usedSchema = true;
   models: for (const candidate of PDI_READ_MODELS) {
     model = candidate;
     for (const schema of [true, false]) {
       try {
         message = await ask(candidate, schema);
+        usedSchema = schema;
         break models;
       } catch (e) {
         if (e instanceof AnthropicClient.NotFoundError) continue models;                       // not on this account
-        if (e instanceof AnthropicClient.RateLimitError || e instanceof AnthropicClient.InternalServerError) throw new PdiReadError('The reader is busy right now. Try again in a minute.');
+        if (e instanceof AnthropicClient.RateLimitError) throw new PdiReadError('The reader is busy right now. Try again in a minute.');
+        if (e instanceof AnthropicClient.InternalServerError) { busy = true; continue models; } // overloaded: the next model may have room
         if (e instanceof AnthropicClient.BadRequestError) {
           refused = apiMessage(e);
           console.error(`[pdi-read] ${candidate} refused the request${schema ? ' (with the answer format)' : ''}: ${refused}`);
@@ -237,9 +249,17 @@ export async function readInvoice(photos: InvoicePhoto[], vendorNotes: VendorNot
       }
     }
   }
-  if (!message) throw new PdiReadError(refused ? `The reader refused the request: ${refused}` : 'The reader did not answer. Try again.');
+  if (!message) {
+    if (busy) throw new PdiReadError('The reader is busy right now. Try again in a minute.');
+    throw new PdiReadError(refused ? `The reader refused the request: ${refused}` : 'The reader did not answer. Try again.');
+  }
   if (message.stop_reason === 'refusal') throw new PdiReadError('The reader would not read these photos. Check they show the invoice.');
-  if (message.stop_reason === 'max_tokens') throw new PdiReadError('The invoice is too long to read in one go. Split it: read the photos in two invoices.');
+  // A long invoice can run out of room, its thinking included: once more with less thinking, so the room goes to the lines. Never split it
+  // into two invoices: both would carry the same number and the full total (the advice given before 2026-11-03).
+  if (message.stop_reason === 'max_tokens') {
+    try { message = await ask(model, usedSchema, 'low'); } catch { /* the first answer's reason is the one to tell */ }
+    if (message.stop_reason === 'max_tokens') throw new PdiReadError('The invoice has too many lines for the reader in one go. Take sharp photos that overlap only a little and read it again; if it still fails, tell HQ.');
+  }
   const answer = message.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
   const raw = jsonIn(answer);
   if (raw === undefined) throw new PdiReadError('The answer from the reader could not be understood. Try again.');

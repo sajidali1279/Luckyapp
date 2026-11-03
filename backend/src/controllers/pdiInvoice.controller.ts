@@ -19,11 +19,12 @@ import {
   KnownUnits, PaperInvoice, PdiFileError, Problem, VendorRules,
 } from '../utils/pdiInvoice';
 import { readInvoice, paperFromRead, InvoicePhoto, PdiReadError, MAX_PHOTOS } from '../utils/pdiRead';
-import { matchVendor, vendorKey } from '../utils/pdiVendors';
+import { matchVendor, exactVendor, vendorKey } from '../utils/pdiVendors';
 import { preparePhoto, storePhoto, photoLinks, fetchPhoto, destroyPhotos } from '../utils/pdiPhotos';
 
-export const MAX_READS_PER_HOUR = 30; // everyone together: a stuck page cannot run up the AI bill
-const STALE_READ_MS = 10 * 60_000;    // a reading this old did not finish (the server restarted on the way): shown as failed
+export const MAX_READS_PER_HOUR = 60; // everyone together: a stuck page cannot run up the AI bill (30 until 2026-11-03: 12 stores)
+// a reading this old did not finish (the server restarted on the way): shown as failed. 30 minutes: a long invoice can take more than 10
+const STALE_READ_MS = 30 * 60_000;
 const PAGE = 30;
 const MAX_LINES = 400;
 const OFF = 'Invoices to PDI is switched off. HQ can switch it on in Settings > Features.';
@@ -84,14 +85,17 @@ function headerOf(paper: PaperInvoice) {
 
 /** Reads the photos (given, or fetched from storage for a second reading) and finds the vendor by the name read. A vendor a person chose
  *  before stays when the name read now matches none. */
-function startRead(id: string, photos: InvoicePhoto[] | null, photoIds: string[], vendorId: string | null) {
+function startRead(id: string, photos: InvoicePhoto[] | null, photoIds: string[], vendorId: string | null, startedAt: Date) {
   const job = (async () => {
     try {
       const shots = photos ?? await Promise.all(photoIds.map(async (p) => ({ buffer: await fetchPhoto(p), mediaType: 'image/jpeg' })));
       const vendors = await prisma.pdiVendor.findMany({ select: { id: true, name: true, aliases: true, readerNotes: true } });
       const read = await readInvoice(shots, vendors.filter((v) => v.readerNotes).map((v) => ({ name: v.name, notes: v.readerNotes! })));
-      const matched = matchVendor(read.vendor.name, vendors);
-      await prisma.pdiInvoice.update({ where: { id }, data: {
+      // only a name the vendor has been seen with (its own, or one a person confirmed): a close name is suggested on the page instead, so
+      // "Coca-Cola Bottling United" is never filed as "Coca-Cola" without a person saying so (2026-11-03)
+      const matched = exactVendor(read.vendor.name, vendors);
+      // only if this is still the reading in progress: a slow first reading must not overwrite a second one started after it
+      await prisma.pdiInvoice.updateMany({ where: { id, readStartedAt: startedAt }, data: {
         status: 'READ', paper: read.paper as any, ...headerOf(read.paper), checked: [], readError: null, readModel: read.model,
         vendorId: matched?.id ?? vendorId, vendorRead: read.vendor.name,
         readUsage: { ...read.usage, costCents: read.costCents, unreadable: read.unreadable, vendor: read.vendor } as any,
@@ -99,7 +103,7 @@ function startRead(id: string, photos: InvoicePhoto[] | null, photoIds: string[]
     } catch (e: any) {
       if (!(e instanceof PdiReadError)) console.error('[pdi] reading failed:', id, e?.message ?? e);
       const readError = e instanceof PdiReadError ? e.message : 'The reading failed. Try again.';
-      await prisma.pdiInvoice.update({ where: { id }, data: { status: 'FAILED', readError } }).catch(() => {});
+      await prisma.pdiInvoice.updateMany({ where: { id, readStartedAt: startedAt }, data: { status: 'FAILED', readError } }).catch(() => {});
     }
   })();
   inFlight.add(job);
@@ -148,18 +152,21 @@ function review(row: Row, known: (upc: string) => KnownUnits | undefined) {
 const vendorOut = (v: Vendor | null) => (v ? { id: v.id, name: v.name, pdiCode: v.pdiCode, sellsBy: v.sellsBy, itemDigits: v.itemDigits, itemLength: v.itemLength } : null);
 
 async function present(row: Row) {
-  const [known, people, duplicates] = await Promise.all([
+  const [known, people, duplicates, suggested] = await Promise.all([
     knownUnitsFor(row.vendorId),
     prisma.user.findMany({ where: { id: { in: [row.createdById, row.downloadedById, row.updatedById].filter((x): x is string => !!x) } }, select: { id: true, name: true } }),
     row.invoiceNumber && row.vendorId ? prisma.pdiInvoice.findMany({
       where: { vendorId: row.vendorId, invoiceNumber: row.invoiceNumber, id: { not: row.id } },
       select: { id: true, status: true, createdAt: true, store: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, take: 5,
     }) : Promise.resolve([]),
+    // no vendor yet: the closest name, for a person to confirm with one tap (never set without them)
+    !row.vendorId && row.vendorRead ? prisma.pdiVendor.findMany().then((all) => matchVendor(row.vendorRead, all)) : Promise.resolve(null),
   ]);
   const name = (id: string | null) => (id ? people.find((p) => p.id === id)?.name ?? 'Someone' : null);
   const usage = row.readUsage as { vendor?: { name: string | null; address: string | null; phone: string | null } } | null;
   return {
     id: row.id, store: row.store, vendor: vendorOut(row.vendor), vendorRead: row.vendorRead, vendorPrinted: usage?.vendor ?? null,
+    vendorSuggested: vendorOut(suggested),
     status: row.status, readError: row.readError, readModel: row.readModel, readUsage: row.readUsage,
     createdAt: row.createdAt, createdBy: name(row.createdById), updatedAt: row.updatedAt, updatedBy: name(row.updatedById),
     downloadedAt: row.downloadedAt, downloadedBy: name(row.downloadedById),
@@ -173,6 +180,13 @@ async function learnName(vendor: Vendor, printed: string | null) {
   const key = vendorKey(printed);
   if (!key || key === vendorKey(vendor.name) || vendor.aliases.includes(key)) return;
   await prisma.pdiVendor.update({ where: { id: vendor.id }, data: { aliases: [...vendor.aliases, key].slice(-50) } });
+}
+
+/** Takes a printed name back off a vendor (a person chose that vendor by mistake). The vendor's own name is never removed. */
+async function forgetName(vendor: Vendor, printed: string | null) {
+  const key = vendorKey(printed);
+  if (!key || key === vendorKey(vendor.name) || !vendor.aliases.includes(key)) return;
+  await prisma.pdiVendor.update({ where: { id: vendor.id }, data: { aliases: vendor.aliases.filter((a) => a !== key) } });
 }
 
 // ── The invoice routes ───────────────────────────────────────────────────────
@@ -227,8 +241,9 @@ export async function createPdiInvoice(req: AuthRequest, res: Response) {
   if (bad >= 0) { res.status(400).json({ success: false, error: `Photo ${bad + 1}: ${(prepared[bad] as { error: string }).error}` }); return; }
   const data = prepared.map((p) => (p as { data: Buffer }).data);
   const photoIds = await Promise.all(data.map(storePhoto));
-  const row = await prisma.pdiInvoice.create({ data: { storeId, status: 'READING', photoIds, readStartedAt: new Date(), createdById: req.user!.id } });
-  startRead(row.id, data.map((buffer) => ({ buffer, mediaType: 'image/jpeg' })), photoIds, null);
+  const startedAt = new Date();
+  const row = await prisma.pdiInvoice.create({ data: { storeId, status: 'READING', photoIds, readStartedAt: startedAt, createdById: req.user!.id } });
+  startRead(row.id, data.map((buffer) => ({ buffer, mediaType: 'image/jpeg' })), photoIds, null, startedAt);
   res.status(201).json({ success: true, data: { id: row.id } });
 }
 
@@ -254,6 +269,8 @@ export async function updatePdiInvoice(req: AuthRequest, res: Response) {
       res.status(400).json({ success: false, error: 'That vendor is not here any more.' }); return;
     }
     data.vendorId = vendor.id;
+    // the vendor chosen before learned this invoice's printed name: a different choice now means that was wrong, so it is forgotten there
+    if (row.vendor && row.vendor.id !== vendor.id) await forgetName(row.vendor, row.vendorRead);
     await learnName(vendor, row.vendorRead);
     if (row.status === 'DONE') data.status = 'READ';
   }
@@ -261,6 +278,9 @@ export async function updatePdiInvoice(req: AuthRequest, res: Response) {
     const clean = paperFromRead(paper).paper;
     if (clean.lines.length > MAX_LINES) { res.status(400).json({ success: false, error: `At most ${MAX_LINES} lines on one invoice.` }); return; }
     Object.assign(data, { paper: clean as any, ...headerOf(clean) });
+    // a line added or removed moves every line after it: ticks are kept by line number, so the line ticks start over (the invoice's stay)
+    const before = (row.paper as unknown as PaperInvoice | null)?.lines?.length ?? 0;
+    if (clean.lines.length !== before) data.checked = row.checked.filter((k) => k.startsWith('-|'));
     if (row.status === 'DONE') data.status = 'READ'; // the file made before this change is out of date
   }
   if (Array.isArray(check)) {
@@ -296,8 +316,9 @@ export async function rereadPdiInvoice(req: AuthRequest, res: Response) {
   if (row.status === 'READING') { res.status(409).json({ success: false, error: 'It is being read now.' }); return; }
   if (!row.photoIds.length) { res.status(400).json({ success: false, error: 'This invoice has no photos to read.' }); return; }
   if ((await readsThisHour()) >= MAX_READS_PER_HOUR) { res.status(429).json({ success: false, error: 'Many invoices were read in the last hour. Try again in a little while.' }); return; }
-  await prisma.pdiInvoice.update({ where: { id: row.id }, data: { status: 'READING', readStartedAt: new Date(), readError: null, updatedById: req.user!.id } });
-  startRead(row.id, null, row.photoIds, row.vendorId);
+  const startedAt = new Date();
+  await prisma.pdiInvoice.update({ where: { id: row.id }, data: { status: 'READING', readStartedAt: startedAt, readError: null, updatedById: req.user!.id } });
+  startRead(row.id, null, row.photoIds, row.vendorId, startedAt);
   res.json({ success: true });
 }
 

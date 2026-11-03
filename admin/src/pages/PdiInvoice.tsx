@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle2, Download, ReceiptText, Loader2, MoreHorizontal, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Download, ReceiptText, Loader2, MoreHorizontal, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { pdiInvoicesApi, PdiVendorInput } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { Page, PageHeader, Button, Card, Badge, Notice, MenuButton, StatTile } from '../components/kit';
@@ -28,13 +28,14 @@ interface Review {
 }
 interface PaperLine {
   upc: string | null; description: string | null; item?: string | null; quantity: number | null; units?: number | null; price: string | null;
-  amount: string | null; isReturn?: boolean; manufacturer?: string | null; group?: string | null;
+  amount: string | null; isReturn?: boolean; manufacturer?: string | null; group?: string | null; handwritten?: string | null;
 }
 interface Paper { invoiceNumber: string | null; date: string | null; total: string | null; lines: PaperLine[]; groups?: unknown[]; summary?: unknown }
 interface Invoice {
   id: string; store: { id: string; name: string }; status: string; readError: string | null;
   vendor: { id: string; name: string; pdiCode: string | null; sellsBy: string; itemDigits: string; itemLength: number | null } | null;
   vendorRead: string | null; vendorPrinted: { name: string | null; address: string | null; phone: string | null } | null;
+  vendorSuggested?: { id: string; name: string; pdiCode: string | null } | null;
   readModel: string | null; readUsage: { inputTokens: number; outputTokens: number; costCents: number | null; unreadable?: string[] } | null;
   createdAt: string; createdBy: string | null; updatedAt: string; updatedBy: string | null; downloadedAt: string | null; downloadedBy: string | null;
   photos: { url: string; thumbUrl: string }[]; paper: Paper | null; review: Review | null;
@@ -60,6 +61,7 @@ export default function PdiInvoice() {
   const [photo, setPhoto] = useState<number | null>(null);
   const [onlyOpen, setOnlyOpen] = useState(true);
   const [asking, setAsking] = useState<'reread' | 'delete' | null>(null);
+  const [removeAt, setRemoveAt] = useState<number | null>(null);   // the line asked about before it is taken out
   const [units, setUnits] = useState<Record<number, string>>({});
   useUnsaved('pdi-invoice', !!paper);
   useAnyUnsaved();
@@ -88,6 +90,16 @@ export default function PdiInvoice() {
     setPaper({ ...shown, lines: shown.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) });
   };
   const editHeader = (patch: Partial<Paper>) => { if (shown) setPaper({ ...shown, ...patch }); };
+  // a line the reader missed, or one it read twice (or a deposit read as an item): added or taken out and saved at once, with any other
+  // corrections waiting, so the checks line up with the lines again (the problems are worked out on the server, line by line)
+  const changeLines = async (lines: PaperLine[], what: string) => {
+    if (shown && (await save({ paper: { ...shown, lines } }, 'lines'))) { setPaper(null); toast.success(what); }
+  };
+  const addLine = () => { if (shown) void changeLines([...shown.lines, { upc: '', description: '', item: '', quantity: null, price: '', amount: '', isReturn: false }], 'A line was added at the end: fill it in from the paper.'); };
+  const removeLine = (i: number) => { if (shown) void changeLines(shown.lines.filter((_, j) => j !== i), `Line ${i + 1} was removed.`); };
+  // a credit memo: every line is a return (a vendor that counts cases had no Return column before 2026-11-03)
+  const allReturns = !!shown?.lines.length && shown.lines.every((l) => l.isReturn);
+  const setAllReturns = (on: boolean) => { if (shown) setPaper({ ...shown, lines: shown.lines.map((l) => ({ ...l, isReturn: on })) }); };
   const accept = (p: Problem, on: boolean) => save({ check: [{ key: p.key, on }] }, p.key);
   const confirmUnits = (list: { i: number; units: number }[]) => {
     if (!review) return;
@@ -137,8 +149,11 @@ export default function PdiInvoice() {
   const showPackage = !!shown?.lines.some((l) => l.group);
   const showItem = vendor ? vendor.itemDigits !== 'NONE' : !!shown?.lines.some((l) => l.item);
   const showUnits = !!shown?.lines.some((l) => l.units != null);
-  const showReturn = vendor?.sellsBy === 'EACH' || !!shown?.lines.some((l) => l.isReturn);   // a vendor that counts items has a returns section
-  const cols = 7 + (showPackage ? 1 : 0) + (showItem ? 1 : 0) + (showUnits ? 1 : 0) + (showReturn ? 1 : 0);   // for the line's problems, the width of the table
+  const showReturn = true;   // any vendor can send a return or a credit memo (shown only for some vendors before 2026-11-03)
+  // the single items a case line holds (cases x units per case), for a vendor that counts cases: the owner reads the table in items
+  const showItems = caseVendor;
+  const totalItems = review ? review.lines.reduce((n, l) => n + l.line.quantity * (l.line.unitsPerCase || 0), 0) : 0;
+  const cols = 8 + (showPackage ? 1 : 0) + (showItem ? 1 : 0) + (showUnits ? 1 : 0) + (showReturn ? 1 : 0) + (showItems ? 1 : 0);   // for the line's problems, the width of the table
   const rows = review && shown ? review.lines.map((l, i) => ({ l, p: shown.lines[i], i })).filter(({ i }) => !onlyOpen || openLines.includes(i)) : [];
 
   return (
@@ -200,6 +215,7 @@ export default function PdiInvoice() {
             <>
               <div style={s.tiles}>
                 <StatTile label="Lines" value={review.lines.length} />
+                {showItems && <StatTile label="Items" value={totalItems.toLocaleString()} hint="cases x units per case" />}
                 <StatTile label="Lines come to" value={dollars(review.linesTotalCents)} hint={totalsMatch ? 'the same as the total' : 'not the printed total'} />
                 <StatTile label="Invoice total" value={dollars(review.header.totalCents)} />
                 <StatTile label="To look at" value={review.open} hint={review.open ? 'marked below' : 'nothing left'} />
@@ -228,6 +244,7 @@ export default function PdiInvoice() {
 
               <div style={s.tableTools}>
                 <label style={s.toggle}><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} /> Only lines to look at ({openLines.length})</label>
+                <label style={s.toggle}><input type="checkbox" checked={allReturns} onChange={(e) => setAllReturns(e.target.checked)} /> Credit memo: every line is a return</label>
                 {caseVendor && guesses.length > 0 && (
                   <Button size="sm" onClick={() => confirmUnits(guesses.map(({ l, i }) => ({ i, units: l.line.unitsPerCase })))} disabled={busy === 'units'}>
                     Confirm the {guesses.length} guessed units per case as shown
@@ -246,11 +263,13 @@ export default function PdiInvoice() {
                         <th style={s.th}>Description</th>
                         {showItem && <th style={s.th}>Item</th>}
                         <th style={s.th}>{vendor?.sellsBy === 'EACH' ? 'Qty' : caseVendor ? 'Cases' : 'Qty'}</th>
+                        {showItems && <th style={s.th}>Items</th>}
                         {showUnits && <th style={s.th}>Units</th>}
                         <th style={s.th}>Price</th>
                         <th style={s.th}>Amount</th>
                         {showReturn && <th style={s.th}>Return</th>}
                         <th style={{ ...s.th, minWidth: 170 }}>Units per case</th>
+                        <th style={s.th}><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Remove</span></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -270,12 +289,13 @@ export default function PdiInvoice() {
                             <td style={s.td}><input aria-label={`Line ${i + 1} description`} style={{ ...cell('description'), width: 170 }} value={p.description ?? ''} onChange={(e) => editLine(i, { description: e.target.value })} /></td>
                             {showItem && <td style={s.td}><input aria-label={`Line ${i + 1} item`} style={{ ...cell('item'), width: 84 }} value={p.item ?? ''} onChange={(e) => editLine(i, { item: e.target.value })} /></td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} quantity`} style={{ ...cell('quantity'), width: 58 }} inputMode="numeric" value={p.quantity ?? ''} onChange={(e) => editLine(i, { quantity: e.target.value === '' ? null : Number(e.target.value) })} /></td>
+                            {showItems && <td style={{ ...s.td, fontWeight: 700, textAlign: 'right' }} title="cases x units per case">{l.line.unitsPerCase ? (l.line.quantity * l.line.unitsPerCase).toLocaleString() : ''}</td>}
                             {showUnits && <td style={s.td}><input aria-label={`Line ${i + 1} units`} style={{ ...cell('units'), width: 58 }} inputMode="numeric" value={p.units ?? ''} onChange={(e) => editLine(i, { units: e.target.value === '' ? null : Number(e.target.value) })} /></td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} price`} style={{ ...cell('price'), width: 74 }} inputMode="decimal" value={p.price ?? ''} onChange={(e) => editLine(i, { price: e.target.value })} /></td>
                             <td style={s.td}><input aria-label={`Line ${i + 1} amount`} style={{ ...cell('amount'), width: 74 }} inputMode="decimal" value={p.amount ?? ''} onChange={(e) => editLine(i, { amount: e.target.value })} /></td>
                             {showReturn && <td style={{ ...s.td, textAlign: 'center' }}><input type="checkbox" aria-label={`Line ${i + 1} is a return`} checked={!!p.isReturn} onChange={(e) => editLine(i, { isReturn: e.target.checked })} /></td>}
                             <td style={s.td}>
-                              {caseVendor && l.unitsFrom !== 'paper' ? (
+                              {caseVendor && (l.unitsFrom !== 'paper' || p.units == null) ? (
                                 <div style={s.unitsCell}>
                                   <input aria-label={`Line ${i + 1} units per case`} style={{ ...cell('units'), width: 54 }} inputMode="numeric"
                                     value={units[i] ?? (l.line.unitsPerCase || '')} onChange={(e) => setUnits((u) => ({ ...u, [i]: e.target.value }))} />
@@ -289,6 +309,9 @@ export default function PdiInvoice() {
                                 vendor ? <span>{l.line.unitsPerCase || 'Not set'} <span style={s.from}>{l.unitsFrom ? UNITS_FROM[l.unitsFrom] ?? l.unitsFrom : ''}</span></span>
                                   : <span style={s.from}>once the vendor is set</span>
                               )}
+                            </td>
+                            <td style={s.td}>
+                              <Button size="sm" variant="ghost" icon={<X />} aria-label={`Remove line ${i + 1}`} title="Remove this line (read twice, or not an item)" onClick={() => setRemoveAt(i)} disabled={busy === 'lines'} />
                             </td>
                           </tr>
                           {/* what to look at on this line, the width of the table, so it is never cut off on the right */}
@@ -309,6 +332,9 @@ export default function PdiInvoice() {
                       })}
                     </tbody>
                   </table>
+                </div>
+                <div style={{ padding: 10, borderTop: `1px solid ${C.border}` }}>
+                  <Button size="sm" icon={<Plus />} onClick={addLine} disabled={busy === 'lines'}>Add a line the reader missed</Button>
                 </div>
               </Card>
               {inv.readUsage && (
@@ -336,6 +362,9 @@ export default function PdiInvoice() {
       <ConfirmModal open={asking === 'reread'} title="Read the photos again?" confirmLabel="Read again"
         message="The photos are read again from the start. Corrections made on this page are replaced by the new reading; units per case you confirmed are kept."
         onConfirm={reread} onCancel={() => setAsking(null)} headingLevel="h2" />
+      <ConfirmModal open={removeAt !== null} title={removeAt !== null ? `Remove line ${removeAt + 1}?` : ''} confirmLabel="Remove line" danger
+        message={removeAt !== null && shown?.lines[removeAt] ? `${shown.lines[removeAt].description || 'This line'} is taken out of the invoice (for a line read twice, or a deposit or fee read as an item). Your other corrections are saved with it.` : ''}
+        onConfirm={() => { const i = removeAt; setRemoveAt(null); if (i !== null) removeLine(i); }} onCancel={() => setRemoveAt(null)} headingLevel="h2" />
       <ConfirmModal open={asking === 'delete'} title="Delete this invoice?" confirmLabel="Delete" danger
         message={inv.status === 'DONE' ? 'Its file was already downloaded for PDI. Deleting removes the photos and the lines here, not what is in PDI.' : 'The photos and the lines are removed.'}
         onConfirm={remove} onCancel={() => setAsking(null)} headingLevel="h2" />
@@ -354,11 +383,11 @@ function VendorBar({ inv, hq, onChanged }: { inv: Invoice; hq: boolean; onChange
   const lines = inv.paper?.lines ?? [];
   const printed = [inv.vendorPrinted?.address, inv.vendorPrinted?.phone].filter(Boolean).join(' · ');
   const done = () => { qc.invalidateQueries({ queryKey: ['pdi-vendors'] }); qc.invalidateQueries({ queryKey: ['pdi-invoices'] }); setMode(null); setPick(''); };
-  async function choose() {
-    if (!pick) return;
+  async function choose() { if (pick) await pickVendor(pick); }
+  async function pickVendor(id: string) {
     setBusy(true);
     try {
-      const r = await pdiInvoicesApi.update(inv.id, { vendorId: pick });
+      const r = await pdiInvoicesApi.update(inv.id, { vendorId: id });
       onChanged(r.data.data); done();
       toast.success('Vendor set. The name printed on this invoice is remembered for next time.');
     } catch (e: any) { toast.error(e?.response?.data?.error ?? 'It could not be saved.'); } finally { setBusy(false); }
@@ -402,6 +431,12 @@ function VendorBar({ inv, hq, onChanged }: { inv: Invoice; hq: boolean; onChange
             Read as <strong>{inv.vendorRead ?? 'no name'}</strong>{printed ? ` · ${printed}` : ''}. No vendor has this name yet: choose it if it is one of yours,
             or add it once. The name is remembered, so its next invoices are found by themselves.
           </div>
+          {inv.vendorSuggested && (
+            <div style={{ ...s.vendorPick, marginBottom: 10 }}>
+              <span>It looks like <strong>{inv.vendorSuggested.name}</strong>{inv.vendorSuggested.pdiCode ? ` (${inv.vendorSuggested.pdiCode})` : ''}.</span>
+              <Button size="sm" variant="primary" disabled={busy} onClick={() => { setPick(inv.vendorSuggested!.id); void pickVendor(inv.vendorSuggested!.id); }}>Yes, it is {inv.vendorSuggested.name}</Button>
+            </div>
+          )}
           {picker}
           <div style={{ marginTop: 10 }}><Button size="sm" onClick={() => setMode('new')} disabled={busy}>Add it as a new vendor</Button></div>
         </Card>

@@ -17,6 +17,15 @@ export interface VendorNames { id: string; name: string; aliases: string[] }
 
 /** The vendor a printed name belongs to: the one with a name whose words all appear in it (or the other way round), the longest such
  *  name winning. Null when none matches, or when two vendors match equally well (a person then says which). */
+/** The vendor a printed name is exactly (once compared as vendorKey): its own name or one a person confirmed. Null otherwise, and when two
+ *  vendors share it. Readings set the vendor only this way; matchVendor's closest name is a suggestion for a person to confirm. */
+export function exactVendor<T extends VendorNames>(printed: string | null | undefined, vendors: T[]): T | null {
+  const read = vendorKey(printed);
+  if (!read) return null;
+  const hits = vendors.filter((v) => vendorKey(v.name) === read || v.aliases.some((a) => vendorKey(a) === read));
+  return hits.length === 1 ? hits[0] : null;
+}
+
 export function matchVendor<T extends VendorNames>(printed: string | null | undefined, vendors: T[]): T | null {
   const read = vendorKey(printed);
   if (!read) return null;
