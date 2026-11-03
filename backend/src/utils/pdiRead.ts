@@ -54,8 +54,9 @@ const FIELDS = `What to give:
     such as "MANUFACTURER: 28400" that gives the rest: copy the digits as printed and give that heading's number as manufacturer on every
     line under it.
   - description: the product name as printed.
-  - item: the vendor's own item number, code or ID for the product, if printed. When one column holds a barcode on some lines and the
-    vendor's own code on others, give the barcode as upc and the other codes as item only (upc "" on those lines).
+  - item: the vendor's own item number for the product, when printed as its own column or label besides the barcode; "" when not.
+  - sku: when one column holds a barcode on some lines and the vendor's own code on others (often all labelled SKU), give the barcode as
+    upc and the other code as sku, with upc "" on that line. "" on every other line.
   - quantity: how many were delivered, as the vendor counts them (cases, or single items).
   - per: the unit the quantity counts when the invoice prints one per line (a U/M or unit column: CS, EA, CTN, BX), as printed; "" when not.
   - units: the number of single units, only when the invoice prints it as its own column besides the quantity (for example "Cases 2
@@ -114,8 +115,9 @@ export const READ_SCHEMA = {
           group: text(),
           handwritten: text('anything written by hand on this line, as written; "" when none'),
           per: text('the unit the quantity counts when printed per line (CS, EA, CTN), as printed; "" when not'),
+          sku: text('the vendor\'s own code printed in the barcode\'s place, on a line with no barcode; "" when not'),
         },
-        required: ['upc', 'description', 'item', 'quantity', 'units', 'price', 'amount', 'isReturn', 'manufacturer', 'group', 'handwritten', 'per'],
+        required: ['upc', 'description', 'item', 'quantity', 'units', 'price', 'amount', 'isReturn', 'manufacturer', 'group', 'handwritten', 'per', 'sku'],
         additionalProperties: false,
       },
     },
@@ -159,6 +161,7 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; vendor: InvoiceR
     price: str(l?.price), amount: str(l?.amount), isReturn: l?.isReturn === true, manufacturer: str(l?.manufacturer), group: str(l?.group),
     ...(str(l?.handwritten) ? { handwritten: str(l?.handwritten) } : {}),
     ...(str(l?.per) ? { per: str(l?.per)!.slice(0, 12) } : {}),
+    ...(str(l?.sku) ? { sku: str(l?.sku)!.slice(0, 40) } : {}),
   }));
   const groups = (Array.isArray(raw?.groups) ? raw.groups : []).filter((g: any) => str(g?.name)).map((g: any) => ({
     name: str(g.name)!, ...(int(g.cases) !== null ? { cases: int(g.cases)! } : {}), ...(int(g.units) !== null ? { units: int(g.units)! } : {}),
@@ -180,7 +183,7 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; vendor: InvoiceR
 
 /** For a request without the answer format: the same shape, as plain JSON. */
 const JSON_ONLY = `Answer with only one JSON object, no other text, with exactly these keys: vendor (name, address, phone), invoiceNumber, date,
-total, lines (each with upc, description, item, quantity, per, units, price, amount, isReturn, manufacturer, group, handwritten), groups (each
+total, lines (each with upc, description, item, sku, quantity, per, units, price, amount, isReturn, manufacturer, group, handwritten), groups (each
 with name, cases, units, amount), summary (cases, units), charges (each with name, amount), unreadable (a list of strings) and handwritten. Every value is a
 string ("" when not printed), except isReturn (true or false).`;
 

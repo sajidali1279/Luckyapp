@@ -245,6 +245,8 @@ export interface PaperLine {
   group?: string | null;        // the package or section header the line is under ("11OZ PL 1/12 TBG")
   handwritten?: string | null;  // anything written by hand on the line ("5 crossed out, 4 written"): the printed values are in the fields
   per?: string | null;          // what the line's quantity counts when a distributor prints it per line: CS, EA, CTN, BX ("" when not)
+  sku?: string | null;          // the vendor's own code printed where the UPC goes, on a line with no barcode (AMS Wholesale "SKU: 21695"):
+                                // finds the UPC remembered for it, never written to the file (it is not the vendor item number)
 }
 
 /** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
@@ -411,19 +413,28 @@ export function perKind(per: string | null | undefined): 'case' | 'each' | null 
   return null;
 }
 
+/** The code a line's UPC is remembered by (pdi_product_upcs): its SKU printed in the UPC's place, else its vendor item number. */
+export function lineKey(p: PaperLine): string {
+  return itemKey(p.sku) || itemKey(p.item);
+}
+
 /** Whether a paper line printed no UPC at all (as opposed to one that cannot be read). */
 const noUpcPrinted = (upc: string | null | undefined) => typeof upc !== 'string' || !upc.trim();
 
-/** A short code in the UPC column with no item number and no manufacturer number beside it (AMS Wholesale 21695, 088125) is the vendor's own
- *  item code, not a UPC: it is moved to the item, so its UPC is typed once and remembered for it (2026-11-03). Frito-Lay's short codes come
- *  with a manufacturer number and stay. */
-export function itemCodesFromUpcColumn(paper: PaperInvoice): PaperInvoice {
+/** The vendor's own code (SKU) printed where the UPC goes, moved out of the UPC (2026-11-03, AMS Wholesale prints "SKU:" over both its
+ *  barcodes and its own codes): a short code with no item or manufacturer number beside it (21695, 088125), or a code read into both the
+ *  UPC and the item that is no whole barcode. Its UPC is typed once and remembered for it; the file never carries it. Frito-Lay's short
+ *  codes come with a manufacturer number and stay. */
+export function skuFromUpcColumn(paper: PaperInvoice): PaperInvoice {
   let moved = false;
   const lines = paper.lines.map((p) => {
-    const d = typeof p.upc === 'string' ? p.upc.replace(SEPARATORS, '') : '';
-    if (!/^\d{1,6}$/.test(d) || /^0+$/.test(d) || itemKey(p.item) || (typeof p.manufacturer === 'string' && p.manufacturer.trim())) return p;
+    if (itemKey(p.sku) || noUpcPrinted(p.upc)) return p;
+    const d = (p.upc as string).replace(SEPARATORS, '');
+    const short = /^\d{1,6}$/.test(d) && !/^0+$/.test(d) && !itemKey(p.item) && !(typeof p.manufacturer === 'string' && p.manufacturer.trim());
+    const both = itemKey(p.upc) === itemKey(p.item) && (() => { const f = fileUpc(p.upc, p.manufacturer); return !f.upc || f.problems.length > 0; })();
+    if (!short && !both) return p;
     moved = true;
-    return { ...p, item: (p.upc as string).trim(), upc: '' };
+    return { ...p, sku: (p.upc as string).trim(), upc: '', ...(both ? { item: '' } : {}) };
   });
   return moved ? { ...paper, lines } : paper;
 }
@@ -432,16 +443,18 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   const problems: Problem[] = [];
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
   const who = vendor.name || 'This vendor';
-  // no UPC on the paper: the one used for this item code on an earlier file, if there is one (typed once per product, not every time)
-  // One column holding a UPC on some lines and the vendor's own item code on others (AMS Wholesale, 2026-11-03): the reader copies the
-  // code into both. It is a UPC only when it is a whole barcode that checks out; otherwise the line has an item code and no UPC.
+  // no UPC on the paper: the one used for this SKU or item code on an earlier file, if there is one (typed once per product, not every
+  // time). One column holding a UPC on some lines and the vendor's own code on others (AMS Wholesale, 2026-11-03): a code there is a UPC
+  // only when it is a whole barcode that checks out (skuFromUpcColumn moves the others to sku).
   const checked = fileUpc(p.upc, p.manufacturer);
   const sameAsItem = !noUpcPrinted(p.upc) && !!itemKey(p.item) && itemKey(p.upc) === itemKey(p.item);
   const itemOnly = noUpcPrinted(p.upc) || (sameAsItem && (!checked.upc || checked.problems.length > 0));
-  const memoryUpc = itemOnly && itemKey(p.item) ? ctx.knownUpc?.(itemKey(p.item)) : undefined;
-  const u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : itemOnly && itemKey(p.item) ? { upc: null as string | null, problems: [] as Problem[] } : checked;
-  if (!memoryUpc && itemOnly && itemKey(p.item)) {
-    u.problems = [{ field: 'upc', message: `No UPC is printed for item ${p.item}: type its UPC once (from the product) and it is remembered for ${vendor.name ? vendor.name + "'s" : "this vendor's"} next invoices.`, blocking: true }];
+  const key = lineKey(p);
+  const memoryUpc = itemOnly && key ? ctx.knownUpc?.(key) : undefined;
+  const u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : itemOnly && key ? { upc: null as string | null, problems: [] as Problem[] } : checked;
+  if (!memoryUpc && itemOnly && key) {
+    const what = itemKey(p.sku) ? `SKU ${p.sku}` : `item ${p.item}`;
+    u.problems = [{ field: 'upc', message: `No UPC is printed for ${what}: type its UPC once (from the product) and it is remembered for ${vendor.name ? vendor.name + "'s" : "this vendor's"} next invoices.`, blocking: true }];
   }
   problems.push(...u.problems);
   const description = typeof p.description === 'string' ? p.description : '';
@@ -527,7 +540,7 @@ export interface PaperInvoice {
 /** A whole paper invoice as the file's header and lines, with every line's problems and the invoice's own. `vendor` is null until a
  *  person says which vendor the invoice is from. */
 export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, ctx: ConvertContext = {}) {
-  paper = itemCodesFromUpcColumn(paper);
+  paper = skuFromUpcColumn(paper);
   const rules = vendor ?? UNKNOWN_VENDOR;
   const lines = paper.lines.map((p) => convertPaperLine(rules, p, ctx));
   const problems: Problem[] = [];

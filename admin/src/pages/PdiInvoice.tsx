@@ -29,6 +29,7 @@ interface Review {
 interface PaperLine {
   upc: string | null; description: string | null; item?: string | null; quantity: number | null; units?: number | null; price: string | null;
   amount: string | null; isReturn?: boolean; manufacturer?: string | null; group?: string | null; handwritten?: string | null; per?: string | null;
+  sku?: string | null;   // the vendor's own code printed where the UPC goes (no barcode on the line): only to find its remembered UPC
 }
 interface Charge { name: string; amount: string | null }
 interface Paper { invoiceNumber: string | null; date: string | null; total: string | null; lines: PaperLine[]; groups?: unknown[]; summary?: unknown; charges?: Charge[] }
@@ -313,7 +314,8 @@ export default function PdiInvoice() {
                             <td style={s.tdNo}>{i + 1}</td>
                             {showPackage && <td style={s.tdSmall}>{p.group ?? ''}</td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} UPC`} style={{ ...cell('upc'), width: 138 }} value={p.upc ?? ''} placeholder={l.upcFrom === 'memory' ? l.line.upc : undefined} onChange={(e) => editLine(i, { upc: e.target.value })} />
-                              {l.upcFrom === 'memory' && <div style={s.from} title="This vendor prints no UPC for this item: the UPC used on its earlier file">remembered</div>}</td>
+                              {p.sku && <div style={s.from} title="The vendor's own code printed where the UPC goes. It is not put in the file; the UPC typed for it is remembered.">SKU {p.sku}</div>}
+                              {l.upcFrom === 'memory' && <div style={s.from} title="This vendor prints no UPC for this product: the UPC used on its earlier file">remembered</div>}</td>
                             <td style={s.td}><input aria-label={`Line ${i + 1} description`} style={{ ...cell('description'), width: 170 }} value={p.description ?? ''} onChange={(e) => editLine(i, { description: e.target.value })} /></td>
                             {showItem && <td style={s.td}><input aria-label={`Line ${i + 1} item`} style={{ ...cell('item'), width: 84 }} value={p.item ?? ''} onChange={(e) => editLine(i, { item: e.target.value })} /></td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} quantity`} style={{ ...cell('quantity'), width: 58 }} inputMode="numeric" value={p.quantity ?? ''} onChange={(e) => editLine(i, { quantity: e.target.value === '' ? null : Number(e.target.value) })} /></td>
