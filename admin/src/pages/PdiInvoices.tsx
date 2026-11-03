@@ -254,7 +254,7 @@ export function VendorForm({ title, initial, suggest, hq, busy, onSave, onClose 
           <select id="pv-items" style={INPUT} value={itemDigits} onChange={(e) => setItemDigits(e.target.value as 'FIRST6' | 'LAST6' | 'NONE')}>
             <option value="FIRST6">First 6 digits</option>
             <option value="LAST6">Last 6 digits</option>
-            <option value="NONE">It prints none</option>
+            <option value="NONE">Leave them out (none printed, or they have letters)</option>
           </select>
         </Field>
       </FieldRow>

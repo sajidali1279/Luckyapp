@@ -285,6 +285,14 @@ const SEPARATOR = /[\s.\p{Pd}]/u;
 /** The file's 11 UPC digits from a UPC as printed. A full UPC's 12th digit is its check digit, dropped once it is shown to match.
  *  A vendor that prints only an item's last digits (Frito-Lay: up to 5) prints its manufacturer number over the section: the rest is 0
  *  and that number. */
+/** A UPC-E code's full UPC, without the check digit (11 digits): the number system digit and the six digits, expanded by the standard rule
+ *  (04252614 -> 0 42100 00526, check digit 4). */
+export function upcEtoA(numberSystem: string, six: string): string {
+  const [a, b, c, d4, e, f] = six.split('');
+  const middle = f <= '2' ? `${a}${b}${f}0000${c}${d4}${e}` : f === '3' ? `${a}${b}${c}00000${d4}${e}` : f === '4' ? `${a}${b}${c}${d4}00000${e}` : `${a}${b}${c}${d4}${e}0000${f}`;
+  return numberSystem + middle;
+}
+
 export function fileUpc(printed: string | null | undefined, manufacturer?: string | number | null): { upc: string | null; problems: Problem[] } {
   const no = (message: string, upc: string | null = null, blocking = upc === null) => ({ upc, problems: [{ field: 'upc' as const, message, ...(blocking ? { blocking } : {}) }] });
   if (typeof printed !== 'string' || !printed.trim()) return no('The UPC could not be read.');
@@ -319,6 +327,19 @@ export function fileUpc(printed: string | null | undefined, manufacturer?: strin
   if (d.length === 10) {
     return no(`The UPC ${printed} has 10 digits (no 0 in front, no check digit): the file gets 0${d}. A misread digit cannot be caught, so compare it with the paper.`, '0' + d, false);
   }
+  // UPC-E, the short barcode on small packs (candy, gum, tobacco): 8 digits (number system 0 or 1, six digits, the check digit), or the
+  // six digits alone. It stands for one full UPC by a fixed rule, so the file gets that UPC.
+  if (d.length === 8 && /^[01]/.test(d)) {
+    const body = upcEtoA(d[0], d.slice(1, 7));
+    if (gs1CheckDigit(body) !== Number(d[7])) return no(`The UPC ${printed} looks like a short UPC-E code but does not check out, so a digit is probably misread: compare it with the paper and correct it.`, null, true);
+    return { upc: body, problems: [] };
+  }
+  if (d.length === 6) {
+    const body = upcEtoA('0', d);
+    return no(`The UPC ${printed} has 6 digits, read as a short UPC-E code: the file gets ${body} (the full UPC ${body}${gs1CheckDigit(body)}). Compare it with the barcode on the product.`, body, false);
+  }
+  if (d.length === 14) return no(`The UPC ${printed} has 14 digits: it looks like the case code, not the item's own UPC. Type the 12-digit UPC of one item.`, null, true);
+  if (d.length === 13) return no(`The UPC ${printed} has 13 digits (an international EAN code), and PDI's file holds a 12-digit UPC: type the item's UPC if it has one, or compare with the paper.`, null, true);
   return no(`The UPC "${printed}" has ${d.length} digits; a full UPC has 12.`);
 }
 
@@ -343,7 +364,11 @@ export function guessUnitsPerCase(description: string): number | null {
   const caseSize = tokens.find((t) => t.unit) ?? tokens.find((t) => t.a >= 12);  // 24/12OZ: how many, how big
   const pack = tokens.find((t) => t !== caseSize && !t.unit && t.a >= 2 && t.a < 12); // 2/12, 4/6, 3/8: how many packs
   if (pack) return pack.a;
-  if (!caseSize) return null;
+  if (!caseSize) {
+    // a box counted by pieces, as candy and snack vendors print it: "SNICKERS KING 24CT", "GUM 12 COUNT" (still only a guess to confirm)
+    const ct = d.match(/(?<![\d/.])(\d{1,4})\s*(?:CT|COUNT)(?![A-Z])/);
+    return ct && +ct[1] >= 2 ? +ct[1] : null;
+  }
   if (/^\d+\/?$/.test(d.slice(caseSize.end).replace(/[.\s]/g, ''))) return null; // "24/12 2": the pack was cut off
   const ounces = caseSize.unit === 'ML' ? caseSize.b / 29.5735 : caseSize.unit === 'CL' ? caseSize.b / 2.95735
     : /^L/.test(caseSize.unit) ? caseSize.b * 33.814 : caseSize.b;
@@ -388,7 +413,7 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   if (vendor.itemDigits !== 'NONE') {
     const digits = typeof p.item === 'string' ? p.item.replace(SEPARATORS, '') : '';
     if (!digits) say('item', `No item number was read for this line, and ${who} prints them: type it in.`, true);
-    else if (/\D/.test(digits)) say('item', `The item number "${p.item}" has a character that is not a digit.`, true);
+    else if (/\D/.test(digits)) say('item', `The item number "${p.item}" has a character that is not a digit, and PDI's item field holds digits only. Correct it if it was misread; if ${who}'s item numbers have letters, set "Its item numbers in the file" to "Leave them out" on the Vendors tab.`, true);
     else if (vendor.itemLength && digits.length !== vendor.itemLength) say('item', `${who}'s item numbers have ${vendor.itemLength} digits, not "${p.item}".`, true);
     else item = vendor.itemDigits === 'LAST6' ? digits.slice(-6) : digits.slice(0, 6);
   }
@@ -454,17 +479,21 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   if (!vendor) say('supplier', 'Which vendor is this invoice from? Choose it, or add it as a new vendor.', true);
   else if (!vendor.code) say('supplier', `Set ${vendor.name}'s code in PDI to make the file.`, true);
   const printedNumber = typeof paper.invoiceNumber === 'string' ? paper.invoiceNumber.trim() : '';
-  const digits = printedNumber.replace(/[\s\p{Pd}]/gu, '');
-  // The file holds 10 digits (PDI reads the A line by column): a longer number keeps its last 10, the part that changes from one invoice
-  // to the next, and a person ticks it once (2026-11-03, Blue Bell prints 12 digits: 020122966546 -> 0122966546)
+  // The file's invoice number is digits only (PDI reads the A line by column). Letters and signs are left out ("INV-004512" -> 4512,
+  // "881234A" -> 881234) and a person ticks it once; before 2026-11-03 such a vendor could never make a file at all.
+  const digits = printedNumber.replace(/\D/g, '');
+  // The file holds 10 digits: a longer number keeps its last 10, the part that changes from one invoice to the next, and a person ticks
+  // it once (2026-11-03, Blue Bell prints 12 digits: 020122966546 -> 0122966546)
   const significant = digits.replace(/^0+(?=\d)/, '');
   const invoiceNumber = significant.length > 10 ? significant.slice(-10).replace(/^0+(?=\d)/, '') : significant;
   if (!printedNumber) say('invoice', 'The invoice number could not be read.', true);
-  else if (!/^\d+$/.test(digits)) say('invoice', `The invoice number "${printedNumber}" should be digits only.`, true);
-  else if (/[\s\p{Pd}]/u.test(printedNumber)) {   // a dash or space inside: joined, but a person says whether all of it is the number
+  else if (!digits) say('invoice', `The invoice number "${printedNumber}" has no digits, and the file holds digits only: type the number.`, true);
+  else if (/[^\d\s\p{Pd}]/u.test(printedNumber)) {
+    say('invoice', `The invoice number was printed "${printedNumber}"; the file holds digits only, so it will say ${invoiceNumber}. Check that PDI shows this invoice the same way.`);
+  } else if (/[\s\p{Pd}]/u.test(printedNumber)) {   // a dash or space inside: joined, but a person says whether all of it is the number
     say('invoice', `The invoice number was printed "${printedNumber}"; the file will say ${invoiceNumber}. Is all of it the invoice number?`);
   }
-  if (/^\d+$/.test(digits) && significant.length > 10) {
+  if (digits && significant.length > 10) {
     say('invoice', `The invoice number ${printedNumber} is longer than the file's 10 places, so the file gets the last 10: ${significant.slice(-10)}. Check that PDI shows this invoice the same way.`);
   }
   const totalCents = printedCents(paper.total);
