@@ -244,12 +244,14 @@ export interface PaperLine {
   manufacturer?: string | null; // a manufacturer number printed over a section of short UPCs (Frito-Lay: 28400)
   group?: string | null;        // the package or section header the line is under ("11OZ PL 1/12 TBG")
   handwritten?: string | null;  // anything written by hand on the line ("5 crossed out, 4 written"): the printed values are in the fields
+  per?: string | null;          // what the line's quantity counts when a distributor prints it per line: CS, EA, CTN, BX ("" when not)
 }
 
 /** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
  *  learned or a person-confirmed value for the product, or a guess from its name. */
 export type UnitsFrom = 'each' | 'paper' | 'learned' | 'confirmed' | 'guess';
-export interface ConvertedLine { line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null }
+// upcFrom 'memory': the paper printed no UPC and the vendor's item code was matched to the UPC used on an earlier file (2026-11-03)
+export interface ConvertedLine { line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null; upcFrom?: 'memory' }
 
 /** Cents from money as printed: "1.9500" -> 195, "$1,234.5" -> 123450, ".85" -> 85, "$ 1.95" -> 195; "(1.95)", "$(1.95)", "- 1.95",
  *  "1.95-" and "1.95 CR" -> -195. Null when it is not money as printed, or has part of a cent (none seen on these invoices). */
@@ -390,15 +392,38 @@ export function unitsFromPackage(group: string | null | undefined): number | nul
 export interface KnownUnits { units: number; from: 'learned' | 'confirmed' }
 export interface ConvertContext {
   knownUnits?: (upc: string) => KnownUnits | undefined; // what the app remembers for a product of this vendor, by its 11 file digits
+  knownUpc?: (itemKey: string) => string | undefined;    // the UPC used before for this vendor's item code (pdi_product_upcs)
   today?: string;                                        // YYYY-MM-DD, to question a date far from it
 }
 
 /** One paper line as the file's line, with what a person should look at. */
+/** A vendor item code as the UPC memory keys it: capitals, letters and digits only ("wb-20 oz" -> WB20OZ). Empty when none is printed. */
+export function itemKey(item: string | null | undefined): string {
+  return typeof item === 'string' ? item.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 40) : '';
+}
+
+/** What a per-line unit as printed counts: 'case' (CS, CA, CASE, CTN, CARTON, BX, BOX, PK, PACK), 'each' (EA, EACH, UN, UNIT, PC, PCS, BTL,
+ *  CAN), or null when none is printed or it is something else. */
+export function perKind(per: string | null | undefined): 'case' | 'each' | null {
+  const p = typeof per === 'string' ? per.toUpperCase().replace(/[^A-Z]/g, '') : '';
+  if (/^(CS|CA|CASE|CASES|CTN|CARTON|BX|BOX|PK|PACK)$/.test(p)) return 'case';
+  if (/^(EA|EACH|UN|UNIT|UNITS|PC|PCS|PIECE|BTL|BOTTLE|CAN)$/.test(p)) return 'each';
+  return null;
+}
+
+/** Whether a paper line printed no UPC at all (as opposed to one that cannot be read). */
+const noUpcPrinted = (upc: string | null | undefined) => typeof upc !== 'string' || !upc.trim();
+
 export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: ConvertContext = {}): ConvertedLine {
   const problems: Problem[] = [];
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
   const who = vendor.name || 'This vendor';
-  const u = fileUpc(p.upc, p.manufacturer);
+  // no UPC on the paper: the one used for this item code on an earlier file, if there is one (typed once per product, not every time)
+  const memoryUpc = noUpcPrinted(p.upc) && itemKey(p.item) ? ctx.knownUpc?.(itemKey(p.item)) : undefined;
+  const u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : fileUpc(p.upc, p.manufacturer);
+  if (!memoryUpc && noUpcPrinted(p.upc) && itemKey(p.item)) {
+    u.problems = [{ field: 'upc', message: `No UPC is printed for item ${p.item}: type its UPC once (from the product) and it is remembered for ${who}'s next invoices.`, blocking: true }];
+  }
   problems.push(...u.problems);
   const description = typeof p.description === 'string' ? p.description : '';
   const price = printedCents(p.price);
@@ -422,7 +447,11 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   // units per case: one, for a vendor that counts items; else as printed, from the package header, remembered, or guessed from the name
   let units = 0;
   let unitsFrom: UnitsFrom | null = null;
-  if (vendor.sellsBy === 'EACH') { units = 1; unitsFrom = 'each'; }
+  // a distributor that prints per line whether it counts cases or single items (CS / EA): a single-item line of a case vendor is 1 a
+  // "case" in the file, and a case line of a single-item vendor is pointed out (2026-11-03)
+  const per = perKind(p.per);
+  if (vendor.sellsBy === 'EACH' && per === 'case') say('units', `This line is counted in ${String(p.per).trim()} (cases), but ${who} is set up to count single items: is the quantity right, and should the vendor count cases?`);
+  if (vendor.sellsBy === 'EACH' || per === 'each') { units = 1; unitsFrom = vendor.sellsBy === 'EACH' ? 'each' : 'paper'; }
   else {
     const pack = unitsFromPackage(p.group);
     const remembered = u.upc && /^\d{11}$/.test(u.upc) ? ctx.knownUnits?.(u.upc) : undefined;
@@ -459,7 +488,7 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   };
   // what the file itself would refuse, where it is not already said
   for (const lp of lineProblems(line)) if (!problems.some((x) => x.field === lp.field)) problems.push(lp);
-  return { line, problems, unitsFrom };
+  return { line, problems, unitsFrom, ...(memoryUpc ? { upcFrom: 'memory' as const } : {}) };
 }
 
 /** What the paper prints besides its lines, to check them against: subtotals per package group (in order), the whole invoice's counts, and
@@ -525,6 +554,10 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   for (const c of charges) if (c.cents === null) say('total', `The charge "${c.name}" could not be read: compare it with the paper.`);
   const chargeCents = charges.reduce((n, c) => n + (c.cents ?? 0), 0);
   const chargeList = charges.filter((c) => c.cents).map((c) => `${c.name} ${money(c.cents!)}`).join(', ');
+  // charges read while the lines alone already make the total: one was read that is not part of it, or a line holds it too (2026-11-03)
+  if (totalCents !== null && sum === totalCents && chargeCents) {
+    say('total', `The lines alone come to the total, yet charges were read besides them (${chargeList}): is a charge read that is not on the invoice, or is it inside a line?`);
+  }
   if (totalCents !== null && sum !== totalCents) {
     if (chargeCents && sum + chargeCents === totalCents) {
       say('total', `The total includes charges besides the lines (${chargeList}). The file carries the lines and the printed total: check how PDI should get these charges.`);

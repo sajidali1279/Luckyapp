@@ -56,6 +56,7 @@ const FIELDS = `What to give:
   - description: the product name as printed.
   - item: the vendor's own item number, code or ID for the product, if printed.
   - quantity: how many were delivered, as the vendor counts them (cases, or single items).
+  - per: the unit the quantity counts when the invoice prints one per line (a U/M or unit column: CS, EA, CTN, BX), as printed; "" when not.
   - units: the number of single units, only when the invoice prints it as its own column besides the quantity (for example "Cases 2
     Units 24"); otherwise "".
   - price: the price of one of what the quantity counts, after any discount (the net price), as printed.
@@ -111,8 +112,9 @@ export const READ_SCHEMA = {
           manufacturer: text(),
           group: text(),
           handwritten: text('anything written by hand on this line, as written; "" when none'),
+          per: text('the unit the quantity counts when printed per line (CS, EA, CTN), as printed; "" when not'),
         },
-        required: ['upc', 'description', 'item', 'quantity', 'units', 'price', 'amount', 'isReturn', 'manufacturer', 'group', 'handwritten'],
+        required: ['upc', 'description', 'item', 'quantity', 'units', 'price', 'amount', 'isReturn', 'manufacturer', 'group', 'handwritten', 'per'],
         additionalProperties: false,
       },
     },
@@ -155,6 +157,7 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; vendor: InvoiceR
     upc: str(l?.upc), description: str(l?.description), item: str(l?.item), quantity: int(l?.quantity), units: int(l?.units),
     price: str(l?.price), amount: str(l?.amount), isReturn: l?.isReturn === true, manufacturer: str(l?.manufacturer), group: str(l?.group),
     ...(str(l?.handwritten) ? { handwritten: str(l?.handwritten) } : {}),
+    ...(str(l?.per) ? { per: str(l?.per)!.slice(0, 12) } : {}),
   }));
   const groups = (Array.isArray(raw?.groups) ? raw.groups : []).filter((g: any) => str(g?.name)).map((g: any) => ({
     name: str(g.name)!, ...(int(g.cases) !== null ? { cases: int(g.cases)! } : {}), ...(int(g.units) !== null ? { units: int(g.units)! } : {}),
@@ -176,7 +179,7 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; vendor: InvoiceR
 
 /** For a request without the answer format: the same shape, as plain JSON. */
 const JSON_ONLY = `Answer with only one JSON object, no other text, with exactly these keys: vendor (name, address, phone), invoiceNumber, date,
-total, lines (each with upc, description, item, quantity, units, price, amount, isReturn, manufacturer, group, handwritten), groups (each
+total, lines (each with upc, description, item, quantity, per, units, price, amount, isReturn, manufacturer, group, handwritten), groups (each
 with name, cases, units, amount), summary (cases, units), charges (each with name, amount), unreadable (a list of strings) and handwritten. Every value is a
 string ("" when not printed), except isReturn (true or false).`;
 

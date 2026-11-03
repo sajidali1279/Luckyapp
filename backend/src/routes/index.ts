@@ -341,7 +341,7 @@ router.delete('/pdi-invoices/:id', authenticate, requireRole(Role.STORE_MANAGER)
 // the vendors whose invoices are read: anyone using the page sees them and adds a new one; HQ edits and deletes them
 router.get('/pdi-vendors', authenticate, requireRole(Role.STORE_MANAGER), listPdiVendors);
 router.post('/pdi-vendors', authenticate, requireRole(Role.STORE_MANAGER), createPdiVendor);
-router.patch('/pdi-vendors/:id', authenticate, requireRole(Role.SUPER_ADMIN), updatePdiVendor);
+router.patch('/pdi-vendors/:id', authenticate, requireRole(Role.STORE_MANAGER), updatePdiVendor);   // HQ, or the manager who added it until its first file
 router.delete('/pdi-vendors/:id', authenticate, requireRole(Role.SUPER_ADMIN), deletePdiVendor);
 // Win-back gifts (2026-10-16): a few points with a push for customers who have not been back, and how many came back
 router.get('/winback/preview', authenticate, requireRole(Role.SUPER_ADMIN), previewWinBack);

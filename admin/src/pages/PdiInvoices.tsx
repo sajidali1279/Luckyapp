@@ -22,6 +22,7 @@ export interface PdiMeta { enabled: boolean; readerReady: boolean; maxPhotos: nu
 export interface PdiVendor {
   id: string; name: string; pdiCode: string | null; aliases: string[]; sellsBy: 'CASE' | 'EACH'; itemDigits: 'FIRST6' | 'LAST6' | 'NONE';
   itemLength: number | null; readerNotes: string | null; invoiceCount: number; productCount: number;
+  upcCount?: number; canEdit?: boolean;   // UPCs remembered by item code; whether this person may change it (HQ, or who added it until its first file)
 }
 interface ListRow {
   id: string; store: { id: string; name: string }; vendor: { id: string; name: string } | null; vendorRead: string | null; status: string;
@@ -171,7 +172,7 @@ function Vendors({ hq }: { hq: boolean }) {
       <HowItWorks style={{ marginBottom: 16 }}>
         A vendor is found by the name printed on its invoices. The first invoice from a new vendor asks for its code in PDI, whether its
         quantities are cases or single items, and how its item numbers go in the file; each name it is printed as is remembered.
-        {hq ? ' Notes on how a vendor lays out its invoices help the reader with that vendor.' : ' HQ can change a vendor here.'}
+        {hq ? ' Notes on how a vendor lays out its invoices help the reader with that vendor.' : ' You can change a vendor you added until its first file is made; after that, HQ can.'}
       </HowItWorks>
       <Card padding={0}>
         <div style={s.filters}>
@@ -183,7 +184,7 @@ function Vendors({ hq }: { hq: boolean }) {
           <div style={{ overflowX: 'auto' }}>
             <table style={s.table}>
               <thead>
-                <tr>{['Vendor', 'PDI code', 'Quantities', 'Item numbers', 'Printed as', 'Invoices', 'Products known', ''].map((h, i) => <th key={i} style={s.th}>{h}</th>)}</tr>
+                <tr>{['Vendor', 'PDI code', 'Quantities', 'Item numbers', 'Printed as', 'Invoices', 'Products known', 'UPCs by item', ''].map((h, i) => <th key={i} style={s.th}>{h}</th>)}</tr>
               </thead>
               <tbody>
                 {vendorsQ.data.map((v) => (
@@ -195,11 +196,10 @@ function Vendors({ hq }: { hq: boolean }) {
                     <td style={{ ...s.td, whiteSpace: 'normal', maxWidth: 260, color: TEXT_MUTED, fontSize: FONT.small }}>{v.aliases.join(', ') || 'None'}</td>
                     <td style={{ ...s.td, textAlign: 'right' }}>{v.invoiceCount}</td>
                     <td style={{ ...s.td, textAlign: 'right' }}>{v.productCount}</td>
+                    <td style={{ ...s.td, textAlign: 'right' }} title="UPCs remembered for item codes, for invoices that print no UPC">{v.upcCount ?? 0}</td>
                     <td style={{ ...s.td, textAlign: 'right' }}>
-                      {hq && <>
-                        <Button size="sm" variant="ghost" icon={<Pencil />} onClick={() => setEditing(v)} aria-label={`Edit ${v.name}`}>Edit</Button>
-                        <Button size="sm" variant="ghost" icon={<Trash2 />} onClick={() => setRemoving(v)} aria-label={`Delete ${v.name}`} />
-                      </>}
+                      {(hq || v.canEdit) && <Button size="sm" variant="ghost" icon={<Pencil />} onClick={() => setEditing(v)} aria-label={`Edit ${v.name}`}>Edit</Button>}
+                      {hq && <Button size="sm" variant="ghost" icon={<Trash2 />} onClick={() => setRemoving(v)} aria-label={`Delete ${v.name}`} />}
                     </td>
                   </tr>
                 ))}

@@ -2202,6 +2202,23 @@ model PdiVendor {
 
   invoices PdiInvoice[]
   units    PdiProductUnits[]
+  upcs     PdiProductUpc[]
 
   @@map("pdi_vendors")
+}
+
+// The UPC of a vendor's item code (2026-11-03), for vendors that print only their own item codes and no UPC (bread and ice routes): learned
+// from every file a person downloads (they looked at each line), so a UPC is typed once per product, not on every invoice.
+model PdiProductUpc {
+  vendorId    String
+  itemKey     String                            // the item code as printed, capitals, letters and digits only ("WB-20 OZ" -> WB20OZ)
+  upc         String                            // the file's 11 digits
+  description String?
+  updatedById String?
+  updatedAt   DateTime  @updatedAt
+
+  vendor PdiVendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@id([vendorId, itemKey])
+  @@map("pdi_product_upcs")
 }

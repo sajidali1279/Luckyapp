@@ -21,16 +21,17 @@ import { dollars, STATUS, SELLS_BY, VendorForm, useVendors } from './PdiInvoices
 
 interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean }
 interface FileLine { upc: string; description: string; itemNumber: string | null; priceCents: number; unitsPerCase: number; quantity: number }
-interface ReviewLine { line: FileLine; unitsFrom: string | null; problems: Problem[] }
+interface ReviewLine { line: FileLine; unitsFrom: string | null; upcFrom?: 'memory' | null; problems: Problem[] }
 interface Review {
   header: { supplierCode: string; invoiceNumber: string; date: string; totalCents: number }; lines: ReviewLine[]; problems: Problem[];
   open: number; canDownload: boolean; fileName: string | null; linesTotalCents: number;
 }
 interface PaperLine {
   upc: string | null; description: string | null; item?: string | null; quantity: number | null; units?: number | null; price: string | null;
-  amount: string | null; isReturn?: boolean; manufacturer?: string | null; group?: string | null; handwritten?: string | null;
+  amount: string | null; isReturn?: boolean; manufacturer?: string | null; group?: string | null; handwritten?: string | null; per?: string | null;
 }
-interface Paper { invoiceNumber: string | null; date: string | null; total: string | null; lines: PaperLine[]; groups?: unknown[]; summary?: unknown }
+interface Charge { name: string; amount: string | null }
+interface Paper { invoiceNumber: string | null; date: string | null; total: string | null; lines: PaperLine[]; groups?: unknown[]; summary?: unknown; charges?: Charge[] }
 interface Invoice {
   id: string; store: { id: string; name: string }; status: string; readError: string | null;
   vendor: { id: string; name: string; pdiCode: string | null; sellsBy: string; itemDigits: string; itemLength: number | null } | null;
@@ -97,6 +98,10 @@ export default function PdiInvoice() {
   };
   const addLine = () => { if (shown) void changeLines([...shown.lines, { upc: '', description: '', item: '', quantity: null, price: '', amount: '', isReturn: false }], 'A line was added at the end: fill it in from the paper.'); };
   const removeLine = (i: number) => { if (shown) void changeLines(shown.lines.filter((_, j) => j !== i), `Line ${i + 1} was removed.`); };
+  // the charges printed besides the lines (a misread deposit or fee could only be ticked before 2026-11-03): saved with the corrections
+  const editCharge = (k: number, patch: Partial<Charge>) => { if (shown) setPaper({ ...shown, charges: (shown.charges ?? []).map((c, j) => (j === k ? { ...c, ...patch } : c)) }); };
+  const addCharge = () => { if (shown) setPaper({ ...shown, charges: [...(shown.charges ?? []), { name: '', amount: '' }] }); };
+  const removeCharge = (k: number) => { if (shown) setPaper({ ...shown, charges: (shown.charges ?? []).filter((_, j) => j !== k) }); };
   // a credit memo: every line is a return (a vendor that counts cases had no Return column before 2026-11-03)
   const allReturns = !!shown?.lines.length && shown.lines.every((l) => l.isReturn);
   const setAllReturns = (on: boolean) => { if (shown) setPaper({ ...shown, lines: shown.lines.map((l) => ({ ...l, isReturn: on })) }); };
@@ -149,11 +154,12 @@ export default function PdiInvoice() {
   const showPackage = !!shown?.lines.some((l) => l.group);
   const showItem = vendor ? vendor.itemDigits !== 'NONE' : !!shown?.lines.some((l) => l.item);
   const showUnits = !!shown?.lines.some((l) => l.units != null);
+  const showPer = !!shown?.lines.some((l) => l.per);   // a distributor's per-line unit (CS, EA)
   const showReturn = true;   // any vendor can send a return or a credit memo (shown only for some vendors before 2026-11-03)
   // the single items a case line holds (cases x units per case), for a vendor that counts cases: the owner reads the table in items
   const showItems = caseVendor;
   const totalItems = review ? review.lines.reduce((n, l) => n + l.line.quantity * (l.line.unitsPerCase || 0), 0) : 0;
-  const cols = 8 + (showPackage ? 1 : 0) + (showItem ? 1 : 0) + (showUnits ? 1 : 0) + (showReturn ? 1 : 0) + (showItems ? 1 : 0);   // for the line's problems, the width of the table
+  const cols = 8 + (showPackage ? 1 : 0) + (showItem ? 1 : 0) + (showUnits ? 1 : 0) + (showReturn ? 1 : 0) + (showItems ? 1 : 0) + (showPer ? 1 : 0);   // for the line's problems, the width of the table
   const rows = review && shown ? review.lines.map((l, i) => ({ l, p: shown.lines[i], i })).filter(({ i }) => !onlyOpen || openLines.includes(i)) : [];
 
   return (
@@ -227,6 +233,17 @@ export default function PdiInvoice() {
                   <label style={s.hField}>Invoice date<input style={s.input} type="date" value={shown.date ?? ''} onChange={(e) => editHeader({ date: e.target.value })} /></label>
                   <label style={s.hField}>Total as printed<input style={s.input} value={shown.total ?? ''} onChange={(e) => editHeader({ total: e.target.value })} /></label>
                 </div>
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ fontSize: FONT.small, fontWeight: 700, color: C.text, marginBottom: 6 }}>Charges besides the lines (deposits, fees, taxes)</div>
+                  {(shown.charges ?? []).map((c, k) => (
+                    <div key={k} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+                      <input aria-label={`Charge ${k + 1} name`} style={{ ...s.input, width: 220, maxWidth: '100%' }} value={c.name} onChange={(e) => editCharge(k, { name: e.target.value })} />
+                      <input aria-label={`Charge ${k + 1} amount`} style={{ ...s.input, width: 100 }} inputMode="decimal" value={c.amount ?? ''} onChange={(e) => editCharge(k, { amount: e.target.value })} />
+                      <Button size="sm" variant="ghost" icon={<X />} aria-label={`Remove charge ${k + 1}`} onClick={() => removeCharge(k)} />
+                    </div>
+                  ))}
+                  <Button size="sm" icon={<Plus />} onClick={addCharge}>Add a charge</Button>
+                </div>
                 {review.problems.length > 0 && (
                   <ul style={s.problemList}>
                     {review.problems.map((p) => <ProblemItem key={p.key} p={p} busy={busy === p.key} onAccept={accept} />)}
@@ -263,6 +280,7 @@ export default function PdiInvoice() {
                         <th style={s.th}>Description</th>
                         {showItem && <th style={s.th}>Item</th>}
                         <th style={s.th}>{vendor?.sellsBy === 'EACH' ? 'Qty' : caseVendor ? 'Cases' : 'Qty'}</th>
+                        {showPer && <th style={s.th}>Per</th>}
                         {showItems && <th style={s.th}>Items</th>}
                         {showUnits && <th style={s.th}>Units</th>}
                         <th style={s.th}>Price</th>
@@ -285,10 +303,12 @@ export default function PdiInvoice() {
                           <tr style={open ? s.rowOpen : undefined}>
                             <td style={s.tdNo}>{i + 1}</td>
                             {showPackage && <td style={s.tdSmall}>{p.group ?? ''}</td>}
-                            <td style={s.td}><input aria-label={`Line ${i + 1} UPC`} style={{ ...cell('upc'), width: 138 }} value={p.upc ?? ''} onChange={(e) => editLine(i, { upc: e.target.value })} /></td>
+                            <td style={s.td}><input aria-label={`Line ${i + 1} UPC`} style={{ ...cell('upc'), width: 138 }} value={p.upc ?? ''} placeholder={l.upcFrom === 'memory' ? l.line.upc : undefined} onChange={(e) => editLine(i, { upc: e.target.value })} />
+                              {l.upcFrom === 'memory' && <div style={s.from} title="This vendor prints no UPC for this item: the UPC used on its earlier file">remembered</div>}</td>
                             <td style={s.td}><input aria-label={`Line ${i + 1} description`} style={{ ...cell('description'), width: 170 }} value={p.description ?? ''} onChange={(e) => editLine(i, { description: e.target.value })} /></td>
                             {showItem && <td style={s.td}><input aria-label={`Line ${i + 1} item`} style={{ ...cell('item'), width: 84 }} value={p.item ?? ''} onChange={(e) => editLine(i, { item: e.target.value })} /></td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} quantity`} style={{ ...cell('quantity'), width: 58 }} inputMode="numeric" value={p.quantity ?? ''} onChange={(e) => editLine(i, { quantity: e.target.value === '' ? null : Number(e.target.value) })} /></td>
+                            {showPer && <td style={s.td}><input aria-label={`Line ${i + 1} counted per`} style={{ ...s.input, width: 48 }} value={p.per ?? ''} onChange={(e) => editLine(i, { per: e.target.value })} /></td>}
                             {showItems && <td style={{ ...s.td, fontWeight: 700, textAlign: 'right' }} title="cases x units per case">{l.line.unitsPerCase ? (l.line.quantity * l.line.unitsPerCase).toLocaleString() : ''}</td>}
                             {showUnits && <td style={s.td}><input aria-label={`Line ${i + 1} units`} style={{ ...cell('units'), width: 58 }} inputMode="numeric" value={p.units ?? ''} onChange={(e) => editLine(i, { units: e.target.value === '' ? null : Number(e.target.value) })} /></td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} price`} style={{ ...cell('price'), width: 74 }} inputMode="decimal" value={p.price ?? ''} onChange={(e) => editLine(i, { price: e.target.value })} /></td>
