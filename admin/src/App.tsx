@@ -174,8 +174,6 @@ export default function App() {
                 <Route path="/customers" element={<Customers />} />
                 <Route path="/customers/:id" element={<CustomerProfile />} />
               <Route path="/grant-redeem" element={<GrantRedeem />} />
-              <Route path="/pdi-invoices" element={<PdiInvoices />} />
-              <Route path="/pdi-invoices/:id" element={<PdiInvoice />} />
                 <Route path="/my-billing" element={<SuperAdminBilling />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/rates" element={<Rates />} />
@@ -195,6 +193,10 @@ export default function App() {
               </Route>
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
+              {/* Invoices to PDI: HQ for any store, a manager for their own stores (the server keeps each to its stores). It sat inside the
+                  HQ-only block until 2026-11-03, so the sidebar link took managers back to the dashboard. */}
+              <Route path="/pdi-invoices" element={<PdiInvoices />} />
+              <Route path="/pdi-invoices/:id" element={<PdiInvoice />} />
               <Route element={<DevAdminOnly />}>
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/analytics" element={<Analytics />} />
