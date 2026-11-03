@@ -248,8 +248,8 @@ export interface PaperLine {
 }
 
 /** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
- *  learned or a person-confirmed value for the product, or a guess from its name. */
-export type UnitsFrom = 'each' | 'paper' | 'learned' | 'confirmed' | 'guess';
+ *  learned or a person-confirmed value for the product, a guess from its name, or not known (1 is written, 2026-11-03). */
+export type UnitsFrom = 'each' | 'paper' | 'learned' | 'confirmed' | 'guess' | 'unknown';
 // upcFrom 'memory': the paper printed no UPC and the vendor's item code was matched to the UPC used on an earlier file (2026-11-03)
 export interface ConvertedLine { line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null; upcFrom?: 'memory' }
 
@@ -414,6 +414,20 @@ export function perKind(per: string | null | undefined): 'case' | 'each' | null 
 /** Whether a paper line printed no UPC at all (as opposed to one that cannot be read). */
 const noUpcPrinted = (upc: string | null | undefined) => typeof upc !== 'string' || !upc.trim();
 
+/** A short code in the UPC column with no item number and no manufacturer number beside it (AMS Wholesale 21695, 088125) is the vendor's own
+ *  item code, not a UPC: it is moved to the item, so its UPC is typed once and remembered for it (2026-11-03). Frito-Lay's short codes come
+ *  with a manufacturer number and stay. */
+export function itemCodesFromUpcColumn(paper: PaperInvoice): PaperInvoice {
+  let moved = false;
+  const lines = paper.lines.map((p) => {
+    const d = typeof p.upc === 'string' ? p.upc.replace(SEPARATORS, '') : '';
+    if (!/^\d{1,6}$/.test(d) || /^0+$/.test(d) || itemKey(p.item) || (typeof p.manufacturer === 'string' && p.manufacturer.trim())) return p;
+    moved = true;
+    return { ...p, item: (p.upc as string).trim(), upc: '' };
+  });
+  return moved ? { ...paper, lines } : paper;
+}
+
 export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: ConvertContext = {}): ConvertedLine {
   const problems: Problem[] = [];
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
@@ -439,14 +453,14 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   const qty = typeof p.quantity === 'number' && Number.isSafeInteger(p.quantity) && p.quantity > 0 ? p.quantity : null;
   if (qty === null) say('quantity', `The quantity "${p.quantity ?? ''}" should be a whole number above 0.`, true);
 
-  // the vendor's item number, in the file's 6 places
+  // the vendor's item number, in the file's 6 places. PDI does not need it (Deep Water left it blank for PepsiCo), so one that is not
+  // printed, has letters, or has the wrong length is left blank, never a stop (2026-11-03: every AMS line waited for an item number). A
+  // vendor whose item numbers have a set length gets a note when one does not fit it: likely a misread digit.
   let item: string | null = null;
   if (vendor.itemDigits !== 'NONE') {
     const digits = typeof p.item === 'string' ? p.item.replace(SEPARATORS, '') : '';
-    if (!digits) say('item', `No item number was read for this line, and ${who} prints them: type it in.`, true);
-    else if (/\D/.test(digits)) say('item', `The item number "${p.item}" has a character that is not a digit, and PDI's item field holds digits only. Correct it if it was misread; if ${who}'s item numbers have letters, set "Its item numbers in the file" to "Leave them out" on the Vendors tab.`, true);
-    else if (vendor.itemLength && digits.length !== vendor.itemLength) say('item', `${who}'s item numbers have ${vendor.itemLength} digits, not "${p.item}".`, true);
-    else item = vendor.itemDigits === 'LAST6' ? digits.slice(-6) : digits.slice(0, 6);
+    if (/^\d+$/.test(digits) && (!vendor.itemLength || digits.length === vendor.itemLength)) item = vendor.itemDigits === 'LAST6' ? digits.slice(-6) : digits.slice(0, 6);
+    else if (digits && vendor.itemLength) say('item', `The item number "${p.item}" is not ${vendor.itemLength} digits like ${who}'s, so the file leaves it blank. Correct it if it was misread.`);
   }
 
   // units per case: one, for a vendor that counts items; else as printed, from the package header, remembered, or guessed from the name
@@ -473,7 +487,8 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
     else {
       const guess = guessUnitsPerCase(description);
       if (guess) { units = guess; unitsFrom = 'guess'; say('units', `Units per case (${guess}) is a guess from the name: check it once and it is remembered.`); }
-      else say('units', 'Units per case is not known for this product yet: enter it once and it is remembered.', true);
+      // not known: the file gets 1 and the invoice says so once (a stop on every line of a new vendor before 2026-11-03)
+      else { units = 1; unitsFrom = 'unknown'; }
     }
   }
 
@@ -512,6 +527,7 @@ export interface PaperInvoice {
 /** A whole paper invoice as the file's header and lines, with every line's problems and the invoice's own. `vendor` is null until a
  *  person says which vendor the invoice is from. */
 export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, ctx: ConvertContext = {}) {
+  paper = itemCodesFromUpcColumn(paper);
   const rules = vendor ?? UNKNOWN_VENDOR;
   const lines = paper.lines.map((p) => convertPaperLine(rules, p, ctx));
   const problems: Problem[] = [];
@@ -550,8 +566,13 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   if (handNote) say('handwriting', `Handwriting on the invoice: "${handNote.slice(0, 160)}". If it changes the total or what was delivered, correct the invoice to match.`);
   const fileLines = lines.map((c) => c.line);
   const unreadable = fileLines.filter((l) => l.quantity === 0 || l.unitsPerCase === 0).length;
-  // units per case depend on the vendor (cases or single items): until it is known, only cases and money are checked
-  const unitsKnown = !!vendor;
+  const unknownUnits = lines.filter((c) => c.unitsFrom === 'unknown').length;
+  if (unknownUnits) {
+    say('units', `Units per case is not known yet for ${count(unknownUnits, 'line', 'lines')}, so the file says 1 for ${unknownUnits === 1 ? 'it' : 'them'}. Type the real number on a line if PDI should have it: it is remembered for the next invoice.`);
+  }
+  // units per case depend on the vendor (cases or single items): until it is known (and while a line's is not), only cases and money are
+  // checked
+  const unitsKnown = !!vendor && !unknownUnits;
 
   // the total: the lines, or the lines and the charges printed besides them (the file carries the lines and the printed total)
   const sum = linesTotalCents(fileLines);

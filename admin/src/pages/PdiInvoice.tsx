@@ -43,7 +43,7 @@ interface Invoice {
   duplicates: { id: string; status: string; createdAt: string; storeName: string }[];
 }
 
-const UNITS_FROM: Record<string, string> = { each: 'one each', paper: 'from the paper', learned: 'learned', confirmed: 'confirmed', guess: 'a guess' };
+const UNITS_FROM: Record<string, string> = { each: 'one each', paper: 'from the paper', learned: 'learned', confirmed: 'confirmed', guess: 'a guess', unknown: 'not known, 1 used' };
 
 export default function PdiInvoice() {
   const { id = '' } = useParams();
@@ -106,6 +106,9 @@ export default function PdiInvoice() {
   const allReturns = !!shown?.lines.length && shown.lines.every((l) => l.isReturn);
   const setAllReturns = (on: boolean) => { if (shown) setPaper({ ...shown, lines: shown.lines.map((l) => ({ ...l, isReturn: on })) }); };
   const accept = (p: Problem, on: boolean) => save({ check: [{ key: p.key, on }] }, p.key);
+  // every note that only needs a look, ticked at once (one by one was too many stops, 2026-11-03); what must be corrected stays
+  const toTick = review ? [...review.problems, ...review.lines.flatMap((l) => l.problems)].filter((p) => p.canCheck && !p.checked) : [];
+  const tickAll = () => save({ check: toTick.map((p) => ({ key: p.key, on: true })) }, 'all');
   const confirmUnits = (list: { i: number; units: number }[]) => {
     if (!review) return;
     return save({ units: list.map(({ i, units: n }) => ({ upc: review.lines[i].line.upc, unitsPerCase: n, description: review.lines[i].line.description })) }, 'units')
@@ -152,7 +155,7 @@ export default function PdiInvoice() {
   const guesses = review ? review.lines.map((l, i) => ({ l, i })).filter(({ l }) => l.unitsFrom === 'guess') : [];
   // the columns this invoice prints
   const showPackage = !!shown?.lines.some((l) => l.group);
-  const showItem = vendor ? vendor.itemDigits !== 'NONE' : !!shown?.lines.some((l) => l.item);
+  const showItem = (vendor ? vendor.itemDigits !== 'NONE' : false) || !!shown?.lines.some((l) => l.item);
   const showUnits = !!shown?.lines.some((l) => l.units != null);
   const showPer = !!shown?.lines.some((l) => l.per);   // a distributor's per-line unit (CS, EA)
   const showReturn = true;   // any vendor can send a return or a credit memo (shown only for some vendors before 2026-11-03)
@@ -171,6 +174,12 @@ export default function PdiInvoice() {
         description={`${inv.store.name} · added ${storeDayTime(inv.createdAt)}${inv.createdBy ? ` by ${inv.createdBy}` : ''}`}
         actions={<>
           <Badge tone={STATUS[inv.status]?.tone ?? 'neutral'}>{STATUS[inv.status]?.label ?? inv.status}</Badge>
+          {review && toTick.length > 0 && (
+            <Button icon={<CheckCircle2 />} onClick={tickAll} disabled={!!paper || !!busy}
+              title={paper ? 'Save your corrections first' : 'Every note below that only needs a look'}>
+              {busy === 'all' ? 'Marking...' : `Looked at all ${toTick.length} note${toTick.length === 1 ? '' : 's'}`}
+            </Button>
+          )}
           {review && (
             <Button variant="primary" icon={<Download />} onClick={download} disabled={!review.canDownload || !!paper || !!busy}
               title={paper ? 'Save your corrections first' : review.canDownload ? `Download ${review.fileName}` : `${review.open} still to look at`}>
@@ -263,8 +272,8 @@ export default function PdiInvoice() {
                 <label style={s.toggle}><input type="checkbox" checked={onlyOpen} onChange={(e) => setOnlyOpen(e.target.checked)} /> Only lines to look at ({openLines.length})</label>
                 <label style={s.toggle}><input type="checkbox" checked={allReturns} onChange={(e) => setAllReturns(e.target.checked)} /> Credit memo: every line is a return</label>
                 {caseVendor && guesses.length > 0 && (
-                  <Button size="sm" onClick={() => confirmUnits(guesses.map(({ l, i }) => ({ i, units: l.line.unitsPerCase })))} disabled={busy === 'units'}>
-                    Confirm the {guesses.length} guessed units per case as shown
+                  <Button size="sm" style={{ whiteSpace: 'normal', textAlign: 'left', maxWidth: '100%' }} onClick={() => confirmUnits(guesses.map(({ l, i }) => ({ i, units: l.line.unitsPerCase })))} disabled={busy === 'units'}>
+                    Confirm the {guesses.length} guessed units per case
                   </Button>
                 )}
               </div>
@@ -278,7 +287,7 @@ export default function PdiInvoice() {
                         {showPackage && <th style={s.th}>Package</th>}
                         <th style={s.th}>UPC</th>
                         <th style={s.th}>Description</th>
-                        {showItem && <th style={s.th}>Item</th>}
+                        {showItem && <th style={s.th} title="The vendor's own number for the product. PDI does not need it: it is filled in when printed, and a product with no UPC is remembered by it.">Vendor item no.</th>}
                         <th style={s.th}>{vendor?.sellsBy === 'EACH' ? 'Qty' : caseVendor ? 'Cases' : 'Qty'}</th>
                         {showPer && <th style={s.th}>Per</th>}
                         {showItems && <th style={s.th}>Items</th>}
