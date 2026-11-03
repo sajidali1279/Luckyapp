@@ -247,13 +247,15 @@ export interface PaperLine {
   per?: string | null;          // what the line's quantity counts when a distributor prints it per line: CS, EA, CTN, BX ("" when not)
   sku?: string | null;          // the vendor's own code printed where the UPC goes, on a line with no barcode (AMS Wholesale "SKU: 21695"):
                                 // finds the UPC remembered for it, never written to the file (it is not the vendor item number)
+  skip?: boolean;               // left out of the file by a person (no UPC to be had): added in PDI by hand (2026-11-03)
 }
 
 /** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
  *  learned or a person-confirmed value for the product, a guess from its name, or not known (1 is written, 2026-11-03). */
 export type UnitsFrom = 'each' | 'paper' | 'learned' | 'confirmed' | 'guess' | 'unknown';
 // upcFrom 'memory': the paper printed no UPC and the vendor's item code was matched to the UPC used on an earlier file (2026-11-03)
-export interface ConvertedLine { line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null; upcFrom?: 'memory' }
+// skipped: a line a person left out of the file; it has nothing to look at and the file goes without it
+export interface ConvertedLine { line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null; upcFrom?: 'memory'; skipped?: true }
 
 /** Cents from money as printed: "1.9500" -> 195, "$1,234.5" -> 123450, ".85" -> 85, "$ 1.95" -> 195; "(1.95)", "$(1.95)", "- 1.95",
  *  "1.95-" and "1.95 CR" -> -195. Null when it is not money as printed, or has part of a cent (none seen on these invoices). */
@@ -542,7 +544,10 @@ export interface PaperInvoice {
 export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, ctx: ConvertContext = {}) {
   paper = skuFromUpcColumn(paper);
   const rules = vendor ?? UNKNOWN_VENDOR;
-  const lines = paper.lines.map((p) => convertPaperLine(rules, p, ctx));
+  const lines: ConvertedLine[] = paper.lines.map((p) => {
+    const c = convertPaperLine(rules, p, ctx);
+    return p.skip ? { ...c, problems: [], skipped: true } : c;
+  });
   const problems: Problem[] = [];
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
   if (!vendor) say('supplier', 'Which vendor is this invoice from? Choose it, or add it as a new vendor.', true);
@@ -575,11 +580,17 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
     say('date', `The invoice date ${header.date} is far from today: is the date read right?`);
   }
   if (!lines.length) say('lines', 'No item lines were found.', true);
+  else if (lines.every((c) => c.skipped)) say('lines', 'Every line is left out of the file: put at least one back.', true);
+  // lines left out (a product with no UPC to be had, 2026-11-03): the file keeps the printed total, as it does when charges are printed
+  const left = lines.filter((c) => c.skipped);
+  if (left.length && left.length < lines.length) {
+    say('lines', `${count(left.length, 'line is', 'lines are')} left out of the file (${money(linesTotalCents(left.map((c) => c.line)))}): add ${left.length === 1 ? 'it' : 'them'} in PDI by hand. The file keeps the invoice total.`);
+  }
   const handNote = typeof paper.handwritten === 'string' ? paper.handwritten.trim() : '';
   if (handNote) say('handwriting', `Handwriting on the invoice: "${handNote.slice(0, 160)}". If it changes the total or what was delivered, correct the invoice to match.`);
   const fileLines = lines.map((c) => c.line);
   const unreadable = fileLines.filter((l) => l.quantity === 0 || l.unitsPerCase === 0).length;
-  const unknownUnits = lines.filter((c) => c.unitsFrom === 'unknown').length;
+  const unknownUnits = lines.filter((c) => c.unitsFrom === 'unknown' && !c.skipped).length;
   if (unknownUnits) {
     say('units', `Units per case is not known yet for ${count(unknownUnits, 'line', 'lines')}, so the file says 1 for ${unknownUnits === 1 ? 'it' : 'them'}. Type the real number on a line if PDI should have it: it is remembered for the next invoice.`);
   }

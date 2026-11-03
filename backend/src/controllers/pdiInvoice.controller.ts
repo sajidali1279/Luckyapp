@@ -152,7 +152,7 @@ function review(row: Row, known: (upc: string) => KnownUnits | undefined, knownU
   };
   const lines = conv.lines.map((c, i) => {
     const fileable = lineProblems(c.line).length === 0;
-    return { line: c.line, unitsFrom: c.unitsFrom, upcFrom: c.upcFrom ?? null, problems: c.problems.map((p) => mark(`${i}|${p.field}|${p.message}`, p, fileable)) };
+    return { line: c.line, unitsFrom: c.unitsFrom, upcFrom: c.upcFrom ?? null, skipped: !!c.skipped, problems: c.problems.map((p) => mark(`${i}|${p.field}|${p.message}`, p, fileable)) };
   });
   const problems = conv.problems.map((p) => mark(`-|${p.field}|${p.message}`, p, !blocking.has(p.field) && lines.length > 0));
   const open = [...problems, ...lines.flatMap((l) => l.problems)].filter((p) => !p.checked).length;
@@ -368,7 +368,7 @@ export async function downloadPdiFile(req: AuthRequest, res: Response) {
   if (!rev || (row.status !== 'READ' && row.status !== 'DONE')) { res.status(409).json({ success: false, error: 'It has not been read yet.' }); return; }
   if (!rev.canDownload || !rev.fileName) { res.status(409).json({ success: false, error: `Look at every marked problem first: ${rev.open} still open.`, open: rev.open }); return; }
   let text: string;
-  try { text = pdiFile(rev.header, rev.lines.map((l) => l.line)); }
+  try { text = pdiFile(rev.header, rev.lines.filter((l) => !l.skipped).map((l) => l.line)); }
   catch (e) { if (e instanceof PdiFileError) { res.status(409).json({ success: false, error: e.message }); return; } throw e; }
   await prisma.pdiInvoice.update({ where: { id: row.id }, data: { status: 'DONE', downloadedAt: new Date(), downloadedById: req.user!.id } });
   await learnUpcs(row, rev.lines.map((l) => l.line), req.user!.id);

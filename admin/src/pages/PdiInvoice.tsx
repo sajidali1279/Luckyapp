@@ -21,7 +21,7 @@ import { dollars, STATUS, SELLS_BY, VendorForm, useVendors } from './PdiInvoices
 
 interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean }
 interface FileLine { upc: string; description: string; itemNumber: string | null; priceCents: number; unitsPerCase: number; quantity: number }
-interface ReviewLine { line: FileLine; unitsFrom: string | null; upcFrom?: 'memory' | null; problems: Problem[] }
+interface ReviewLine { line: FileLine; unitsFrom: string | null; upcFrom?: 'memory' | null; skipped?: boolean; problems: Problem[] }
 interface Review {
   header: { supplierCode: string; invoiceNumber: string; date: string; totalCents: number }; lines: ReviewLine[]; problems: Problem[];
   open: number; canDownload: boolean; fileName: string | null; linesTotalCents: number;
@@ -30,6 +30,7 @@ interface PaperLine {
   upc: string | null; description: string | null; item?: string | null; quantity: number | null; units?: number | null; price: string | null;
   amount: string | null; isReturn?: boolean; manufacturer?: string | null; group?: string | null; handwritten?: string | null; per?: string | null;
   sku?: string | null;   // the vendor's own code printed where the UPC goes (no barcode on the line): only to find its remembered UPC
+  skip?: boolean;        // left out of the file: added in PDI by hand
 }
 interface Charge { name: string; amount: string | null }
 interface Paper { invoiceNumber: string | null; date: string | null; total: string | null; lines: PaperLine[]; groups?: unknown[]; summary?: unknown; charges?: Charge[] }
@@ -98,6 +99,11 @@ export default function PdiInvoice() {
     if (shown && (await save({ paper: { ...shown, lines } }, 'lines'))) { setPaper(null); toast.success(what); }
   };
   const addLine = () => { if (shown) void changeLines([...shown.lines, { upc: '', description: '', item: '', quantity: null, price: '', amount: '', isReturn: false }], 'A line was added at the end: fill it in from the paper.'); };
+  // a line that cannot be fixed (no UPC to be had) is left out of the file and added in PDI by hand; saved at once, like a removal
+  const skipLine = (i: number, on: boolean) => {
+    if (shown) void changeLines(shown.lines.map((l, j) => (j === i ? { ...l, skip: on || undefined } : l)),
+      on ? `Line ${i + 1} is left out of the file: add it in PDI by hand.` : `Line ${i + 1} is back in the file.`);
+  };
   const removeLine = (i: number) => { if (shown) void changeLines(shown.lines.filter((_, j) => j !== i), `Line ${i + 1} was removed.`); };
   // the charges printed besides the lines (a misread deposit or fee could only be ticked before 2026-11-03): saved with the corrections
   const editCharge = (k: number, patch: Partial<Charge>) => { if (shown) setPaper({ ...shown, charges: (shown.charges ?? []).map((c, j) => (j === k ? { ...c, ...patch } : c)) }); };
@@ -310,7 +316,7 @@ export default function PdiInvoice() {
                         const cell = (f: string) => ({ ...s.input, ...(bad(f) ? s.inputBad : {}) });
                         return (
                           <Fragment key={i}>
-                          <tr style={open ? s.rowOpen : undefined}>
+                          <tr style={l.skipped ? s.rowSkipped : open ? s.rowOpen : undefined}>
                             <td style={s.tdNo}>{i + 1}</td>
                             {showPackage && <td style={s.tdSmall}>{p.group ?? ''}</td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} UPC`} style={{ ...cell('upc'), width: 138 }} value={p.upc ?? ''} placeholder={l.upcFrom === 'memory' ? l.line.upc : undefined} onChange={(e) => editLine(i, { upc: e.target.value })} />
@@ -346,6 +352,16 @@ export default function PdiInvoice() {
                             </td>
                           </tr>
                           {/* what to look at on this line, the width of the table, so it is never cut off on the right */}
+                          {l.skipped && (
+                            <tr style={s.rowSkipped}>
+                              <td style={s.tdBelow} />
+                              <td colSpan={cols - 1} style={s.tdBelow}>
+                                <div style={s.skipNote}>Left out of the file: add it in PDI by hand.
+                                  <Button size="sm" variant="ghost" onClick={() => skipLine(i, false)} disabled={busy === 'lines'}>Put it back in the file</Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
                           {l.problems.length > 0 && (
                             <tr style={open ? s.rowOpen : undefined}>
                               <td style={s.tdBelow} />
@@ -355,6 +371,13 @@ export default function PdiInvoice() {
                                     // a beer's units per case is confirmed (and remembered for the next invoice), not just accepted for this one
                                     hint={caseVendor && x.field === 'units' && (l.unitsFrom === 'guess' || !l.unitsFrom) ? 'Confirm the units per case above' : undefined} />
                                 ))}</ul>
+                                {/* something that must be corrected but cannot be (a UPC printed nowhere): the rest of the invoice still goes */}
+                                {l.problems.some((x) => !x.canCheck && !x.checked) && (
+                                  <div style={s.skipNote}>Cannot fix it now?
+                                    <Button size="sm" onClick={() => skipLine(i, true)} disabled={!!paper || busy === 'lines'}
+                                      title={paper ? 'Save your corrections first' : 'The file goes without this line; add it in PDI by hand'}>Leave this line out of the file</Button>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           )}
@@ -520,6 +543,8 @@ const s: Record<string, React.CSSProperties> = {
   tdNo: { padding: '10px 8px', borderTop: `1px solid ${C.border}`, color: TEXT_MUTED, verticalAlign: 'top' },
   tdSmall: { padding: '10px 8px', borderTop: `1px solid ${C.border}`, color: TEXT_MUTED, fontSize: FONT.caption, verticalAlign: 'top', whiteSpace: 'nowrap' },
   rowOpen: { background: C.warningTint },
+  rowSkipped: { background: C.subtle, opacity: 0.7 },
+  skipNote: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: FONT.small, color: C.text2, marginTop: 6 },
   unitsCell: { display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' },
   from: { fontSize: FONT.caption, color: TEXT_MUTED },
   allClear: { padding: 24, textAlign: 'center', color: C.success, fontWeight: 600 },
