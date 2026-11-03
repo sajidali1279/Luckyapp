@@ -49,7 +49,8 @@ const FIELDS = `What to give:
   store: the store is the customer (bill to, ship to, sold to).
 - invoiceNumber, date, total: the invoice's number, its date and the amount due.
 - lines: every item line, top to bottom, each once:
-  - upc: the UPC or barcode number as printed, with its dashes. Some vendors print only the last few digits of each UPC under a heading
+  - upc: the UPC or barcode number as printed, with its dashes, digit for digit: never add zeros in front or drop any, even when it
+    looks shorter than a UPC (some vendors print 10 or 11 digits). Some vendors print only the last few digits of each UPC under a heading
     such as "MANUFACTURER: 28400" that gives the rest: copy the digits as printed and give that heading's number as manufacturer on every
     line under it.
   - description: the product name as printed.

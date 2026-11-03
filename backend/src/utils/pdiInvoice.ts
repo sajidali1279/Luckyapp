@@ -302,12 +302,22 @@ export function fileUpc(printed: string | null | undefined, manufacturer?: strin
   // 13th digit is more likely a digit read twice than an EAN-13
   if (d.length > 12 && !SEPARATOR.test(printed.trim()) && /^0+$/.test(d.slice(0, d.length - 12))) d = d.slice(d.length - 12);
   if (d.length === 12) {
-    if (gs1CheckDigit(d.slice(0, 11)) !== Number(d[11])) return no(`The UPC ${printed} does not check out (its last digit is a check digit), so a digit is probably misread.`, d.slice(0, 11));
+    // Must be corrected, never accepted (2026-11-03): accepting wrote the first 11 digits, so when the paper prints a shorter code (Blue
+    // Bell's 10 digits, read with two zeros in front) a real digit was dropped and PDI got the wrong product.
+    if (gs1CheckDigit(d.slice(0, 11)) !== Number(d[11])) {
+      const short = d.startsWith('00') ? ` If the paper shows ${d.slice(2)} (10 digits), type that.` : '';
+      return no(`The UPC ${printed} does not check out (its last digit should be a check digit). Compare it with the paper and type it exactly as printed.${short}`, d.slice(0, 11), true);
+    }
     return { upc: d.slice(0, 11), problems: [] };
   }
   if (d.length === 11) {
     const shifted = gs1CheckDigit('0' + d.slice(0, 10)) === Number(d[10]) ? ' It may also be a whole UPC missing its first 0.' : '';
     return no(`The UPC ${printed} has no check digit (it was cut off or unreadable), so a misread digit cannot be caught: compare it with the paper.${shifted}`, d);
+  }
+  // a vendor that prints the manufacturer and item numbers only (Blue Bell: 71899 03735), without the 0 in front or the check digit:
+  // the file's 11 digits are a 0 and those 10, the same way a Frito-Lay code is completed
+  if (d.length === 10) {
+    return no(`The UPC ${printed} has 10 digits (no 0 in front, no check digit): the file gets 0${d}. A misread digit cannot be caught, so compare it with the paper.`, '0' + d, false);
   }
   return no(`The UPC "${printed}" has ${d.length} digits; a full UPC has 12.`);
 }
