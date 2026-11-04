@@ -34,6 +34,7 @@ export interface PdiLine {
   priceCents: number;        // for one of what is invoiced (Frito-Lay: one item; Ed F. Davis and PepsiCo: one case)
   unitsPerCase: number;      // sellable units in one of what is invoiced; 0 while not known, which the file refuses
   quantity: number;          // negative for a return
+  blankUpc?: boolean;        // no UPC to be had: the file leaves the 11 places blank and a person types it in PDI (2026-11-03)
 }
 
 export type ProblemField =
@@ -96,7 +97,8 @@ export function headerProblems(h: PdiHeader): Problem[] {
 export function lineProblems(l: PdiLine): Problem[] {
   const out: Problem[] = [];
   const say = (field: ProblemField, message: string) => out.push({ field, message, blocking: true });
-  if (!/^\d{11}$/.test(l.upc)) say('upc', l.upc ? `The UPC "${l.upc}" must be 11 digits.` : 'The UPC is missing.');
+  if (l.blankUpc && !l.upc) { /* left blank on purpose: typed in PDI */ }
+  else if (!/^\d{11}$/.test(l.upc)) say('upc', l.upc ? `The UPC "${l.upc}" must be 11 digits.` : 'The UPC is missing.');
   else if (/^0+$/.test(l.upc)) say('upc', 'The UPC is all zeros, which is not a product.');
   if (!fileDescription(l.description).trim()) say('description', 'The product name is empty.');
   const item = (l.itemNumber ?? '').trim();
@@ -121,7 +123,7 @@ export function itemLine(l: PdiLine): string {
   const p = lineProblems(l);
   if (p.length) throw new PdiFileError(p[0].message);
   const item = (l.itemNumber ?? '').trim();
-  return 'B' + l.upc + fileDescription(l.description) + (item ? item.padStart(6, '0') : ' '.repeat(6))
+  return 'B' + (l.blankUpc && !l.upc ? ' '.repeat(11) : l.upc) + fileDescription(l.description) + (item ? item.padStart(6, '0') : ' '.repeat(6))
     + fixedNumber(l.priceCents, 6, 'The price') + 'CA' + fixedNumber(l.unitsPerCase, 6, 'Units per case')
     + fixedNumber(l.quantity, 5, 'The quantity') + '00000';
 }
@@ -248,6 +250,7 @@ export interface PaperLine {
   sku?: string | null;          // the vendor's own code printed where the UPC goes, on a line with no barcode (AMS Wholesale "SKU: 21695"):
                                 // finds the UPC remembered for it, never written to the file (it is not the vendor item number)
   skip?: boolean;               // left out of the file by a person (no UPC to be had): added in PDI by hand (2026-11-03)
+  noUpc?: boolean;              // sent with the UPC blank by a person (no UPC to be had): the rest of the line goes, the UPC is typed in PDI
 }
 
 /** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
@@ -453,11 +456,15 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   const itemOnly = noUpcPrinted(p.upc) || (sameAsItem && (!checked.upc || checked.problems.length > 0));
   const key = lineKey(p);
   const memoryUpc = itemOnly && key ? ctx.knownUpc?.(key) : undefined;
-  const u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : itemOnly && key ? { upc: null as string | null, problems: [] as Problem[] } : checked;
+  let u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : itemOnly && key ? { upc: null as string | null, problems: [] as Problem[] } : checked;
   if (!memoryUpc && itemOnly && key) {
     const what = itemKey(p.sku) ? `SKU ${p.sku}` : `item ${p.item}`;
     u.problems = [{ field: 'upc', message: `No UPC is printed for ${what}: type its UPC once (from the product) and it is remembered for ${vendor.name ? vendor.name + "'s" : "this vendor's"} next invoices.`, blocking: true }];
   }
+  // no UPC to be had, and a person chose to send the line anyway: the file leaves the UPC blank and they type it in PDI (the owner's
+  // choice over leaving the whole line out, 2026-11-03). A UPC that is there and checks out is used all the same.
+  const blankUpc = !!p.noUpc && (!u.upc || u.problems.some((x) => x.blocking));
+  if (blankUpc) u = { upc: null, problems: [] };
   problems.push(...u.problems);
   const description = typeof p.description === 'string' ? p.description : '';
   const price = printedCents(p.price);
@@ -519,7 +526,7 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   if (hand) say('handwriting', `Handwriting on this line: "${hand.slice(0, 120)}". The file uses the values in the cells: if it changes the quantity or price, correct them.`);
   const line: PdiLine = {
     upc: u.upc ?? '', description, itemNumber: item, priceCents: price !== null && price >= 0 ? price : 0, unitsPerCase: units,
-    quantity: qty === null ? 0 : p.isReturn ? -qty : qty,
+    quantity: qty === null ? 0 : p.isReturn ? -qty : qty, ...(blankUpc ? { blankUpc: true } : {}),
   };
   // what the file itself would refuse, where it is not already said
   for (const lp of lineProblems(line)) if (!problems.some((x) => x.field === lp.field)) problems.push(lp);
@@ -586,6 +593,8 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   if (left.length && left.length < lines.length) {
     say('lines', `${count(left.length, 'line is', 'lines are')} left out of the file (${money(linesTotalCents(left.map((c) => c.line)))}): add ${left.length === 1 ? 'it' : 'them'} in PDI by hand. The file keeps the invoice total.`);
   }
+  const blanks = lines.filter((c) => c.line.blankUpc && !c.skipped).length;
+  if (blanks) say('lines', `${count(blanks, 'line goes', 'lines go')} in the file with the UPC blank: type ${blanks === 1 ? 'it' : 'them'} in PDI after the import.`);
   const handNote = typeof paper.handwritten === 'string' ? paper.handwritten.trim() : '';
   if (handNote) say('handwriting', `Handwriting on the invoice: "${handNote.slice(0, 160)}". If it changes the total or what was delivered, correct the invoice to match.`);
   const fileLines = lines.map((c) => c.line);

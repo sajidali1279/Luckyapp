@@ -19,8 +19,8 @@ import { dollars, STATUS, SELLS_BY, VendorForm, useVendors } from './PdiInvoices
 // remembered for the product; a problem that is right as printed is accepted after a look. The file downloads once nothing is left open.
 // The vendor is read off the invoice (2026-10-28): one seen for the first time is chosen or added here, once.
 
-interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean }
-interface FileLine { upc: string; description: string; itemNumber: string | null; priceCents: number; unitsPerCase: number; quantity: number }
+interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean; blocking?: boolean }
+interface FileLine { upc: string; description: string; itemNumber: string | null; priceCents: number; unitsPerCase: number; quantity: number; blankUpc?: boolean }
 interface ReviewLine { line: FileLine; unitsFrom: string | null; upcFrom?: 'memory' | null; skipped?: boolean; problems: Problem[] }
 interface Review {
   header: { supplierCode: string; invoiceNumber: string; date: string; totalCents: number }; lines: ReviewLine[]; problems: Problem[];
@@ -31,6 +31,7 @@ interface PaperLine {
   amount: string | null; isReturn?: boolean; manufacturer?: string | null; group?: string | null; handwritten?: string | null; per?: string | null;
   sku?: string | null;   // the vendor's own code printed where the UPC goes (no barcode on the line): only to find its remembered UPC
   skip?: boolean;        // left out of the file: added in PDI by hand
+  noUpc?: boolean;       // sent with the UPC blank: typed in PDI after the import
 }
 interface Charge { name: string; amount: string | null }
 interface Paper { invoiceNumber: string | null; date: string | null; total: string | null; lines: PaperLine[]; groups?: unknown[]; summary?: unknown; charges?: Charge[] }
@@ -103,6 +104,11 @@ export default function PdiInvoice() {
   const skipLine = (i: number, on: boolean) => {
     if (shown) void changeLines(shown.lines.map((l, j) => (j === i ? { ...l, skip: on || undefined } : l)),
       on ? `Line ${i + 1} is left out of the file: add it in PDI by hand.` : `Line ${i + 1} is back in the file.`);
+  };
+  // no UPC to be had: the line still goes, with the UPC blank, and the person types it in PDI (2026-11-03, the owner's choice)
+  const blankUpcLine = (i: number, on: boolean) => {
+    if (shown) void changeLines(shown.lines.map((l, j) => (j === i ? { ...l, noUpc: on || undefined, skip: undefined } : l)),
+      on ? `Line ${i + 1} goes in the file with the UPC blank: type it in PDI after the import.` : `Line ${i + 1} needs its UPC again.`);
   };
   const removeLine = (i: number) => { if (shown) void changeLines(shown.lines.filter((_, j) => j !== i), `Line ${i + 1} was removed.`); };
   // the charges printed besides the lines (a misread deposit or fee could only be ticked before 2026-11-03): saved with the corrections
@@ -314,6 +320,8 @@ export default function PdiInvoice() {
                         const open = l.problems.some((x) => !x.checked);
                         const bad = (f: string) => l.problems.some((x) => x.field === f && !x.checked);
                         const cell = (f: string) => ({ ...s.input, ...(bad(f) ? s.inputBad : {}) });
+                        const stuck = l.problems.filter((x) => x.blocking);   // what must be corrected (a note on such a line cannot be ticked either)
+                        const onlyUpc = stuck.length > 0 && stuck.every((x) => x.field === 'upc');
                         return (
                           <Fragment key={i}>
                           <tr style={l.skipped ? s.rowSkipped : open ? s.rowOpen : undefined}>
@@ -362,6 +370,16 @@ export default function PdiInvoice() {
                               </td>
                             </tr>
                           )}
+                          {l.line.blankUpc && !l.skipped && (
+                            <tr>
+                              <td style={s.tdBelow} />
+                              <td colSpan={cols - 1} style={s.tdBelow}>
+                                <div style={s.skipNote}>The UPC is left blank in the file: type it in PDI after the import.
+                                  <Button size="sm" variant="ghost" onClick={() => blankUpcLine(i, false)} disabled={busy === 'lines'}>Undo</Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
                           {l.problems.length > 0 && (
                             <tr style={open ? s.rowOpen : undefined}>
                               <td style={s.tdBelow} />
@@ -372,9 +390,14 @@ export default function PdiInvoice() {
                                     hint={caseVendor && x.field === 'units' && (l.unitsFrom === 'guess' || !l.unitsFrom) ? 'Confirm the units per case above' : undefined} />
                                 ))}</ul>
                                 {/* something that must be corrected but cannot be (a UPC printed nowhere): the rest of the invoice still goes */}
-                                {l.problems.some((x) => !x.canCheck && !x.checked) && (
-                                  <div style={s.skipNote}>Cannot fix it now?
-                                    <Button size="sm" onClick={() => skipLine(i, true)} disabled={!!paper || busy === 'lines'}
+                                {/* only the UPC missing: the line goes with the UPC blank (typed in PDI); anything else: the line is left out */}
+                                {stuck.length > 0 && (
+                                  <div style={s.skipNote}>{onlyUpc ? 'No UPC to be had?' : 'Cannot fix it now?'}
+                                    {onlyUpc && (
+                                      <Button size="sm" onClick={() => blankUpcLine(i, true)} disabled={!!paper || busy === 'lines'}
+                                        title={paper ? 'Save your corrections first' : 'The rest of the line goes in the file; type the UPC in PDI after the import'}>Send it without the UPC</Button>
+                                    )}
+                                    <Button size="sm" variant={onlyUpc ? 'ghost' : undefined} onClick={() => skipLine(i, true)} disabled={!!paper || busy === 'lines'}
                                       title={paper ? 'Save your corrections first' : 'The file goes without this line; add it in PDI by hand'}>Leave this line out of the file</Button>
                                   </div>
                                 )}
