@@ -34,7 +34,6 @@ export interface PdiLine {
   priceCents: number;        // for one of what is invoiced (Frito-Lay: one item; Ed F. Davis and PepsiCo: one case)
   unitsPerCase: number;      // sellable units in one of what is invoiced; 0 while not known, which the file refuses
   quantity: number;          // negative for a return
-  blankUpc?: boolean;        // no UPC to be had: the file leaves the 11 places blank and a person types it in PDI (2026-11-03)
 }
 
 export type ProblemField =
@@ -97,8 +96,7 @@ export function headerProblems(h: PdiHeader): Problem[] {
 export function lineProblems(l: PdiLine): Problem[] {
   const out: Problem[] = [];
   const say = (field: ProblemField, message: string) => out.push({ field, message, blocking: true });
-  if (l.blankUpc && !l.upc) { /* left blank on purpose: typed in PDI */ }
-  else if (!/^\d{11}$/.test(l.upc)) say('upc', l.upc ? `The UPC "${l.upc}" must be 11 digits.` : 'The UPC is missing.');
+  if (!/^\d{11}$/.test(l.upc)) say('upc', l.upc ? `The UPC "${l.upc}" must be 11 digits.` : 'The UPC is missing.');
   else if (/^0+$/.test(l.upc)) say('upc', 'The UPC is all zeros, which is not a product.');
   if (!fileDescription(l.description).trim()) say('description', 'The product name is empty.');
   const item = (l.itemNumber ?? '').trim();
@@ -123,7 +121,7 @@ export function itemLine(l: PdiLine): string {
   const p = lineProblems(l);
   if (p.length) throw new PdiFileError(p[0].message);
   const item = (l.itemNumber ?? '').trim();
-  return 'B' + (l.blankUpc && !l.upc ? ' '.repeat(11) : l.upc) + fileDescription(l.description) + (item ? item.padStart(6, '0') : ' '.repeat(6))
+  return 'B' + l.upc + fileDescription(l.description) + (item ? item.padStart(6, '0') : ' '.repeat(6))
     + fixedNumber(l.priceCents, 6, 'The price') + 'CA' + fixedNumber(l.unitsPerCase, 6, 'Units per case')
     + fixedNumber(l.quantity, 5, 'The quantity') + '00000';
 }
@@ -250,7 +248,6 @@ export interface PaperLine {
   sku?: string | null;          // the vendor's own code printed where the UPC goes, on a line with no barcode (AMS Wholesale "SKU: 21695"):
                                 // finds the UPC remembered for it, never written to the file (it is not the vendor item number)
   skip?: boolean;               // left out of the file by a person (no UPC to be had): added in PDI by hand (2026-11-03)
-  noUpc?: boolean;              // sent with the UPC blank by a person (no UPC to be had): the rest of the line goes, the UPC is typed in PDI
 }
 
 /** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
@@ -303,6 +300,9 @@ export function upcEtoA(numberSystem: string, six: string): string {
   return numberSystem + middle;
 }
 
+const TEN_DIGITS = 'has 10 digits';
+const isTenDigitNote = (p: Problem) => p.field === 'upc' && !p.blocking && p.message.includes(`${TEN_DIGITS} (no 0 in front`);
+
 export function fileUpc(printed: string | null | undefined, manufacturer?: string | number | null): { upc: string | null; problems: Problem[] } {
   const no = (message: string, upc: string | null = null, blocking = upc === null) => ({ upc, problems: [{ field: 'upc' as const, message, ...(blocking ? { blocking } : {}) }] });
   if (typeof printed !== 'string' || !printed.trim()) return no('The UPC could not be read.');
@@ -335,7 +335,7 @@ export function fileUpc(printed: string | null | undefined, manufacturer?: strin
   // a vendor that prints the manufacturer and item numbers only (Blue Bell: 71899 03735), without the 0 in front or the check digit:
   // the file's 11 digits are a 0 and those 10, the same way a Frito-Lay code is completed
   if (d.length === 10) {
-    return no(`The UPC ${printed} has 10 digits (no 0 in front, no check digit): the file gets 0${d}. A misread digit cannot be caught, so compare it with the paper.`, '0' + d, false);
+    return no(`The UPC ${printed} ${TEN_DIGITS} (no 0 in front, no check digit): the file gets 0${d}. A misread digit cannot be caught, so compare it with the paper.`, '0' + d, false);
   }
   // UPC-E, the short barcode on small packs (candy, gum, tobacco): 8 digits (number system 0 or 1, six digits, the check digit), or the
   // six digits alone. It stands for one full UPC by a fixed rule, so the file gets that UPC.
@@ -444,6 +444,34 @@ export function skuFromUpcColumn(paper: PaperInvoice): PaperInvoice {
   return moved ? { ...paper, lines } : paper;
 }
 
+/** Blue Bell prints each UPC as 10 digits (71899 03735: its maker number and the product number, with no 0 in front and no check digit),
+ *  and the reader has stored them with two zeros in front (007189903735), which fails the check digit on almost every line. On
+ *  2026-11-05 all 7 Blue Bell lines stopped, were sent with blank UPCs, and PDI refused the file. When two or more lines of one maker are
+ *  stored like that and most of them fail the check digit, they are the 10 digits the paper prints (a real UPC that starts with 00 checks
+ *  out on every line). The same rule on the page's copy and on the file's, so what a person sees is what the file gets. */
+export function tenDigitUpcs(paper: PaperInvoice): PaperInvoice {
+  const digits = (p: PaperLine) => (typeof p.upc === 'string' ? p.upc.replace(SEPARATORS, '') : '');
+  const padded = (p: PaperLine) => /^00\d{10}$/.test(digits(p));
+  const makers = new Map<string, { n: number; failing: number }>();
+  for (const p of paper.lines) {
+    if (!padded(p)) continue;
+    const d = digits(p);
+    const m = makers.get(d.slice(2, 7)) ?? { n: 0, failing: 0 };
+    m.n++;
+    if (gs1CheckDigit(d.slice(0, 11)) !== Number(d[11])) m.failing++;
+    makers.set(d.slice(2, 7), m);
+  }
+  const tenDigit = new Set([...makers].filter(([, m]) => m.n > 1 && m.failing * 2 > m.n).map(([k]) => k));
+  if (!tenDigit.size) return paper;
+  return { ...paper, lines: paper.lines.map((p) => (padded(p) && tenDigit.has(digits(p).slice(2, 7)) ? { ...p, upc: digits(p).slice(2) } : p)) };
+}
+
+/** The reading as the page shows it and the file uses it: the vendor's own codes moved out of the UPC column, and 10-digit UPCs read with
+ *  two zeros in front put back to the 10 digits printed. */
+export function tidyPaper(paper: PaperInvoice): PaperInvoice {
+  return tenDigitUpcs(skuFromUpcColumn(paper));
+}
+
 export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: ConvertContext = {}): ConvertedLine {
   const problems: Problem[] = [];
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
@@ -456,15 +484,11 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   const itemOnly = noUpcPrinted(p.upc) || (sameAsItem && (!checked.upc || checked.problems.length > 0));
   const key = lineKey(p);
   const memoryUpc = itemOnly && key ? ctx.knownUpc?.(key) : undefined;
-  let u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : itemOnly && key ? { upc: null as string | null, problems: [] as Problem[] } : checked;
+  const u = memoryUpc ? { upc: memoryUpc, problems: [] as Problem[] } : itemOnly && key ? { upc: null as string | null, problems: [] as Problem[] } : checked;
   if (!memoryUpc && itemOnly && key) {
     const what = itemKey(p.sku) ? `SKU ${p.sku}` : `item ${p.item}`;
     u.problems = [{ field: 'upc', message: `No UPC is printed for ${what}: type its UPC once (from the product) and it is remembered for ${vendor.name ? vendor.name + "'s" : "this vendor's"} next invoices.`, blocking: true }];
   }
-  // no UPC to be had, and a person chose to send the line anyway: the file leaves the UPC blank and they type it in PDI (the owner's
-  // choice over leaving the whole line out, 2026-11-03). A UPC that is there and checks out is used all the same.
-  const blankUpc = !!p.noUpc && (!u.upc || u.problems.some((x) => x.blocking));
-  if (blankUpc) u = { upc: null, problems: [] };
   problems.push(...u.problems);
   const description = typeof p.description === 'string' ? p.description : '';
   const price = printedCents(p.price);
@@ -526,7 +550,7 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   if (hand) say('handwriting', `Handwriting on this line: "${hand.slice(0, 120)}". The file uses the values in the cells: if it changes the quantity or price, correct them.`);
   const line: PdiLine = {
     upc: u.upc ?? '', description, itemNumber: item, priceCents: price !== null && price >= 0 ? price : 0, unitsPerCase: units,
-    quantity: qty === null ? 0 : p.isReturn ? -qty : qty, ...(blankUpc ? { blankUpc: true } : {}),
+    quantity: qty === null ? 0 : p.isReturn ? -qty : qty,
   };
   // what the file itself would refuse, where it is not already said
   for (const lp of lineProblems(line)) if (!problems.some((x) => x.field === lp.field)) problems.push(lp);
@@ -549,7 +573,7 @@ export interface PaperInvoice {
 /** A whole paper invoice as the file's header and lines, with every line's problems and the invoice's own. `vendor` is null until a
  *  person says which vendor the invoice is from. */
 export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, ctx: ConvertContext = {}) {
-  paper = skuFromUpcColumn(paper);
+  paper = tidyPaper(paper);
   const rules = vendor ?? UNKNOWN_VENDOR;
   const lines: ConvertedLine[] = paper.lines.map((p) => {
     const c = convertPaperLine(rules, p, ctx);
@@ -593,8 +617,12 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   if (left.length && left.length < lines.length) {
     say('lines', `${count(left.length, 'line is', 'lines are')} left out of the file (${money(linesTotalCents(left.map((c) => c.line)))}): add ${left.length === 1 ? 'it' : 'them'} in PDI by hand. The file keeps the invoice total.`);
   }
-  const blanks = lines.filter((c) => c.line.blankUpc && !c.skipped).length;
-  if (blanks) say('lines', `${count(blanks, 'line goes', 'lines go')} in the file with the UPC blank: type ${blanks === 1 ? 'it' : 'them'} in PDI after the import.`);
+  // UPCs printed as 10 digits (Blue Bell): one note for the invoice, not one on every line
+  const tens = lines.filter((c) => c.problems.some(isTenDigitNote));
+  if (tens.length > 1) {
+    for (const c of tens) c.problems = c.problems.filter((x) => !isTenDigitNote(x));
+    say('upc', `${tens.length} UPCs are printed as 10 digits (the maker's number and the product's, with no 0 in front and no check digit), so the file puts a 0 in front of each. Compare one or two with the paper.`);
+  }
   const handNote = typeof paper.handwritten === 'string' ? paper.handwritten.trim() : '';
   if (handNote) say('handwriting', `Handwriting on the invoice: "${handNote.slice(0, 160)}". If it changes the total or what was delivered, correct the invoice to match.`);
   const fileLines = lines.map((c) => c.line);

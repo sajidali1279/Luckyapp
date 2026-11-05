@@ -15,7 +15,7 @@ import { feature } from '../utils/appSettings';
 import { audit } from '../utils/audit';
 import { isRealDateKey, storeDateKey } from '../utils/storeTime';
 import {
-  convertInvoice, pdiFile, pdiFileName, fullUpc, headerProblems, lineProblems, linesTotalCents, printedCents, lineKey, skuFromUpcColumn,
+  convertInvoice, pdiFile, pdiFileName, fullUpc, headerProblems, lineProblems, linesTotalCents, printedCents, lineKey, tidyPaper,
   KnownUnits, PaperInvoice, PdiFileError, Problem, VendorRules,
 } from '../utils/pdiInvoice';
 import { readInvoice, paperFromRead, InvoicePhoto, PdiReadError, MAX_PHOTOS } from '../utils/pdiRead';
@@ -186,7 +186,7 @@ async function present(row: Row) {
     status: row.status, readError: row.readError, readModel: row.readModel, readUsage: row.readUsage,
     createdAt: row.createdAt, createdBy: name(row.createdById), updatedAt: row.updatedAt, updatedBy: name(row.updatedById),
     downloadedAt: row.downloadedAt, downloadedBy: name(row.downloadedById),
-    photos: row.photoIds.map(photoLinks), paper: row.paper ? skuFromUpcColumn(row.paper as unknown as PaperInvoice) : null, review: review(row, known, knownUpc),
+    photos: row.photoIds.map(photoLinks), paper: row.paper ? tidyPaper(row.paper as unknown as PaperInvoice) : null, review: review(row, known, knownUpc),
     duplicates: duplicates.map((d) => ({ id: d.id, status: d.status, createdAt: d.createdAt, storeName: d.store.name })),
   };
 }
@@ -204,7 +204,7 @@ async function learnUpcs(row: Row, lines: { upc: string; description: string }[]
   const paper = row.paper as unknown as PaperInvoice | null;
   if (!row.vendorId || !paper) return;
   const seen = new Map<string, { upc: string; description: string }>();
-  skuFromUpcColumn(paper).lines.forEach((p, i) => {
+  tidyPaper(paper).lines.forEach((p, i) => {
     const key = lineKey(p);
     const upc = lines[i]?.upc;
     if (key && upc && /^\d{11}$/.test(upc)) seen.set(key, { upc, description: lines[i].description.slice(0, 60) });

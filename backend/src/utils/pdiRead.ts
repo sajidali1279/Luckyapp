@@ -163,7 +163,6 @@ export function paperFromRead(raw: any): { paper: PaperInvoice; vendor: InvoiceR
     ...(str(l?.per) ? { per: str(l?.per)!.slice(0, 12) } : {}),
     ...(str(l?.sku) ? { sku: str(l?.sku)!.slice(0, 40) } : {}),
     ...(l?.skip === true ? { skip: true } : {}),
-    ...(l?.noUpc === true ? { noUpc: true } : {}),
   }));
   const groups = (Array.isArray(raw?.groups) ? raw.groups : []).filter((g: any) => str(g?.name)).map((g: any) => ({
     name: str(g.name)!, ...(int(g.cases) !== null ? { cases: int(g.cases)! } : {}), ...(int(g.units) !== null ? { units: int(g.units)! } : {}),
