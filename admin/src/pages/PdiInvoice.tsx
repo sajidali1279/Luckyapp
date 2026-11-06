@@ -47,7 +47,7 @@ interface Invoice {
   duplicates: { id: string; status: string; createdAt: string; storeName: string }[];
 }
 
-const UNITS_FROM: Record<string, string> = { each: 'one each', paper: 'from the paper', learned: 'learned', confirmed: 'confirmed', guess: 'a guess', unknown: 'not known, 1 used' };
+const UNITS_FROM: Record<string, string> = { each: 'one each', paper: 'from the paper', learned: 'learned', confirmed: 'confirmed', cost: "from PDI's cost", guess: 'a guess', unknown: 'not known, 1 used' };
 
 export default function PdiInvoice() {
   const { id = '' } = useParams();
@@ -162,7 +162,7 @@ export default function PdiInvoice() {
   const vendorName = vendor?.name ?? inv.vendorRead ?? 'Vendor';
   const title = `${vendorName}${review?.header.invoiceNumber ? ` invoice ${review.header.invoiceNumber}` : ' invoice'}`;
   const totalsMatch = review && review.header.totalCents === review.linesTotalCents;
-  const guesses = review ? review.lines.map((l, i) => ({ l, i })).filter(({ l }) => l.unitsFrom === 'guess') : [];
+  const guesses = review ? review.lines.map((l, i) => ({ l, i })).filter(({ l }) => l.unitsFrom === 'guess' || l.unitsFrom === 'cost') : [];
   // the columns this invoice prints
   const showPackage = !!shown?.lines.some((l) => l.group);
   const showItem = (vendor ? vendor.itemDigits !== 'NONE' : false) || !!shown?.lines.some((l) => l.item);
@@ -328,7 +328,7 @@ export default function PdiInvoice() {
                               {l.upcFrom === 'memory' && <div style={s.from} title="This vendor prints no UPC for this product: the UPC used on its earlier file">remembered</div>}
                               {l.pdi && (() => {
                                 // PDI's cost is for one unit as sold; the invoice's for one of what it counts, so it is compared once the units per case are known
-                                const unit = l.line.unitsPerCase && l.unitsFrom && l.unitsFrom !== 'unknown' && l.unitsFrom !== 'guess' ? Math.round(l.line.priceCents / l.line.unitsPerCase) : null;
+                                const unit = l.line.unitsPerCase && l.unitsFrom && l.unitsFrom !== 'unknown' && l.unitsFrom !== 'guess' && l.unitsFrom !== 'cost' ? Math.round(l.line.priceCents / l.line.unitsPerCase) : null;
                                 const changed = unit !== null && !!l.pdi.costCents && Math.abs(unit - l.pdi.costCents) >= 1;
                                 return (
                                   <div style={s.pdiName} title="The item with this UPC in the store's PDI list">
@@ -353,7 +353,7 @@ export default function PdiInvoice() {
                                 <div style={s.unitsCell}>
                                   <input aria-label={`Line ${i + 1} units per case`} style={{ ...cell('units'), width: 54 }} inputMode="numeric"
                                     value={units[i] ?? (l.line.unitsPerCase || '')} onChange={(e) => setUnits((u) => ({ ...u, [i]: e.target.value }))} />
-                                  {(units[i] !== undefined || l.unitsFrom === 'guess' || !l.unitsFrom) && (
+                                  {(units[i] !== undefined || l.unitsFrom === 'guess' || l.unitsFrom === 'cost' || !l.unitsFrom) && (
                                     <Button size="sm" disabled={busy === 'units' || !(Number(units[i] ?? l.line.unitsPerCase) >= 1)}
                                       onClick={() => confirmUnits([{ i, units: Number(units[i] ?? l.line.unitsPerCase) }])}>Confirm</Button>
                                   )}
@@ -386,7 +386,7 @@ export default function PdiInvoice() {
                                 <ul style={s.lineProblems}>{l.problems.map((x) => (
                                   <ProblemItem key={x.key} p={x} busy={busy === x.key} onAccept={accept}
                                     // a beer's units per case is confirmed (and remembered for the next invoice), not just accepted for this one
-                                    hint={caseVendor && x.field === 'units' && (l.unitsFrom === 'guess' || !l.unitsFrom) ? 'Confirm the units per case above' : undefined} />
+                                    hint={caseVendor && x.field === 'units' && (l.unitsFrom === 'guess' || l.unitsFrom === 'cost' || !l.unitsFrom) ? 'Confirm the units per case above' : undefined} />
                                 ))}</ul>
                                 {/* PDI refuses a line with a blank UPC (2026-11-05), so a line that cannot be fixed is left out, not sent blank */}
                                 {stuck.length > 0 && (

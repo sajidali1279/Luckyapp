@@ -163,8 +163,13 @@ async function pdiCheckFor(storeId: string, conv: Conversion): Promise<PdiCheck 
 async function reviewOf(row: Row, known: (upc: string) => KnownUnits | undefined, knownUpc: (key: string) => string | undefined = () => undefined) {
   const paper = row.paper as unknown as PaperInvoice | null;
   if (!paper) return null;
-  const conv = convertInvoice(vendorRules(row.vendor), paper, { knownUnits: known, knownUpc, today: storeDateKey() });
-  return review(row, conv, await pdiCheckFor(row.storeId, conv));
+  const ctx = { knownUnits: known, knownUpc, today: storeDateKey() };
+  const first = convertInvoice(vendorRules(row.vendor), paper, ctx);
+  const pdi = await pdiCheckFor(row.storeId, first);
+  if (!pdi) return review(row, first, null);
+  // again with PDI's costs, so a units per case nobody knows yet can come from the case price over the cost of one (2026-11-06)
+  const costOf = (upc: string) => (pdi.byCode.get(upc) ?? pdi.byKey.get(upcKeyOf(upc)))?.costCents ?? undefined;
+  return review(row, convertInvoice(vendorRules(row.vendor), paper, { ...ctx, pdiCostCents: costOf }), pdi);
 }
 
 function review(row: Row, conv: Conversion, pdi: PdiCheck | null) {

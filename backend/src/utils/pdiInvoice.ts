@@ -251,8 +251,9 @@ export interface PaperLine {
 }
 
 /** Where a line's units per case came from: one item (a vendor that counts items), the paper (units / cases, or the package header), a
- *  learned or a person-confirmed value for the product, a guess from its name, or not known (1 is written, 2026-11-03). */
-export type UnitsFrom = 'each' | 'paper' | 'learned' | 'confirmed' | 'guess' | 'unknown';
+ *  learned or a person-confirmed value for the product, the case price over PDI's cost for one (2026-11-06), a guess from its name, or not
+ *  known (1 is written, 2026-11-03). */
+export type UnitsFrom = 'each' | 'paper' | 'learned' | 'confirmed' | 'cost' | 'guess' | 'unknown';
 // upcFrom 'memory': the paper printed no UPC and the vendor's item code was matched to the UPC used on an earlier file (2026-11-03)
 // skipped: a line a person left out of the file; it has nothing to look at and the file goes without it
 export interface ConvertedLine { line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null; upcFrom?: 'memory'; skipped?: true }
@@ -401,6 +402,21 @@ export interface ConvertContext {
   knownUnits?: (upc: string) => KnownUnits | undefined; // what the app remembers for a product of this vendor, by its 11 file digits
   knownUpc?: (itemKey: string) => string | undefined;    // the UPC used before for this vendor's item code (pdi_product_upcs)
   today?: string;                                        // YYYY-MM-DD, to question a date far from it
+  pdiCostCents?: (upc: string) => number | undefined;   // what one unit costs in the store's PDI item list, by the 11 file digits
+}
+
+// The pack sizes a case is checked against. Bag-in-box fountain syrup (PDI's cost is per serving, so a box comes out near 50) and the
+// rare 5-pack are left out: on PepsiCo's and Ed F. Davis's invoices their units are known, and this list found 103 of them right with
+// 1 wrong (2026-11-06, the store 9 PDI list).
+export const PACK_SIZES = [1, 2, 3, 4, 6, 8, 10, 12, 15, 16, 18, 20, 24, 30, 32, 36, 40, 48];
+
+/** Units per case from the case price and PDI's cost for one unit: the pack size the ratio is within 2% of, else null (a cost that is
+ *  out of date, or a product PDI counts differently). */
+export function unitsFromCost(casePriceCents: number | null, unitCostCents: number | null | undefined): number | null {
+  if (!casePriceCents || casePriceCents <= 0 || !unitCostCents || unitCostCents <= 0) return null;
+  const ratio = casePriceCents / unitCostCents;
+  const best = PACK_SIZES.map((n) => ({ n, off: Math.abs(ratio - n) / n })).sort((a, b) => a.off - b.off)[0];
+  return best.off <= 0.02 ? best.n : null;
 }
 
 /** One paper line as the file's line, with what a person should look at. */
@@ -531,7 +547,17 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
     } else if (remembered) { units = remembered.units; unitsFrom = remembered.from; }
     else if (pack !== null) { units = pack; unitsFrom = 'paper'; }
     else {
-      const guess = guessUnitsPerCase(description);
+      // the case price over what PDI says one unit costs (2026-11-06): Coca-Cola 20 oz, $32.79 a case at $1.37 a bottle, is 24. Before the
+      // guess from the name, which is often missing or off; still a suggestion to confirm once, then remembered
+      const unitCost = u.upc && /^\d{11}$/.test(u.upc) ? ctx.pdiCostCents?.(u.upc) : undefined;
+      const fromCost = price !== null ? unitsFromCost(price, unitCost) : null;
+      const guess = fromCost ? null : guessUnitsPerCase(description);
+      if (fromCost) {
+        units = fromCost; unitsFrom = 'cost';
+        say('units', fromCost === 1
+          ? `Units per case (1) comes from PDI's cost: $${money(price!)} is what PDI pays for one. Check it once and it is remembered.`
+          : `Units per case (${fromCost}) comes from PDI's cost: $${money(price!)} a case is ${fromCost} at $${money(unitCost!)}. Check it once and it is remembered.`);
+      } else
       if (guess) { units = guess; unitsFrom = 'guess'; say('units', `Units per case (${guess}) is a guess from the name: check it once and it is remembered.`); }
       // not known: the file gets 1 and the invoice says so once (a stop on every line of a new vendor before 2026-11-03)
       else { units = 1; unitsFrom = 'unknown'; }
