@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { ArrowDown, ArrowUp, Camera, Pencil, Plus, ReceiptText, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Camera, ListChecks, Pencil, Plus, ReceiptText, Trash2, Upload, X } from 'lucide-react';
 import { pdiInvoicesApi, PdiVendorInput } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { Page, PageHeader, Button, Card, Badge, Notice, EmptyState, Field, FieldRow, HowItWorks, Tabs, Tone } from '../components/kit';
@@ -41,14 +41,14 @@ export const SELLS_BY: Record<string, string> = { CASE: 'Cases', EACH: 'Single i
 export const ITEM_DIGITS: Record<string, string> = { FIRST6: 'First 6 digits', LAST6: 'Last 6 digits', NONE: 'None printed' };
 export const useVendors = () => useQuery({ queryKey: ['pdi-vendors'], queryFn: () => pdiInvoicesApi.vendors().then((r) => r.data.data as PdiVendor[]) });
 
-type Tab = 'invoices' | 'vendors';
+type Tab = 'invoices' | 'vendors' | 'items';
 
 export default function PdiInvoices() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const hq = user?.role === 'SUPER_ADMIN' || user?.role === 'DEV_ADMIN';
   const [params, setParams] = useSearchParams();
-  const tab: Tab = params.get('tab') === 'vendors' ? 'vendors' : 'invoices';
+  const tab: Tab = params.get('tab') === 'vendors' ? 'vendors' : params.get('tab') === 'items' ? 'items' : 'invoices';
   const [storeId, setStoreId] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [page, setPage] = useState(1);
@@ -78,8 +78,8 @@ export default function PdiInvoices() {
         </Notice>
       )}
       {meta?.enabled && !meta.readerReady && <Notice tone="danger" style={{ marginBottom: 16 }}>Invoice reading is not set up on the server yet.</Notice>}
-      <Tabs<Tab> ariaLabel="Invoices or vendors" value={tab} onChange={(t) => setParams(t === 'vendors' ? { tab: 'vendors' } : {}, { replace: true })}
-        tabs={[{ value: 'invoices', label: 'Invoices' }, { value: 'vendors', label: 'Vendors', count: vendorsQ.data?.length }]} />
+      <Tabs<Tab> ariaLabel="Invoices, vendors or PDI item lists" value={tab} onChange={(t) => setParams(t === 'invoices' ? {} : { tab: t }, { replace: true })}
+        tabs={[{ value: 'invoices', label: 'Invoices' }, { value: 'vendors', label: 'Vendors', count: vendorsQ.data?.length }, { value: 'items', label: 'PDI item lists' }]} />
 
       {tab === 'invoices' ? (
         <>
@@ -134,7 +134,7 @@ export default function PdiInvoices() {
             <DataTablePagination page={page} totalPages={listQ.data?.pages ?? 1} onPrevious={() => setPage((p) => Math.max(1, p - 1))} onNext={() => setPage((p) => p + 1)} />
           </Card>
         </>
-      ) : <Vendors hq={hq} />}
+      ) : tab === 'vendors' ? <Vendors hq={hq} /> : <ItemLists />}
       {adding && meta && <NewInvoice meta={meta} onClose={() => setAdding(false)} onDone={(id) => navigate(`/pdi-invoices/${id}`)} />}
     </Page>
   );
@@ -215,6 +215,143 @@ function Vendors({ hq }: { hq: boolean }) {
       <ConfirmModal open={!!removing} title={`Delete ${removing?.name ?? 'this vendor'}?`} confirmLabel="Delete" danger busy={busy} headingLevel="h2"
         message={`Its ${removing?.invoiceCount ?? 0} invoices stay, waiting for someone to say which vendor they are from, and the units per case known for its ${removing?.productCount ?? 0} products are forgotten.`}
         onConfirm={remove} onCancel={() => setRemoving(null)} />
+    </>
+  );
+}
+
+interface ItemListRow { storeId: string; name: string; items: number; importedAt: string | null; importedBy: string | null; fileName: string | null }
+interface ImportResult { store: { name: string }; items: number; skipped: number; duplicates: number; withCost: number; withPrice: number; departments: { name: string; items: number }[] }
+interface LabelPrices {
+  hasList: boolean; compared: number; same: number; notInPdi: number;
+  different: { labelId: string; name: string; barcode: string; labelCents: number; registerCents: number; pdiName: string; storePrice: boolean }[];
+}
+
+/** Each store's items as PDI knows them (2026-11-06): HQ uploads PDI's item report per store; every invoice line is then checked against
+ *  it, and the shelf labels whose price is not the register's are listed. */
+function ItemLists() {
+  const qc = useQueryClient();
+  const listsQ = useQuery({ queryKey: ['pdi-item-lists'], queryFn: () => pdiInvoicesApi.itemLists().then((r) => r.data.data as { canUpload: boolean; stores: ItemListRow[] }) });
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
+  const [priceStore, setPriceStore] = useState('');
+  const file = useRef<HTMLInputElement>(null);
+  const target = useRef<string>('');
+  const stores = listsQ.data?.stores ?? [];
+  const withList = stores.filter((st) => st.items > 0);
+  const checkStore = priceStore || withList[0]?.storeId || '';
+  const pricesQ = useQuery({
+    queryKey: ['pdi-label-prices', checkStore], enabled: !!checkStore,
+    queryFn: () => pdiInvoicesApi.labelPrices(checkStore).then((r) => r.data.data as LabelPrices),
+  });
+
+  async function upload(f: File | undefined) {
+    const storeId = target.current;
+    if (!f || !storeId) return;
+    setUploading(storeId);
+    try {
+      const r = await pdiInvoicesApi.importItems(storeId, f);
+      setResult(r.data.data as ImportResult);
+      qc.invalidateQueries({ queryKey: ['pdi-item-lists'] });
+      qc.invalidateQueries({ queryKey: ['pdi-label-prices'] });
+      qc.invalidateQueries({ queryKey: ['pdi-invoice'] });
+    } catch (e: any) { toast.error(e?.response?.data?.error ?? 'The file could not be read. Try again.'); } finally { setUploading(null); }
+  }
+
+  if (listsQ.isError) return <ErrorState onRetry={() => listsQ.refetch()} />;
+  return (
+    <>
+      <HowItWorks style={{ marginBottom: 16 }}>
+        Each store's items as PDI knows them: name, department, cost and register price. Every invoice line is checked against its store's
+        list, so a UPC that PDI does not have is caught here instead of PDI refusing the file, and a line with no UPC can find its item by
+        name. {listsQ.data?.canUpload
+          ? 'To add or refresh a store\'s list, save PDI\'s "Current inventory by item" report for that store and upload it here; the new file replaces the old list. Refresh it when prices change.'
+          : 'HQ uploads each store\'s list from PDI.'}
+      </HowItWorks>
+      <Card padding={0} style={{ marginBottom: 16 }}>
+        {listsQ.isLoading ? <div style={s.loading}>Loading...</div> : !stores.length ? (
+          <EmptyState icon={<ListChecks />} title="No stores" description="The stores you manage show here." />
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={s.table}>
+              <thead><tr>{['Store', 'Items', 'Last upload', 'File', ''].map((h, i) => <th key={i} style={s.th}>{h}</th>)}</tr></thead>
+              <tbody>
+                {stores.map((st) => (
+                  <tr key={st.storeId}>
+                    <td style={{ ...s.td, fontWeight: 600 }}>{st.name}</td>
+                    <td style={{ ...s.td, textAlign: 'right' }}>{st.items ? st.items.toLocaleString() : <Badge tone="neutral">None yet</Badge>}</td>
+                    <td style={{ ...s.td, color: TEXT_MUTED }}>{st.importedAt ? `${storeDayTime(st.importedAt)}${st.importedBy ? `, ${st.importedBy}` : ''}` : ''}</td>
+                    <td style={{ ...s.td, color: TEXT_MUTED }}>{st.fileName ?? ''}</td>
+                    <td style={{ ...s.td, textAlign: 'right' }}>
+                      {listsQ.data?.canUpload && (
+                        <Button size="sm" icon={<Upload />} disabled={!!uploading} aria-label={`Upload the PDI item report for ${st.name}`}
+                          onClick={() => { target.current = st.storeId; file.current?.click(); }}>
+                          {uploading === st.storeId ? 'Reading...' : st.items ? 'Replace' : 'Upload'}
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <input ref={file} type="file" accept=".xls,.xlsx,.csv" hidden onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
+      </Card>
+
+      {withList.length > 0 && (
+        <Card padding={0}>
+          <div style={{ ...s.filters, alignItems: 'center' }}>
+            <div style={{ fontWeight: 700, color: C.text, marginRight: 'auto' }}>Label prices against the register</div>
+            {withList.length > 1 && (
+              <select aria-label="Store to compare" style={s.select} value={checkStore} onChange={(e) => setPriceStore(e.target.value)}>
+                {withList.map((st) => <option key={st.storeId} value={st.storeId}>{st.name}</option>)}
+              </select>
+            )}
+          </div>
+          {pricesQ.isError ? <div style={{ padding: 16 }}><ErrorState onRetry={() => pricesQ.refetch()} /></div>
+            : pricesQ.isLoading || !pricesQ.data ? <div style={s.loading}>Loading...</div> : (
+              <>
+                <div style={s.priceSummary}>
+                  {pricesQ.data.compared.toLocaleString()} labels compared: <b>{pricesQ.data.same.toLocaleString()} match</b>,{' '}
+                  <b style={{ color: pricesQ.data.different.length ? C.danger : undefined }}>{pricesQ.data.different.length.toLocaleString()} differ</b>.
+                  {' '}{pricesQ.data.notInPdi.toLocaleString()} labels have a barcode PDI does not have at this store.
+                </div>
+                {pricesQ.data.different.length > 0 && (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={s.table}>
+                      <thead><tr>{['Label', 'Barcode', 'Label price', 'Register price', 'Name in PDI'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {pricesQ.data.different.map((d) => (
+                          <tr key={d.labelId}>
+                            <td style={{ ...s.td, fontWeight: 600 }}>{d.name}</td>
+                            <td style={{ ...s.td, color: TEXT_MUTED }}>{d.barcode}</td>
+                            <td style={{ ...s.td, textAlign: 'right' }}>{dollars(d.labelCents)}{d.storePrice ? <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}> (this store)</span> : ''}</td>
+                            <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{dollars(d.registerCents)}</td>
+                            <td style={{ ...s.td, color: TEXT_MUTED }}>{d.pdiName}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+        </Card>
+      )}
+
+      {result && (
+        <Modal title={`${result.store.name}: list updated`} onClose={() => setResult(null)} maxWidth={520}>
+          <p style={{ margin: '0 0 10px' }}><b>{result.items.toLocaleString()} items</b> read from the PDI report. {result.withPrice.toLocaleString()} have a price and {result.withCost.toLocaleString()} have a cost.</p>
+          {(result.duplicates > 0 || result.skipped > 0) && (
+            <p style={{ margin: '0 0 10px', color: TEXT_MUTED }}>
+              {result.duplicates > 0 && `${result.duplicates} scan codes were listed twice (the first was kept). `}
+              {result.skipped > 0 && `${result.skipped} rows had no scan code or no name and were left out.`}
+            </p>
+          )}
+          <div style={{ fontSize: FONT.small, color: TEXT_MUTED }}>Largest departments: {result.departments.slice(0, 6).map((d) => `${d.name} ${d.items.toLocaleString()}`).join(', ')}</div>
+          <div style={s.modalActions}><Button variant="primary" onClick={() => setResult(null)}>Done</Button></div>
+        </Modal>
+      )}
     </>
   );
 }
@@ -379,4 +516,5 @@ const s: Record<string, React.CSSProperties> = {
   toolBtn: { background: 'rgba(255,255,255,0.92)', border: `1px solid ${C.border}`, borderRadius: RADIUS.sm, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.text },
   addPhoto: { border: `1px dashed ${C.borderStrong}`, borderRadius: RADIUS.md, background: C.surface, color: C.primary, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, aspectRatio: '3 / 4', cursor: 'pointer', fontWeight: 600, fontSize: FONT.small },
   modalActions: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 },
+  priceSummary: { padding: '12px 14px', fontSize: FONT.body, color: C.text, borderBottom: `1px solid ${C.border}` },
 };

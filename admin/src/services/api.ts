@@ -829,6 +829,16 @@ export const pdiInvoicesApi = {
   createVendor: (body: PdiVendorInput & { invoiceId?: string }) => api.post('/pdi-vendors', body),
   updateVendor: (id: string, body: Partial<PdiVendorInput> & { aliases?: string[] }) => api.patch(`/pdi-vendors/${id}`, body),
   removeVendor: (id: string) => api.delete(`/pdi-vendors/${id}`),
+  // each store's item list as PDI knows it (2026-11-06): HQ uploads PDI's item report; the invoice lines are checked against it
+  itemLists: () => api.get('/pdi-items/lists'),
+  importItems: (storeId: string, file: File) => {
+    const fd = new FormData();
+    fd.append('storeId', storeId);
+    fd.append('file', file, file.name);
+    return api.post('/pdi-items/import', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 180_000 });
+  },
+  searchItems: (storeId: string, q: string) => api.get('/pdi-items/search', { params: { storeId, q } }),
+  labelPrices: (storeId: string) => api.get('/pdi-items/label-prices', { params: { storeId } }),
 };
 export interface PdiVendorInput {
   name: string; pdiCode: string; sellsBy: 'CASE' | 'EACH'; itemDigits: 'FIRST6' | 'LAST6' | 'NONE'; itemLength?: number | null; readerNotes?: string;

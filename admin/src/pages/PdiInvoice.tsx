@@ -21,10 +21,12 @@ import { dollars, STATUS, SELLS_BY, VendorForm, useVendors } from './PdiInvoices
 
 interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean; blocking?: boolean }
 interface FileLine { upc: string; description: string; itemNumber: string | null; priceCents: number; unitsPerCase: number; quantity: number }
-interface ReviewLine { line: FileLine; unitsFrom: string | null; upcFrom?: 'memory' | null; skipped?: boolean; problems: Problem[] }
+// pdi: the item as the store's PDI list has it (2026-11-06), null when the store has no list or PDI does not have this UPC
+interface ReviewLine { line: FileLine; unitsFrom: string | null; upcFrom?: 'memory' | null; skipped?: boolean; pdi?: { name: string; costCents: number | null; priceCents: number | null } | null; problems: Problem[] }
 interface Review {
   header: { supplierCode: string; invoiceNumber: string; date: string; totalCents: number }; lines: ReviewLine[]; problems: Problem[];
   open: number; canDownload: boolean; fileName: string | null; linesTotalCents: number;
+  pdiList?: { items: number; importedAt: string | null } | null;   // the store's PDI item list, when HQ has uploaded one
 }
 interface PaperLine {
   upc: string | null; description: string | null; item?: string | null; quantity: number | null; units?: number | null; price: string | null;
@@ -65,6 +67,7 @@ export default function PdiInvoice() {
   const [onlyOpen, setOnlyOpen] = useState(true);
   const [asking, setAsking] = useState<'reread' | 'delete' | null>(null);
   const [removeAt, setRemoveAt] = useState<number | null>(null);   // the line asked about before it is taken out
+  const [finding, setFinding] = useState<number | null>(null);   // the line being looked up in the store's PDI list
   const [units, setUnits] = useState<Record<number, string>>({});
   useUnsaved('pdi-invoice', !!paper);
   useAnyUnsaved();
@@ -322,7 +325,20 @@ export default function PdiInvoice() {
                             {showPackage && <td style={s.tdSmall}>{p.group ?? ''}</td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} UPC`} style={{ ...cell('upc'), width: 138 }} value={p.upc ?? ''} placeholder={l.upcFrom === 'memory' ? l.line.upc : undefined} onChange={(e) => editLine(i, { upc: e.target.value })} />
                               {p.sku && <div style={s.from} title="The vendor's own code printed where the UPC goes. It is not put in the file; the UPC typed for it is remembered.">SKU {p.sku}</div>}
-                              {l.upcFrom === 'memory' && <div style={s.from} title="This vendor prints no UPC for this product: the UPC used on its earlier file">remembered</div>}</td>
+                              {l.upcFrom === 'memory' && <div style={s.from} title="This vendor prints no UPC for this product: the UPC used on its earlier file">remembered</div>}
+                              {l.pdi && (() => {
+                                // PDI's cost is for one unit as sold; the invoice's for one of what it counts, so it is compared once the units per case are known
+                                const unit = l.line.unitsPerCase && l.unitsFrom && l.unitsFrom !== 'unknown' && l.unitsFrom !== 'guess' ? Math.round(l.line.priceCents / l.line.unitsPerCase) : null;
+                                const changed = unit !== null && !!l.pdi.costCents && Math.abs(unit - l.pdi.costCents) >= 1;
+                                return (
+                                  <div style={s.pdiName} title="The item with this UPC in the store's PDI list">
+                                    PDI: {l.pdi.name}{l.pdi.costCents ? <span style={changed ? s.costChanged : undefined}>{`, cost ${dollars(l.pdi.costCents)}`}{changed ? ` (invoice ${dollars(unit)})` : ''}</span> : null}
+                                  </div>
+                                );
+                              })()}
+                              {review?.pdiList && !l.pdi && !l.skipped && (
+                                <button type="button" style={s.findBtn} onClick={() => setFinding(i)} disabled={!inv}>Find in PDI</button>
+                              )}</td>
                             <td style={s.td}><input aria-label={`Line ${i + 1} description`} style={{ ...cell('description'), width: 170 }} value={p.description ?? ''} onChange={(e) => editLine(i, { description: e.target.value })} /></td>
                             {showItem && <td style={s.td}><input aria-label={`Line ${i + 1} item`} style={{ ...cell('item'), width: 84 }} value={p.item ?? ''} onChange={(e) => editLine(i, { item: e.target.value })} /></td>}
                             <td style={s.td}><input aria-label={`Line ${i + 1} quantity`} style={{ ...cell('quantity'), width: 58 }} inputMode="numeric" value={p.quantity ?? ''} onChange={(e) => editLine(i, { quantity: e.target.value === '' ? null : Number(e.target.value) })} /></td>
@@ -414,6 +430,10 @@ export default function PdiInvoice() {
           </div>
         </Modal>
       )}
+      {finding !== null && shown?.lines[finding] && (
+        <FindInPdi storeId={inv.store.id} line={finding} initial={(shown.lines[finding].description ?? '').split(/\s+/).slice(0, 2).join(' ')} onClose={() => setFinding(null)}
+          onPick={(it) => { editLine(finding, { upc: it.upc }); setFinding(null); toast.success(`Line ${finding + 1} takes UPC ${it.upc} (${it.name}). Save your corrections to check it.`); }} />
+      )}
       <ConfirmModal open={asking === 'reread'} title="Read the photos again?" confirmLabel="Read again"
         message="The photos are read again from the start. Corrections made on this page are replaced by the new reading; units per case you confirmed are kept."
         onConfirm={reread} onCancel={() => setAsking(null)} headingLevel="h2" />
@@ -424,6 +444,41 @@ export default function PdiInvoice() {
         message={inv.status === 'DONE' ? 'Its file was already downloaded for PDI. Deleting removes the photos and the lines here, not what is in PDI.' : 'The photos and the lines are removed.'}
         onConfirm={remove} onCancel={() => setAsking(null)} headingLevel="h2" />
     </Page>
+  );
+}
+
+interface PdiItemFound { code: string; upc: string; name: string; department: string | null; costCents: number | null; priceCents: number | null }
+
+/** Finds a line's item in the store's PDI list by name (or scan code digits), for a line with no UPC or one PDI does not have; picking one
+ *  puts its full UPC on the line as a correction to save. */
+function FindInPdi({ storeId, line, initial, onPick, onClose }: { storeId: string; line: number; initial: string; onPick: (item: PdiItemFound) => void; onClose: () => void }) {
+  const [q, setQ] = useState(initial);
+  const [asked, setAsked] = useState(initial);
+  useEffect(() => { const t = setTimeout(() => setAsked(q.trim()), 300); return () => clearTimeout(t); }, [q]);
+  const found = useQuery({
+    queryKey: ['pdi-item-search', storeId, asked], enabled: asked.length >= 2,
+    queryFn: () => pdiInvoicesApi.searchItems(storeId, asked).then((r) => r.data.data.items as PdiItemFound[]),
+  });
+  return (
+    <Modal title={`Find line ${line + 1} in PDI`} subtitle="Type words from the product name (any order), or digits of its scan code." onClose={onClose} maxWidth={620}>
+      <input aria-label="Search the PDI item list" style={{ ...s.input, width: '100%', marginBottom: 10 }} value={q} autoFocus onChange={(e) => setQ(e.target.value)} />
+      {asked.length < 2 ? <div style={s.findNote}>Type at least 2 letters.</div>
+        : found.isError ? <ErrorState onRetry={() => found.refetch()} />
+        : found.isLoading ? <div style={s.findNote}>Searching...</div>
+        : !found.data?.length ? <div style={s.findNote}>Nothing in this store's PDI list has all of those words. Try fewer or shorter words.</div>
+        : (
+          <ul style={s.findList}>
+            {found.data.map((it) => (
+              <li key={it.code}>
+                <button type="button" style={s.findItem} onClick={() => onPick(it)}>
+                  <span style={{ fontWeight: 600 }}>{it.name}</span>
+                  <span style={s.from}>UPC {it.upc}{it.department ? `, ${it.department}` : ''}{it.costCents ? `, cost ${dollars(it.costCents)}` : ''}{it.priceCents ? `, price ${dollars(it.priceCents)}` : ''}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+    </Modal>
   );
 }
 
@@ -548,6 +603,12 @@ const s: Record<string, React.CSSProperties> = {
   skipNote: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: FONT.small, color: C.text2, marginTop: 6 },
   unitsCell: { display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' },
   from: { fontSize: FONT.caption, color: TEXT_MUTED },
+  pdiName: { fontSize: FONT.caption, color: C.success, maxWidth: 220, whiteSpace: 'normal' },
+  costChanged: { color: C.danger, fontWeight: 700 },
+  findBtn: { background: 'none', border: 'none', padding: 0, marginTop: 2, font: 'inherit', fontSize: FONT.caption, color: C.primary, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' },
+  findNote: { padding: '12px 4px', color: TEXT_MUTED, fontSize: FONT.small },
+  findList: { listStyle: 'none', margin: 0, padding: 0, maxHeight: 420, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 },
+  findItem: { width: '100%', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', border: `1px solid ${C.border}`, borderRadius: RADIUS.md, background: C.surface, cursor: 'pointer', font: 'inherit', color: C.text },
   allClear: { padding: 24, textAlign: 'center', color: C.success, fontWeight: 600 },
   problemList: { listStyle: 'none', margin: '8px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 },
   problem: { display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 12px', fontSize: FONT.small, color: C.warning, lineHeight: 1.35 },

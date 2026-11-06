@@ -1,0 +1,145 @@
+// Each store's item list as PDI knows it (2026-11-06): HQ uploads PDI's "Current inventory by item" report per store, and Invoices to PDI
+// checks every invoice UPC against it (PDI refuses an item it does not know), finds an item by name for a line with no UPC, and shows
+// PDI's cost next to the invoice's. The list also shows which shelf labels carry a price other than the register's. Cost is shown only
+// to HQ and that store's managers (the same people who can open the store's invoices).
+import { Response } from 'express';
+import { Role } from '@prisma/client';
+import prisma from '../config/prisma';
+import { AuthRequest } from '../types';
+import { hasMinRole } from '../middleware/auth';
+import { audit } from '../utils/audit';
+import { barcodeKey, gs1CheckDigit } from '../utils/barcode';
+import { readItemReport, PdiItemListError, PdiItemRow } from '../utils/pdiItemList';
+
+const SEARCH_LIMIT = 25;
+const CHUNK = 2000;
+
+/** The stores a person may use: null for every store (HQ, or a manager with access to all of them). */
+async function storeIdsFor(user: { id: string; role: Role }): Promise<string[] | null> {
+  if (hasMinRole(user.role, Role.SUPER_ADMIN)) return null;
+  const u = await prisma.user.findUnique({ where: { id: user.id }, select: { allStoresAccess: true } });
+  if (u?.allStoresAccess) return null;
+  return (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
+}
+
+async function storeFor(req: AuthRequest, res: Response, storeId: unknown) {
+  const id = typeof storeId === 'string' ? storeId : '';
+  const store = id ? await prisma.store.findUnique({ where: { id }, select: { id: true, name: true } }) : null;
+  if (!store) { res.status(400).json({ success: false, error: 'Pick the store.' }); return null; }
+  const ids = await storeIdsFor(req.user!);
+  if (ids && !ids.includes(store.id)) { res.status(403).json({ success: false, error: 'That store is not one you manage.' }); return null; }
+  return store;
+}
+
+/** The full 12-digit UPC of an 11-digit PDI code (check digit added), for a person to see and for an invoice line to take. */
+export const fullCode = (code: string) => (code.length === 11 ? code + gs1CheckDigit(code) : code);
+
+/** Replaces a store's whole list with the items read from its report, and records the upload. */
+export async function replaceItemList(storeId: string, items: PdiItemRow[], meta: { fileName: string | null; skipped: number; userId: string }) {
+  return prisma.$transaction(async (tx) => {
+    await tx.pdiItem.deleteMany({ where: { storeId } });
+    for (let i = 0; i < items.length; i += CHUNK) {
+      await tx.pdiItem.createMany({ data: items.slice(i, i + CHUNK).map((it) => ({ storeId, ...it })) });
+    }
+    return tx.pdiItemImport.create({ data: { storeId, fileName: meta.fileName, items: items.length, skipped: meta.skipped, importedById: meta.userId } });
+  }, { timeout: 120_000, maxWait: 20_000 });
+}
+
+/** GET /pdi-items/lists: each store this person may use, with its list's size and last upload. */
+export async function listPdiItemLists(req: AuthRequest, res: Response) {
+  const ids = await storeIdsFor(req.user!);
+  const stores = await prisma.store.findMany({ where: { isActive: true, ...(ids ? { id: { in: ids } } : {}) }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
+  const [counts, imports] = await Promise.all([
+    prisma.pdiItem.groupBy({ by: ['storeId'], where: { storeId: { in: stores.map((s) => s.id) } }, _count: { _all: true } }),
+    prisma.pdiItemImport.findMany({ where: { storeId: { in: stores.map((s) => s.id) } }, orderBy: { createdAt: 'desc' }, distinct: ['storeId'] }),
+  ]);
+  const people = await prisma.user.findMany({ where: { id: { in: imports.map((i) => i.importedById).filter((x): x is string => !!x) } }, select: { id: true, name: true } });
+  res.json({ success: true, data: {
+    canUpload: hasMinRole(req.user!.role, Role.SUPER_ADMIN),
+    stores: stores.map((s) => {
+      const imp = imports.find((i) => i.storeId === s.id);
+      return {
+        storeId: s.id, name: s.name, items: counts.find((c) => c.storeId === s.id)?._count._all ?? 0,
+        importedAt: imp?.createdAt ?? null, importedBy: imp ? people.find((p) => p.id === imp.importedById)?.name ?? null : null, fileName: imp?.fileName ?? null,
+      };
+    }),
+  } });
+}
+
+/** POST /pdi-items/import (HQ; multipart "file" + storeId): reads the store's PDI item report and replaces its list. */
+export async function importPdiItems(req: AuthRequest, res: Response) {
+  const store = await storeFor(req, res, (req.body as { storeId?: string }).storeId);
+  if (!store) return;
+  const file = req.file as Express.Multer.File | undefined;
+  if (!file?.buffer?.length) { res.status(400).json({ success: false, error: 'Choose the report file PDI saved for this store.' }); return; }
+  let read: ReturnType<typeof readItemReport>;
+  try { read = readItemReport(file.buffer); }
+  catch (e) { if (e instanceof PdiItemListError) { res.status(400).json({ success: false, error: e.message }); return; } throw e; }
+  const fileName = (file.originalname || '').slice(0, 200) || null;
+  await replaceItemList(store.id, read.items, { fileName, skipped: read.skipped, userId: req.user!.id });
+  const departments = [...read.items.reduce((m, i) => m.set(i.department ?? 'None', (m.get(i.department ?? 'None') ?? 0) + 1), new Map<string, number>())]
+    .sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, items]) => ({ name, items }));
+  audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'PDI_ITEMS_IMPORTED', entity: 'Store', entityId: store.id,
+    details: { fileName, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates }, storeId: store.id, storeName: store.name,
+  });
+  res.json({ success: true, data: {
+    store, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates, departments,
+    withCost: read.items.filter((i) => i.costCents).length, withPrice: read.items.filter((i) => i.priceCents).length,
+  } });
+}
+
+/** GET /pdi-items/search?storeId&q: the store's PDI items whose name has every word typed (or whose code has the digits typed). */
+export async function searchPdiItems(req: AuthRequest, res: Response) {
+  const store = await storeFor(req, res, req.query.storeId);
+  if (!store) return;
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+  const words = q.split(/\s+/).filter(Boolean).slice(0, 6);
+  if (!words.length) { res.json({ success: true, data: { items: [] } }); return; }
+  const digits = q.replace(/\D/g, '');
+  const rows = await prisma.pdiItem.findMany({
+    where: { storeId: store.id, OR: [
+      { AND: words.map((w) => ({ name: { contains: w, mode: 'insensitive' as const } })) },
+      ...(digits.length >= 4 && digits.length === q.replace(/\s/g, '').length ? [{ code: { contains: digits } }] : []),
+    ] },
+    orderBy: { name: 'asc' }, take: SEARCH_LIMIT,
+  });
+  res.json({ success: true, data: { items: rows.map((r) => ({
+    code: r.code, upc: fullCode(r.code), name: r.name, department: r.department, costCents: r.costCents, priceCents: r.priceCents,
+  })) } });
+}
+
+const priceOf = (text: string | null | undefined) => {
+  const m = /^\s*\$?\s*(\d{1,5}(?:\.\d{1,2})?)\s*$/.exec(text ?? '');
+  return m ? Math.round(Number(m[1]) * 100) : null;
+};
+
+/** GET /pdi-items/label-prices?storeId: shelf labels whose price at this store (its own price, else the chain's) is not the register's. */
+export async function labelPriceCheck(req: AuthRequest, res: Response) {
+  const store = await storeFor(req, res, req.query.storeId);
+  if (!store) return;
+  const has = await prisma.pdiItem.count({ where: { storeId: store.id } });
+  if (!has) { res.json({ success: true, data: { hasList: false, compared: 0, same: 0, notInPdi: 0, different: [] } }); return; }
+  const labels = await prisma.label.findMany({
+    where: { barcode: { not: null } },
+    select: { id: true, productName: true, barcode: true, priceText: true, storeLabels: { where: { storeId: store.id }, select: { priceText: true } } },
+  });
+  const keys = [...new Set(labels.map((l) => barcodeKey(l.barcode!)))];
+  const items = await prisma.pdiItem.findMany({ where: { storeId: store.id, upcKey: { in: keys } }, select: { upcKey: true, name: true, priceCents: true } });
+  const byKey = new Map(items.map((i) => [i.upcKey, i]));
+  let compared = 0, same = 0, notInPdi = 0;
+  const different: { labelId: string; name: string; barcode: string; labelCents: number; registerCents: number; pdiName: string; storePrice: boolean }[] = [];
+  for (const l of labels) {
+    const own = l.storeLabels[0]?.priceText;
+    const labelCents = priceOf(own ?? l.priceText);
+    if (labelCents === null) continue;
+    const item = byKey.get(barcodeKey(l.barcode!));
+    if (!item) { notInPdi++; continue; }
+    if (!item.priceCents) continue;
+    compared++;
+    if (item.priceCents === labelCents) same++;
+    else different.push({ labelId: l.id, name: l.productName, barcode: l.barcode!, labelCents, registerCents: item.priceCents, pdiName: item.name, storePrice: !!own });
+  }
+  different.sort((a, b) => a.name.localeCompare(b.name));
+  res.json({ success: true, data: { hasList: true, compared, same, notInPdi, different } });
+}

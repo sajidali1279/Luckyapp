@@ -21,6 +21,7 @@ import {
 import { readInvoice, paperFromRead, InvoicePhoto, PdiReadError, MAX_PHOTOS } from '../utils/pdiRead';
 import { matchVendor, exactVendor, vendorKey } from '../utils/pdiVendors';
 import { preparePhoto, storePhoto, photoLinks, fetchPhoto, destroyPhotos } from '../utils/pdiPhotos';
+import { upcKeyOf } from '../utils/pdiItemList';
 
 export const MAX_READS_PER_STORE_HOUR = 20; // one store's share of the hour (2026-11-03)
 export const MAX_READS_PER_HOUR = 60; // everyone together: a stuck page cannot run up the AI bill (30 until 2026-11-03: 12 stores)
@@ -140,10 +141,41 @@ async function knownUpcsFor(vendorId: string | null): Promise<(key: string) => s
   return (key) => byKey.get(key);
 }
 
-function review(row: Row, known: (upc: string) => KnownUnits | undefined, knownUpc: (key: string) => string | undefined = () => undefined) {
+type Conversion = ReturnType<typeof convertInvoice>;
+type PdiItemSeen = { name: string; costCents: number | null; priceCents: number | null };
+/** The store's PDI item list, as far as this invoice needs it: whether the store has one, and its items for the invoice's UPCs. */
+interface PdiCheck { items: number; importedAt: Date | null; byCode: Map<string, PdiItemSeen>; byKey: Map<string, PdiItemSeen> }
+
+async function pdiCheckFor(storeId: string, conv: Conversion): Promise<PdiCheck | null> {
+  const upcs = [...new Set(conv.lines.map((c) => c.line.upc).filter((u) => /^\d{11}$/.test(u)))];
+  const [items, last, found] = await Promise.all([
+    prisma.pdiItem.count({ where: { storeId } }),
+    prisma.pdiItemImport.findFirst({ where: { storeId }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
+    upcs.length ? prisma.pdiItem.findMany({ where: { storeId, OR: [{ code: { in: upcs } }, { upcKey: { in: upcs.map(upcKeyOf) } }] },
+      select: { code: true, upcKey: true, name: true, costCents: true, priceCents: true } }) : Promise.resolve([]),
+  ]);
+  if (!items) return null;
+  const seen = (r: (typeof found)[number]) => ({ name: r.name, costCents: r.costCents, priceCents: r.priceCents });
+  return { items, importedAt: last?.createdAt ?? null, byCode: new Map(found.map((r) => [r.code, seen(r)])), byKey: new Map(found.map((r) => [r.upcKey, seen(r)])) };
+}
+
+/** The invoice converted, checked against the store's PDI item list, and reviewed. */
+async function reviewOf(row: Row, known: (upc: string) => KnownUnits | undefined, knownUpc: (key: string) => string | undefined = () => undefined) {
   const paper = row.paper as unknown as PaperInvoice | null;
   if (!paper) return null;
   const conv = convertInvoice(vendorRules(row.vendor), paper, { knownUnits: known, knownUpc, today: storeDateKey() });
+  return review(row, conv, await pdiCheckFor(row.storeId, conv));
+}
+
+function review(row: Row, conv: Conversion, pdi: PdiCheck | null) {
+  // PDI refuses an item it does not have (2026-11-06): a UPC missing from the store's PDI list is pointed out before the file is made. A
+  // misread digit is the usual reason; a new product is added in PDI first.
+  const inPdi = conv.lines.map((c) => (pdi && /^\d{11}$/.test(c.line.upc) ? pdi.byCode.get(c.line.upc) ?? pdi.byKey.get(upcKeyOf(c.line.upc)) ?? null : null));
+  conv.lines.forEach((c, i) => {
+    if (pdi && !c.skipped && /^\d{11}$/.test(c.line.upc) && !inPdi[i]) {
+      c.problems.push({ field: 'upc', message: `PDI has no item with UPC ${c.line.upc} at this store. Check the UPC against the product (a misread digit is the usual reason), or add the item in PDI before importing the file.` });
+    }
+  });
   const checked = new Set(row.checked);
   const blocking = new Set(headerProblems(conv.header).map((p) => p.field));
   const mark = (key: string, p: Problem, fileable: boolean) => {
@@ -152,12 +184,12 @@ function review(row: Row, known: (upc: string) => KnownUnits | undefined, knownU
   };
   const lines = conv.lines.map((c, i) => {
     const fileable = lineProblems(c.line).length === 0;
-    return { line: c.line, unitsFrom: c.unitsFrom, upcFrom: c.upcFrom ?? null, skipped: !!c.skipped, problems: c.problems.map((p) => mark(`${i}|${p.field}|${p.message}`, p, fileable)) };
+    return { line: c.line, unitsFrom: c.unitsFrom, upcFrom: c.upcFrom ?? null, skipped: !!c.skipped, pdi: inPdi[i], problems: c.problems.map((p) => mark(`${i}|${p.field}|${p.message}`, p, fileable)) };
   });
   const problems = conv.problems.map((p) => mark(`-|${p.field}|${p.message}`, p, !blocking.has(p.field) && lines.length > 0));
   const open = [...problems, ...lines.flatMap((l) => l.problems)].filter((p) => !p.checked).length;
   return {
-    header: conv.header, lines, problems, open,
+    header: conv.header, lines, problems, open, pdiList: pdi ? { items: pdi.items, importedAt: pdi.importedAt } : null,
     canDownload: open === 0 && lines.length > 0 && blocking.size === 0,
     fileName: blocking.size === 0 ? pdiFileName(conv.header) : null,
     linesTotalCents: linesTotalCents(conv.lines.map((c) => c.line)),
@@ -186,7 +218,7 @@ async function present(row: Row) {
     status: row.status, readError: row.readError, readModel: row.readModel, readUsage: row.readUsage,
     createdAt: row.createdAt, createdBy: name(row.createdById), updatedAt: row.updatedAt, updatedBy: name(row.updatedById),
     downloadedAt: row.downloadedAt, downloadedBy: name(row.downloadedById),
-    photos: row.photoIds.map(photoLinks), paper: row.paper ? tidyPaper(row.paper as unknown as PaperInvoice) : null, review: review(row, known, knownUpc),
+    photos: row.photoIds.map(photoLinks), paper: row.paper ? tidyPaper(row.paper as unknown as PaperInvoice) : null, review: await reviewOf(row, known, knownUpc),
     duplicates: duplicates.map((d) => ({ id: d.id, status: d.status, createdAt: d.createdAt, storeName: d.store.name })),
   };
 }
@@ -364,7 +396,7 @@ export async function rereadPdiInvoice(req: AuthRequest, res: Response) {
 export async function downloadPdiFile(req: AuthRequest, res: Response) {
   const row = await loadFor(req, res);
   if (!row) return;
-  const rev = review(row, await knownUnitsFor(row.vendorId), await knownUpcsFor(row.vendorId));
+  const rev = await reviewOf(row, await knownUnitsFor(row.vendorId), await knownUpcsFor(row.vendorId));
   if (!rev || (row.status !== 'READ' && row.status !== 'DONE')) { res.status(409).json({ success: false, error: 'It has not been read yet.' }); return; }
   if (!rev.canDownload || !rev.fileName) { res.status(409).json({ success: false, error: `Look at every marked problem first: ${rev.open} still open.`, open: rev.open }); return; }
   let text: string;

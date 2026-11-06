@@ -88,6 +88,7 @@ import {
   listPdiVendors, createPdiVendor, updatePdiVendor, deletePdiVendor,
 } from '../controllers/pdiInvoice.controller';
 import { MAX_PHOTOS as PDI_MAX_PHOTOS } from '../utils/pdiRead';
+import { listPdiItemLists, importPdiItems, searchPdiItems, labelPriceCheck } from '../controllers/pdiItems.controller';
 import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
 import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards, testUserPush } from '../controllers/customerProfile.controller';
@@ -343,6 +344,11 @@ router.get('/pdi-vendors', authenticate, requireRole(Role.STORE_MANAGER), listPd
 router.post('/pdi-vendors', authenticate, requireRole(Role.STORE_MANAGER), createPdiVendor);
 router.patch('/pdi-vendors/:id', authenticate, requireRole(Role.STORE_MANAGER), updatePdiVendor);   // HQ, or the manager who added it until its first file
 router.delete('/pdi-vendors/:id', authenticate, requireRole(Role.SUPER_ADMIN), deletePdiVendor);
+// each store's item list as PDI knows it (2026-11-06): HQ uploads PDI's item report; managers of the store search it and see its checks
+router.get('/pdi-items/lists', authenticate, requireRole(Role.STORE_MANAGER), listPdiItemLists);
+router.post('/pdi-items/import', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('file'), importPdiItems);
+router.get('/pdi-items/search', authenticate, requireRole(Role.STORE_MANAGER), searchPdiItems);
+router.get('/pdi-items/label-prices', authenticate, requireRole(Role.STORE_MANAGER), labelPriceCheck);
 // Win-back gifts (2026-10-16): a few points with a push for customers who have not been back, and how many came back
 router.get('/winback/preview', authenticate, requireRole(Role.SUPER_ADMIN), previewWinBack);
 router.get('/winback', authenticate, requireRole(Role.SUPER_ADMIN), listWinBacks);

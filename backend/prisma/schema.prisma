@@ -397,6 +397,8 @@ model Store {
   adminNotices          AdminNotice[]
   rewardItems           RedemptionCatalogItem[]
   pdiInvoices           PdiInvoice[]
+  pdiItems              PdiItem[]
+  pdiItemImports        PdiItemImport[]
   // Store hours: regular weekly schedule (StoreHours) plus date-specific
   // overrides for holidays etc. (StoreHoliday), see both models below.
   storeHours            StoreHours[]
@@ -2221,4 +2223,40 @@ model PdiProductUpc {
 
   @@id([vendorId, itemKey])
   @@map("pdi_product_upcs")
+}
+
+// One store's items as PDI knows them (2026-11-06), from PDI's "Current inventory by item" report that HQ uploads per store. Replaced
+// whole on each upload. Invoices to PDI checks every UPC against it (PDI refuses what it does not know), and a line with no UPC finds its
+// item by name. Its counts are not kept (the report's are mostly below zero). Cost is shown only to HQ and that store's managers.
+model PdiItem {
+  storeId    String
+  code       String                            // the scan code as PDI holds it: a UPC without its check digit, padded to PDI's 11 places
+  upcKey     String                            // utils/barcode barcodeKey of the full barcode (the check digit added), to match app scans
+  name       String
+  department String?
+  vendor     String?
+  costCents  Int?
+  priceCents Int?
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([storeId, code])
+  @@index([storeId, upcKey])
+  @@map("pdi_items")
+}
+
+// Each upload of a store's PDI item list: when, by whom, from which file, and how many items it held.
+model PdiItemImport {
+  id           String   @id @default(uuid())
+  storeId      String
+  fileName     String?
+  items        Int
+  skipped      Int      @default(0)
+  importedById String?
+  createdAt    DateTime @default(now())
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@map("pdi_item_imports")
 }
