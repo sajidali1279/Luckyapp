@@ -27,6 +27,7 @@ interface ScannedProduct {
 const SOURCE_META: Record<string, { label: string; bg: string; color: string }> = {
   manual:        { label: 'Manual',           bg: '#eef2f7', color: PRIMARY },
   openfoodfacts: { label: 'Open Food Facts',  bg: '#eaf7ee', color: '#1e7a3d' },
+  pdi:           { label: 'From PDI',         bg: '#fff4e5', color: '#8a5300' },   // named from a store's PDI item list on a scan (2026-11-06)
 };
 
 // A category with more than this many items collapses to a preview with a

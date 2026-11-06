@@ -1832,7 +1832,7 @@ model ScannedProduct {
   name          String
   category      String?
   brand         String?
-  source        String   @default("manual")   // "manual" | "openfoodfacts"
+  source        String   @default("manual")   // "manual" | "openfoodfacts" | "pdi" (named from a store's PDI item list on a scan, 2026-11-06)
   scanCount     Int      @default(1)
   lastScannedAt DateTime @default(now())
   createdAt     DateTime @default(now())
