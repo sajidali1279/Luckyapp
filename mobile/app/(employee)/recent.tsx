@@ -28,6 +28,7 @@ type Sale = { saleId: string; storeId: string; createdAt: string; store: string 
 type Redemption = { id: string; kind: 'CREDITS' | 'REWARD'; createdAt: string; customer: { name: string; last4: string }; points: number; title: string | null };
 type Limits = { left: number; perDay: number; minutes: number; holdFrom: number };
 
+// Tobacco and alcohol are not offered (2026-11-07): the server takes only its seven categories and refused a sale or offer with either.
 const CATEGORIES: { value: string; labelKey: string; icon: string }[] = [
   { value: 'GAS', labelKey: 'employeeScan.catGas', icon: '⛽' },
   { value: 'DIESEL', labelKey: 'employeeScan.catDiesel', icon: '🚛' },
@@ -35,8 +36,6 @@ const CATEGORIES: { value: string; labelKey: string; icon: string }[] = [
   { value: 'GROCERIES', labelKey: 'employeeScan.catGroceries', icon: '🛒' },
   { value: 'FROZEN_FOODS', labelKey: 'employeeScan.catFrozen', icon: '🧊' },
   { value: 'FRESH_FOODS', labelKey: 'employeeScan.catFresh', icon: '🥗' },
-  { value: 'TOBACCO_VAPES', labelKey: 'employeeScan.catTobacco', icon: '🚬' },
-  { value: 'ALCOHOL', labelKey: 'employeeScan.catAlcohol', icon: '🍺' },
   { value: 'OTHER', labelKey: 'employeeScan.catOther', icon: '🏪' },
 ];
 const STATUS_STYLE: Record<Line['status'], { color: string; bg: string }> = {

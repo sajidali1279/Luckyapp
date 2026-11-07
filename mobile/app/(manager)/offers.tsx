@@ -31,6 +31,7 @@ import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 
 interface Store { id: string; name: string }
 
+// Tobacco and alcohol are not offered (2026-11-07): the server takes only its seven categories and refused a sale or offer with either.
 const CATEGORIES = [
   { value: 'GAS',           key: 'categoryGas' },
   { value: 'DIESEL',        key: 'categoryDiesel' },
@@ -38,8 +39,6 @@ const CATEGORIES = [
   { value: 'GROCERIES',     key: 'categoryGroceries' },
   { value: 'FROZEN_FOODS',  key: 'categoryFrozenFoods' },
   { value: 'FRESH_FOODS',   key: 'categoryFreshFoods' },
-  { value: 'TOBACCO_VAPES', key: 'categoryTobaccoVapes' },
-  { value: 'ALCOHOL',       key: 'categoryAlcohol' },
 ];
 
 function todayISO() { return new Date().toISOString(); }

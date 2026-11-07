@@ -40,7 +40,7 @@ type Step =
   | 'pending-done'
   | 'welcome-bonus-done';
 
-type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'TOBACCO_VAPES' | 'HOT_FOODS' | 'ALCOHOL' | 'OTHER';
+type Category = 'GROCERIES' | 'FROZEN_FOODS' | 'FRESH_FOODS' | 'GAS' | 'DIESEL' | 'HOT_FOODS' | 'OTHER';
 
 type LineItem = {
   id: string;
@@ -50,6 +50,7 @@ type LineItem = {
   gasPricePerGallon?: string;
 };
 
+// Tobacco and alcohol are not offered (2026-11-07): the server takes only its seven categories and refused a sale or offer with either.
 const CATEGORIES: { value: Category; labelKey: string; icon: string }[] = [
   { value: 'GAS',          labelKey: 'employeeScan.catGas',       icon: '⛽' },
   { value: 'DIESEL',       labelKey: 'employeeScan.catDiesel',    icon: '🚛' },
@@ -57,8 +58,6 @@ const CATEGORIES: { value: Category; labelKey: string; icon: string }[] = [
   { value: 'GROCERIES',    labelKey: 'employeeScan.catGroceries', icon: '🛒' },
   { value: 'FROZEN_FOODS', labelKey: 'employeeScan.catFrozen',    icon: '🧊' },
   { value: 'FRESH_FOODS',  labelKey: 'employeeScan.catFresh',     icon: '🥗' },
-  { value: 'TOBACCO_VAPES',labelKey: 'employeeScan.catTobacco',   icon: '🚬' },
-  { value: 'ALCOHOL',      labelKey: 'employeeScan.catAlcohol',   icon: '🍺' },
   { value: 'OTHER',        labelKey: 'employeeScan.catOther',     icon: '🏪' },
 ];
 
