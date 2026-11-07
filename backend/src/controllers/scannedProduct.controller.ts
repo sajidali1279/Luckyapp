@@ -7,13 +7,20 @@ import { barcodeKey, barcodeVariants, canonicalBarcode } from '../utils/barcode'
 import { Role } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 
-/** The name a store's PDI item list has for a barcode: one of this person's stores first, else any store's (names do not differ by store). */
-async function pdiNameFor(barcode: string, user: { id: string; role: Role }): Promise<string | null> {
+// The app category a PDI department becomes (decided 2026-11-07, for the owner): only the departments that are one kind of product. On the
+// 1,161 products both lists know, CIGS was Tobacco 173 of 175 and BEER was Beer 8 of 8; GROC and the others mix soda, candy, chips,
+// medicine and more (no category above 35%), so staff still pick those.
+export const DEPARTMENT_CATEGORY: Record<string, string> = { CIGS: 'Tobacco', BEER: 'Beer' };
+
+/** The name (and, for a clear department, the category) a store's PDI item list has for a barcode: one of this person's stores first,
+ *  else any store's (names do not differ by store). */
+async function pdiItemFor(barcode: string, user: { id: string; role: Role }): Promise<{ name: string; category: string | null } | null> {
   if (!/^\d{6,14}$/.test(barcode.trim())) return null;
-  const hits = await prisma.pdiItem.findMany({ where: { upcKey: barcodeKey(barcode) }, select: { storeId: true, name: true }, take: 20 });
+  const hits = await prisma.pdiItem.findMany({ where: { upcKey: barcodeKey(barcode) }, select: { storeId: true, name: true, department: true }, take: 20 });
   if (!hits.length) return null;
   const mine = hasMinRole(user.role, Role.SUPER_ADMIN) ? [] : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
-  return (hits.find((h) => mine.includes(h.storeId)) ?? hits[0]).name.slice(0, 200);
+  const hit = hits.find((h) => mine.includes(h.storeId)) ?? hits[0];
+  return { name: hit.name.slice(0, 200), category: DEPARTMENT_CATEGORY[(hit.department ?? '').trim().toUpperCase()] ?? null };
 }
 
 // ─── GET /scanned-products/barcode/:barcode ───────────────────────────────────
@@ -29,16 +36,16 @@ export async function lookupBarcode(req: AuthRequest, res: Response) {
 
   if (!product) {
     // Not in the catalog yet: the name PDI has for it at one of this person's stores (2026-11-06), so a scan in Labels or the store catalog
-    // comes up with a name instead of an empty form. Saved to the catalog like an Open Food Facts answer, without a category (PDI's
-    // departments do not match the app's categories; the owner is deciding how they line up), so staff still pick the category.
-    const pdi = await pdiNameFor(barcode, req.user!);
+    // comes up with a name instead of an empty form. Saved to the catalog like an Open Food Facts answer, with a category only for a PDI
+    // department that is one kind of product (DEPARTMENT_CATEGORY); for the rest staff still pick the category.
+    const pdi = await pdiItemFor(barcode, req.user!);
     if (!pdi) { res.json({ success: true, data: null }); return; }
     const saved = await prisma.scannedProduct.upsert({
       where: { barcode: canonicalBarcode(barcode) },
-      create: { barcode: canonicalBarcode(barcode), name: pdi, source: 'pdi', scanCount: 1, lastScannedAt: new Date() },
+      create: { barcode: canonicalBarcode(barcode), name: pdi.name, category: pdi.category, source: 'pdi', scanCount: 1, lastScannedAt: new Date() },
       update: {},
     }).catch(() => null);
-    res.json({ success: true, data: { name: saved?.name ?? pdi, category: saved?.category ?? null, brand: saved?.brand ?? null, source: 'pdi' } });
+    res.json({ success: true, data: { name: saved?.name ?? pdi.name, category: saved?.category ?? pdi.category, brand: saved?.brand ?? null, source: 'pdi' } });
     return;
   }
 
