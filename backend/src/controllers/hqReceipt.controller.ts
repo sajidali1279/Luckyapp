@@ -13,6 +13,7 @@ import { HQ_READ, HQ_ENTERED, factsOf, matchStore, sameReceipt, saleLines, recei
 import { brandKey, cardBrandOf } from '../utils/receiptCards';
 import { isCustomerAccount, NOT_A_CUSTOMER } from '../utils/customerOnly';
 import { storeDateKey, storeDaysBetween, startOfStoreDate, storeTimeText } from '../utils/storeTime';
+import { withPdiCategories } from '../utils/receiptPdi';
 
 export const MAX_HQ_READS_PER_HOUR = 120;     // all of HQ together: a stuck loop cannot run up the AI bill
 const MAX_AI_PHOTO = 5 * 1024 * 1024;         // the reader's limit for one image; the page sends a smaller copy
@@ -125,6 +126,7 @@ export async function hqReadReceipt(req: AuthRequest, res: Response) {
   }
 
   // The lines, as the customer's scan makes them
+  read = await withPdiCategories(storeForLines.id, read);   // as the customer's scan does (2026-11-07)
   const { lines, leftOut } = saleLines(read, storeForLines.enabledCategories);
   let suggested = lines;
   if (read.items.length === 0) {

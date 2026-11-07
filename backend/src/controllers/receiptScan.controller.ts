@@ -23,6 +23,7 @@ import { cropForReading, imageTokens } from '../utils/receiptCrop';
 import { pushChallengeAwards } from '../utils/challenges';
 import { pushReferralAwards } from '../utils/referrals';
 import { updateCustomerTierIfNeeded } from '../utils/tier';
+import { withPdiCategories } from '../utils/receiptPdi';
 import {
   RECEIPT_SCAN_KEY, READ_PROMPT, canScan, loadScanSettings, matchStore, parseRead, phoneKey, saleLines, type ReceiptRead,
   HQ_ENTERED, HQ_SCAN_STATUSES,
@@ -182,6 +183,8 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   const cardCheck = await checkScanCard(customer.id, card);
   if (cardCheck.refuse) return refuseScan(cardCheck.refuse, { storeId: store.id, receiptAt, total });
 
+  // the store's PDI item list settles what it is sure of: cigarettes and beer earn the base rate even when read as groceries (2026-11-07)
+  read = await withPdiCategories(store.id, read);
   const { lines, leftOut } = saleLines(read, full.enabledCategories);
   const prepayOnly = read.items.length > 0 && read.items.every((it) => it.prepay || it.category === 'NOT_ELIGIBLE');
   const flags: string[] = ['RECEIPT_SCAN'];
