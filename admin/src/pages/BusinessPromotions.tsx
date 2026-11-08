@@ -30,6 +30,8 @@ interface PromoRequest {
   publishedAt: string | null;
   createdAt: string;
   requester: { id: string; name: string | null; phone: string };
+  // how many people saw and tapped it (2026-11-08): once per person per day, on the Ads screen, Home's card and Cuatro's sign
+  seen?: { views: number; taps: number; views7: number; taps7: number; cuatroViews: number };
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -540,6 +542,15 @@ export default function BusinessPromotions() {
                             <div style={s.infoBlock}>
                               <div style={s.infoLabel}>Published on</div>
                               <div style={s.infoValue}>{formatDate(req.publishedAt)}</div>
+                            </div>
+                          )}
+                          {req.seen && (
+                            <div style={s.infoBlock}>
+                              <div style={s.infoLabel} title="Each person counts once a day. Seen: on the Ads screen, Home's card or Cuatro's sign. Taps: its website, directions or Cuatro's See it.">Seen and tapped</div>
+                              <div style={s.infoValue}>
+                                Seen {req.seen.views.toLocaleString()} times, {req.seen.taps.toLocaleString()} taps
+                                <span style={{ color: '#6b7280' }}> (last 7 days: {req.seen.views7.toLocaleString()} seen, {req.seen.taps7.toLocaleString()} taps; {req.seen.cuatroViews.toLocaleString()} seen on Cuatro's sign)</span>
+                              </div>
                             </div>
                           )}
                         </>

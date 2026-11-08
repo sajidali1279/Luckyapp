@@ -203,13 +203,55 @@ export async function getAllPromotionRequests(req: AuthRequest, res: Response) {
       requester: { select: { id: true, name: true, phone: true } },
     },
   });
-  res.json({ success: true, data: promos });
+  // how many people saw and tapped each one (2026-11-08), to show the business when it pays for the ad
+  const stats = await seenStats(promos.map((p) => p.id));
+  res.json({ success: true, data: promos.map((p) => ({ ...p, seen: stats.get(p.id) ?? { views: 0, taps: 0, views7: 0, taps7: 0, cuatroViews: 0 } })) });
 }
 
 // GET /promotions/requests/pending-count, badge count for DevAdmin
 export async function getPendingPromotionCount(req: AuthRequest, res: Response) {
   const count = await prisma.businessPromotion.count({ where: { status: 'PENDING' } });
   res.json({ success: true, data: { count } });
+}
+
+// ── Who saw and tapped each promotion (2026-11-08) ──────────────────────────
+const SEEN_KINDS = new Set(['VIEW', 'TAP']);
+const SEEN_SOURCES = new Set(['ads', 'home', 'cuatro']);
+const MAX_SEEN = 50;
+
+/** POST /promotions/seen { items: [{ id, kind: VIEW | TAP, source: ads | home | cuatro }] }: a customer saw or tapped promotions. Counted
+ *  once per person, promotion and store day (the first source of the day is kept); live promotions only; staff are not counted. */
+export async function recordPromotionSeen(req: AuthRequest, res: Response) {
+  if (req.user!.role !== Role.CUSTOMER) { res.json({ success: true, data: { counted: 0 } }); return; }
+  const raw = Array.isArray((req.body as any)?.items) ? (req.body as any).items.slice(0, MAX_SEEN) : [];
+  const items = raw.filter((i: any) => typeof i?.id === 'string' && i.id.length <= 64 && SEEN_KINDS.has(i?.kind) && SEEN_SOURCES.has(i?.source));
+  if (!items.length) { res.json({ success: true, data: { counted: 0 } }); return; }
+  const now = new Date();
+  const live = new Set((await prisma.businessPromotion.findMany({
+    where: { id: { in: [...new Set<string>(items.map((i: any) => i.id as string))] }, status: 'APPROVED', OR: [{ adExpiresAt: null }, { adExpiresAt: { gt: now } }] },
+    select: { id: true },
+  })).map((p) => p.id));
+  const day = storeDateKey(now);
+  const rows = items.filter((i: any) => live.has(i.id)).map((i: any) => ({ promotionId: i.id, userId: req.user!.id, day, kind: i.kind, source: i.source }));
+  const r = rows.length ? await prisma.promotionSeen.createMany({ data: rows, skipDuplicates: true }) : { count: 0 };
+  res.json({ success: true, data: { counted: r.count } });
+}
+
+/** Views and taps per promotion: in all, and in the last 7 store days. */
+async function seenStats(ids: string[]) {
+  const out = new Map<string, { views: number; taps: number; views7: number; taps7: number; cuatroViews: number }>();
+  if (!ids.length) return out;
+  const since = storeDateKey(new Date(Date.now() - 6 * 86_400_000));
+  const [all, recent, cuatro] = await Promise.all([
+    prisma.promotionSeen.groupBy({ by: ['promotionId', 'kind'], where: { promotionId: { in: ids } }, _count: { _all: true } }),
+    prisma.promotionSeen.groupBy({ by: ['promotionId', 'kind'], where: { promotionId: { in: ids }, day: { gte: since } }, _count: { _all: true } }),
+    prisma.promotionSeen.groupBy({ by: ['promotionId'], where: { promotionId: { in: ids }, kind: 'VIEW', source: 'cuatro' }, _count: { _all: true } }),
+  ]);
+  const get = (id: string) => out.get(id) ?? out.set(id, { views: 0, taps: 0, views7: 0, taps7: 0, cuatroViews: 0 }).get(id)!;
+  for (const g of all) { const s = get(g.promotionId); if (g.kind === 'VIEW') s.views = g._count._all; else s.taps = g._count._all; }
+  for (const g of recent) { const s = get(g.promotionId); if (g.kind === 'VIEW') s.views7 = g._count._all; else s.taps7 = g._count._all; }
+  for (const g of cuatro) get(g.promotionId).cuatroViews = g._count._all;
+  return out;
 }
 
 // POST /promotions/:id/publish, DevAdmin approves and publishes an ad

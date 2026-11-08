@@ -1278,10 +1278,29 @@ model BusinessPromotion {
   updatedAt        DateTime    @updatedAt
 
   requester User @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+  seen      PromotionSeen[]
 
   @@index([status])
   @@index([requesterId])
   @@map("business_promotions")
+}
+
+// Who saw or tapped a business promotion, once per person per store day (2026-11-08), so Lucky Stop can show a business real numbers
+// when it charges for ads: views where it was shown (the Ads screen, Home's card, Cuatro's sign), taps on its website, directions or
+// Cuatro's "See it". Customers only. The first source of the day is kept.
+model PromotionSeen {
+  promotionId String
+  userId      String
+  day         String                            // the store date, YYYY-MM-DD
+  kind        String                            // VIEW | TAP
+  source      String                            // ads | home | cuatro
+  createdAt   DateTime @default(now())
+
+  promotion BusinessPromotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@id([promotionId, userId, day, kind])
+  @@index([promotionId, day])
+  @@map("promotion_seen")
 }
 
 // ─── Support Threads (SuperAdmin → DevAdmin) ─────────────────────────────────

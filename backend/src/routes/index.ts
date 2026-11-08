@@ -137,6 +137,7 @@ import {
   deletePromotion,
   getPromotionSettings,
   updatePromotionSettings,
+  recordPromotionSeen,
 } from '../controllers/promotions.controller';
 import {
   getWelcomeBonusStatus,
@@ -599,6 +600,7 @@ router.post('/catalog/redeem/:id/confirm', authenticate, requireRole(Role.EMPLOY
 // ─── Business Promotions ──────────────────────────────────────────────────────
 router.post('/promotions/request', authenticate, requireRole(Role.CUSTOMER), upload.single('image'), submitPromotionRequest);    // Customer submits (optional logo)
 router.get('/promotions', authenticate, getPublishedPromotions);                                                                  // All authenticated, see published ads
+router.post('/promotions/seen', authenticate, recordPromotionSeen);                                                                // Who saw or tapped a promotion (customers; once a day each)
 router.get('/promotions/settings', authenticate, requireRole(Role.DEV_ADMIN), getPromotionSettings);                                // Featured-ads limit (DevAdmin)
 router.put('/promotions/settings', authenticate, requireRole(Role.DEV_ADMIN), updatePromotionSettings);                             // Set it
 router.get('/promotions/my', authenticate, requireRole(Role.CUSTOMER), getMyPromotionRequest);                                    // Customer checks their own request
