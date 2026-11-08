@@ -49,7 +49,7 @@ import { useLiveTierConfig } from '../../hooks/useLiveTierConfig';
 import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon, FlameIcon, TagIcon, ReceiptIcon, CameraIcon, ChevronRightIcon, StarIcon, PercentIcon, GiftIcon, ClockIcon,
 } from '../../components/Icons';
-import { SkeletonOfferCard, SkeletonBannerCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
+import { SkeletonOfferCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
 import DashboardWatermark from '../../components/DashboardWatermark';
 import SeasonalHost from '../../components/seasonal/SeasonalHost';
 import ModalToastHost from '../../components/ModalToastHost';
@@ -109,82 +109,6 @@ const AnimatedDot = memo(function AnimatedDot({ active, color }: { active: boole
 
   return (
     <Animated.View style={{ width, height: 6, borderRadius: 3, backgroundColor: color, opacity, marginHorizontal: 2 }} />
-  );
-});
-
-/* ─── Banner carousel ─────────────────────────────────────── */
-const BannerCarousel = memo(function BannerCarousel({ banners, onSelect }: { banners: any[]; onSelect: (banner: any) => void }) {
-  const { t } = useTranslation();
-  const [activeIndex, setActiveIndex] = useState(0);
-  const flatRef = useRef<FlatList>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const startTimer = useCallback((index: number) => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setActiveIndex(prev => {
-        const next = (prev + 1) % banners.length;
-        flatRef.current?.scrollToIndex({ index: next, animated: true });
-        return next;
-      });
-    }, 3800);
-  }, [banners.length]);
-
-  useEffect(() => {
-    if (banners.length <= 1) return;
-    startTimer(0);
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [banners.length, startTimer]);
-
-  const renderBannerItem = useCallback(({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={bc.slide}
-      activeOpacity={0.9}
-      onPress={() => onSelect(item)}
-      accessibilityRole="button"
-      accessibilityLabel={item.title ? `View banner: ${item.title}` : 'View banner'}
-    >
-      <View style={bc.slideClip}>
-        <Image source={{ uri: sized(item.imageUrl) }} style={bc.image} contentFit="cover" />
-        {item.title ? (
-          <View style={bc.titleBar}>
-            <Text style={bc.titleText} numberOfLines={1}>{item.title}</Text>
-          </View>
-        ) : null}
-      </View>
-    </TouchableOpacity>
-  ), [onSelect]);
-
-  if (banners.length === 0) return null;
-
-  return (
-    <View style={bc.root}>
-      <FlatList
-        ref={flatRef}
-        data={banners}
-        keyExtractor={item => item.id}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={BANNER_W + 12}
-        decelerationRate="fast"
-        onMomentumScrollEnd={e => {
-          const idx = Math.round(e.nativeEvent.contentOffset.x / (BANNER_W + 12));
-          setActiveIndex(idx);
-          startTimer(idx);
-        }}
-        getItemLayout={(_, index) => ({ length: BANNER_W + 12, offset: (BANNER_W + 12) * index, index })}
-        onScrollToIndexFailed={() => {}}
-        renderItem={renderBannerItem}
-      />
-      {banners.length > 1 && (
-        <View style={bc.dots}>
-          {banners.map((_, i) => (
-            <AnimatedDot key={i} active={i === activeIndex} color={COLORS.primary} />
-          ))}
-        </View>
-      )}
-    </View>
   );
 });
 
@@ -836,13 +760,6 @@ function CustomerHomeScreen() {
 
   const locationReady = locationStatus !== 'detecting';
 
-  const {
-    data: bannersData, isRefetching: bannersRefetching, refetch: refetchBanners,
-  } = useQuery({
-    queryKey: ['banners', nearestStore?.id],
-    queryFn: () => offersApi.getBanners(nearestStore?.id),
-    enabled: locationReady,
-  });
 
   const {
     data: offersData, isLoading: offersLoading, isError: offersIsError, isRefetching: offersRefetching, refetch: refetchOffers,
@@ -885,7 +802,6 @@ function CustomerHomeScreen() {
   });
   const featuredAd = promoData?.data?.data?.[0] ?? null;
 
-  const banners = bannersData?.data?.data || [];
   const allOffersRaw: any[] = offersData?.data?.data || [];
   // A customer who explicitly declined stays declined until they opt back
   // in from Profile - restricted offers are left out entirely rather than
@@ -903,10 +819,9 @@ function CustomerHomeScreen() {
   const chainGasOffer: any | null = [...gasOffers].filter((o: any) => !o.storeId).sort(byCents)[0] ?? null;
   const storeGasOffer = (storeId: string): any | null => [...gasOffers].filter((o: any) => o.storeId === storeId).sort(byCents)[0] ?? null;
   const deals = allOffers.filter((o: any) => o.dealText);
-  const isRefreshing = bannersRefetching || offersRefetching;
+  const isRefreshing = offersRefetching;
   const contentLoading = !locationReady || offersLoading;
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
-  const [selectedBanner, setSelectedBanner] = useState<any>(null);
   const [ageGateOffer, setAgeGateOffer] = useState<any>(null);
   const [confirmingOfferAge, setConfirmingOfferAge] = useState(false);
   const [decliningOfferAge, setDecliningOfferAge] = useState(false);
@@ -951,7 +866,6 @@ function CustomerHomeScreen() {
 
   function onRefresh() {
     useAuthStore.getState().refreshAccount();   // the balance too (points an employee just granted)
-    refetchBanners();
     refetchOffers();
     refetchGasPrices();
     refetchHotFoodMenu();
@@ -1499,21 +1413,7 @@ function CustomerHomeScreen() {
         }
       </Animated.View>
 
-      {/* ── Banners ── */}
-      <Animated.View style={{ opacity: fadeAnims[3], transform: [{ translateY: slideAnims[3] }] }}>
-        {contentLoading
-          ? (
-            <View style={styles.bannerWrapper}>
-              <SkeletonBannerCard />
-            </View>
-          )
-          : banners.length > 0 && (
-            <View style={styles.bannerWrapper}>
-              <BannerCarousel banners={banners} onSelect={setSelectedBanner} />
-            </View>
-          )
-        }
-      </Animated.View>
+      {/* Banners are not used any more (the owner, 2026-11-07): offers and pushes reach people better */}
 
       {/* ── Redeem with Points ── */}
       {catalogItems.length > 0 && (
@@ -1681,45 +1581,6 @@ function CustomerHomeScreen() {
       )}
 
       {/* ── 21+ age gate modal (offers) ── */}
-      {/* ── Banner detail modal ── */}
-      {selectedBanner && (
-        <Modal transparent animationType="slide" onRequestClose={() => setSelectedBanner(null)}>
-          <View style={om.overlay}>
-            <View style={[om.sheet, { maxHeight: sheetMaxHeight }]}>
-              <Image source={{ uri: sized(selectedBanner.imageUrl) }} style={[om.image, { height: modalImageHeight }]} contentFit="cover" />
-              <ScrollView
-                style={om.bodyScroll}
-                contentContainerStyle={[om.bodyContent, { paddingBottom: 20 + insets.bottom }]}
-                showsVerticalScrollIndicator={false}
-              >
-                <Text style={om.title}>{selectedBanner.title}</Text>
-                {selectedBanner.linkUrl ? (
-                  <TouchableOpacity
-                    style={om.closeBtn}
-                    onPress={() => Linking.openURL(selectedBanner.linkUrl).catch(() => {})}
-                    accessibilityRole="link"
-                    accessibilityLabel={t('customerHome.visitLinkA11y')}
-                  >
-                    <Text style={om.closeBtnText}>{t('customerHome.visitArrow')}</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  style={[om.closeBtn, selectedBanner.linkUrl ? { backgroundColor: COLORS.background, marginTop: 10 } : null]}
-                  onPress={() => setSelectedBanner(null)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('customerHome.closeBannerA11y')}
-                >
-                  <Text style={[om.closeBtnText, selectedBanner.linkUrl ? { color: COLORS.textMuted } : null]}>
-                    {selectedBanner.linkUrl ? t('customerHome.close') : t('customerHome.gotIt')}
-                  </Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
-          </View>
-          <ModalToastHost />
-        </Modal>
-      )}
-
       {/* ── Tier info modal ── */}
       {selectedTier && (() => {
         const cfg = TIER_CONFIG[selectedTier];

@@ -596,6 +596,9 @@ export async function getActiveBanners(req: AuthRequest, res: Response) {
   const now = new Date();
   const showing: Prisma.BannerWhereInput = { AND: [{ OR: [{ startAt: null }, { startAt: { lte: now } }] }, { OR: [{ endAt: null }, { endAt: { gt: now } }] }] };
   const everything = req.query.all === '1' && hasMinRole(req.user!.role, Role.STORE_MANAGER);
+  // Banners are not used any more (the owner, 2026-11-07: offers and pushes reach people better): the apps get none. The admin's
+  // Banners page (all=1) still lists them, so none is lost if they are wanted back.
+  if (!everything) { res.json({ success: true, data: [] }); return; }
   if (!storeId && hasMinRole(req.user!.role, Role.SUPER_ADMIN)) {
     where = { isActive: true };
   } else if (!storeId && req.user!.role === Role.STORE_MANAGER) {

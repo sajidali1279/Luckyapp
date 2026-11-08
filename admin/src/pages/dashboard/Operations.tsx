@@ -20,7 +20,7 @@ import {
   readSetting, writeSetting, Foldable,
 } from './shared';
 import {
-  usePlatform, useCompare, useTrend, useStoreHealth, useOffers, useBanners, useCustomers, useStaff, useStores,
+  usePlatform, useCompare, useTrend, useStoreHealth, useOffers, useCustomers, useStaff, useStores,
   useLabelHealth, useFeed,
 } from './queries';
 import { useAdminBadges } from '../../hooks/useAdminBadges';
@@ -446,22 +446,21 @@ function ReviewFeed() {
 
 // ── Promotions ───────────────────────────────────────────────────────────────
 
-function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] }) {
+// Banners are not used any more (2026-11-07): only offers here
+function ActiveOffersPanel({ offers }: { offers: any[] }) {
   const navigate = useNavigate();
   const now = new Date();
   const liveOffers = offers.filter((o: any) => o.isActive && new Date(o.startDate) <= now && new Date(o.endDate) >= now);
-  const liveBanners = banners.filter((b: any) => b.isActive);
   return (
     <div style={s.offersPanel}>
       <div style={s.offersPanelHeader}>
         <span style={s.offersPanelTitle}>Active Promotions</span>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => navigate('/offers')} style={s.sectionLink}>Manage Offers →</button>
-          <button onClick={() => navigate('/banners')} style={s.sectionLink}>Manage Banners →</button>
         </div>
       </div>
-      {liveOffers.length === 0 && liveBanners.length === 0 ? (
-        <div style={s.emptyState}>No active offers or banners right now.</div>
+      {liveOffers.length === 0 ? (
+        <div style={s.emptyState}>No active offers right now.</div>
       ) : (
         <div style={s.offersGrid}>
           {liveOffers.slice(0, 4).map((o: any) => {
@@ -483,13 +482,6 @@ function ActiveOffersPanel({ offers, banners }: { offers: any[]; banners: any[] 
               </div>
             );
           })}
-          {liveBanners.slice(0, 2).map((b: any) => (
-            <div key={b.id} style={{ ...s.offerChip, border: '1.5px solid #7c3aed22', background: '#faf5ff' }}>
-              <div style={s.offerChipTop}><span style={{ ...s.offerChipBadge, background: '#4f6d8f', color: '#fff' }}>BANNER</span></div>
-              <div style={s.offerChipName}>{b.title}</div>
-              {b.storeId && <div style={s.offerChipCat}>Store-specific</div>}
-            </div>
-          ))}
         </div>
       )}
     </div>
@@ -505,7 +497,6 @@ export default function OperationsView() {
   const pickStoreView = (v: (typeof STORE_VIEWS)[number]) => { setStoreView(v); writeSetting('dash-store-view', v); };
 
   const offersQ = useOffers();
-  const bannersQ = useBanners();
   const customersQ = useCustomers();
   const staffQ = useStaff();
   const storesQ = useStores();
@@ -550,12 +541,12 @@ export default function OperationsView() {
       <div className="dash-fade-in" style={{ animationDelay: '60ms' }}>
         <div style={s.twoColRow}>
           <ReviewFeed />
-          {offersQ.isError || bannersQ.isError ? (
-            <PanelError label="promotions" onRetry={() => { offersQ.refetch(); bannersQ.refetch(); }} />
-          ) : offersQ.isLoading || bannersQ.isLoading ? (
+          {offersQ.isError ? (
+            <PanelError label="promotions" onRetry={() => { offersQ.refetch(); }} />
+          ) : offersQ.isLoading ? (
             <SkeletonBox h={260} />
           ) : (
-            <ActiveOffersPanel offers={activeOffersList} banners={bannersQ.data?.data?.data || []} />
+            <ActiveOffersPanel offers={activeOffersList} />
           )}
         </div>
       </div>
@@ -570,7 +561,6 @@ export default function OperationsView() {
           <StatCard icon="🙋" label="Customers" value={count(customersQ, customersQ.data?.data?.data?.total || 0)} to="/customers" />
           <StatCard icon="👷" label="Staff Members" value={count(staffQ, (staffQ.data?.data?.data || []).length)} to="/staff" />
           <StatCard icon="📢" label="Active Offers" value={count(offersQ, activeOffersList.length)} to="/offers" />
-          <StatCard icon="🖼️" label="Active Banners" value={count(bannersQ, (bannersQ.data?.data?.data || []).length)} to="/banners" />
           <StatCard icon="⚠️" label="Customer Disputes" value={formatInteger(disputesPendingCount)}
             valueColor={disputesPendingCount > 0 ? '#c42130' : undefined} to="/customers?tab=disputes" />
           <StatCard icon="🏷️" label="Labels Needing Print" value={count(labelQ, totalStaleLabels)}

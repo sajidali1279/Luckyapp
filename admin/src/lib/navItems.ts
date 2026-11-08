@@ -26,7 +26,7 @@ export const NAV_ITEMS: NavEntry[] = [
   { to: '/analytics', label: 'Analytics', icon: TrendingUp, group: 'Overview', roles: ['DEV_ADMIN'] },
 
   { to: '/offers', label: 'Offers', icon: Tag, group: 'Content', badgeKey: 'offerRequestsPendingCount' },
-  { to: '/banners', label: 'Banners', icon: Image, group: 'Content' },
+  // Banners are not used any more (2026-11-07): off the menu; the page stays at /banners so old ones can still be found
   { to: '/notices', label: 'Notices', icon: Pin, group: 'Content' },
   { to: '/catalog', label: 'Rewards catalog', icon: Gift, group: 'Content' },
   { to: '/promotions', label: 'Promotions', icon: Megaphone, group: 'Content', roles: ['DEV_ADMIN'], badgeKey: 'promotionsPendingCount' },

@@ -109,7 +109,6 @@ export default function StoreManagerDashboard() {
         {[
           { icon: '🧾', label: 'Transactions', desc: 'All store transactions with receipts', to: '/transactions', color: '#8a5300' },
           { icon: '📢', label: 'Offers', desc: 'Create promotions & deals for your store', to: '/offers', color: '#c42130' },
-          { icon: '🖼️', label: 'Banners', desc: 'Upload promotional images for your store', to: '/banners', color: '#1a7f45' },
           { icon: '📅', label: 'Scheduling', desc: 'Manage shifts and weekly schedules', to: '/scheduling', color: '#4f6d8f' },
           { icon: '💬', label: 'Chat', desc: 'Team communication for your store', to: '/chat', color: '#1D3557' },
           { icon: '🏷️', label: 'Labels', desc: 'Create and print shelf/price labels', to: '/labels', color: '#8a5300' },

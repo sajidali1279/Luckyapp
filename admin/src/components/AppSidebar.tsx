@@ -311,7 +311,6 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/offers" icon={<Tag size={16} />} label="Offers" badge={offerRequestsPendingCount} />
-              <SidebarNavItem to="/banners" icon={<Image size={16} />} label="Banners" />
               <SidebarNavItem to="/notices" icon={<Pin size={16} />} label="Notices" />
               <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Rewards catalog" />
               {isDevAdmin && (

@@ -95,7 +95,6 @@ export default function ManagerLayout() {
       title: t('nav.groupPromotions'),
       items: [
         { route: '/(manager)/offers',  icon: (p) => <TagIcon {...p} />,   label: t('nav.offers') },
-        { route: '/(manager)/banners', icon: (p) => <ImageIcon {...p} />, label: t('nav.banners') },
       ],
     },
     {
