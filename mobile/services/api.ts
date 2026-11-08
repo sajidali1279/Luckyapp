@@ -291,6 +291,7 @@ export const notificationsApi = {
   getUnreadCount: () => api.get('/notifications/unread-count'),
   markAllRead: () => api.patch('/notifications/mark-all-read'),
   markOneRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  homeAnnouncement: () => api.get('/notifications/home'),   // HQ's announcement for the Home card, or null (2026-11-08)
 };
 
 export const storesApi = {

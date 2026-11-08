@@ -1767,6 +1767,10 @@
     "setDeclineA11y": "Establecer respuesta a rechazar",
     "declineButton": "Rechazar"
   },
+  "announcement": {
+    "label": "Aviso",
+    "closeA11y": "Cerrar este aviso"
+  },
   "sharedNotifications": {
     "offerEndedTitle": "Oferta Terminada",
     "offerEndedMessage": "\"{{title}}\" ha expirado y ya no está disponible.",

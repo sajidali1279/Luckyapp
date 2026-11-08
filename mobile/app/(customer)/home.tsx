@@ -50,6 +50,7 @@ import {
   BellIcon, MapPinIcon, GlobeIcon, GasPumpIcon, TruckIcon, FlameIcon, TagIcon, ReceiptIcon, CameraIcon, ChevronRightIcon, StarIcon, PercentIcon, GiftIcon, ClockIcon,
 } from '../../components/Icons';
 import { SkeletonOfferCard, SkeletonGasPriceCard } from '../../components/SkeletonLoader';
+import AnnouncementCard from '../../components/AnnouncementCard';
 import DashboardWatermark from '../../components/DashboardWatermark';
 import SeasonalHost from '../../components/seasonal/SeasonalHost';
 import ModalToastHost from '../../components/ModalToastHost';
@@ -877,6 +878,7 @@ function CustomerHomeScreen() {
     qc.invalidateQueries({ queryKey: ['receipt-scan-access'] });
     qc.invalidateQueries({ queryKey: ['my-referrals'] });
     qc.invalidateQueries({ queryKey: ['unread-count'] });
+    qc.invalidateQueries({ queryKey: ['home-announcement'] });
     qc.invalidateQueries({ queryKey: ['my-expiry'] });
     qc.invalidateQueries({ queryKey: ['missing-active'] });
   }
@@ -1059,6 +1061,7 @@ function CustomerHomeScreen() {
       </Animated.View>
 
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
+        <AnnouncementCard />
         <FlashDealBanner storeId={nearestStore?.id} enabled={locationReady} />
         <CuatroCard userPts={userPts} rewards={catalogItems} firstName={user?.name?.trim().split(/\s+/)[0] || null}
           hotFood={!!nearestStore && hotFoodOpen && hotFoodMenu.length > 0} onShowQr={() => setShowQR(true)} />

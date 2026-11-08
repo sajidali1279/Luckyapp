@@ -1770,6 +1770,10 @@
     "reasonDuplicate": "Duplicate request",
     "reasonOther": "Other"
   },
+  "announcement": {
+    "label": "Announcement",
+    "closeA11y": "Close this announcement"
+  },
   "sharedNotifications": {
     "justNow": "Just now",
     "minutesAgo": "{{count}}m ago",

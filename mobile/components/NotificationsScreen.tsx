@@ -24,7 +24,7 @@ import NotificationsOffBanner from './NotificationsOffBanner';
 import {
   BellIcon, GasPumpIcon, TagIcon, DollarSignIcon, GiftIcon,
   CalendarIcon, ClockIcon, ClipboardIcon, PackageIcon, AlertTriangleIcon,
-  BriefcaseIcon,
+  BriefcaseIcon, MegaphoneIcon,
 } from './Icons';
 import LargeTitleHeader, { useLargeTitleScroll } from './LargeTitleHeader';
 import { usePoll } from '../hooks/usePoll';
@@ -43,6 +43,8 @@ const TYPE_CONFIG: Record<string, { color: string }> = {
   DISPUTE_SUBMITTED: { color: '#f59e0b' },
   HOT_FOOD_ORDER:    { color: '#ea580c' },
   JOB_OPENING:       { color: '#0369a1' },
+  ANNOUNCEMENT:      { color: '#1D4ED8' },   // HQ to customers (2026-11-08)
+  BROADCAST:         { color: '#1D4ED8' },   // HQ to staff
   GENERAL:           { color: COLORS.primary },
 };
 
@@ -62,6 +64,8 @@ function NotifIcon({ type, color }: { type: string; color: string }) {
     case 'DISPUTE_SUBMITTED': return <ClipboardIcon {...p} />;
     case 'HOT_FOOD_ORDER':    return <ClipboardIcon {...p} />;
     case 'JOB_OPENING':       return <BriefcaseIcon {...p} />;
+    case 'ANNOUNCEMENT':
+    case 'BROADCAST':         return <MegaphoneIcon {...p} />;
     default:                  return <BellIcon {...p} />;
   }
 }
@@ -114,6 +118,7 @@ export default function NotificationsScreen() {
         .then(() => {
           qc.invalidateQueries({ queryKey: ['my-notifications'] });
           qc.invalidateQueries({ queryKey: ['unread-count'] });
+          qc.invalidateQueries({ queryKey: ['home-announcement'] });   // read here: off the Home card too
         })
         .catch(() => {});
     }
@@ -182,6 +187,8 @@ export default function NotificationsScreen() {
     const isExpiredOffer = item.type === 'OFFER' && !!item.expiresAt && new Date(item.expiresAt) < new Date();
     const hasAction = !!item.actionUrl;
     const actionLabel = isExpiredOffer ? t('sharedNotifications.expiredLabel') : hasAction ? t('sharedNotifications.viewAction') : null;
+    // HQ's messages have no screen to open, so their whole text shows here, with a tag (2026-11-08)
+    const fromHq = item.type === 'ANNOUNCEMENT' || item.type === 'BROADCAST';
 
     return (
       <TouchableOpacity
@@ -204,9 +211,9 @@ export default function NotificationsScreen() {
               : !item.isRead && !isExpiredOffer && <View style={[s.dot, { backgroundColor: cfg.color }]} />
             }
           </View>
-          <Text style={[s.cardText, isExpiredOffer && { opacity: 0.5 }]} numberOfLines={2}>{item.body}</Text>
+          <Text style={[s.cardText, isExpiredOffer && { opacity: 0.5 }]} numberOfLines={fromHq ? undefined : 2}>{item.body}</Text>
           <View style={s.cardBottom}>
-            <Text style={s.cardTime}>{timeAgo(item.createdAt, t)}</Text>
+            <Text style={s.cardTime}>{fromHq ? `${t('announcement.label')} · ` : ''}{timeAgo(item.createdAt, t)}</Text>
             {actionLabel && (
               <Text style={[s.cardAction, { color: isExpiredOffer ? COLORS.border : cfg.color }]}>
                 {actionLabel}
