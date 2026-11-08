@@ -12,12 +12,12 @@ import { useLimits } from './SettingsCards';
 
 type Target = 'ALL_CUSTOMERS' | 'STORE_CUSTOMERS' | 'ALL_STAFF' | 'STORE_STAFF';
 interface StoreLite { id: string; name: string; city?: string; isActive?: boolean }
-interface Audience { people: number; phones: number; withoutPhone: number; words: string; storeName: string | null }
+interface Audience { people: number; phones: number; withoutPhone: number; spanish?: number; words: string; storeName: string | null }
 interface SendResult {
   target: Target; storeName: string | null; people: number; phones: number; withoutPhone: number;
   accepted: number; failed: number; removed: number; retried: number; reasons: string[]; partial: boolean;
 }
-interface SentRow { id: string; createdAt: string; actorName: string | null; storeName: string | null; target: Target | null; title: string; body: string; people: number; phones: number; accepted: number; failed: number; removed: number }
+interface SentRow { id: string; createdAt: string; actorName: string | null; storeName: string | null; target: Target | null; title: string; body: string; titleEs?: string | null; homeDays?: number; people: number; phones: number; accepted: number; failed: number; removed: number }
 
 const TITLE_MAX = 65;
 const BODY_MAX = 200;
@@ -28,6 +28,8 @@ const TARGET_LABELS: Record<Target, string> = {
   STORE_STAFF: 'Staff at one store',
 };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const HOME_DAY_CHOICES = [3, 7, 14, 30];
+const isCustomers = (t: Target) => t === 'ALL_CUSTOMERS' || t === 'STORE_CUSTOMERS';
 
 /** "13 customers: 9 have the app signed in on a phone (12 phones in all); the other 4 will only see it in the app's inbox." */
 function audienceSentence(a: Audience): string {
@@ -59,12 +61,28 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
   const [storeId, setStoreId] = useState('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  // 2026-11-08: a Spanish version (people who use the app in Spanish get it) and, for customers, a card on their Home for some days
+  const [withEs, setWithEs] = useState(false);
+  const [titleEs, setTitleEs] = useState('');
+  const [bodyEs, setBodyEs] = useState('');
+  const [onHome, setOnHome] = useState(false);
+  const [homeDays, setHomeDays] = useState(7);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ data: SendResult; words: string; title: string } | null>(null);
 
   const needsStore = target === 'STORE_CUSTOMERS' || target === 'STORE_STAFF';
-  const ready = !!title.trim() && !!body.trim() && (!needsStore || !!storeId);
+  const esTitle = withEs ? titleEs.trim() : '';
+  const esBody = withEs ? bodyEs.trim() : '';
+  const esHalf = !esTitle !== !esBody;   // one of the two Spanish boxes filled: the server refuses that
+  const home = isCustomers(target) && onHome;
+  const ready = !!title.trim() && !!body.trim() && (!needsStore || !!storeId) && !esHalf;
+  const payload = (test?: boolean) => ({
+    target, storeId: needsStore ? storeId : undefined, title: title.trim(), body: body.trim(),
+    ...(esTitle && esBody ? { titleEs: esTitle, bodyEs: esBody } : {}),
+    ...(home ? { homeDays } : {}),
+    ...(test ? { test: true } : {}),
+  });
   const openStores = stores.filter((s) => s.isActive !== false);
 
   const audienceQuery = useQuery({
@@ -80,11 +98,11 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
   const sent: SentRow[] = sentQuery.data?.data?.data ?? [];
 
   const sendMutation = useMutation({
-    mutationFn: () => superAdminApi.broadcast({ target, storeId: needsStore ? storeId : undefined, title: title.trim(), body: body.trim() }),
+    mutationFn: () => superAdminApi.broadcast(payload()),
     onSuccess: (res) => {
       setResult({ data: res.data.data as SendResult, words: audience?.words ?? 'people', title: title.trim() });
       setConfirmOpen(false);
-      setTitle(''); setBody(''); setError('');
+      setTitle(''); setBody(''); setTitleEs(''); setBodyEs(''); setWithEs(false); setOnHome(false); setError('');
       qc.invalidateQueries({ queryKey: ['push-sent'] });
       qc.invalidateQueries({ queryKey: ['push-audience'] });
     },
@@ -97,12 +115,12 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
   const runSend = useSingleFlight(sendMutation);
 
   const testMutation = useMutation({
-    mutationFn: () => superAdminApi.broadcast({ target, storeId: needsStore ? storeId : undefined, title: title.trim(), body: body.trim(), test: true }),
+    mutationFn: () => superAdminApi.broadcast(payload(true)),
     onSuccess: (res) => {
       const d = res.data.data;
       setError('');
       if (d.failed > 0 && d.accepted === 0) setError(`The test could not be delivered to your ${plural(d.phones, 'phone', 'phones')}: ${(d.reasons ?? []).join('; ') || 'the push service refused it'}.`);
-      else toast.success(`Test sent to ${plural(d.accepted, 'of your phones', 'of your phones').replace('1 of your phones', 'your phone')}. Look for "[Test] ${title.trim()}".`, { duration: 7000 });
+      else toast.success(`Test sent to ${plural(d.accepted, 'of your phones', 'of your phones').replace('1 of your phones', 'your phone')}. Look for "[Test] ${title.trim()}"${esTitle && esBody ? ` and "[Prueba] ${esTitle}"` : ''}.`, { duration: 7000 });
     },
     onError: (e: any) => setError(failureMessage(e, 'The test could not be sent.')),
   });
@@ -157,6 +175,11 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
           : audienceQuery.isLoading ? 'Counting who this would reach…'
           : audienceQuery.isError ? <span style={{ color: '#a51b28' }}>{failureMessage(audienceQuery.error, 'Could not count who this would reach.')}</span>
           : audience ? audienceSentence(audience) : ''}
+        {audience && (audience.spanish ?? 0) > 0 && (
+          <div style={{ marginTop: 4 }} data-testid="push-spanish-count">
+            {plural(audience.spanish!, 'of them uses', 'of them use')} the app in Spanish{esTitle && esBody ? ' and will get the Spanish version.' : '. Add a Spanish version below, or they get the English one.'}
+          </div>
+        )}
       </div>
 
       <div style={s.field}>
@@ -169,13 +192,57 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
         <textarea id="push-body" style={s.textarea} placeholder="e.g. Get double points on all gas purchases this Saturday and Sunday only. Visit any Lucky Stop location to redeem!" value={body} maxLength={BODY_MAX} rows={4} onChange={(e) => { setBody(e.target.value); setError(''); }} />
       </div>
 
+      <div style={s.field}>
+        <label style={s.check}>
+          <input type="checkbox" checked={withEs} onChange={(e) => { setWithEs(e.target.checked); setError(''); }} />
+          Add a Spanish version (people who use the app in Spanish get it instead)
+        </label>
+      </div>
+      {withEs && (
+        <div style={s.esBox}>
+          <div style={s.field}>
+            <label style={s.label} htmlFor="push-title-es">Spanish title <span style={s.charCount}>{titleEs.length}/{TITLE_MAX}</span></label>
+            <input id="push-title-es" lang="es" style={s.input} placeholder="p. ej. Especial de fin de semana en Lucky Stop" value={titleEs} maxLength={TITLE_MAX} onChange={(e) => { setTitleEs(e.target.value); setError(''); }} />
+          </div>
+          <div style={{ ...s.field, marginBottom: 0 }}>
+            <label style={s.label} htmlFor="push-body-es">Spanish message <span style={s.charCount}>{bodyEs.length}/{BODY_MAX}</span></label>
+            <textarea id="push-body-es" lang="es" style={s.textarea} value={bodyEs} maxLength={BODY_MAX} rows={4} onChange={(e) => { setBodyEs(e.target.value); setError(''); }} />
+          </div>
+          {esHalf && <div style={s.inlineProblem} data-testid="push-es-half">Fill in both the Spanish title and message, or untick the Spanish version.</div>}
+        </div>
+      )}
+
+      {isCustomers(target) && (
+        <div style={s.field}>
+          <label style={s.check}>
+            <input type="checkbox" checked={onHome} onChange={(e) => { setOnHome(e.target.checked); setError(''); }} />
+            Also show it as a card on customers' Home screen
+          </label>
+          {onHome && (
+            <div style={s.homeRow}>
+              <label htmlFor="push-home-days" style={{ fontSize: 14, color: PRIMARY, fontWeight: 600 }}>For</label>
+              <select id="push-home-days" style={{ ...s.select, width: 'auto' }} value={homeDays} onChange={(e) => setHomeDays(Number(e.target.value))}>
+                {HOME_DAY_CHOICES.map((d) => <option key={d} value={d}>{plural(d, 'day', 'days')}</option>)}
+              </select>
+              <span style={s.homeNote}>or until they read or close it. For important news only (holiday hours, a rule change). Shows in app 1.8.4 and newer; older apps show it in the inbox only.</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {title.trim() && body.trim() && (
         <div style={s.preview}>
-          <div style={s.previewLabel}>Preview</div>
+          <div style={s.previewLabel}>Preview{isCustomers(target) ? ': customers see it as an Announcement' : ''}{home ? `, on Home for ${plural(homeDays, 'day', 'days')}` : ''}</div>
           <div style={s.previewCard}>
             <div style={s.previewTitle}>{title}</div>
             <div style={s.previewBody}>{body}</div>
           </div>
+          {esTitle && esBody && (
+            <div style={{ ...s.previewCard, marginTop: 10 }} lang="es">
+              <div style={s.previewTitle}>{esTitle}</div>
+              <div style={s.previewBody}>{esBody}</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -191,7 +258,7 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
       </div>
 
       <div style={s.hint}>
-        Everyone in the audience gets the message in the app's inbox. Only people with the app signed in on a phone also get the push. Restricted customers and deactivated staff are never included. The same message to the same audience cannot be sent twice within five minutes.
+        Everyone in the audience gets the message in the app's inbox (customers see it as an Announcement). Only people with the app signed in on a phone also get the push. Restricted customers and deactivated staff are never included. The same message to the same audience cannot be sent twice within five minutes.
       </div>
 
       {confirmOpen && audience && (
@@ -200,6 +267,13 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
             <div style={s.previewTitle}>{title.trim()}</div>
             <div style={s.previewBody}>{body.trim()}</div>
           </div>
+          {esTitle && esBody && (
+            <div style={s.previewCard} lang="es">
+              <div style={s.previewTitle}>{esTitle}</div>
+              <div style={s.previewBody}>{esBody}</div>
+            </div>
+          )}
+          {home && <div style={{ fontSize: 14, color: PRIMARY }}>It also shows on customers' Home screen for {plural(homeDays, 'day', 'days')}, or until they read or close it.</div>}
           <div style={s.warnLine}>Once sent, a message cannot be taken back.</div>
           <div style={s.modalActions}>
             <button type="button" style={s.cancelBtn} onClick={() => setConfirmOpen(false)} disabled={sendMutation.isPending}>Cancel</button>
@@ -224,7 +298,7 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
               <div style={s.sentTitle}>{row.title || 'A message'}</div>
               <div style={s.sentBody}>{row.body}</div>
               <div style={s.sentMeta}>
-                {storeDayTime(row.createdAt)} · {row.actorName || 'Someone'} · {row.target ? TARGET_LABELS[row.target].split(' (')[0] : ''}{row.storeName ? ` (${row.storeName})` : ''} · {plural(row.people, 'person', 'people')}, {plural(row.accepted, 'phone', 'phones')} reached{row.failed > 0 ? `, ${row.failed} failed` : ''}
+                {storeDayTime(row.createdAt)} · {row.actorName || 'Someone'} · {row.target ? TARGET_LABELS[row.target].split(' (')[0] : ''}{row.storeName ? ` (${row.storeName})` : ''} · {plural(row.people, 'person', 'people')}, {plural(row.accepted, 'phone', 'phones')} reached{row.failed > 0 ? `, ${row.failed} failed` : ''}{row.titleEs ? ' · Spanish too' : ''}{row.homeDays ? ` · On Home for ${plural(row.homeDays, 'day', 'days')}` : ''}
               </div>
             </li>
           ))}
@@ -265,6 +339,11 @@ const s: Record<string, CSSProperties> = {
   modalActions: { display: 'flex', gap: 10, flexWrap: 'wrap' },
   cancelBtn: { flex: 1, minWidth: 100, padding: '11px 0', background: '#fff', border: '1.5px solid #e4e7ec', color: '#374151', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
   confirmBtn: { flex: 2, minWidth: 160, padding: '11px 12px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer' },
+  check: { display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 14, fontWeight: 600, color: PRIMARY, cursor: 'pointer', lineHeight: 1.4 },
+  esBox: { marginBottom: 18, padding: '14px 16px', background: '#f7f8fa', border: '1px solid #e4e7ec', borderRadius: 12 },
+  inlineProblem: { marginTop: 10, fontSize: 14, color: '#a51b28' },
+  homeRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 10, paddingLeft: 24 },
+  homeNote: { flexBasis: '100%', fontSize: 13, color: TEXT_MUTED, lineHeight: 1.5 },
   linkBtn: { display: 'block', marginTop: 8, background: 'none', border: 'none', padding: 0, color: '#1D3557', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', fontSize: 14 },
   sentHeading: { fontSize: 16, fontWeight: 700, color: PRIMARY, margin: '32px 0 12px' },
   sentEmpty: { fontSize: 14, color: TEXT_MUTED },

@@ -385,7 +385,7 @@ export const staffApi = {
 export const superAdminApi = {
   getInvoices: () => api.get('/my-invoices'),
   getNotifications: () => api.get('/notifications'),
-  broadcast: (data: { target: string; storeId?: string; title: string; body: string; test?: boolean }) =>
+  broadcast: (data: { target: string; storeId?: string; title: string; body: string; titleEs?: string; bodyEs?: string; homeDays?: number; test?: boolean }) =>
     api.post('/notifications/broadcast', data),
   // Who a message would reach, in people and phones, before anything is sent
   audience: (target: string, storeId?: string) =>
