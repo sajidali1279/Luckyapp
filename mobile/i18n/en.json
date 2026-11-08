@@ -1179,6 +1179,7 @@
     "legendOff": "Day off"
   },
   "employeeStockRequest": {
+    "fromPdi": "From PDI",
     "submitFailed": "Failed to submit",
     "lowStockChip": "📉 Low Stock",
     "customerAskChip": "🙋 Customer Ask",
@@ -1989,6 +1990,7 @@
     "promotionLabel": "Promotion"
   },
   "managerOrderList": {
+    "fromPdi": "From PDI",
     "failedToSubmitCategory": "Failed to submit category",
     "categoryTitle": "Category",
     "close": "Close",

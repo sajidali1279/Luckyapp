@@ -470,7 +470,7 @@ export const labelsApi = {
 };
 
 export const employeeRequestApi = {
-  getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}`),
+  getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}&pdi=1`),   // pdi=1: PDI items too (2026-11-08)
   getPendingCount: () => api.get('/employee-requests/pending-count'),
   getPendingByStore: () => api.get('/employee-requests/pending-by-store'),   // { [storeId]: count }
   submit: (data: { note?: string; requestType?: 'LOW_STOCK' | 'CUSTOMER_REQUEST'; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
@@ -511,7 +511,7 @@ export const managerApi = {
     return api.get(`/inventory/analytics${q ? `?${q}` : ''}`);
   },
   getItemSuggestions: (params: { q: string; category?: string }) => {
-    const qs = new URLSearchParams({ q: params.q });
+    const qs = new URLSearchParams({ q: params.q, pdi: '1' });   // pdi=1: PDI items too, tagged (2026-11-08)
     if (params.category) qs.set('category', params.category);
     return api.get(`/order-lists/suggestions?${qs.toString()}`);
   },

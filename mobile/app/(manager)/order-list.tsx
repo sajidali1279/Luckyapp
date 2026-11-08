@@ -434,7 +434,7 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
     staleTime: 5 * 60 * 1000,
     placeholderData: (prev: any) => prev,
   });
-  const itemSuggestions: { name: string; count: number }[] = itemSuggData?.data?.data || [];
+  const itemSuggestions: { name: string; count: number; source?: 'pdi' }[] = itemSuggData?.data?.data || [];
 
   // Category filtered suggestions
   const catSuggestions = catSearch.trim()
@@ -507,7 +507,9 @@ function QuickAddBar({ listId, storeId, categories }: QuickAddBarProps) {
                 accessibilityLabel={t('managerOrderList.useSuggestedItemA11y', { name: item.name })}
               >
                 <Text style={qa.suggText}>{item.name}</Text>
-                <Text style={qa.suggCount}>{item.count}×</Text>
+                {item.source === 'pdi'
+                  ? <Text style={qa.suggPdi}>{t('managerOrderList.fromPdi')}</Text>
+                  : <Text style={qa.suggCount}>{item.count}×</Text>}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -2358,6 +2360,8 @@ const qa = StyleSheet.create({
   suggRowActive:  { backgroundColor: '#EEF2FF' },
   suggText:       { fontSize: 14, color: COLORS.text, flex: 1 },
   suggTextActive: { fontSize: 14, color: COLORS.managerPrimary, fontWeight: '600' },
+  // an item from the store's PDI list, never ordered here yet (2026-11-08)
+  suggPdi: { fontSize: 11, fontWeight: '800', color: '#1d4ed8', backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
   suggCount:      { fontSize: 12, color: COLORS.textMuted, marginLeft: 8 },
 
   // Category search row

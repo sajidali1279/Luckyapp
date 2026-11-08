@@ -34,7 +34,7 @@ import { usePoll } from '../../hooks/usePoll';
 
 type RequestType = 'LOW_STOCK' | 'CUSTOMER_REQUEST';
 
-interface Suggestion { name: string; category: string | null; count: number }
+interface Suggestion { name: string; category: string | null; count: number; source?: 'pdi' }   // pdi: from the store's PDI list (2026-11-08)
 
 interface CartItem {
   key: string;
@@ -255,7 +255,8 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
                       hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                     >
                       <Text style={f.suggName}>{sg.name}</Text>
-                      {sg.category ? <Text style={f.suggCat}>{sg.category}</Text> : null}
+                      {sg.source === 'pdi' ? <Text style={f.suggPdi}>{t('employeeStockRequest.fromPdi')}</Text>
+                        : sg.category ? <Text style={f.suggCat}>{sg.category}</Text> : null}
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -688,6 +689,7 @@ const f = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F0F0F0',
   },
   suggName: { fontSize: 14, fontWeight: '600', color: COLORS.text, flex: 1 },
+  suggPdi: { fontSize: 11, fontWeight: '800', color: '#1d4ed8', backgroundColor: '#eff6ff', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, overflow: 'hidden' },
   suggCat:  { fontSize: 12, color: COLORS.textMuted, marginLeft: 8, fontStyle: 'italic' },
 
   cartSection: { marginBottom: 16 },

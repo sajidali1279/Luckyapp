@@ -5,6 +5,7 @@ import { STORE_TIMEZONE, storeDayStart } from '../utils/storeTime';
 import { AuthRequest } from '../types';
 import { Role, OrderListItemStatus, OrderItemPriority, OrderItemSource } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
+import { pdiNameSuggestions, type NameSuggestion } from '../utils/pdiNames';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -67,7 +68,10 @@ export async function getItemSuggestions(req: AuthRequest, res: Response) {
     if (!seen.has(key)) seen.set(key, { name: r.name, category: r.category, count: Number(r.count) });
   }
 
-  res.json({ success: true, data: [...seen.values()].slice(0, 8) });
+  const names: NameSuggestion[] = [...seen.values()].slice(0, 8);
+  // then items from the stores' PDI item lists, for an app that shows them as such (2026-11-08)
+  if (req.query.pdi === '1') names.push(...await pdiNameSuggestions(q, hasMinRole(req.user!.role, Role.SUPER_ADMIN) ? null : (req.user!.storeIds ?? []), new Set(names.map((n) => n.name.toLowerCase())), 8 - names.length));
+  res.json({ success: true, data: names });
 }
 
 // ─── GET /order-lists/store/:storeId/quick-add ───────────────────────────────

@@ -6,6 +6,8 @@ import { OrderItemPriority, OrderItemSource, RejectionReason, EmployeeRequestTyp
 import { generateListName } from './orderList.controller';
 import { sendPushToUser } from '../utils/push';
 import { stockRequestUrlManager, stockRequestUrlEmployee } from '../utils/notificationRoutes';
+import { pdiNameSuggestions, type NameSuggestion } from '../utils/pdiNames';
+import { hasMinRole } from '../middleware/auth';
 
 // ─── GET /employee-requests/suggestions ──────────────────────────────────────
 //
@@ -37,7 +39,10 @@ export async function getEmployeeSuggestions(req: AuthRequest, res: Response) {
     if (!seen.has(key)) seen.set(key, { name: r.name, category: r.category, count: Number(r.count) });
   }
 
-  res.json({ success: true, data: [...seen.values()].slice(0, 8) });
+  const names: NameSuggestion[] = [...seen.values()].slice(0, 8);
+  // then items from the stores' PDI item lists, for an app that shows them as such (2026-11-08)
+  if (req.query.pdi === '1') names.push(...await pdiNameSuggestions(q, hasMinRole(req.user!.role, Role.SUPER_ADMIN) ? null : (req.user!.storeIds ?? []), new Set(names.map((n) => n.name.toLowerCase())), 8 - names.length));
+  res.json({ success: true, data: names });
 }
 
 // ─── POST /employee-requests ──────────────────────────────────────────────────

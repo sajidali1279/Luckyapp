@@ -1179,6 +1179,7 @@
     "legendOff": "Día libre"
   },
   "employeeStockRequest": {
+    "fromPdi": "De PDI",
     "alreadyInList": "\"{{name}}\" ya está en la lista",
     "requestSubmitted": "¡Solicitud enviada!",
     "requestSubmittedSub": "Tu gerente la revisará pronto.",
@@ -1989,6 +1990,7 @@
     "promotionLabel": "Promoción"
   },
   "managerOrderList": {
+    "fromPdi": "De PDI",
     "failedToSubmitCategory": "Error al enviar la categoría",
     "categoryTitle": "Categoría",
     "close": "Cerrar",
