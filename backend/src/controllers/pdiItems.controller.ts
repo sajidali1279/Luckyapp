@@ -147,6 +147,40 @@ export async function barcodeInfo(req: AuthRequest, res: Response) {
   } });
 }
 
+// Never a reward: tobacco, beer, propane and PDI's test department (2026-11-08)
+const NOT_A_REWARD = new Set(['CIGS', 'BEER', 'PROPANE', 'TEST A DEPT']);
+
+/** GET /pdi-items/reward-search?q&storeId (2026-11-08): PDI items for a reward with no shelf label, by name (every word), at the reward's
+ *  store or (none given) the person's stores, each with the register price most of those stores charge. No tobacco, beer or propane. */
+export async function rewardSearch(req: AuthRequest, res: Response) {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+  const words = q.split(/\s+/).filter(Boolean).slice(0, 6);
+  if (q.length < 2 || !words.length) { res.json({ success: true, data: { items: [] } }); return; }
+  let ids = await storeIdsFor(req.user!);
+  const one = typeof req.query.storeId === 'string' && req.query.storeId ? req.query.storeId : null;
+  if (one) {
+    if (ids && !ids.includes(one)) { res.status(403).json({ success: false, error: 'That store is not one you manage.' }); return; }
+    ids = [one];
+  }
+  const rows = await prisma.pdiItem.findMany({
+    where: { ...(ids ? { storeId: { in: ids } } : {}), AND: words.map((w) => ({ name: { contains: w, mode: 'insensitive' as const } })), priceCents: { gt: 0, lt: 100_000 } },
+    select: { code: true, name: true, department: true, priceCents: true }, orderBy: { name: 'asc' }, take: 400,
+  });
+  const byCode = new Map<string, { name: string; prices: Map<number, number> }>();
+  for (const r of rows) {
+    if (r.department && NOT_A_REWARD.has(r.department.trim().toUpperCase())) continue;
+    const e = byCode.get(r.code) ?? { name: r.name.trim(), prices: new Map<number, number>() };
+    e.prices.set(r.priceCents!, (e.prices.get(r.priceCents!) ?? 0) + 1);
+    byCode.set(r.code, e);
+  }
+  const items = [...byCode.entries()].slice(0, 8).map(([code, e]) => {
+    const [cents, count] = [...e.prices.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+    const stores = [...e.prices.values()].reduce((n, x) => n + x, 0);
+    return { code, name: e.name, priceText: (cents / 100).toFixed(2), priceStores: count, stores };
+  });
+  res.json({ success: true, data: { items } });
+}
+
 const priceOf = (text: string | null | undefined) => {
   const m = /^\s*\$?\s*(\d{1,5}(?:\.\d{1,2})?)\s*$/.exec(text ?? '');
   return m ? Math.round(Number(m[1]) * 100) : null;

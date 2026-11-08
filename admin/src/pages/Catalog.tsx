@@ -1,7 +1,7 @@
 ﻿import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { catalogApi, storesApi, labelsApi } from '../services/api';
+import { catalogApi, storesApi, labelsApi, pdiInvoicesApi } from '../services/api';
 import { pointsForPrice, matchReward, GOOD_MATCH, RewardMatchItem } from '../lib/rewardPoints';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
@@ -99,6 +99,24 @@ function CatalogModal({
     }
     return title.trim() && !labelId ? matchReward(title, catalog, 3).filter(m => m.score >= 0.4).map(m => m.item) : [];
   }, [find, catalog, title, labelId]);
+  // No shelf label: PDI items by the same words, at their register price (2026-11-08). Picking one sets the points once; they do not
+  // follow later price changes, and a number typed over them is the reward's own.
+  const [pdiPick, setPdiPick] = useState<{ name: string; price: string; pts: number } | null>(null);
+  const pdiQ = find.trim();
+  const pdiFound = useQuery({
+    queryKey: ['pdi-reward-search', pdiQ, storeId], enabled: !labelId && pdiQ.length >= 2, staleTime: 60_000, retry: false,
+    queryFn: () => pdiInvoicesApi.rewardSearch(pdiQ, storeId || undefined).then((r) => (r.data?.data?.items ?? []) as { code: string; name: string; priceText: string; priceStores: number; stores: number }[]),
+  });
+  const pdiItems = !labelId && pdiQ.length >= 2 ? (pdiFound.data ?? []) : [];
+  const pdiNote = !labelId && pdiPick && pointsCost === String(pdiPick.pts) ? pdiPick : null;
+  function pickPdi(p: { name: string; priceText: string }) {
+    const pts = pointsForPrice(p.priceText);
+    if (pts == null) return;
+    setFind('');
+    if (!title.trim()) setTitle(p.name.slice(0, 60));
+    setPointsCost(String(pts));
+    setPdiPick({ name: p.name, price: p.priceText, pts });
+  }
   function link(c: RewardMatchItem) {
     setLabelId(c.id);
     setFollowPrice(true);
@@ -166,7 +184,7 @@ function CatalogModal({
         </Field>
 
         <Field label="Catalog item (sets the points from its price)" htmlFor="reward-label"
-          hint={linked ? undefined : 'Pick the item from Labels and the points follow its shelf price: price x 100, rounded up to the next 25. Leave it empty for something with no label (a fountain drink, coffee) and set the points by hand.'}>
+          hint={linked ? undefined : 'Pick the item from Labels and the points follow its shelf price: price x 100, rounded up to the next 25. No label? Items from PDI show too: picking one starts the points from its register price. Or set the points by hand (a fountain drink, coffee).'}>
           {linked ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 10px', borderRadius: 8, background: '#eef2f7', border: '1px solid #d5dde8' }} data-testid="reward-linked">
               <span style={{ fontWeight: 700, color: '#111827' }}>{linked.productName}</span>
@@ -185,6 +203,18 @@ function CatalogModal({
                       style={{ display: 'flex', gap: 8, padding: '7px 10px', border: 'none', borderTop: '1px solid #f0f2f5', background: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: 14 }}>
                       <span style={{ flex: 1, color: '#111827' }}>{c.productName}</span>
                       <span style={{ color: TEXT_MUTED }}>{c.priceText ? `$${c.priceText} = ${pointsForPrice(c.priceText)!.toLocaleString()} pts` : 'no price'}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {pdiItems.length > 0 && (
+                <div role="listbox" aria-label="PDI items" style={{ display: 'flex', flexDirection: 'column', border: '1px solid #e4e7ec', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ fontSize: 12, color: TEXT_MUTED, padding: '6px 10px', background: '#f7f8fa' }}>No shelf label? From PDI, at the register price</div>
+                  {pdiItems.map(p => (
+                    <button key={p.code} type="button" role="option" aria-selected={false} onClick={() => pickPdi(p)}
+                      style={{ display: 'flex', gap: 8, padding: '7px 10px', border: 'none', borderTop: '1px solid #f0f2f5', background: '#fff', cursor: 'pointer', textAlign: 'left', fontSize: 14 }}>
+                      <span style={{ flex: 1, color: '#111827' }}>{p.name}</span>
+                      <span style={{ color: TEXT_MUTED }}>${p.priceText} = {pointsForPrice(p.priceText)!.toLocaleString()} pts</span>
                     </button>
                   ))}
                 </div>
@@ -224,6 +254,7 @@ function CatalogModal({
           <Field label="Points cost" htmlFor="reward-points" required
             hint={priceDecides ? `Follows the price of ${linked!.productName}. Type your own number to set it yourself.`
               : linkedPts != null ? <>Your own points ({`$${(parseInt(pointsCost || '0') / 100).toFixed(2)}`} value). The price makes {linkedPts.toLocaleString()} pts. <button type="button" onClick={() => setFollowPrice(true)} style={{ background: 'none', border: 'none', padding: 0, color: PRIMARY, fontWeight: 600, cursor: 'pointer', fontSize: 'inherit' }}>Follow the price again</button></>
+              : pdiNote ? `Points from register price $${pdiNote.price} (PDI). They stay as they are if the price changes; type your own number to change them.`
               : `= $${(parseInt(pointsCost || '0') / 100).toFixed(2)} value`}>
             <input id="reward-points" className="ui-input" style={INPUT}
               value={shownPts} onChange={e => { setPointsCost(e.target.value); if (linkedPts != null) setFollowPrice(false); }}
