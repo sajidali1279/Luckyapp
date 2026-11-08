@@ -163,6 +163,8 @@ export default function LabelsScreen() {
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
   const [formPriceText, setFormPriceText] = useState('');
+  const formPriceRef = useRef('');   // the price box now, for answers that come back later
+  formPriceRef.current = formPriceText;
   // the register price PDI has for a new label's barcode at this store (2026-11-08): filled in, noted under the price box
   const [pdiPrice, setPdiPrice] = useState<string | null>(null);
   const pdiPriceRef = useRef<string | null>(null);
@@ -470,11 +472,10 @@ export default function LabelsScreen() {
       .then((r) => {
         const price: string | null = r.data?.data?.priceText ?? null;
         if (!price) return;
-        setFormPriceText((cur) => {
-          if (cur !== '' && cur !== autoFilled.current.price) return cur;
-          pdiPriceRef.current = price; setPdiPrice(price);
-          return price;
-        });
+        // decided on the box as it is now, outside a state updater (React may run an updater twice)
+        const cur = formPriceRef.current;
+        if (cur !== '' && cur !== autoFilled.current.price) return;
+        pdiPriceRef.current = price; setPdiPrice(price); setFormPriceText(price);
       })
       .catch(() => {});
   }
