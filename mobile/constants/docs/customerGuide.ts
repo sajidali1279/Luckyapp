@@ -181,7 +181,7 @@ Think of points as in-store credits:
 - Points are earned on every qualifying purchase.
 - Points can be redeemed for free products or applied as a discount on future purchases.
 
-**Points do not expire right now.** If that changes, you will be told at least 90 days before, and the app will show when your points expire (your oldest points are always used first).
+**Points expire 90 days after you earn them.** Your oldest points are always used first, the app shows when your next points expire, and we send a reminder 7 days before. Points you already had when expiration started count their 90 days from that day.
 
 ---
 
@@ -583,7 +583,7 @@ A: Immediately: your balance updates as soon as the cashier completes the transa
 A: Unfortunately, no. Points cannot be added to purchases after the fact. You must show your QR code to the cashier before or at the time of payment.
 
 **Q: Do my points expire?**
-A: No, as long as you make at least one qualifying purchase every 36 months. We'll remind you before any expiration.
+A: Yes, 90 days after you earn them. Your oldest points are used first, the app shows the date of your next expiring points, and we remind you 7 days before.
 
 **Q: Can I have multiple accounts?**
 A: No. Only one account per person is allowed.

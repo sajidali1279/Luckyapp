@@ -1,7 +1,7 @@
 export const TERMS_OF_SERVICE = `# Lucky Stop Loyalty App: Terms of Service
 
 **Effective Date:** June 1, 2026
-**Last Updated:** May 30, 2026
+**Last Updated:** November 8, 2026
 
 ---
 
@@ -49,7 +49,7 @@ We strive for continuous availability but do not guarantee uninterrupted service
 
 **Points have no cash value** and cannot be exchanged for cash under any circumstances.
 
-**Expiration:** Points do not expire while your account is active (at least one transaction in the preceding 24 months). We will give at least 90 days' notice before introducing any expiration policy.
+**Expiration:** Points expire 90 days after the day you earned them. When you use points, your oldest points are used first. We send a reminder in the App 7 days before any of your points expire. For points you already had on the day expiration started, the 90 days count from that day, not from the day you earned them. Points that come back to you (for example a cancelled reward or order) keep their original date.
 
 **Disputes:** Report any incorrect transaction within **60 days** to support@luckystop.cliffindus.com.
 
@@ -218,4 +218,4 @@ For account deletion: App → Profile → Account Settings → Delete My Account
 
 ---
 
-*Last updated: October 8, 2026*`;
+*Last updated: November 8, 2026*`;
