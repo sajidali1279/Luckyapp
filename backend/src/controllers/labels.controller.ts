@@ -503,7 +503,7 @@ const storeNameOf = async (storeId: string) => (await prisma.store.findUnique({ 
 // Saves a planned store price only if the row still holds the price and end the plan was made from, so a fast double click or two people
 // saving at once record ONE change. If the row moved, the request is planned again against the row as it is now: when that leaves nothing
 // to change, the other save already did it (a repeat); otherwise someone changed it differently and the person is told.
-async function savePlanned(
+export async function savePlanned(
   existing: { id: string; priceText: string | null; overrideExpiresAt: Date | null; printedAt: Date | null },
   label: { priceText: string | null },
   price: string | null,

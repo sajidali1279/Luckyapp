@@ -223,8 +223,14 @@ interface ItemListRow { storeId: string; name: string; items: number; importedAt
 interface ImportResult { store: { name: string }; items: number; skipped: number; duplicates: number; withCost: number; withPrice: number; departments: { name: string; items: number }[] }
 interface LabelPrices {
   hasList: boolean; compared: number; same: number; notInPdi: number;
-  different: { labelId: string; name: string; barcode: string; labelCents: number; registerCents: number; pdiName: string; storePrice: boolean }[];
+  different: {
+    labelId: string; name: string; barcode: string; labelCents: number; registerCents: number; pdiName: string; storePrice: boolean;
+    inStore: boolean; saleEnds: string | null;   // on the store's own label list; a sale price running until then
+  }[];
 }
+interface ApplyResult { updated: number; added: number; same: number; notOnList: number; onSale: number; noPrice: number; conflicts: number; gone: number }
+const labelCount = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'label' : 'labels'}`;
+const saleDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric' });
 
 /** Each store's items as PDI knows them (2026-11-06): HQ uploads PDI's item report per store; every invoice line is then checked against
  *  it, and the shelf labels whose price is not the register's are listed. */
@@ -243,6 +249,38 @@ function ItemLists() {
     queryKey: ['pdi-label-prices', checkStore], enabled: !!checkStore,
     queryFn: () => pdiInvoicesApi.labelPrices(checkStore).then((r) => r.data.data as LabelPrices),
   });
+  // Putting labels on the register price (2026-11-08): one row, or all of them after a confirm
+  const [applying, setApplying] = useState<string | null>(null);   // a label id, or 'all'
+  const [askAll, setAskAll] = useState(false);
+  const [addMissing, setAddMissing] = useState(false);
+  const diff = pricesQ.data?.different ?? [];
+  const onList = diff.filter((d) => d.inStore && !d.saleEnds);
+  const offList = diff.filter((d) => !d.inStore);
+  const onSale = diff.filter((d) => d.saleEnds);
+
+  async function applyPrices(labelIds: string[], withMissing: boolean, key: string) {
+    if (!labelIds.length || applying) return;
+    setApplying(key);
+    try {
+      const r = (await pdiInvoicesApi.applyLabelPrices(checkStore, labelIds, withMissing)).data.data as ApplyResult;
+      const done = r.updated + r.added;
+      const left = r.onSale + r.noPrice + r.conflicts + r.gone + (withMissing ? 0 : r.notOnList);
+      if (done) toast.success(`${done.toLocaleString()} label ${done === 1 ? 'price is' : 'prices are'} now the register price${r.added ? ` (${r.added} added to the store)` : ''}. They are on the store's print list.`);
+      else {
+        const why = [
+          r.same && 'already the register price', r.onSale && 'on a sale with an end date',
+          r.noPrice && 'PDI has no price for it that fits a label (up to $999.99)', r.notOnList && 'not on this store\'s list', r.gone && 'the label was deleted',
+        ].filter(Boolean).join('; ');
+        if (!r.conflicts) toast(`Nothing changed: ${why || 'nothing to change'}.`);
+      }
+      if (r.conflicts) toast.error(`${r.conflicts} changed a moment ago by someone else and were left alone. Look at them again.`);
+      else if (left && labelIds.length > 1) toast(`${left.toLocaleString()} left alone (on a sale, no register price, or not on the store's list).`);
+      setAskAll(false); setAddMissing(false);
+      qc.invalidateQueries({ queryKey: ['pdi-label-prices'] });
+      qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['store-labels'] });
+    } catch (e: any) { toast.error(e?.response?.data?.error ?? 'The prices could not be changed. Try again.'); } finally { setApplying(null); }
+  }
 
   async function upload(f: File | undefined) {
     const storeId = target.current;
@@ -315,11 +353,18 @@ function ItemLists() {
                   {pricesQ.data.compared.toLocaleString()} labels compared: <b>{pricesQ.data.same.toLocaleString()} match</b>,{' '}
                   <b style={{ color: pricesQ.data.different.length ? C.danger : undefined }}>{pricesQ.data.different.length.toLocaleString()} differ</b>.
                   {' '}{pricesQ.data.notInPdi.toLocaleString()} labels have a barcode PDI does not have at this store.
+                  {(onList.length > 0 || offList.length > 0) && (
+                    <div style={{ marginTop: 10 }}>
+                      <Button variant="primary" size="sm" disabled={!!applying} onClick={() => { setAddMissing(false); setAskAll(true); }}>
+                        {applying === 'all' ? 'Updating...' : 'Update all to register price'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {pricesQ.data.different.length > 0 && (
                   <div style={{ overflowX: 'auto' }}>
                     <table style={s.table}>
-                      <thead><tr>{['Label', 'Barcode', 'Label price', 'Register price', 'Name in PDI'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                      <thead><tr>{['Label', 'Barcode', 'Label price', 'Register price', 'Name in PDI', ''].map((h, i) => <th key={i} style={s.th}>{h}</th>)}</tr></thead>
                       <tbody>
                         {pricesQ.data.different.map((d) => (
                           <tr key={d.labelId}>
@@ -328,6 +373,15 @@ function ItemLists() {
                             <td style={{ ...s.td, textAlign: 'right' }}>{dollars(d.labelCents)}{d.storePrice ? <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}> (this store)</span> : ''}</td>
                             <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{dollars(d.registerCents)}</td>
                             <td style={{ ...s.td, color: TEXT_MUTED }}>{d.pdiName}</td>
+                            <td style={{ ...s.td, textAlign: 'right' }}>
+                              {d.saleEnds ? <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}>On sale until {saleDay(d.saleEnds)}</span> : (
+                                <Button size="sm" disabled={!!applying} aria-label={`${d.inStore ? 'Use' : 'Add at'} the register price for ${d.name}`}
+                                  title={d.inStore ? undefined : 'Not on this store\'s label list yet: adds it at the register price, as new to print'}
+                                  onClick={() => void applyPrices([d.labelId], !d.inStore, d.labelId)}>
+                                  {applying === d.labelId ? 'Saving...' : d.inStore ? 'Use register price' : 'Add at register price'}
+                                </Button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -338,6 +392,33 @@ function ItemLists() {
             )}
         </Card>
       )}
+
+      <ConfirmModal
+        open={askAll}
+        title="Update all to register price?"
+        confirmLabel={`Update ${labelCount(onList.length + (addMissing ? offList.length : 0))}`}
+        busy={applying === 'all'}
+        confirmDisabled={onList.length + (addMissing ? offList.length : 0) === 0}
+        maxWidth={520}
+        message={(
+          <>
+            <p style={{ margin: '0 0 10px' }}>
+              <b>{labelCount(onList.length)}</b> on {stores.find((st) => st.storeId === checkStore)?.name ?? 'this store'}'s list {onList.length === 1 ? 'changes' : 'change'} to the register
+              price, at this store only. They go on the store's print list so the shelf labels can be reprinted.
+            </p>
+            {offList.length > 0 && (
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '0 0 10px', cursor: 'pointer' }}>
+                <input type="checkbox" checked={addMissing} onChange={(e) => setAddMissing(e.target.checked)} style={{ marginTop: 3 }} />
+                <span>Also add the <b>{labelCount(offList.length)}</b> that {offList.length === 1 ? 'is' : 'are'} not on this store's list yet, at the register price. {offList.length === 1 ? 'It shows' : 'They show'} as new to print.</span>
+              </label>
+            )}
+            {onSale.length > 0 && <p style={{ margin: '0 0 10px', color: TEXT_MUTED }}>{onSale.length} on a sale with an end date {onSale.length === 1 ? 'is' : 'are'} left alone.</p>}
+            <p style={{ margin: 0, color: TEXT_MUTED }}>Every change is written to the Activity log with the old price.</p>
+          </>
+        )}
+        onConfirm={() => void applyPrices([...onList, ...(addMissing ? offList : [])].map((d) => d.labelId), addMissing, 'all')}
+        onCancel={() => { if (applying !== 'all') { setAskAll(false); setAddMissing(false); } }}
+      />
 
       {result && (
         <Modal title={`${result.store.name}: list updated`} onClose={() => setResult(null)} maxWidth={520}>

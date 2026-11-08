@@ -10,6 +10,9 @@ import { hasMinRole } from '../middleware/auth';
 import { audit } from '../utils/audit';
 import { barcodeKey, gs1CheckDigit } from '../utils/barcode';
 import { readItemReport, PdiItemListError, PdiItemRow } from '../utils/pdiItemList';
+import { canonicalPrice, samePrice } from '../utils/labelPrice';
+import { endedSaleView, describeStorePrice } from '../utils/labelSale';
+import { savePlanned } from './labels.controller';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
@@ -133,15 +136,20 @@ export async function labelPriceCheck(req: AuthRequest, res: Response) {
   if (!has) { res.json({ success: true, data: { hasList: false, compared: 0, same: 0, notInPdi: 0, different: [] } }); return; }
   const labels = await prisma.label.findMany({
     where: { barcode: { not: null } },
-    select: { id: true, productName: true, barcode: true, priceText: true, storeLabels: { where: { storeId: store.id }, select: { priceText: true } } },
+    select: { id: true, productName: true, barcode: true, priceText: true, storeLabels: { where: { storeId: store.id }, select: { priceText: true, overrideExpiresAt: true, printedAt: true } } },
   });
+  const now = new Date();
   const keys = [...new Set(labels.map((l) => barcodeKey(l.barcode!)))];
   const items = await prisma.pdiItem.findMany({ where: { storeId: store.id, upcKey: { in: keys } }, select: { upcKey: true, name: true, priceCents: true } });
   const byKey = new Map(items.map((i) => [i.upcKey, i]));
   let compared = 0, same = 0, notInPdi = 0;
-  const different: { labelId: string; name: string; barcode: string; labelCents: number; registerCents: number; pdiName: string; storePrice: boolean }[] = [];
+  const different: {
+    labelId: string; name: string; barcode: string; labelCents: number; registerCents: number; pdiName: string; storePrice: boolean;
+    inStore: boolean; saleEnds: string | null;   // on the store's own list; a sale price running until then (2026-11-08)
+  }[] = [];
   for (const l of labels) {
-    const own = l.storeLabels[0]?.priceText;
+    const row = endedSaleView(l.storeLabels[0] ?? null, now);   // an ended sale is back on the base price
+    const own = row?.priceText;
     const labelCents = priceOf(own ?? l.priceText);
     if (labelCents === null) continue;
     const item = byKey.get(barcodeKey(l.barcode!));
@@ -149,8 +157,76 @@ export async function labelPriceCheck(req: AuthRequest, res: Response) {
     if (!item.priceCents) continue;
     compared++;
     if (item.priceCents === labelCents) same++;
-    else different.push({ labelId: l.id, name: l.productName, barcode: l.barcode!, labelCents, registerCents: item.priceCents, pdiName: item.name, storePrice: !!own });
+    else different.push({
+      labelId: l.id, name: l.productName, barcode: l.barcode!, labelCents, registerCents: item.priceCents, pdiName: item.name, storePrice: !!own,
+      inStore: !!row, saleEnds: row?.overrideExpiresAt ? row.overrideExpiresAt.toISOString() : null,
+    });
   }
   different.sort((a, b) => a.name.localeCompare(b.name));
   res.json({ success: true, data: { hasList: true, compared, same, notInPdi, different } });
+}
+
+const APPLY_MAX = 3000;
+
+/** POST /pdi-items/label-prices/apply {storeId, labelIds, addMissing} (2026-11-08): puts each label's price at this store on the register's
+ *  price from the store's PDI list. Only that store changes: its own price is set (or cleared, when the chain price already is the register's),
+ *  and a label whose shelf price really changes goes back on the store's print list, as any store price change does. The price is read again
+ *  here, never taken from the page. Left alone: a label on a sale with an end date, one PDI has no usable price for, and one that is not on
+ *  the store's list unless addMissing (then it is added at the register price and shows as new to print). Every change is in the Activity log. */
+export async function applyRegisterPrices(req: AuthRequest, res: Response) {
+  const body = (req.body ?? {}) as { storeId?: unknown; labelIds?: unknown; addMissing?: unknown };
+  const store = await storeFor(req, res, body.storeId);
+  if (!store) return;
+  const ids = Array.isArray(body.labelIds) ? [...new Set(body.labelIds.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 64))] : [];
+  if (!ids.length) { res.status(400).json({ success: false, error: 'Pick the labels to update.' }); return; }
+  if (ids.length > APPLY_MAX) { res.status(400).json({ success: false, error: `At most ${APPLY_MAX} labels at once.` }); return; }
+  const addMissing = body.addMissing === true;
+
+  const labels = await prisma.label.findMany({
+    where: { id: { in: ids }, barcode: { not: null } },
+    select: { id: true, productName: true, barcode: true, priceText: true, storeLabels: { where: { storeId: store.id }, select: { id: true, priceText: true, overrideExpiresAt: true, printedAt: true } } },
+  });
+  const items = await prisma.pdiItem.findMany({ where: { storeId: store.id, upcKey: { in: [...new Set(labels.map((l) => barcodeKey(l.barcode!)))] } }, select: { upcKey: true, priceCents: true } });
+  const byKey = new Map(items.map((i) => [i.upcKey, i]));
+  const now = new Date();
+  const out = { updated: 0, added: 0, same: 0, notOnList: 0, onSale: 0, noPrice: 0, conflicts: 0, gone: ids.length - labels.length };
+  const actor = { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role };
+
+  for (const l of labels) {
+    const cents = byKey.get(barcodeKey(l.barcode!))?.priceCents;
+    const register = cents ? canonicalPrice((cents / 100).toFixed(2)) : null;
+    if (!register) { out.noPrice++; continue; }
+    const next = samePrice(l.priceText, register) ? null : register;   // the chain price already is the register's: no store price needed
+    const raw = l.storeLabels[0] ?? null;
+    const row = endedSaleView(raw, now);
+    if (!raw) {
+      if (!addMissing) { out.notOnList++; continue; }
+      try { await prisma.storeLabel.create({ data: { labelId: l.id, storeId: store.id, priceText: next, overrideExpiresAt: null } }); }
+      catch (e: any) { if (e?.code !== 'P2002') throw e; out.conflicts++; continue; }
+      out.added++;
+      audit({
+        ...actor, action: 'STORE_LABEL_PRICE', entity: 'label', entityId: l.id, storeId: store.id, storeName: store.name,
+        details: { summary: `Added "${l.productName}" to ${store.name} at the register price $${register} from PDI (the label said $${l.priceText ?? 'nothing'}).`,
+          productName: l.productName, priceBefore: null, priceAfter: register, endsAt: null, source: 'PDI_REGISTER_PRICE' },
+      });
+      continue;
+    }
+    if (row?.overrideExpiresAt) { out.onSale++; continue; }
+    const outcome = await savePlanned(raw, l, next, null, now);
+    if (outcome.kind === 'conflict') { out.conflicts++; continue; }
+    if (outcome.kind === 'same') { out.same++; continue; }
+    out.updated++;
+    audit({
+      ...actor, action: 'STORE_LABEL_PRICE', entity: 'label', entityId: l.id, storeId: store.id, storeName: store.name,
+      details: { summary: `${describeStorePrice(l.productName, store.name, outcome.plan)} Set to the register price from PDI.`, productName: l.productName,
+        priceBefore: outcome.plan.before.price, priceAfter: outcome.plan.after.price, endsAt: null, source: 'PDI_REGISTER_PRICE' },
+    });
+  }
+  if (out.updated + out.added > 0) {
+    audit({
+      ...actor, action: 'LABEL_PRICES_FROM_PDI', entity: 'Store', entityId: store.id, storeId: store.id, storeName: store.name,
+      details: { summary: `Put ${out.updated + out.added} label prices at ${store.name} on the register price from PDI (${out.updated} changed, ${out.added} added).`, ...out },
+    });
+  }
+  res.json({ success: true, data: out });
 }

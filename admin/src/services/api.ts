@@ -839,6 +839,9 @@ export const pdiInvoicesApi = {
   },
   searchItems: (storeId: string, q: string) => api.get('/pdi-items/search', { params: { storeId, q } }),
   labelPrices: (storeId: string) => api.get('/pdi-items/label-prices', { params: { storeId } }),
+  // labels at a store onto the register price from its PDI list (2026-11-08); addMissing also adds the ones not on the store's list
+  applyLabelPrices: (storeId: string, labelIds: string[], addMissing: boolean) =>
+    api.post('/pdi-items/label-prices/apply', { storeId, labelIds, addMissing }, { timeout: 180_000 }),
 };
 export interface PdiVendorInput {
   name: string; pdiCode: string; sellsBy: 'CASE' | 'EACH'; itemDigits: 'FIRST6' | 'LAST6' | 'NONE'; itemLength?: number | null; readerNotes?: string;
