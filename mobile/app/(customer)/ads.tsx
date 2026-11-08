@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   View,
   FlatList,
@@ -13,7 +13,7 @@ import { Text } from '../../components/ScaledText';
 import RefreshControl from '../../components/AppRefreshControl';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { promotionsApi } from '../../services/api';
@@ -25,6 +25,7 @@ import PromoteBusinessModal from '../../components/PromoteBusinessModal';
 import { MegaphoneIcon, BuildingIcon, GlobeIcon, MapPinIcon } from '../../components/Icons';
 import LargeTitleHeader, { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { sized } from '../../utils/imageUrl';
+import { promoSeen } from '../../utils/promoSeen';
 
 interface Ad {
   id: string;
@@ -81,7 +82,14 @@ export default function AdsScreen() {
   // Featured: the newest ads, up to HQ's number; All Businesses: every live ad. The tabs only show when some ads are not featured.
   const featuredAds = allAds.filter(a => a.featured !== false);
   const hasMore = featuredAds.length < allAds.length;
-  const ads = hasMore && tab === 'featured' ? featuredAds : allAds;
+  const listed = hasMore && tab === 'featured' ? featuredAds : allAds;
+  // opened from Cuatro's sign (2026-11-08): that promotion first, outlined
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const focused = focus ? allAds.find((a) => a.id === focus) : undefined;
+  const ads = focused ? [focused, ...listed.filter((a) => a.id !== focused.id)] : listed;
+  // counted for the business: a card seen (half of it on screen), and a tap on its directions or website
+  const onViewable = useRef(({ viewableItems }: { viewableItems: { item: Ad }[] }) => { viewableItems.forEach((v) => promoSeen(v.item?.id, 'VIEW', 'ads')); }).current;
+  const viewability = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -91,7 +99,7 @@ export default function AdsScreen() {
 
   function renderItem({ item }: { item: Ad }) {
     return (
-      <View style={s.card}>
+      <View style={[s.card, item.id === focused?.id && s.cardFocused]}>
         <View style={s.cardHeader}>
           <View style={s.bizIconWrap}>
             <BuildingIcon size={20} color={COLORS.primary} strokeWidth={1.75} />
@@ -122,7 +130,7 @@ export default function AdsScreen() {
           {item.location ? (
             <TouchableOpacity
               style={s.directionsBtn}
-              onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location!)}`).catch(() => {})}
+              onPress={() => { promoSeen(item.id, 'TAP', 'ads'); Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location!)}`).catch(() => {}); }}
               activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel={t('customerAds.getDirectionsA11y', { business: item.businessName })}
@@ -138,7 +146,7 @@ export default function AdsScreen() {
         {item.website ? (
           <TouchableOpacity
             style={s.websiteBtn}
-            onPress={() => Linking.openURL(item.website!).catch(() => {})}
+            onPress={() => { promoSeen(item.id, 'TAP', 'ads'); Linking.openURL(item.website!).catch(() => {}); }}
             activeOpacity={0.75}
             accessibilityRole="link"
             accessibilityLabel={t('customerAds.visitWebsiteA11y', { business: item.businessName })}
@@ -228,6 +236,8 @@ export default function AdsScreen() {
             data={ads}
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
+            onViewableItemsChanged={onViewable}
+            viewabilityConfig={viewability}
             contentContainerStyle={s.list}
             onScroll={largeTitle.onScroll}
             scrollEventThrottle={largeTitle.scrollEventThrottle}
@@ -271,6 +281,7 @@ export default function AdsScreen() {
 }
 
 const s = StyleSheet.create({
+  cardFocused: { borderWidth: 2, borderColor: COLORS.primary },
   root: { flex: 1, backgroundColor: COLORS.background },
   tabs: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 999, borderWidth: 1.5, borderColor: '#E2E8F0', backgroundColor: '#fff', alignItems: 'center' },

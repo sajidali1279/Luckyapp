@@ -344,6 +344,8 @@ export const careersApi = {
 
 export const promotionsApi = {
   getPublished: () => api.get('/promotions'),
+  // who saw or tapped a promotion (2026-11-08): utils/promoSeen batches these, once a day each
+  seen: (items: { id: string; kind: 'VIEW' | 'TAP'; source: 'ads' | 'home' | 'cuatro' }[]) => api.post('/promotions/seen', { items }),
   getMy: () => api.get('/promotions/my'),
   submit: async (data: {
     requesterName: string;

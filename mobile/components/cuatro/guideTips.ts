@@ -8,7 +8,8 @@ import { spanishOffer } from '../../utils/offerText';
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 export type Go = { pathname: string; params?: Record<string, string> };
-export interface Line { key: string; text: string; face: Face; cta?: { label: string; go: Go }; prio: number }
+// sign: a business promotion he holds up on a sign (2026-11-08)
+export interface Line { key: string; text: string; face: Face; cta?: { label: string; go: Go }; prio: number; sign?: { business: string; adId: string } }
 export type Topic = 'offers' | 'challenges' | 'deals' | 'rewards' | 'earn' | 'surprise';
 export const TOPICS: Topic[] = ['offers', 'challenges', 'deals', 'rewards', 'earn', 'surprise'];
 
@@ -17,6 +18,8 @@ export interface Ctx {
   pts: number;            // the balance in points
   gasAlerts: boolean;     // HQ's switches the tips depend on
   hotFood: boolean;
+  lastAd?: string | null;  // the promotion on his sign last time (another one comes first)
+  promoDone?: boolean;     // a promotion was already shown this time the app is open (one per opening)
 }
 
 const HOME_OFFERS: Go = { pathname: '/(customer)/home', params: { scrollTo: 'offers' } };
@@ -32,6 +35,19 @@ function cached<D>(qc: QueryClient, key: string): D | undefined {
 
 type Offer = { id: string; title: string; dealText?: string | null; requires21?: boolean; bonusRate?: number | null; tierBonusRates?: Record<string, number> | null; gasBonusCentsPerGallon?: number | null };
 type Challenge = { id: string; kind: 'SPEND' | 'VISITS'; title: string; titleEs: string | null; target: number; progress: number; reward: number; done: boolean };
+
+// Never put on his sign: alcohol, tobacco and vape businesses (Google Play and the App Store forbid those ads). Promotions have no
+// category, so this goes by the words in them; HQ approves every promotion before it is published.
+const NOT_ADVERTISED = /\b(beer|wine|wines|liquor|liquors|spirits|vodka|whiskey|whisky|tequila|brewery|brewing|winery|tobacco|cigar|cigars|cigarette|cigarettes|smoke shop|vape|vapes|vaping|vapor|hookah|cbd|kratom|delta[ -]?8)\b/i;
+type Promo = { id: string; businessName: string; adTitle: string; adBody?: string | null; featured?: boolean };
+function promotionFor(c: Ctx): Promo | null {
+  const list: Promo[] = cached<any>(c.qc, 'published-promotions')?.data?.data ?? [];
+  const ok = list.filter((a) => a?.id && a.businessName?.trim() && a.adTitle?.trim() && !NOT_ADVERTISED.test(`${a.businessName} ${a.adTitle} ${a.adBody ?? ''}`));
+  if (!ok.length) return null;
+  const featured = ok.filter((a) => a.featured !== false);
+  const pool = featured.length ? featured : ok;
+  return pool.find((a) => a.id !== c.lastAd) ?? pool[0];
+}
 
 function offers(c: Ctx): Offer[] {
   const res = cached<any>(c.qc, 'offers');
@@ -103,8 +119,13 @@ export function tips(c: Ctx): Line[] {
   if (c.hotFood && hf && hf.hours?.open !== false && ((hf.data ?? []).length > 0 || (hf.combos ?? []).length > 0)) {
     out.push({ key: 'hotfood', prio: 4, face: 'love', text: t('guide.tipHotFood'), cta: { label: t('guide.ctaOrder'), go: go('/(customer)/hot-food') } });
   }
-  const ad = cached<any>(c.qc, 'published-promotions')?.data?.data?.[0];
-  if (ad?.title) out.push({ key: `ad:${ad.id}`, prio: 3, face: 'wow', text: t('guide.tipPromo', { title: ad.title }), cta: { label: t('guide.ctaAds'), go: go('/(customer)/ads') } });
+  // a business promotion on his sign (2026-11-08): one per app opening, featured ones first, not the one he showed last time. (It read
+  // ad.title, which promotions do not have, so it never showed before.)
+  const ad = c.promoDone ? null : promotionFor(c);
+  if (ad) {
+    out.push({ key: `ad:${ad.id}`, prio: 6, face: 'wow', text: t('guide.tipPromoSign', { business: ad.businessName, title: ad.adTitle }),
+      cta: { label: t('guide.ctaSeeIt'), go: { pathname: '/(customer)/ads', params: { focus: ad.id } } }, sign: { business: ad.businessName, adId: ad.id } });
+  }
   // the everyday ones
   out.push({ key: 'qr', prio: 2, face: 'happy', text: t('guide.tipQr'), cta: { label: t('guide.ctaCode'), go: go('/(customer)/home') } });
   if (cached<any>(c.qc, 'my-referrals')?.data?.data?.settings?.enabled) {

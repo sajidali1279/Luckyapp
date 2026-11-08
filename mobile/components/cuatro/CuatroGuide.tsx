@@ -35,6 +35,8 @@ import { useGuideCovered } from './guideCover';
 import { tips, answer, TOPICS, type Ctx, type Line, type Topic } from './guideTips';
 import { hasGuideEvent, takeGuideEvent } from './guideEvents';
 import RunningTurkey, { TURKEY_H } from './RunningTurkey';
+import PromoSign, { SIGN_W } from './PromoSign';
+import { promoSeen } from '../../utils/promoSeen';
 
 const SIZE = 76;                          // his width on screen
 const H = SIZE * ASPECT;                  // and height
@@ -50,7 +52,7 @@ const N = { useNativeDriver: true } as const;
 
 type Mood = 'sad' | 'mad';
 type Mode = 'off' | 'peek' | 'bar' | 'held' | 'busy' | 'tab';
-interface Saved { introduced: boolean; away: boolean; mood: Mood | null; spot: number; tipDay: string; tipKeys: string[] }
+interface Saved { introduced: boolean; away: boolean; mood: Mood | null; spot: number; tipDay: string; tipKeys: string[]; lastAd?: string | null }
 const FRESH: Saved = { introduced: false, away: false, mood: null, spot: 1, tipDay: '', tipKeys: [] };
 
 // What the phone remembers, per customer, read once per app run
@@ -72,7 +74,7 @@ function remember(patch: Partial<Saved>) {
 // Where he was this app run, so leaving a screen and coming back puts him back there
 // The balance he last saw and the points that landed since (cheered once he is on the bar), so he notices points that arrived while
 // a pop-up or another screen hid him
-const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false, balance: null as number | null, balanceFor: null as string | null, cheer: 0 };
+const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false, balance: null as number | null, balanceFor: null as string | null, cheer: 0, promo: false };
 const SLEEP_AFTER = 60_000, SLEEP_AFTER_NIGHT = 25_000;   // untouched this long on the bar, he dozes off
 const TURKEY_KEY = 'cuatro_turkey_day';   // the day the Thanksgiving chase last played on this phone (once a day per phone)
 const isNight = () => { const hr = new Date().getHours(); return hr >= 21 || hr < 5; };
@@ -185,6 +187,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const tabX = useRef(new Animated.Value(-TAB_W - 10)).current;
   const turkeyX = useRef(new Animated.Value(0)).current;
   const [turkey, setTurkey] = useState<{ gobble: boolean } | null>(null);
+  const [signSide, setSignSide] = useState<'left' | 'right'>('left');
 
   const [face, setFaceState] = useState<Face>('happy');
   const [gloves, setGloves] = useState<[Glove, Glove]>(['fist', 'fist']);
@@ -265,6 +268,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     qc, t: t as Ctx['t'], es: !!i18n.language?.startsWith('es'),
     pts: Math.round(Number(useAuthStore.getState().user?.pointsBalance || 0) * 100),
     gasAlerts: !!flags?.gasAlerts, hotFood: app.features.hotFoodOrdering,
+    lastAd: saved?.lastAd ?? null, promoDone: run.promo,
   });
 
   // ------------------------------------------------------------ talking
@@ -618,7 +622,15 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const present = async (line: Line, tip: boolean) => {
     const my = fresh(); stopLoops();
     if (tip && !dims.current.reduce) { haptic.tap(); if (!(await hop(my))) return; }
-    setFace(line.face); setGloves(['point', 'fist']); play(arms(30, -62));
+    if (line.sign) {
+      // a business promotion: he holds its sign up on the side with room (counted as seen for the business), once per app opening
+      run.promo = true;
+      remember({ lastAd: line.sign.adId });
+      promoSeen(line.sign.adId, 'VIEW', 'cuatro');
+      const right = pos.current.x + SIZE / 2 < dims.current.w / 2;
+      setSignSide(right ? 'right' : 'left');
+      setFace(line.face); setGloves(right ? ['fist', 'open'] : ['open', 'fist']); play(right ? arms(-62, 18) : arms(18, -62));
+    } else { setFace(line.face); setGloves(['point', 'fist']); play(arms(30, -62)); }
     openBubble({ kind: 'line', line, tip });
     if (tip) later(10_000, () => { const b = bubbleRef.current; if (b?.kind === 'line' && b.tip && b.line.key === line.key) { closeBubble(); setFace('happy'); rest(); } });
   };
@@ -638,6 +650,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   };
   const follow = (line: Line) => {
     if (!line.cta) return;
+    if (line.sign) promoSeen(line.sign.adId, 'TAP', 'cuatro');
     haptic.tap();
     closeBubble(); setFace('joy'); rest();
     router.navigate(line.cta.go as any);
@@ -1031,6 +1044,12 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
         </Animated.View>
       </Animated.View>
 
+      {bubble?.kind === 'line' && bubble.line.sign ? (
+        <Animated.View pointerEvents="none" style={[s.sign, { transform: [{ translateX: Animated.add(x, signSide === 'right' ? SIZE * 0.78 : SIZE * 0.22 - SIGN_W) }, { translateY: y }] }]}>
+          <PromoSign business={bubble.line.sign.business} adLabel={t('guide.signAd')} />
+        </Animated.View>
+      ) : null}
+
       {turkey ? (
         <Animated.View pointerEvents="none" style={[s.turkey, { top: h - TURKEY_H + 4, transform: [{ translateX: turkeyX }] }]}>
           <RunningTurkey gobble={turkey.gobble} gobbleText={t('guide.turkeyGobble')} />
@@ -1287,6 +1306,7 @@ function Bonk({ side, y, w, text, onDone }: { side: 'left' | 'right'; y: number;
 const s = StyleSheet.create({
   mascot: { position: 'absolute', left: 0, top: 0, width: SIZE, height: H },
   turkey: { position: 'absolute', left: 0 },
+  sign: { position: 'absolute', left: 0, top: H * 0.02 },
   bubble: {
     position: 'absolute', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#BBF7D0',
     shadowColor: '#0F2038', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 8,

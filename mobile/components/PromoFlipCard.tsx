@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, View, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
+import { promoSeen } from '../utils/promoSeen';
 import { Text } from './ScaledText';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -27,6 +28,9 @@ const CARD_HEIGHT = 168;
 // business" entry point instead of an empty/flippable card.
 export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
   const { t } = useTranslation();
+  // counted for the business (2026-11-08): seen on Home, and a tap on its directions or website
+  const adId = (ad as { id?: string } | null)?.id;
+  useEffect(() => { promoSeen(adId, 'VIEW', 'home'); }, [adId]);
   const [flipped, setFlipped] = useState(false);
   const flipAnim = useRef(new Animated.Value(0)).current;
 
@@ -71,11 +75,13 @@ export default function PromoFlipCard({ ad }: { ad: Ad | null }) {
   // nested function declarations, hence the assertions.
   function openDirections() {
     if (!ad!.location) return;
+    promoSeen(adId, 'TAP', 'home');
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ad!.location)}`).catch(() => {});
   }
 
   function openWebsite() {
     if (!ad!.website) return;
+    promoSeen(adId, 'TAP', 'home');
     Linking.openURL(ad!.website).catch(() => {});
   }
 
