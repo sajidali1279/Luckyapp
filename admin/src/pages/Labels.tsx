@@ -1148,7 +1148,7 @@ export default function Labels() {
                         <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} aria-label={allFilteredSelected ? 'Deselect all labels' : 'Select all labels'} />
                       </TableHead>
                       {['Product', 'Category', 'Base price', 'Deal', 'Design', 'Updated'].map(h => (
-                        <TableHead key={h} style={s.th}>{h}</TableHead>
+                        <TableHead key={h} style={s.th} className={h === 'Updated' ? 'ui-wide-only' : undefined}>{h}</TableHead>
                       ))}
                       {/* The row buttons' column: no visible title, but a screen reader names it */}
                       <TableHead style={s.th}><span className="sr-only">Actions</span></TableHead>
@@ -1233,7 +1233,7 @@ export default function Labels() {
                               )}
                             </span>
                           </TableCell>
-                          <TableCell style={{ ...s.td, color: TEXT_MUTED, fontSize: 13, whiteSpace: 'nowrap' }}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
+                          <TableCell className="ui-wide-only" style={{ ...s.td, color: TEXT_MUTED, fontSize: 13, whiteSpace: 'nowrap' }}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
                           <TableCell style={s.td}>
                             <div style={{ display: 'flex', gap: 4 }}>
                               <button type="button" style={s.iconBtn} onClick={() => duplicateLabel(withEdits(label))} title="Duplicate" aria-label={`Duplicate ${label.productName}`}>

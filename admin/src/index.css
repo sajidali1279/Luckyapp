@@ -479,6 +479,19 @@ tr:hover > .ui-sticky-end { background-image: linear-gradient(rgb(241 243 246 / 
 [data-slot="table-container"] tbody tr:hover > td:last-child:has(button, input, select, [role="button"]) {
   background-image: linear-gradient(rgb(241 243 246 / 0.5), rgb(241 243 246 / 0.5));
 }
+/* A column that is nice to have on a wide screen and left out on a laptop or narrower (2026-11-08: Labels' Updated date, so the table
+   fits a 1280 px laptop with nothing under the pinned buttons). */
+@media (max-width: 1299px) { .ui-wide-only { display: none; } }
+
+/* While columns are hidden under the pinned one (data-more, set by the shared Table's useMoreMark), a soft shade runs down its left
+   side: the table scrolls sideways, nothing overlaps (2026-11-08, the owner read Labels and Rewards catalog as overlapping). A strip,
+   not a box-shadow: a cell of a border-collapse table draws no outer shadow. */
+[data-slot="table-container"][data-more="1"] tbody tr > td:last-child:has(button, input, select, [role="button"])::before,
+[data-slot="table-container"][data-more="1"]:has(tbody tr > td:last-child :is(button, input, select, [role="button"])) thead tr > th:last-child::before,
+[data-more="1"] .ui-sticky-end::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -14px; width: 14px; pointer-events: none;
+  background: linear-gradient(to left, rgb(15 23 42 / 0.13), rgb(15 23 42 / 0));
+}
 /* ...and on a laptop or desktop it is only as wide as its buttons (2026-10-31, the owner's screenshot of Customers at 1890 px): a wide
    table gave its spare width to every column, the pinned one too, so the actions column stretched across a third of the table, its
    line stood in the middle of the rows and the buttons sat far off at the edge. width: 1% makes the browser give the spare width to the

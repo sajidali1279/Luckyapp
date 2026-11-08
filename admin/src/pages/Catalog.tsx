@@ -317,7 +317,7 @@ function ChainSection({
           <Table style={cs.table}>
             <TableHeader>
               <TableRow>
-                {['', 'Title', 'Where', 'Category', 'Description', 'Points cost', 'Value', 'Redeemed', 'Status', 'Actions'].map(h => (
+                {['Title', 'Where', 'Category', 'Description', 'Points cost', 'Redeemed', 'Status', 'Actions'].map(h => (
                   <TableHead key={h} style={cs.th}>{h}</TableHead>
                 ))}
               </TableRow>
@@ -325,10 +325,16 @@ function ChainSection({
             <TableBody>
               {items.map((item, i) => (
                 <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
-                  <TableCell style={{ ...cs.td, fontSize: 22, width: 40, textAlign: 'center' }}>{item.emoji}</TableCell>
-                  <TableCell style={cs.td}>
-                    <span style={cs.itemTitle}>{item.title}</span>
-                    {item.label && <span style={{ display: 'block', fontSize: 12, color: TEXT_MUTED }}>Linked: {item.label.productName}{item.label.priceText ? ` · $${item.label.priceText}` : ''}</span>}
+                  {/* the emoji beside the title and the dollar value under the points (2026-11-08): two columns fewer, so the table fits a
+                      laptop instead of sliding Points and Status under the pinned Actions */}
+                  <TableCell style={{ ...cs.td, whiteSpace: 'normal' }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: 22, lineHeight: 1 }} aria-hidden="true">{item.emoji}</span>
+                      <div>
+                        <span style={cs.itemTitle}>{item.title}</span>
+                        {item.label && <span style={{ display: 'block', fontSize: 12, color: TEXT_MUTED }}>Linked: {item.label.productName}{item.label.priceText ? ` · $${item.label.priceText}` : ''}</span>}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell style={cs.td}>
                     {item.store ? <Badge tone="info">Only {item.store.name}</Badge> : <Badge>Every store</Badge>}
@@ -338,17 +344,15 @@ function ChainSection({
                       {CATEGORY_OPTIONS.find((c) => c.value === item.category)?.label || item.category}
                     </span>
                   </TableCell>
-                  <TableCell style={cs.td}><span style={cs.itemDesc}>{item.description}</span></TableCell>
+                  <TableCell style={{ ...cs.td, whiteSpace: 'normal' }}><span style={cs.itemDesc}>{item.description}</span></TableCell>
                   <TableCell style={cs.td}>
                     <span style={cs.ptsBadge}>{item.pointsCost.toLocaleString()} pts</span>
+                    <span style={{ display: 'block', fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>${(item.pointsCost / 100).toFixed(2)} value</span>
                     {item.label && (
                       <span style={{ display: 'block', fontSize: 11, color: TEXT_MUTED, marginTop: 2 }}>
                         {item.followPrice === false ? `own points (price makes ${pointsForPrice(item.label.priceText)?.toLocaleString() ?? 'none'})` : 'follows the price'}
                       </span>
                     )}
-                  </TableCell>
-                  <TableCell style={cs.td}>
-                    <span style={cs.valueBadge}>${(item.pointsCost / 100).toFixed(2)}</span>
                   </TableCell>
                   <TableCell style={cs.td}>
                     <span style={{ fontWeight: 600, color: '#111827' }}>{(item.redeemedTotal ?? 0).toLocaleString()}</span>
@@ -608,13 +612,14 @@ const cs: Record<string, React.CSSProperties> = {
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
-    padding: '10px 14px', textAlign: 'left',
+    padding: '10px 12px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
     color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '13px 14px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle' },
-  itemTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, display: 'block', minWidth: 160 },
-  itemDesc: { fontSize: 15, color: TEXT_MUTED, display: 'block', minWidth: 180 },
+  td: { padding: '12px 12px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle' },
+  // titles and descriptions wrap (2026-11-08): on one line they pushed Points, Value and Status under the pinned Actions at 1440 px
+  itemTitle: { fontWeight: 700, fontSize: 14, color: PRIMARY, display: 'block', minWidth: 130, maxWidth: 260 },
+  itemDesc: { fontSize: 14, color: TEXT_MUTED, display: 'block', minWidth: 120, maxWidth: 240 },
   catBadge: {
     background: '#eef2f7', color: PRIMARY,
     borderRadius: 8, padding: '3px 10px', fontSize: 14, fontWeight: 600,

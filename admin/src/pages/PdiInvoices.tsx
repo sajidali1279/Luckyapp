@@ -12,6 +12,7 @@ import ErrorState from '../components/ErrorState';
 import DataTablePagination from '../components/DataTablePagination';
 import { shrinkPhoto } from '../lib/photoPrep';
 import { storeDayTime } from '../lib/storeDates';
+import { TableBox } from '../components/ui/table';
 import { C, FONT, INPUT, RADIUS, TEXT_MUTED } from '../lib/theme';
 
 // Invoices to PDI (2026-10-27): the invoices read so far, a new one from its photos, and the vendors (2026-10-28: the vendor is read off the
@@ -362,17 +363,18 @@ function ItemLists() {
                   )}
                 </div>
                 {pricesQ.data.different.length > 0 && (
-                  <div style={{ overflowX: 'auto' }}>
+                  // a table container like the shared one: the buttons column stays pinned and shades what slides under it (2026-11-08)
+                  <TableBox>
                     <table style={s.table}>
                       <thead><tr>{['Label', 'Barcode', 'Label price', 'Register price', 'Name in PDI', ''].map((h, i) => <th key={i} style={s.th}>{h}</th>)}</tr></thead>
                       <tbody>
                         {pricesQ.data.different.map((d) => (
                           <tr key={d.labelId}>
-                            <td style={{ ...s.td, fontWeight: 600 }}>{d.name}</td>
+                            <td style={{ ...s.td, fontWeight: 600, whiteSpace: 'normal', minWidth: 170 }}>{d.name}</td>
                             <td style={{ ...s.td, color: TEXT_MUTED }}>{d.barcode}</td>
                             <td style={{ ...s.td, textAlign: 'right' }}>{dollars(d.labelCents)}{d.storePrice ? <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}> (this store)</span> : ''}</td>
                             <td style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{dollars(d.registerCents)}</td>
-                            <td style={{ ...s.td, color: TEXT_MUTED }}>{d.pdiName}</td>
+                            <td style={{ ...s.td, color: TEXT_MUTED, whiteSpace: 'normal', minWidth: 140 }}>{d.pdiName}</td>
                             <td style={{ ...s.td, textAlign: 'right' }}>
                               {d.saleEnds ? <span style={{ color: TEXT_MUTED, fontSize: FONT.small }}>On sale until {saleDay(d.saleEnds)}</span> : (
                                 <Button size="sm" disabled={!!applying} aria-label={`${d.inStore ? 'Use' : 'Add at'} the register price for ${d.name}`}
@@ -386,7 +388,7 @@ function ItemLists() {
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </TableBox>
                 )}
               </>
             )}

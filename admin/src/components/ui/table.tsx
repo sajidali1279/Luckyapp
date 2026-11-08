@@ -2,9 +2,37 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/** Marks a table's scrolling box with data-more="1" while part of the table is out of sight to the right (2026-11-08): the pinned last
+ *  column then casts a shadow, so the columns sliding under it read as "scroll sideways" instead of as an overlap. */
+export function useMoreMark(box: React.RefObject<HTMLDivElement | null>) {
+  React.useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const mark = () => {
+      const more = el.scrollWidth - el.clientWidth - el.scrollLeft > 1 ? "1" : "0"
+      if (el.dataset.more !== more) el.dataset.more = more
+    }
+    mark()
+    el.addEventListener("scroll", mark, { passive: true })
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(mark)
+    ro?.observe(el)
+    if (el.firstElementChild) ro?.observe(el.firstElementChild)
+    return () => { el.removeEventListener("scroll", mark); ro?.disconnect() }
+  }, [box])
+}
+
+/** A scrolling box for a hand-made table that behaves like the shared one: its button column is pinned and shades what slides under it. */
+export function TableBox({ style, children }: { style?: React.CSSProperties; children: React.ReactNode }) {
+  const box = React.useRef<HTMLDivElement>(null)
+  useMoreMark(box)
+  return <div ref={box} data-slot="table-container" style={{ overflowX: "auto", ...style }}>{children}</div>
+}
+
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const box = React.useRef<HTMLDivElement>(null)
+  useMoreMark(box)
   return (
-    <div data-slot="table-container" className="relative w-full overflow-x-auto">
+    <div ref={box} data-slot="table-container" className="relative w-full overflow-x-auto">
       <table
         data-slot="table"
         className={cn("w-full caption-bottom text-sm", className)}
