@@ -123,6 +123,30 @@ export async function registerPrice(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { priceText: item?.priceCents ? (item.priceCents / 100).toFixed(2) : null } });
 }
 
+/** GET /pdi-items/barcode?barcode (2026-11-08): what the PDI item lists say about a barcode, for a new label in admin Labels (a chain-wide
+ *  item): its name and the register price most of the person's stores charge (HQ: every store with a list), with how many charge it. */
+export async function barcodeInfo(req: AuthRequest, res: Response) {
+  const barcode = typeof req.query.barcode === 'string' ? req.query.barcode.trim() : '';
+  const none = { found: false, name: null, priceText: null, priceStores: 0, stores: 0, storeName: null };
+  if (!/^\d{6,14}$/.test(barcode)) { res.json({ success: true, data: none }); return; }
+  const ids = await storeIdsFor(req.user!);
+  const rows = await prisma.pdiItem.findMany({
+    where: { upcKey: barcodeKey(barcode), ...(ids ? { storeId: { in: ids } } : {}) },
+    select: { storeId: true, name: true, priceCents: true }, take: 100,
+  });
+  if (!rows.length) { res.json({ success: true, data: none }); return; }
+  const counts = new Map<number, string[]>();
+  for (const r of rows) if (r.priceCents && r.priceCents < 100_000) counts.set(r.priceCents, [...(counts.get(r.priceCents) ?? []), r.storeId]);
+  // the price most stores charge; a tie goes to the lower price
+  const best = [...counts.entries()].sort((a, b) => b[1].length - a[1].length || a[0] - b[0])[0];
+  const at = best ? rows.find((r) => r.priceCents === best[0])! : rows[0];
+  const storeName = best && best[1].length === 1 ? (await prisma.store.findUnique({ where: { id: best[1][0] }, select: { name: true } }))?.name ?? null : null;
+  res.json({ success: true, data: {
+    found: true, name: at.name.trim(), priceText: best ? (best[0] / 100).toFixed(2) : null,
+    priceStores: best?.[1].length ?? 0, stores: rows.length, storeName,
+  } });
+}
+
 const priceOf = (text: string | null | undefined) => {
   const m = /^\s*\$?\s*(\d{1,5}(?:\.\d{1,2})?)\s*$/.exec(text ?? '');
   return m ? Math.round(Number(m[1]) * 100) : null;

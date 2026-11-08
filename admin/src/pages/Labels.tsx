@@ -3,7 +3,7 @@ import type { AxiosResponse } from 'axios';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { labelsApi, orderCategoriesApi } from '../services/api';
+import { labelsApi, orderCategoriesApi, pdiInvoicesApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
@@ -188,9 +188,40 @@ export default function Labels() {
   // What the form filled in by itself: it keeps following the suggestion until a value of your own is typed
   const autoFilled = useRef<{ price: string | null; category: string | null; name: string | null }>({ price: null, category: null, name: null });
   const similarKey = similarSugg ? `${similarSugg.price}|${similarSugg.category}|${similarSugg.brand}` : '';
+  // A new item's name and register price from the PDI item lists (2026-11-08): filled in while the boxes are empty or still hold what the
+  // form put there, and the price noted under its box. The register price wins over a guess from similar items.
+  const [pdiFill, setPdiFill] = useState<{ barcode: string; name: string; price: string | null; where: string } | null>(null);
+  const pdiRef = useRef<string | null>(null);   // the PDI price now in the box
+  const latestForm = useRef({ price: formPriceText, name: formProductName });
+  latestForm.current = { price: formPriceText, name: formProductName };
+  // not for a barcode that already is an item: saving would change that item's chain price
+  const pdiBarcode = showModal && !editingLabel && !labels.some((l) => sameBarcode(l.barcode, formBarcode.trim())) ? formBarcode.replace(/\D/g, '') : '';
+  useEffect(() => {
+    if (pdiBarcode.length < 8) { setPdiFill(null); return; }
+    let gone = false;
+    const t = window.setTimeout(() => {
+      pdiInvoicesApi.barcodeInfo(pdiBarcode).then((r) => {
+        const d = r.data?.data as { found: boolean; name: string | null; priceText: string | null; priceStores: number; stores: number; storeName: string | null };
+        if (gone) return;
+        if (!d?.found) { setPdiFill(null); return; }
+        const where = d.storeName ?? (d.priceStores === d.stores ? `${d.stores} stores` : `${d.priceStores} of ${d.stores} stores`);
+        setPdiFill({ barcode: pdiBarcode, name: d.name ?? '', price: d.priceText, where });
+        // decided here on the boxes as they are now (not inside a state updater, which React may run twice)
+        const cur = latestForm.current;
+        if (d.priceText && (cur.price === '' || cur.price === autoFilled.current.price)) {
+          autoFilled.current.price = d.priceText; pdiRef.current = d.priceText; setFormPriceText(d.priceText);
+        }
+        if (d.name && (cur.name.trim() === '' || cur.name === autoFilled.current.name)) {
+          autoFilled.current.name = d.name; setFormProductName(d.name);
+        }
+      }).catch(() => {});
+    }, 400);
+    return () => { gone = true; window.clearTimeout(t); };
+  }, [pdiBarcode]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const pdiPriceShown = !!pdiFill?.price && pdiFill.barcode === pdiBarcode && formPriceText === pdiFill.price;
   useEffect(() => {
     if (!similarSugg) return;
-    if (formPriceText === '' || formPriceText === autoFilled.current.price) {
+    if (!(pdiRef.current && formPriceText === pdiRef.current) && (formPriceText === '' || formPriceText === autoFilled.current.price)) {
       const next = similarSugg.price ?? '';
       if (next !== formPriceText) setFormPriceText(next);
       autoFilled.current.price = next || null;
@@ -199,7 +230,7 @@ export default function Labels() {
       setFormCategory(similarSugg.category); autoFilled.current.category = similarSugg.category;
     }
     const brandName = similarSugg.brand ? `${similarSugg.brand} ` : null;
-    if (brandName && (formProductName === '' || formProductName === autoFilled.current.name) && formProductName !== brandName) {
+    if (brandName && !pdiFill && (formProductName === '' || formProductName === autoFilled.current.name) && formProductName !== brandName) {
       setFormProductName(brandName); autoFilled.current.name = brandName;
     }
   }, [similarKey]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -629,6 +660,7 @@ export default function Labels() {
 
   function resetForm() {
     autoFilled.current = { price: null, category: null, name: null };
+    pdiRef.current = null; setPdiFill(null);
     setFormProductName('');
     setFormPriceText('');
     setFormDealText('');
@@ -853,6 +885,7 @@ export default function Labels() {
               />
             </div>
             {priceIssue && <div id="lbl-price-err" role="alert" style={m.err}>{priceIssue}</div>}
+            {!editingLabel && pdiPriceShown && <div style={m.hint} data-testid="pdi-price-note">Register price from PDI ({pdiFill!.where}). Check it before saving.</div>}
             {editingLabel && (
               <div style={m.hint}>Changing the price flags every store still using the base price to reprint. A store with its own price is unaffected. You will see what it does before it is saved.</div>
             )}
@@ -895,7 +928,7 @@ export default function Labels() {
             />
             {similarSugg && similarSugg.similar.length > 0 && !existingForNew && (
               <div style={m.similarBox} role="status" data-testid="similar-box">
-                {similarSugg.price && formPriceText === similarSugg.price && (
+                {similarSugg.price && formPriceText === similarSugg.price && !pdiPriceShown && (
                   <div style={m.similarFilled}>Price from {similarSugg.basis.length} similar items ({similarSugg.basis.slice(0, 2).join(', ')}). Check it before saving.</div>
                 )}
                 {similarSugg.prices.length > 0 && (

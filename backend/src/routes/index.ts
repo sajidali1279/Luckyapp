@@ -88,7 +88,7 @@ import {
   listPdiVendors, createPdiVendor, updatePdiVendor, deletePdiVendor,
 } from '../controllers/pdiInvoice.controller';
 import { MAX_PHOTOS as PDI_MAX_PHOTOS } from '../utils/pdiRead';
-import { listPdiItemLists, importPdiItems, searchPdiItems, labelPriceCheck, registerPrice, applyRegisterPrices } from '../controllers/pdiItems.controller';
+import { listPdiItemLists, importPdiItems, searchPdiItems, labelPriceCheck, registerPrice, applyRegisterPrices, barcodeInfo } from '../controllers/pdiItems.controller';
 import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
 import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards, testUserPush } from '../controllers/customerProfile.controller';
@@ -351,7 +351,8 @@ router.post('/pdi-items/import', authenticate, requireRole(Role.SUPER_ADMIN), up
 router.get('/pdi-items/search', authenticate, requireRole(Role.STORE_MANAGER), searchPdiItems);
 router.get('/pdi-items/label-prices', authenticate, requireRole(Role.STORE_MANAGER), labelPriceCheck);
 router.post('/pdi-items/label-prices/apply', authenticate, requireRole(Role.STORE_MANAGER), applyRegisterPrices);   // labels at a store onto the register price
-router.get('/pdi-items/price', authenticate, requireRole(Role.EMPLOYEE), registerPrice);   // a barcode's register price at the store, for a new label
+router.get('/pdi-items/price', authenticate, requireRole(Role.EMPLOYEE), registerPrice);
+router.get('/pdi-items/barcode', authenticate, requireRole(Role.STORE_MANAGER), barcodeInfo);   // name + usual register price, for a new label in admin   // a barcode's register price at the store, for a new label
 // Win-back gifts (2026-10-16): a few points with a push for customers who have not been back, and how many came back
 router.get('/winback/preview', authenticate, requireRole(Role.SUPER_ADMIN), previewWinBack);
 router.get('/winback', authenticate, requireRole(Role.SUPER_ADMIN), listWinBacks);
