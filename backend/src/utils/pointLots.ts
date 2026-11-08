@@ -14,6 +14,11 @@
 //
 // Amounts are dollars of credit, like users.pointsBalance (100 points = $1). The balance is the sum of what is left in the batches. A
 // balance below zero (a voided sale the customer had already spent) has no batches left, and the next credit pays it back first.
+//
+// Batches keep the balance's 4 decimals (2026-11-08). They were rounded to the cent, while sales credit things like $0.0375, so the
+// batches drifted from the balance by up to half a cent per move, and the expiry job (which skips anyone whose batches do not match)
+// would have skipped those customers for good: 8 of 36 were already off on 2026-11-08, by up to 5 points. trueUpLots squares a gap that
+// cent rounding can explain, before expiry runs.
 import { Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
 import { pointsExpiry, type ExpiryConfig } from './appSettings';
@@ -24,10 +29,11 @@ import { storeDateKey } from './storeTime';
 
 type Db = Prisma.TransactionClient | typeof prisma;
 const DAY = 86_400_000;
-const c2 = (v: number) => Math.round(v * 100) / 100;
+const c4 = (v: number) => Math.round(v * 10_000) / 10_000;   // the balance's own precision
+const SAME = 0.00005;                                         // two amounts this close are the same (float noise)
 const pts = (dollars: number) => Math.round(dollars * 100);
 
-export type LotSource = 'SALE' | 'RECEIPT_QR' | 'CHALLENGE' | 'REFERRAL' | 'WINBACK' | 'GOODWILL' | 'DISPUTE' | 'RESTORED' | 'OPENING' | 'TEST' | 'ENGAGEMENT';
+export type LotSource = 'SALE' | 'RECEIPT_QR' | 'CHALLENGE' | 'REFERRAL' | 'WINBACK' | 'GOODWILL' | 'DISPUTE' | 'RESTORED' | 'OPENING' | 'TEST' | 'ENGAGEMENT' | 'TRUE_UP';
 export type UseRef = 'CREDIT_REDEMPTION' | 'CATALOG' | 'HOT_FOOD' | 'VOID';
 
 /** When a batch earned at `earnedAt` expires, or null while expiry is off. */
@@ -41,27 +47,27 @@ export function lotExpiresAt(earnedAt: Date, cfg: ExpiryConfig = pointsExpiry())
  * (read when not given). When the balance had been below zero, only the part above zero becomes a batch (the rest paid the debt back).
  */
 export async function addLot(db: Db, userId: string, amount: number, source: LotSource, sourceId?: string | null, balanceAfter?: number): Promise<void> {
-  const a = c2(amount);
+  const a = c4(amount);
   if (!(a > 0)) return;
   let after = balanceAfter;
   if (after === undefined) after = (await db.user.findUnique({ where: { id: userId }, select: { pointsBalance: true } }))?.pointsBalance ?? 0;
-  const keep = c2(Math.min(a, Math.max(0, after)));
+  const keep = c4(Math.min(a, Math.max(0, after)));
   if (keep <= 0) return;
   await db.pointLot.create({ data: { userId, amount: a, remaining: keep, source, sourceId: sourceId ?? null } });
 }
 
 /** Points going out (the balance went down by `amount`, same transaction): taken from the oldest batches first, and recorded. */
 export async function useLots(db: Db, userId: string, amount: number, refType: UseRef, refId?: string | null): Promise<void> {
-  let left = c2(amount);
+  let left = c4(amount);
   if (left <= 0) return;
   const lots = await db.pointLot.findMany({ where: { userId, remaining: { gt: 0 } }, orderBy: [{ earnedAt: 'asc' }, { createdAt: 'asc' }] });
   for (const lot of lots) {
     if (left <= 0) break;
-    const take = c2(Math.min(lot.remaining, left));
+    const take = c4(Math.min(lot.remaining, left));
     if (take <= 0) continue;
-    await db.pointLot.update({ where: { id: lot.id }, data: { remaining: c2(lot.remaining - take) } });
+    await db.pointLot.update({ where: { id: lot.id }, data: { remaining: c4(lot.remaining - take) } });
     await db.pointLotUse.create({ data: { lotId: lot.id, userId, amount: take, refType, refId: refId ?? null } });
-    left = c2(left - take);
+    left = c4(left - take);
   }
 }
 
@@ -71,12 +77,12 @@ export async function useLots(db: Db, userId: string, amount: number, refType: U
  * never lost to the clock. Anything spent before batches were kept comes back as a fresh batch too.
  */
 export async function restoreLots(db: Db, userId: string, refType: UseRef, refId: string, amount: number, now: Date = new Date()): Promise<void> {
-  let left = c2(amount);
+  let left = c4(amount);
   if (left <= 0) return;
   const uses = await db.pointLotUse.findMany({ where: { userId, refType, refId, restoredAt: null }, include: { lot: true }, orderBy: { createdAt: 'asc' } });
   for (const u of uses) {
     if (left <= 0) break;
-    const back = c2(Math.min(u.amount, left));
+    const back = c4(Math.min(u.amount, left));
     const due = lotExpiresAt(u.lot.earnedAt);
     if (u.lot.expiredAt || (due && due.getTime() <= now.getTime())) {
       await db.pointLot.create({ data: { userId, amount: back, remaining: back, source: 'RESTORED', sourceId: refId } });
@@ -84,7 +90,7 @@ export async function restoreLots(db: Db, userId: string, refType: UseRef, refId
       await db.pointLot.update({ where: { id: u.lotId }, data: { remaining: { increment: back } } });
     }
     await db.pointLotUse.update({ where: { id: u.id }, data: { restoredAt: now } });
-    left = c2(left - back);
+    left = c4(left - back);
   }
   if (left > 0) await db.pointLot.create({ data: { userId, amount: left, remaining: left, source: 'RESTORED', sourceId: refId } });
 }
@@ -95,7 +101,7 @@ export async function restoreLots(db: Db, userId: string, refType: UseRef, refId
  */
 export async function expiredPartOfSale(db: Db, userId: string, saleId: string): Promise<number> {
   const lots = await db.pointLot.findMany({ where: { userId, sourceId: saleId, expiryUndoneAt: null, expiredAmount: { gt: 0 } }, select: { expiredAmount: true } });
-  return c2(lots.reduce((n, l) => n + l.expiredAmount, 0));
+  return c4(lots.reduce((n, l) => n + l.expiredAmount, 0));
 }
 
 /**
@@ -109,9 +115,9 @@ export async function voidSaleLots(db: Db, userId: string, saleId: string, total
   for (const l of lots) {
     const left = l.remaining;   // read before the row changes
     await db.pointLot.update({ where: { id: l.id }, data: { remaining: 0, removedAmount: { increment: left } } });
-    removed = c2(removed + left);
+    removed = c4(removed + left);
   }
-  const spent = c2(total - removed);
+  const spent = c4(total - removed);
   if (spent > 0) await useLots(db, userId, spent, 'VOID', saleId);
 }
 
@@ -120,15 +126,52 @@ export async function closeLots(db: Db, userId: string): Promise<void> {
   await db.pointLot.updateMany({ where: { userId, remaining: { gt: 0 } }, data: { remaining: 0 } });
 }
 
-/** What is left in a customer's batches, and whether it matches their balance (to the cent). */
-export async function lotsMatch(db: Db, userId: string): Promise<{ ok: boolean; balance: number; inLots: number }> {
-  const [u, sum] = await Promise.all([
+/**
+ * The most that cent rounding can explain between someone's batches and their balance: half a cent for every move their batches had
+ * (credits and spends) before batches kept 4 decimals. A bigger gap is something else (a credit with no batch) and is never squared.
+ */
+export const roundingRoom = (moves: number) => 0.005 * moves + 0.0001;
+
+/**
+ * What is left in a customer's batches, and whether it matches their balance: `exact` to 4 decimals, `ok` when it does or when the gap is
+ * one cent rounding can explain (trueUpLots squares that before expiry). A balance at or below zero should have nothing left in batches.
+ */
+export async function lotsMatch(db: Db, userId: string): Promise<{ ok: boolean; exact: boolean; balance: number; inLots: number; gap: number }> {
+  const [u, sum, lots, uses] = await Promise.all([
     db.user.findUnique({ where: { id: userId }, select: { pointsBalance: true } }),
     db.pointLot.aggregate({ where: { userId, remaining: { gt: 0 } }, _sum: { remaining: true } }),
+    db.pointLot.count({ where: { userId } }),
+    db.pointLotUse.count({ where: { userId } }),
   ]);
-  const balance = c2(u?.pointsBalance ?? 0);
-  const inLots = c2(sum._sum.remaining ?? 0);
-  return { ok: balance <= 0 ? inLots === 0 : pts(balance) === pts(inLots), balance, inLots };
+  const balance = c4(u?.pointsBalance ?? 0);
+  const inLots = c4(sum._sum.remaining ?? 0);
+  const gap = c4(Math.max(0, balance) - inLots);
+  const exact = Math.abs(gap) < SAME;
+  return { ok: exact || Math.abs(gap) <= roundingRoom(lots + uses), exact, balance, inLots, gap };
+}
+
+/**
+ * Squares a customer's batches with their balance when the gap is one cent rounding explains (call inside the customer's lock, before
+ * anything is taken). Missing points become a small batch dated now (so they expire last, never early); extra points come off the newest
+ * batches first. Returns the gap it squared (0 when there was none), or null when the gap is too big to be rounding (left alone).
+ */
+export async function trueUpLots(db: Db, userId: string, now: Date = new Date()): Promise<number | null> {
+  const m = await lotsMatch(db, userId);
+  if (m.exact) return 0;
+  if (!m.ok) return null;
+  if (m.gap > 0) {
+    await db.pointLot.create({ data: { userId, amount: m.gap, remaining: m.gap, source: 'TRUE_UP', earnedAt: now } });
+  } else {
+    let left = c4(-m.gap);
+    const newest = await db.pointLot.findMany({ where: { userId, remaining: { gt: 0 } }, orderBy: [{ earnedAt: 'desc' }, { createdAt: 'desc' }] });
+    for (const l of newest) {
+      if (left <= 0) break;
+      const take = c4(Math.min(l.remaining, left));
+      await db.pointLot.update({ where: { id: l.id }, data: { remaining: c4(l.remaining - take) } });
+      left = c4(left - take);
+    }
+  }
+  return m.gap;
 }
 
 // ── The daily jobs ──
@@ -148,30 +191,31 @@ export async function expireDueLots(now: Date = new Date()): Promise<{ customers
     try {
       const r = await prisma.$transaction(async (tx) => {
         await lockCustomer(tx, userId);
+        const squared = await trueUpLots(tx, userId, now);   // cent rounding from before 2026-11-08, squared first
         const check = await lotsMatch(tx, userId);
-        if (!check.ok) return { skipped: true as const, check };
+        if (squared === null || !check.exact) return { skipped: true as const, check };
         const due = await tx.pointLot.findMany({ where: { userId, remaining: { gt: 0 }, earnedAt: { lte: cutoff } } });
         let total = 0;
         for (const l of due) {
           const left = l.remaining;   // read before the row changes
           await tx.pointLot.update({ where: { id: l.id }, data: { remaining: 0, expiredAmount: { increment: left }, expiredAt: now } });
-          total = c2(total + left);
+          total = c4(total + left);
         }
-        const take = c2(Math.min(total, Math.max(0, check.balance)));
+        const take = c4(Math.min(total, Math.max(0, check.balance)));
         if (take > 0) await tx.user.update({ where: { id: userId }, data: { pointsBalance: { decrement: take } } });
-        return { skipped: false as const, total: take, lots: due.map((l) => l.id), balanceBefore: check.balance };
+        return { skipped: false as const, total: take, lots: due.map((l) => l.id), balanceBefore: check.balance, squared };
       }, { timeout: 30_000 });
       if (r.skipped) {
         out.skipped.push(userId);
         audit({ actorId: 'system', actorName: 'Points expiry (automatic)', actorRole: 'DEV_ADMIN', action: 'POINTS_EXPIRY_SKIPPED', entity: 'user', entityId: userId,
-          details: { reason: 'The batches do not add up to the balance, so nothing was taken. Check this customer.', balance: r.check.balance, inBatches: r.check.inLots } });
+          details: { reason: 'The batches do not add up to the balance by more than rounding explains, so nothing was taken. Check this customer.', balance: r.check.balance, inBatches: r.check.inLots, gap: r.check.gap } });
         continue;
       }
       if (r.total <= 0) continue;
       out.customers++;
-      out.points = c2(out.points + r.total);
+      out.points = c4(out.points + r.total);
       audit({ actorId: 'system', actorName: 'Points expiry (automatic)', actorRole: 'DEV_ADMIN', action: 'POINTS_EXPIRED', entity: 'user', entityId: userId,
-        details: { points: pts(r.total), dollars: r.total, balanceBefore: r.balanceBefore, batches: r.lots, days: cfg.days } });
+        details: { points: pts(r.total), dollars: r.total, balanceBefore: r.balanceBefore, batches: r.lots, days: cfg.days, ...(r.squared ? { roundingSquared: r.squared } : {}) } });
     } catch (e: any) {
       out.skipped.push(userId);
       console.error('[points-expiry] could not expire for', userId, e?.message ?? e);
@@ -195,7 +239,7 @@ export async function warnSoonExpiring(now: Date = new Date()): Promise<number> 
     const due = lotExpiresAt(l.earnedAt, cfg)!;
     if (due.getTime() <= now.getTime()) continue;   // the expiry job takes it
     const e = byUser.get(l.userId) ?? { ids: [], total: 0, first: due };
-    e.ids.push(l.id); e.total = c2(e.total + l.remaining); if (due < e.first) e.first = due;
+    e.ids.push(l.id); e.total = c4(e.total + l.remaining); if (due < e.first) e.first = due;
     byUser.set(l.userId, e);
   }
   if (byUser.size === 0) return 0;
@@ -224,7 +268,7 @@ export async function undoExpiry(userId: string, actor: { id: string; name?: str
       const back = l.expiredAmount;   // read before the row changes
       await tx.pointLot.update({ where: { id: l.id }, data: { expiryUndoneAt: now } });
       await tx.pointLot.create({ data: { userId, amount: back, remaining: back, source: 'RESTORED', sourceId: l.id, earnedAt: now } });
-      sum = c2(sum + back);
+      sum = c4(sum + back);
     }
     if (sum > 0) await tx.user.update({ where: { id: userId }, data: { pointsBalance: { increment: sum } } });
     return sum;
@@ -246,11 +290,11 @@ export async function expirySummary(userId: string, now: Date = new Date()) {
   if (cfg.enabled) {
     for (const l of open) {
       const due = storeDateKey(lotExpiresAt(l.earnedAt, cfg)!);   // the store's (Central) date, like the reminder push
-      upcoming.set(due, c2((upcoming.get(due) ?? 0) + l.remaining));
+      upcoming.set(due, c4((upcoming.get(due) ?? 0) + l.remaining));
     }
   }
   const expired = new Map<string, number>();
-  for (const l of gone) { const d = storeDateKey(l.expiredAt!); expired.set(d, c2((expired.get(d) ?? 0) + l.expiredAmount)); }
+  for (const l of gone) { const d = storeDateKey(l.expiredAt!); expired.set(d, c4((expired.get(d) ?? 0) + l.expiredAmount)); }
   const list = [...upcoming.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, dollars]) => ({ date, points: pts(dollars) }));
   return {
     enabled: cfg.enabled, days: cfg.days,
@@ -275,15 +319,22 @@ export async function previewExpiry(days: number, startedAt: Date, horizonDays =
     if (due > end) continue;
     const d = new Date(due).toISOString().slice(0, 10);
     const e = byDate.get(d) ?? { users: new Set<string>(), dollars: 0 };
-    e.users.add(l.userId); e.dollars = c2(e.dollars + l.remaining); byDate.set(d, e);
-    users.add(l.userId); dollars = c2(dollars + l.remaining);
+    e.users.add(l.userId); e.dollars = c4(e.dollars + l.remaining); byDate.set(d, e);
+    users.add(l.userId); dollars = c4(dollars + l.remaining);
   }
   // customers whose batches and balance disagree (would be skipped, not charged)
+  // (a gap that cent rounding explains is squared by the job, so it does not count here)
   const balances = await prisma.user.findMany({ where: { role: 'CUSTOMER', pointsBalance: { gt: 0 } }, select: { id: true, pointsBalance: true } });
   const sums = new Map<string, number>();
-  for (const l of lots) sums.set(l.userId, c2((sums.get(l.userId) ?? 0) + l.remaining));
+  for (const l of lots) sums.set(l.userId, c4((sums.get(l.userId) ?? 0) + l.remaining));
+  const [lotCounts, useCounts] = await Promise.all([
+    prisma.pointLot.groupBy({ by: ['userId'], _count: { _all: true } }),
+    prisma.pointLotUse.groupBy({ by: ['userId'], _count: { _all: true } }),
+  ]);
+  const moves = new Map<string, number>();
+  for (const c of [...lotCounts, ...useCounts]) moves.set(c.userId, (moves.get(c.userId) ?? 0) + c._count._all);
   let mismatched = 0;
-  for (const b of balances) if (pts(b.pointsBalance) !== pts(sums.get(b.id) ?? 0)) mismatched++;
+  for (const b of balances) if (Math.abs(c4(b.pointsBalance - (sums.get(b.id) ?? 0))) > roundingRoom(moves.get(b.id) ?? 0)) mismatched++;
   return {
     byDate: [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, e]) => ({ date, customers: e.users.size, points: pts(e.dollars) })),
     customers: users.size, points: pts(dollars), mismatched,
