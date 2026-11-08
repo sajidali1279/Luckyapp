@@ -12,6 +12,8 @@
 // still gives a hug, he smiles when carried gently and goes "splat" when dropped from high up; left alone he yawns and falls asleep
 // (a tap wakes him with a start); he says good morning, good night or happy weekend once per app run; and thrown out, he comes
 // back sulking until you tap him to make up.
+// Thanksgiving (2026-11-08, the owner's idea): the first time Home opens each day while HQ's Thanksgiving theme is on, a turkey chases
+// him across the bottom bar and both run off the left edge; he peeks back in out of breath, in his pilgrim hat.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, AppState, BackHandler, Easing, Keyboard, PanResponder, Pressable, StyleSheet, TouchableOpacity, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -32,6 +34,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGuideCovered } from './guideCover';
 import { tips, answer, TOPICS, type Ctx, type Line, type Topic } from './guideTips';
 import { hasGuideEvent, takeGuideEvent } from './guideEvents';
+import RunningTurkey, { TURKEY_H } from './RunningTurkey';
 
 const SIZE = 76;                          // his width on screen
 const H = SIZE * ASPECT;                  // and height
@@ -71,6 +74,7 @@ function remember(patch: Partial<Saved>) {
 // a pop-up or another screen hid him
 const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false, balance: null as number | null, balanceFor: null as string | null, cheer: 0 };
 const SLEEP_AFTER = 60_000, SLEEP_AFTER_NIGHT = 25_000;   // untouched this long on the bar, he dozes off
+const TURKEY_KEY = 'cuatro_turkey_day';   // the day the Thanksgiving chase last played on this phone (once a day per phone)
 const isNight = () => { const hr = new Date().getHours(); return hr >= 21 || hr < 5; };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -166,6 +170,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const tabRig = useRigValues();
   // HQ's seasonal theme (admin Settings > App) dresses him up: a witch hat for Halloween, and so on (2026-10-28)
   const preset = useAppTheme().preset;
+  const screenNow = usePathname().split('/').filter(Boolean).pop() ?? '';
   const costume: Costume | null = (COSTUMES as string[]).includes(preset) ? (preset as Costume) : null;
   const costumeRef = useRef(costume);
   costumeRef.current = costume;
@@ -178,6 +183,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const sy = useRef(new Animated.Value(1)).current;
   const breath = useRef(new Animated.Value(1)).current;
   const tabX = useRef(new Animated.Value(-TAB_W - 10)).current;
+  const turkeyX = useRef(new Animated.Value(0)).current;
+  const [turkey, setTurkey] = useState<{ gobble: boolean } | null>(null);
 
   const [face, setFaceState] = useState<Face>('happy');
   const [gloves, setGloves] = useState<[Glove, Glove]>(['fist', 'fist']);
@@ -203,8 +210,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const lastTouch = useRef(Date.now());
   const taps = useRef<number[]>([]);
   const hug = useRef({ on: false, timer: null as ReturnType<typeof setTimeout> | null });
-  const dims = useRef({ w, h, top: insets.top + 4, reduce, menuOpen });
-  dims.current = { w, h, top: insets.top + 4, reduce, menuOpen };
+  const dims = useRef({ w, h, top: insets.top + 4, reduce, menuOpen, screen: screenNow });
+  dims.current = { w, h, top: insets.top + 4, reduce, menuOpen, screen: screenNow };
 
   // Back on the bar: his feet on the bar's top edge as it is NOW. A move works out the floor when it starts; when the bar's height
   // settles a moment later (right after the app opens, a bigger text size), he used to land where the edge had been, half hidden
@@ -436,11 +443,13 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     if (!saved?.introduced && !saved?.away && run.peeks < 2) later(90_000, () => { if (modeRef.current === 'tab') { play(to(tabX, -TAB_W - 10, 160)); peek(); } });
   };
 
-  const peek = async () => {
+  /** In from the left edge or up from behind the bar, waving. `line`: what he says instead of "tap me" (after the turkey chase); one
+   *  already met then hops onto the bar once he has caught his breath. */
+  const peek = async (o: { fromLeft?: boolean; line?: string; sweat?: boolean } = {}) => {
     const my = fresh(); stopAll(); closeBubble();
     setMode('peek'); run.where = 'peek'; run.peeks += 1;
-    setFace('joy'); setFx({}); setBits({});
-    const fromLeft = Math.random() < 0.5;
+    setFace('joy'); setFx(o.sweat ? { sweat: true } : {}); setBits({});
+    const fromLeft = o.fromLeft ?? Math.random() < 0.5;
     if (dims.current.reduce) {
       place(fromLeft ? 8 : spotX(), floorY());
     } else if (fromLeft) {
@@ -457,9 +466,41 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     }
     if (!still(my)) return;
     wave(fromLeft ? 'R' : 'L');
-    later(1300, () => { if (modeRef.current === 'peek' && scene.current === my && !bubbleRef.current) say(t('guide.tapMe'), 3800); });
+    if (o.line) {
+      say(o.line, 3600);
+      later(3600, () => { if (scene.current === my) setFx({}); });
+      if (saved?.introduced) { later(3800, () => { if (modeRef.current === 'peek' && scene.current === my) toBar(); }); return; }
+    } else later(1300, () => { if (modeRef.current === 'peek' && scene.current === my && !bubbleRef.current) say(t('guide.tapMe'), 3800); });
     // ignored: he ducks back out, into the tab
     later(16_000, () => { if (modeRef.current === 'peek' && scene.current === my) duck(fromLeft); });
+  };
+
+  /** Thanksgiving: a turkey chases him across the bar from the right, both run off the left edge, and he peeks back in out of breath. */
+  const chase = async () => {
+    const my = fresh(); stopAll(); closeBubble(); setMode('busy');
+    run.greeted = true;   // the chase is his holiday hello this time
+    const ww = dims.current.w, fy = floorY();
+    setFace('wow'); setFx({ sweat: true }); setBits({}); setGloves(['open', 'open']);
+    place(ww + 8, fy);
+    turkeyX.setValue(ww + SIZE + 40);
+    setTurkey({ gobble: false });
+    // legs and arms going as fast as they can
+    loop(Animated.sequence([Animated.parallel([to(rig.legL, 24, 110), to(rig.legR, -14, 110)]), Animated.parallel([to(rig.legL, -14, 110), to(rig.legR, 24, 110)])]));
+    loop(Animated.sequence([arms(72, 40, 120), arms(40, 72, 120)]));
+    later(650, () => setTurkey((tk) => (tk ? { gobble: true } : tk)));
+    haptic.tap();
+    const RUN = 2300, off = -SIZE * 2.4;
+    await Promise.all([
+      play(to(x, off, RUN, Easing.linear)),
+      play(Animated.sequence([Animated.delay(450), to(turkeyX, off - 60, RUN + 250, Easing.linear)])),
+    ]);
+    stopLoops(); setTurkey(null);
+    if (!still(my)) return;
+    pos.current = { x: off, y: fy };
+    rest();
+    await pause(700);
+    if (!still(my)) return;
+    peek({ fromLeft: true, line: t('guide.turkeyPhew'), sweat: true });
   };
 
   const duck = async (fromLeft: boolean) => {
@@ -854,10 +895,21 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       Animated.loop(Animated.sequence([to(rig.sprout, 7, 1500), to(rig.sprout, -5, 1500)])).start();
     }
     const s = saved;
-    if (s?.away) showTab(s.mood);
-    else if (s?.introduced || run.where === 'bar') popUp();
-    else if (run.where === 'tab' && run.peeks >= 2) showTab(null);
-    else later(run.peeks ? 700 : 1800, () => { peek(); });
+    const start = () => {
+      if (s?.away) showTab(s.mood);
+      else if (s?.introduced || run.where === 'bar') popUp();
+      else if (run.where === 'tab' && run.peeks >= 2) showTab(null);
+      else later(run.peeks ? 700 : 1800, () => { peek(); });
+    };
+    // Thanksgiving: the first time Home opens each day, the turkey chase (never while he is sent away, or with reduced motion)
+    if (costumeRef.current === 'THANKSGIVING' && !dims.current.reduce && !s?.away && dims.current.screen === 'home') {
+      AsyncStorage.getItem(TURKEY_KEY).then((day) => {
+        if (!live.current) return;
+        if (day === dayKey()) { start(); return; }
+        AsyncStorage.setItem(TURKEY_KEY, dayKey()).catch(() => {});
+        later(400, () => { chase(); });
+      }).catch(() => { if (live.current) start(); });
+    } else start();
     // blinking, now and then, with open eyes
     const blink = () => later(2400 + Math.random() * 3600, () => {
       if (OPEN_EYES.has(faceRef.current) && modeRef.current !== 'held' && !asleep.current) {
@@ -907,7 +959,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       live.current = false;
       timers.current.forEach(clearTimeout); timers.current.clear();
       if (press.current.timer) clearTimeout(press.current.timer);
-      stopAll(); breath.stopAnimation(); rig.sprout.stopAnimation();
+      stopAll(); breath.stopAnimation(); rig.sprout.stopAnimation(); turkeyX.stopAnimation();
     };
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -978,6 +1030,12 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
           {bits.confetti && !reduce ? <Confetti key={bits.confetti} /> : null}
         </Animated.View>
       </Animated.View>
+
+      {turkey ? (
+        <Animated.View pointerEvents="none" style={[s.turkey, { top: h - TURKEY_H + 4, transform: [{ translateX: turkeyX }] }]}>
+          <RunningTurkey gobble={turkey.gobble} gobbleText={t('guide.turkeyGobble')} />
+        </Animated.View>
+      ) : null}
 
       {bonk ? <Bonk key={bonk.id} side={bonk.side} y={bonk.y} w={w} text={t('guide.ouch')} onDone={() => setBonk(null)} /> : null}
 
@@ -1228,6 +1286,7 @@ function Bonk({ side, y, w, text, onDone }: { side: 'left' | 'right'; y: number;
 
 const s = StyleSheet.create({
   mascot: { position: 'absolute', left: 0, top: 0, width: SIZE, height: H },
+  turkey: { position: 'absolute', left: 0 },
   bubble: {
     position: 'absolute', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#BBF7D0',
     shadowColor: '#0F2038', shadowOpacity: 0.16, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 8,
