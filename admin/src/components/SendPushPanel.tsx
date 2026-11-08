@@ -224,7 +224,7 @@ export default function SendPushPanel({ stores }: { stores: StoreLite[] }) {
               <select id="push-home-days" style={{ ...s.select, width: 'auto' }} value={homeDays} onChange={(e) => setHomeDays(Number(e.target.value))}>
                 {HOME_DAY_CHOICES.map((d) => <option key={d} value={d}>{plural(d, 'day', 'days')}</option>)}
               </select>
-              <span style={s.homeNote}>or until they read or close it. For important news only (holiday hours, a rule change). Shows in app 1.8.4 and newer; older apps show it in the inbox only.</span>
+              <span style={s.homeNote}>or until they read or close it. For important news only (holiday hours, a rule change). Shows in app 1.8.3 and newer; older apps show it in the inbox only.</span>
             </div>
           )}
         </div>
