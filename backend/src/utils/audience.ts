@@ -54,7 +54,8 @@ export async function resolveAudience(target: BroadcastTarget, storeId?: string,
 /** People, phones (each counted once) and people with no phone signed in, for the preview and the answer. */
 export function countAudience(members: AudienceMember[]) {
   const phones = new Set(members.flatMap((m) => m.tokens));
-  return { people: members.length, phones: phones.size, withoutPhone: members.filter((m) => m.tokens.length === 0).length };
+  // spanish: people who use the app in Spanish (they get a message's Spanish version when it has one, 2026-11-08)
+  return { people: members.length, phones: phones.size, withoutPhone: members.filter((m) => m.tokens.length === 0).length, spanish: members.filter((m) => m.language === 'es').length };
 }
 
 /** The plain words for a target, for sentences ("13 customers", "3 staff at Lucky Stop #4"). */

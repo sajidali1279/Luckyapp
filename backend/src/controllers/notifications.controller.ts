@@ -3,8 +3,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { z } from 'zod';
 import { createHash } from 'crypto';
-import { saveNotificationMany } from '../utils/push';
-import { sendExpoBatch } from '../utils/pushSend';
+import { sendExpoBatch, type PushOutcome } from '../utils/pushSend';
 import { refuse } from '../utils/refusal';
 import { BROADCAST_TARGETS, BroadcastTarget, resolveAudience, countAudience, targetWords } from '../utils/audience';
 
@@ -54,6 +53,18 @@ export async function markOneRead(req: AuthRequest, res: Response) {
   res.json({ success: true });
 }
 
+// GET /notifications/home, the one HQ announcement shown as a card on the customer's Home (2026-11-08): the newest one sent with "also show
+// on Home" that is still in its days and not read or closed yet (closing it marks it read). null when there is none.
+export async function getHomeAnnouncement(req: AuthRequest, res: Response) {
+  const now = new Date();
+  const item = await prisma.userNotification.findFirst({
+    where: { userId: req.user!.id, isRead: false, homeUntil: { gt: now }, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, title: true, body: true, type: true, createdAt: true, homeUntil: true },
+  });
+  res.json({ success: true, data: item });
+}
+
 // GET /notifications/unread-count, lightweight for badge polling
 export async function getUnreadCount(req: AuthRequest, res: Response) {
   const now = new Date();
@@ -83,11 +94,25 @@ const audienceQuery = z.object({
   storeId: z.string({ message: 'Choose a store.' }).uuid('Choose a store.').optional(),
 });
 
+// 2026-11-08: an optional Spanish version (people who use the app in Spanish get it instead), and for customers "also show on Home" for
+// 1 to 30 days (homeDays; 0 or none = inbox and phone only)
+const HOME_DAYS_MAX = 30;
+const optionalText = (max: number, what: string) => z.string().trim().max(max, `The Spanish ${what} is too long (${max} characters at most).`).optional().transform((v) => v || undefined);
 const broadcastSchema = audienceQuery.extend({
   title: z.string({ message: 'Enter a title.' }).trim().min(1, 'Enter a title.').max(TITLE_MAX, `The title is too long (${TITLE_MAX} characters at most).`),
   body: z.string({ message: 'Enter a message.' }).trim().min(1, 'Enter a message.').max(BODY_MAX, `The message is too long (${BODY_MAX} characters at most).`),
+  titleEs: optionalText(TITLE_MAX, 'title'),
+  bodyEs: optionalText(BODY_MAX, 'message'),
+  homeDays: z.coerce.number({ message: 'The Home days must be a number.' }).int('The Home days must be a whole number.').min(0).max(HOME_DAYS_MAX, `Show it on Home for ${HOME_DAYS_MAX} days at most.`).optional(),
   test: z.boolean({ message: 'test must be true or false.' }).optional(),
-});
+}).refine((d) => !d.titleEs === !d.bodyEs, { message: 'For the Spanish version, enter both its title and its message (or leave both empty).', path: ['bodyEs'] });
+
+const isCustomerTarget = (t: string) => t === 'ALL_CUSTOMERS' || t === 'STORE_CUSTOMERS';
+/** Two sends' answers as one (the English and the Spanish phones). */
+function addOutcomes(a: PushOutcome, b: PushOutcome): PushOutcome {
+  return { attempted: a.attempted + b.attempted, accepted: a.accepted + b.accepted, failed: a.failed + b.failed, removed: a.removed + b.removed, retried: a.retried + b.retried, reasons: [...a.reasons, ...b.reasons].slice(0, 5) };
+}
+const NO_SEND: PushOutcome = { attempted: 0, accepted: 0, failed: 0, removed: 0, retried: 0, reasons: [] };
 
 const isStoreTarget = (t: string) => t === 'STORE_CUSTOMERS' || t === 'STORE_STAFF';
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -121,8 +146,12 @@ export async function getBroadcastAudience(req: AuthRequest, res: Response) {
 export async function broadcastNotification(req: AuthRequest, res: Response) {
   const parsed = broadcastSchema.safeParse(req.body);
   if (!parsed.success) { refuse(res, parsed.error); return; }
-  const { target, storeId, title, body, test } = parsed.data;
+  const { target, storeId, title, body, titleEs, bodyEs, test } = parsed.data;
+  const homeDays = parsed.data.homeDays ?? 0;
   const user = req.user!;
+  if (homeDays > 0 && !isCustomerTarget(target)) {
+    res.status(400).json({ success: false, error: 'Only a message to customers can also show on the Home screen.' }); return;
+  }
 
   // A test goes to the sender's own phone(s), with "[Test]" in front, no inbox row and no Activity Log entry
   if (test) {
@@ -131,7 +160,9 @@ export async function broadcastNotification(req: AuthRequest, res: Response) {
       res.status(409).json({ success: false, error: 'You have no phone signed in to the Lucky Stop app, so there is nowhere to send a test. Sign in on your phone first.' });
       return;
     }
-    const outcome = await sendExpoBatch(mine.map((t) => t.token), { title: `[Test] ${title}`, body });
+    const tokens = mine.map((t) => t.token);
+    let outcome = await sendExpoBatch(tokens, { title: `[Test] ${title}`, body });
+    if (titleEs && bodyEs) outcome = addOutcomes(outcome, await sendExpoBatch(tokens, { title: `[Prueba] ${titleEs}`, body: bodyEs }));
     res.json({ success: true, data: { test: true, phones: outcome.attempted, accepted: outcome.accepted, failed: outcome.failed, removed: outcome.removed, reasons: outcome.reasons } });
     return;
   }
@@ -140,7 +171,7 @@ export async function broadcastNotification(req: AuthRequest, res: Response) {
   if (error) { res.status(400).json({ success: false, error }); return; }
 
   // The same message to the same audience is one send: claim it, then look for one already sent in the last five minutes
-  const fp = createHash('sha1').update([target, store?.id ?? '', title.toLowerCase(), body.toLowerCase()].join('|')).digest('hex').slice(0, 20);
+  const fp = createHash('sha1').update([target, store?.id ?? '', title.toLowerCase(), body.toLowerCase(), (titleEs ?? '').toLowerCase(), (bodyEs ?? '').toLowerCase()].join('|')).digest('hex').slice(0, 20);
   if (sendingNow.has(fp)) {
     res.status(409).json({ success: false, error: 'This message is already being sent. Wait for it to finish; it will not go out twice.' });
     return;
@@ -168,17 +199,31 @@ export async function broadcastNotification(req: AuthRequest, res: Response) {
       return;
     }
 
-    // In-app inbox rows for everyone, then the phones
-    await saveNotificationMany(members.map((m) => m.id), title, body, 'BROADCAST');
-    const outcome = await sendExpoBatch(members.flatMap((m) => m.tokens), { title, body });
+    // In-app inbox rows for everyone (customers see an Announcement; it can also sit on their Home for some days), then the phones; with a
+    // Spanish version, people who use the app in Spanish get that one. The rows go first and a failure stops the send (it was silent before).
+    const type = isCustomerTarget(target) ? 'ANNOUNCEMENT' : 'BROADCAST';
+    const homeUntil = homeDays > 0 ? new Date(Date.now() + homeDays * 86_400_000) : null;
+    const spanish = titleEs && bodyEs ? members.filter((m) => m.language === 'es') : [];
+    const english = spanish.length ? members.filter((m) => m.language !== 'es') : members;
+    await prisma.userNotification.createMany({
+      data: [
+        ...english.map((m) => ({ userId: m.id, title, body, type, homeUntil })),
+        ...spanish.map((m) => ({ userId: m.id, title: titleEs!, body: bodyEs!, type, homeUntil })),
+      ],
+    });
+    const outcome = addOutcomes(
+      english.length ? await sendExpoBatch(english.flatMap((m) => m.tokens), { title, body }) : NO_SEND,
+      spanish.length ? await sendExpoBatch(spanish.flatMap((m) => m.tokens), { title: titleEs!, body: bodyEs! }) : NO_SEND,
+    );
 
-    const summary = `Sent to ${plural(counts.people, 'person', 'people')} (${targetWords(target, store?.name)}): ${plural(outcome.accepted, 'phone', 'phones')} reached${outcome.failed > 0 ? `, ${outcome.failed} failed` : ''}${outcome.removed > 0 ? `, ${plural(outcome.removed, 'gone phone', 'gone phones')} removed` : ''}. "${title}"`;
+    const extras = [spanish.length ? `${spanish.length} in Spanish` : '', homeUntil ? `on Home for ${plural(homeDays, 'day', 'days')}` : ''].filter(Boolean).join(', ');
+    const summary = `Sent to ${plural(counts.people, 'person', 'people')} (${targetWords(target, store?.name)}${extras ? `; ${extras}` : ''}): ${plural(outcome.accepted, 'phone', 'phones')} reached${outcome.failed > 0 ? `, ${outcome.failed} failed` : ''}${outcome.removed > 0 ? `, ${plural(outcome.removed, 'gone phone', 'gone phones')} removed` : ''}. "${title}"`;
     try {
       await prisma.auditLog.create({
         data: {
           actorId: user.id, actorName: user.name || null, actorRole: user.role,
           action: 'BROADCAST', entity: 'notification', entityId: null,
-          details: JSON.stringify({ summary, fp, target, title, body, people: counts.people, phones: counts.phones, withoutPhone: counts.withoutPhone, accepted: outcome.accepted, failed: outcome.failed, removed: outcome.removed, retried: outcome.retried, reasons: outcome.reasons }),
+          details: JSON.stringify({ summary, fp, target, title, body, titleEs: titleEs ?? null, bodyEs: bodyEs ?? null, spanishPeople: spanish.length, homeDays, homeUntil, people: counts.people, phones: counts.phones, withoutPhone: counts.withoutPhone, accepted: outcome.accepted, failed: outcome.failed, removed: outcome.removed, retried: outcome.retried, reasons: outcome.reasons }),
           storeId: store?.id ?? null, storeName: store?.name ?? null,
         },
       });
@@ -209,7 +254,7 @@ export async function listBroadcasts(_req: AuthRequest, res: Response) {
     try { d = r.details ? JSON.parse(r.details) : {}; } catch { /* an unreadable entry still shows who and when */ }
     return {
       id: r.id, createdAt: r.createdAt, actorName: r.actorName, storeName: r.storeName,
-      target: d.target ?? null, title: d.title ?? '', body: d.body ?? '',
+      target: d.target ?? null, title: d.title ?? '', body: d.body ?? '', titleEs: d.titleEs ?? null, bodyEs: d.bodyEs ?? null, homeDays: d.homeDays ?? 0,
       people: d.people ?? 0, phones: d.phones ?? 0, accepted: d.accepted ?? 0, failed: d.failed ?? 0, removed: d.removed ?? 0,
     };
   });

@@ -51,7 +51,7 @@ import {
 } from '../controllers/receipt.controller';
 import { getAuditLogs, getAuditStats } from '../controllers/audit.controller';
 import { getMappings, addMapping, deleteMapping, getMyMappings } from '../controllers/keywordMappings.controller';
-import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, broadcastNotification, getBroadcastAudience, listBroadcasts } from '../controllers/notifications.controller';
+import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, getHomeAnnouncement, broadcastNotification, getBroadcastAudience, listBroadcasts } from '../controllers/notifications.controller';
 import { getMyChatStores, getChatPeople, getMessages, sendMessage, clearChat, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, getPendingCountByStore, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore } from '../controllers/productRequest.controller';
@@ -545,6 +545,7 @@ router.get('/notifications/broadcasts', authenticate, requireRole(Role.SUPER_ADM
 // ─── In-App Notifications (all authenticated users) ──────────────────────────
 router.get('/notifications/my', authenticate, getMyNotifications);
 router.get('/notifications/unread-count', authenticate, getUnreadCount);
+router.get('/notifications/home', authenticate, getHomeAnnouncement);   // the HQ announcement on the customer's Home card, or null (2026-11-08)
 router.patch('/notifications/mark-all-read', authenticate, markAllRead);
 router.patch('/notifications/:id/read', authenticate, markOneRead);
 

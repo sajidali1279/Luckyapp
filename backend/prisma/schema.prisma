@@ -1173,10 +1173,12 @@ model UserNotification {
   userId    String
   title     String
   body      String
-  type      String    // "OFFER" | "POINTS" | "REDEMPTION" | "SCHEDULE" | "SHIFT_REQUEST" | "STORE_REQUEST"
+  type      String    // "OFFER" | "POINTS" | "REDEMPTION" | "SCHEDULE" | "SHIFT_REQUEST" | "STORE_REQUEST" | "ANNOUNCEMENT" (HQ to customers) | "BROADCAST" (HQ to staff) ...
   actionUrl String?   // where tapping this notification should navigate to
   isRead    Boolean   @default(false)
   expiresAt DateTime? // when set, notification is hidden after this time (used for OFFER type)
+  // An HQ announcement that also shows as one card on the customer's Home until this time, or until they read or close it (2026-11-08)
+  homeUntil DateTime?
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
