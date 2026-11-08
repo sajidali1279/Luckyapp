@@ -2386,6 +2386,7 @@
     "similarLine": "Misma línea de productos: {{names}}",
     "similarMaker": "Misma marca: {{names}}",
     "priceHqOnly": "El precio para todas las tiendas lo fija la oficina central. Para cambiarlo en su tienda, use Cambiar precio en el artículo.",
+    "pdiPriceNote": "Precio de la caja según PDI",
     "addAllConfirmTitle": "¿Agregar {{n}} etiquetas a Mis impresiones?",
     "addAllConfirmBody": "Son todas las etiquetas que se ven. Para agregar menos, busca o filtra primero.",
     "addAllConfirmYes": "Agregar {{n}}",

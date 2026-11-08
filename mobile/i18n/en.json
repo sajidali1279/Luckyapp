@@ -2386,6 +2386,7 @@
     "similarLine": "Same product line: {{names}}",
     "similarMaker": "Same brand: {{names}}",
     "priceHqOnly": "The price for every store is set by HQ. To change it at your store, use Change price on the item.",
+    "pdiPriceNote": "Register price from PDI",
     "addAllConfirmTitle": "Add {{n}} labels to My Prints?",
     "addAllConfirmBody": "That is every label shown. To add fewer, search or filter first.",
     "addAllConfirmYes": "Add {{n}}",

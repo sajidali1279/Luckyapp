@@ -463,6 +463,8 @@ export const labelsApi = {
     api.patch(`/labels/${labelId}`, data),
   print: (items: { storeLabelId: string; quantity: number; printedPrice?: string }[]) => api.post('/labels/print', { items }),
   delete: (labelId: string) => api.delete(`/labels/${labelId}`),
+  // what the store's register charges for a barcode, from its PDI item list (2026-11-08): a new label's price
+  registerPrice: (storeId: string, barcode: string) => api.get('/pdi-items/price', { params: { storeId, barcode } }),
   lookupByBarcode: (storeId: string, barcode: string) =>
     api.get(`/labels/lookup?storeId=${encodeURIComponent(storeId)}&barcode=${encodeURIComponent(barcode)}`),
 };

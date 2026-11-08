@@ -109,6 +109,17 @@ export async function searchPdiItems(req: AuthRequest, res: Response) {
   })) } });
 }
 
+/** GET /pdi-items/price?storeId&barcode: what the store's register charges for a barcode, from its PDI item list (2026-11-08), for a new
+ *  shelf label's price. The price only (never the cost); null when PDI does not have it at that store. */
+export async function registerPrice(req: AuthRequest, res: Response) {
+  const store = await storeFor(req, res, req.query.storeId);
+  if (!store) return;
+  const barcode = typeof req.query.barcode === 'string' ? req.query.barcode.trim() : '';
+  if (!/^\d{6,14}$/.test(barcode)) { res.json({ success: true, data: { priceText: null } }); return; }
+  const item = await prisma.pdiItem.findFirst({ where: { storeId: store.id, upcKey: barcodeKey(barcode) }, select: { priceCents: true, name: true } });
+  res.json({ success: true, data: { priceText: item?.priceCents ? (item.priceCents / 100).toFixed(2) : null } });
+}
+
 const priceOf = (text: string | null | undefined) => {
   const m = /^\s*\$?\s*(\d{1,5}(?:\.\d{1,2})?)\s*$/.exec(text ?? '');
   return m ? Math.round(Number(m[1]) * 100) : null;

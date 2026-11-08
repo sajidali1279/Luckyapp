@@ -163,6 +163,9 @@ export default function LabelsScreen() {
   const [editingLabel, setEditingLabel] = useState<Label | null>(null);
   const [formProductName, setFormProductName] = useState('');
   const [formPriceText, setFormPriceText] = useState('');
+  // the register price PDI has for a new label's barcode at this store (2026-11-08): filled in, noted under the price box
+  const [pdiPrice, setPdiPrice] = useState<string | null>(null);
+  const pdiPriceRef = useRef<string | null>(null);
   const [formDealText, setFormDealText] = useState('');
   const [formBarcode, setFormBarcode] = useState<string | null>(null);
   const [formCategory, setFormCategory] = useState('');
@@ -459,6 +462,23 @@ export default function LabelsScreen() {
     setCategoryFilter(null);
   }
 
+  /** A new label's price from the store's register (its PDI item list), unless the person has typed their own by the time it comes. */
+  function fillRegisterPrice(barcode: string | null | undefined) {
+    pdiPriceRef.current = null; setPdiPrice(null);
+    if (!barcode || !storeId) return;
+    labelsApi.registerPrice(storeId, barcode)
+      .then((r) => {
+        const price: string | null = r.data?.data?.priceText ?? null;
+        if (!price) return;
+        setFormPriceText((cur) => {
+          if (cur !== '' && cur !== autoFilled.current.price) return cur;
+          pdiPriceRef.current = price; setPdiPrice(price);
+          return price;
+        });
+      })
+      .catch(() => {});
+  }
+
   // Opens the New Label form already filled in from a known product, so all
   // that's left to type is the price.
   function openCreateFromProduct(p: ScannedProduct) {
@@ -472,6 +492,7 @@ export default function LabelsScreen() {
     setFormCategory(p.category || '');
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowForm(true);
+    fillRegisterPrice(p.barcode);
   }
 
 
@@ -494,7 +515,8 @@ export default function LabelsScreen() {
   const autoFilled = useRef<{ price: string | null; category: string | null }>({ price: null, category: null });
   useEffect(() => {
     if (!similarSugg) return;
-    if (formPriceText === '' || formPriceText === autoFilled.current.price) {
+    // the register price from PDI wins over a guess from similar labels
+    if (!pdiPriceRef.current && (formPriceText === '' || formPriceText === autoFilled.current.price)) {
       const next = similarSugg.price ?? '';
       if (next !== formPriceText) setFormPriceText(next);
       autoFilled.current.price = next || null;
@@ -663,6 +685,7 @@ export default function LabelsScreen() {
     setFormCategory(scanned.category || '');
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowForm(true);
+    fillRegisterPrice(scanned.barcode);
     // One screen for a new item: the name (if the scan did not know it), the price and the category are all here
     setTimeout(() => (scanned.name ? priceRef : nameRef).current?.focus(), 450);   // the brand is filled in: the cursor goes after it
   }
@@ -684,6 +707,7 @@ export default function LabelsScreen() {
     setFormTemplate('CLASSIC_RED_BLACK');
     setShowForm(true);
     setSearch('');
+    fillRegisterPrice(isBarcodeLikeSearch ? term : null);
     // A barcode the Store Catalog already knows brings its name and category
     // along (any role can look a barcode up), so only the price is left to type.
     if (isBarcodeLikeSearch) {
@@ -1036,6 +1060,7 @@ export default function LabelsScreen() {
                 />
               </View>
               {!!editingLabel && !isHQ && <Text style={s.priceHqOnly}>{t('sharedLabels.priceHqOnly')}</Text>}
+              {!editingLabel && !!pdiPrice && formPriceText === pdiPrice ? <Text style={s.priceHqOnly}>{t('sharedLabels.pdiPriceNote')}</Text> : null}
               {similarSugg && similarSugg.similar.length > 0 ? (
                 <View style={s.similarBox} accessibilityLiveRegion="polite">
                   {similarSugg.price && formPriceText === similarSugg.price ? (
