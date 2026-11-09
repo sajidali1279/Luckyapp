@@ -14,6 +14,8 @@
 // back sulking until you tap him to make up.
 // Thanksgiving (2026-11-08, the owner's idea): the first time Home opens each day while HQ's Thanksgiving theme is on, a turkey chases
 // him across the bottom bar and both run off the left edge; he peeks back in out of breath, in his pilgrim hat.
+// Christmas (2026-11-08, the owner's pick): the same once a day on Home, he sleds across the bar in his Santa hat, a bump throws a gift
+// onto the bar, he skids off and peeks back ("That one's for you"); a tap on the gift pops it open and opens the Rewards catalog.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, AppState, BackHandler, Easing, Keyboard, PanResponder, Pressable, StyleSheet, TouchableOpacity, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,6 +37,7 @@ import { useGuideCovered } from './guideCover';
 import { tips, answer, TOPICS, type Ctx, type Line, type Topic } from './guideTips';
 import { hasGuideEvent, takeGuideEvent } from './guideEvents';
 import RunningTurkey, { TURKEY_H } from './RunningTurkey';
+import { Sled, Gift, SLED_W, SLED_H, SLED_DECK, GIFT_W, GIFT_H } from './ChristmasSled';
 import PromoSign, { SIGN_W } from './PromoSign';
 import { promoSeen } from '../../utils/promoSeen';
 
@@ -77,6 +80,9 @@ function remember(patch: Partial<Saved>) {
 const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false, balance: null as number | null, balanceFor: null as string | null, cheer: 0, promo: false };
 const SLEEP_AFTER = 60_000, SLEEP_AFTER_NIGHT = 25_000;   // untouched this long on the bar, he dozes off
 const TURKEY_KEY = 'cuatro_turkey_day';   // the day the Thanksgiving chase last played on this phone (once a day per phone)
+// the holiday scenes on Home, once a day per phone each: the day each last played
+const SCENE_KEYS: Partial<Record<Costume, string>> = { THANKSGIVING: TURKEY_KEY, CHRISTMAS: 'cuatro_sled_day' };
+const GIFT_LIFE = 22_000;   // the Christmas gift waits on the bar this long for a tap
 const isNight = () => { const hr = new Date().getHours(); return hr >= 21 || hr < 5; };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -187,6 +193,9 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const tabX = useRef(new Animated.Value(-TAB_W - 10)).current;
   const turkeyX = useRef(new Animated.Value(0)).current;
   const [turkey, setTurkey] = useState<{ gobble: boolean } | null>(null);
+  const sledY = useRef(new Animated.Value(0)).current;
+  const [sled, setSled] = useState(false);
+  const [gift, setGift] = useState<{ x: number; id: number } | null>(null);
   const [signSide, setSignSide] = useState<'left' | 'right'>('left');
 
   const [face, setFaceState] = useState<Face>('happy');
@@ -505,6 +514,57 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     await pause(700);
     if (!still(my)) return;
     peek({ fromLeft: true, line: t('guide.turkeyPhew'), sweat: true });
+  };
+
+  /** Christmas: he sleds in from the right, a bump throws a gift off the sled onto the bar, and he skids off the left edge and peeks back. */
+  const sledRun = async () => {
+    const my = fresh(); stopAll(); closeBubble(); setMode('busy');
+    run.greeted = true;   // the sled run is his holiday hello this time
+    const ww = dims.current.w, fy = floorY() - SLED_DECK, off = -SIZE * 2.4;
+    // the gift lands away from his spot on the bar, so he does not stand on it later
+    const giftX = clamp(spotX() + SIZE / 2 < ww / 2 ? ww * 0.66 : ww * 0.24, 8, ww - GIFT_W - 8);
+    const bumpX = giftX + GIFT_W / 2 - SIZE / 2;
+    const RIDE = 2600, start = ww + 8;
+    const t1 = Math.round(RIDE * (start - bumpX) / (start - off)), t2 = RIDE - t1;
+    setFace('joy'); setFx({}); setBits({}); setGloves(['open', 'open']);
+    place(start, fy); lean.setValue(10); sledY.setValue(0);
+    setSled(true);
+    play(arms(72, 72, 200));   // wheee
+    haptic.tap();
+    const ok = await play(to(x, bumpX, t1, Easing.linear));
+    if (!ok || !still(my)) { setSled(false); return; }
+    // the bump: the gift flies off, he nearly falls
+    pos.current = { x: bumpX, y: fy };
+    haptic.press();
+    setGift({ x: giftX, id: Date.now() });
+    setFace('wow'); setFx({ sweat: true });
+    loop(Animated.sequence([arms(80, 40, 140), arms(40, 80, 140)]));
+    await play(Animated.parallel([
+      to(x, off, t2, Easing.linear),
+      along(y, arc(fy, fy, 22), 380),
+      Animated.sequence([to(sledY, -14, 170, Easing.out(Easing.quad)), to(sledY, 0, 210, Easing.in(Easing.quad))]),
+      Animated.sequence([to(lean, -8, 190), to(lean, 6, 190)]),
+    ]));
+    stopLoops(); setSled(false);
+    if (!still(my)) return;
+    place(off, floorY());
+    rest();
+    await pause(700);
+    if (!still(my)) return;
+    peek({ fromLeft: true, line: t('guide.sledOops') });
+  };
+  /** The gift was tapped open: off to the Rewards catalog, and he says why once he is free to talk. */
+  const openGift = () => {
+    setGift(null);
+    router.navigate('/(customer)/rewards' as any);
+    let tries = 0;
+    const treat = () => later(tries === 0 ? 700 : 900, () => {
+      tries += 1;
+      const m = modeRef.current, b = bubbleRef.current;
+      if ((m === 'bar' || m === 'peek') && b?.kind !== 'intro' && b?.kind !== 'menu') { touched(); setFace('joy'); say(t('guide.giftTreat'), 4800); }
+      else if (tries < 5) treat();
+    });
+    treat();
   };
 
   const duck = async (fromLeft: boolean) => {
@@ -914,13 +974,16 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       else if (run.where === 'tab' && run.peeks >= 2) showTab(null);
       else later(run.peeks ? 700 : 1800, () => { peek(); });
     };
-    // Thanksgiving: the first time Home opens each day, the turkey chase (never while he is sent away, or with reduced motion)
-    if (costumeRef.current === 'THANKSGIVING' && !dims.current.reduce && !s?.away && dims.current.screen === 'home') {
-      AsyncStorage.getItem(TURKEY_KEY).then((day) => {
+    // a holiday scene the first time Home opens each day: the turkey chase on Thanksgiving, the sled run on Christmas (never while he is
+    // sent away, or with reduced motion)
+    const holiday = costumeRef.current;
+    const sceneKey = holiday ? SCENE_KEYS[holiday] : undefined;
+    if (sceneKey && !dims.current.reduce && !s?.away && dims.current.screen === 'home') {
+      AsyncStorage.getItem(sceneKey).then((day) => {
         if (!live.current) return;
         if (day === dayKey()) { start(); return; }
-        AsyncStorage.setItem(TURKEY_KEY, dayKey()).catch(() => {});
-        later(400, () => { chase(); });
+        AsyncStorage.setItem(sceneKey, dayKey()).catch(() => {});
+        later(400, () => { if (holiday === 'CHRISTMAS') sledRun(); else chase(); });
       }).catch(() => { if (live.current) start(); });
     } else start();
     // blinking, now and then, with open eyes
@@ -972,7 +1035,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       live.current = false;
       timers.current.forEach(clearTimeout); timers.current.clear();
       if (press.current.timer) clearTimeout(press.current.timer);
-      stopAll(); breath.stopAnimation(); rig.sprout.stopAnimation(); turkeyX.stopAnimation();
+      stopAll(); breath.stopAnimation(); rig.sprout.stopAnimation(); turkeyX.stopAnimation(); sledY.stopAnimation();
     };
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1019,6 +1082,17 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const tabFace: Face = tabMood === 'mad' ? 'mad' : tabMood === 'sad' ? 'sad' : 'happy';
   return (
     <>
+      {/* Christmas: the gift on the bar and the sled under him, both behind him */}
+      {gift ? (
+        <View pointerEvents="box-none" style={[s.gift, { left: gift.x, top: h - GIFT_H + 2 }]}>
+          <Gift key={gift.id} from={SLED_DECK + 12} life={GIFT_LIFE} label={t('guide.giftA11y', { name })} onOpened={openGift} onGone={() => setGift(null)} />
+        </View>
+      ) : null}
+      {sled ? (
+        <Animated.View pointerEvents="none" style={[s.sled, { top: h - SLED_H + 3, transform: [{ translateX: Animated.add(x, (SIZE - SLED_W) / 2) }, { translateY: sledY }] }]}>
+          <Sled />
+        </Animated.View>
+      ) : null}
       <Animated.View pointerEvents="box-none" style={[s.mascot, { transform: [{ translateX: x }, { translateY: y }] }]}>
         <Animated.View
           {...pan.panHandlers}
@@ -1306,6 +1380,8 @@ function Bonk({ side, y, w, text, onDone }: { side: 'left' | 'right'; y: number;
 const s = StyleSheet.create({
   mascot: { position: 'absolute', left: 0, top: 0, width: SIZE, height: H },
   turkey: { position: 'absolute', left: 0 },
+  sled: { position: 'absolute', left: 0 },
+  gift: { position: 'absolute' },
   sign: { position: 'absolute', left: 0, top: H * 0.02 },
   bubble: {
     position: 'absolute', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#BBF7D0',
