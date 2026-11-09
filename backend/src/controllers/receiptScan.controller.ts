@@ -25,7 +25,7 @@ import { pushReferralAwards } from '../utils/referrals';
 import { updateCustomerTierIfNeeded } from '../utils/tier';
 import { withPdiCategories } from '../utils/receiptPdi';
 import {
-  RECEIPT_SCAN_KEY, READ_PROMPT, canScan, loadScanSettings, matchStore, parseRead, phoneKey, saleLines, type ReceiptRead,
+  RECEIPT_SCAN_KEY, READ_PROMPT, canScan, loadScanSettings, matchStore, parseRead, phoneKey, saleLines, isLotteryLine, lotteryWinnings, type ReceiptRead,
   HQ_ENTERED, HQ_SCAN_STATUSES,
 } from '../utils/receiptScan';
 
@@ -137,6 +137,9 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   const maxDays = rule('receiptMaxDays');
   if (age > maxDays) return refuseScan(maxDays === 0 ? `Only today's receipts can be scanned. This one is from ${read.date}.` : `Receipts can be scanned for ${maxDays} days. This one is from ${read.date}.`, { storeId: store.id, receiptAt });
   const total = read.total ?? (read.subtotal != null ? read.subtotal + (read.tax ?? 0) : null);
+  const WINNINGS_COVER = 'This receipt was paid with lottery winnings, so it does not earn points.';
+  // a total at or below zero from winnings paid out is not a misread: the customer paid nothing themselves (2026-11-08)
+  if (total != null && total <= 0 && lotteryWinnings(read) > 0) return refuseScan(WINNINGS_COVER, { storeId: store.id, receiptAt, total, flags: ['LOTTERY_WINNINGS'] });
   if (total == null || total <= 0) return refuseScan("We couldn't read the total on the receipt.", { storeId: store.id, receiptAt });
   if (total > rule('receiptMaxTotal')) return refuseScan(`Receipts over $${rule('receiptMaxTotal')} can't be scanned. Ask the cashier.`, { storeId: store.id, receiptAt, total });
 
@@ -185,16 +188,18 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
 
   // the store's PDI item list settles what it is sure of: cigarettes and beer earn the base rate even when read as groceries (2026-11-07)
   read = await withPdiCategories(store.id, read);
-  const { lines, leftOut } = saleLines(read, full.enabledCategories);
-  const prepayOnly = read.items.length > 0 && read.items.every((it) => it.prepay || it.category === 'NOT_ELIGIBLE');
-  const flags: string[] = ['RECEIPT_SCAN'];
+  const { lines, leftOut, winnings } = saleLines(read, full.enabledCategories);
+  const prepayOnly = read.items.length > 0 && read.items.every((it) => it.prepay || it.category === 'NOT_ELIGIBLE' || isLotteryLine(it.name));
+  const flags: string[] = ['RECEIPT_SCAN', ...(winnings > 0 ? ['LOTTERY_WINNINGS'] : [])];   // a manager checks these (not an INFO flag: never instant)
   let saleRows = lines;
   if (read.items.length === 0) {
     // A prepay receipt whose lines were not read is still fuel not pumped yet
     if (read.kind === 'PREPAY') return refuseScan('Prepaid gas earns points at the register: show your QR code when you pay, or scan the receipt printed after pumping.', { storeId: store.id, receiptAt, total });
-    saleRows = [{ category: ProductCategory.OTHER, amount: read.subtotal ?? total, gallons: null }]; flags.push('ITEMS_UNREAD');
+    // Without the items nobody can tell what part was lottery (which never earns, 2026-11-08), so the whole amount is not credited any more
+    return refuseScan("We couldn't read the items on this receipt, so we can't tell which ones earn points (lottery and gift cards don't). Take the photo again with every line in it.", { storeId: store.id, receiptAt, total, flags: ['ITEMS_UNREAD'] });
   }
   if (saleRows.length === 0) {
+    if (winnings > 0) return refuseScan(WINNINGS_COVER, { storeId: store.id, receiptAt, total, flags: ['LOTTERY_WINNINGS'] });
     return refuseScan(prepayOnly && read.items.some((it) => it.prepay)
       ? 'Prepaid gas earns points at the register: show your QR code when you pay, or scan the receipt printed after pumping.'
       : 'Nothing on this receipt earns points (for example lottery or gift cards).', { storeId: store.id, receiptAt, total });
@@ -222,23 +227,38 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
     throw e;
   }
 
-  // Price each line like a cashier's grant, then hold every one for review
+  // Price each line like a cashier's grant, then hold every one for review.
+  // 2026-11-08: the scan row above holds the photo's fingerprint and the receipt's number, so the same receipt cannot be sent twice. If
+  // anything fails before its sales exist (the upload, a price, a write), the receipt is released (ERROR, fingerprint and number freed) so
+  // the customer can scan it again; before, a failure here left it "already scanned" with no sales and no points.
   const now = new Date();
   const created: { id: string; category: ProductCategory; amount: number; points: number }[] = [];
+  const release = async (why: string, e: any) => {
+    console.error(`[receipt-scan] ${why}:`, e?.message ?? e);
+    await prisma.receiptScan.update({ where: { id: scanId }, data: { status: 'ERROR', reason: `${why}: ${String(e?.message ?? e).slice(0, 200)}`, imageHash: `${imageHash}:error:${Date.now()}`, receiptKey: null } }).catch(() => {});
+  };
   let imageUrl: string;
   try { imageUrl = await upload(req.file.buffer); } catch (e: any) {
-    await prisma.receiptScan.update({ where: { id: scanId }, data: { status: 'ERROR', reason: `Photo upload failed: ${String(e?.message ?? e).slice(0, 200)}`, imageHash: `${imageHash}:error:${Date.now()}`, receiptKey: null } });
+    await release('Photo upload failed', e);
     res.status(502).json({ success: false, code: 'UPLOAD_FAILED', error: 'The photo could not be saved. Try again in a minute.' });
     return;
   }
-  for (const [i, line] of saleRows.entries()) {
-    const gallons = line.gallons != null && gallonsFit(line.amount, line.gallons) ? line.gallons : null;   // a misread is estimated from the store price instead
-    const priced = await computeSaleCashback({ customer, storeId: store.id, purchaseAmount: line.amount, category: line.category, gasGallons: gallons, now });
-    const lineFlags = [...flags, ...priced.rateCappedFlags];
-    if (line.amount > rule('reviewHighAmount') && !priced.isGasCategory) lineFlags.push('HIGH_AMOUNT');
-    if (line.amount > rule('reviewLargePurchase')) lineFlags.push('LARGE_PURCHASE');
-    const sale = await prisma.pointsTransaction.create({
-      data: {
+  type Priced = Awaited<ReturnType<typeof computeSaleCashback>>;
+  const pricedLines: { line: (typeof saleRows)[number]; priced: Priced; lineFlags: string[] }[] = [];
+  try {
+    for (const line of saleRows) {
+      const gallons = line.gallons != null && gallonsFit(line.amount, line.gallons) ? line.gallons : null;   // a misread is estimated from the store price instead
+      const priced = await computeSaleCashback({ customer, storeId: store.id, purchaseAmount: line.amount, category: line.category, gasGallons: gallons, now });
+      const lineFlags = [...flags, ...priced.rateCappedFlags];
+      if (line.amount > rule('reviewHighAmount') && !priced.isGasCategory) lineFlags.push('HIGH_AMOUNT');
+      if (line.amount > rule('reviewLargePurchase')) lineFlags.push('LARGE_PURCHASE');
+      pricedLines.push({ line, priced, lineFlags });
+    }
+    // every line, the one-sale link and the scan's list of sales in one step: all of them or none
+    await prisma.$transaction(async (tx) => {
+      for (const [i, { line, priced, lineFlags }] of pricedLines.entries()) {
+        const sale = await tx.pointsTransaction.create({
+          data: {
         customerId: customer.id, grantedById: customer.id, storeId: store.id,
         purchaseAmount: line.amount, pointsAwarded: priced.pointsAwarded, devCut: priced.devCut, storeCost: priced.storeCost,
         cashbackRate: priced.effectiveCashbackRate, category: line.category, status: TransactionStatus.FLAGGED, fraudFlags: JSON.stringify(lineFlags),
@@ -247,13 +267,20 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
         offerId: priced.promotionApplied ? priced.activeOffer!.id : null, offerCashback: priced.offerCashback,
         receiptImageUrl: imageUrl, receiptImageHash: i === 0 ? imageHash : null,
       },
-    });
-    if (priced.promotionApplied && priced.activeOffer?.budgetCap != null) noteBudgetUse(priced.activeOffer, now).catch(() => {});
-    created.push({ id: sale.id, category: line.category, amount: line.amount, points: Math.round((priced.pointsAwarded + priced.gasBonusPoints) * 100) });
+        });
+        created.push({ id: sale.id, category: line.category, amount: line.amount, points: Math.round((priced.pointsAwarded + priced.gasBonusPoints) * 100) });
+      }
+      // One receipt with several categories is one sale: its lines share the first line's id (HQ's Transactions page shows them together)
+      if (created.length > 1) await tx.pointsTransaction.updateMany({ where: { id: { in: created.map((c) => c.id) } }, data: { saleId: created[0].id } });
+      await tx.receiptScan.update({ where: { id: scanId }, data: { imageUrl, transactionIds: created.map((c) => c.id) } });
+    }, { timeout: 30_000 });
+  } catch (e: any) {
+    created.length = 0;   // rolled back: none of them exists
+    await release('Saving the sales failed', e);
+    res.status(502).json({ success: false, code: 'SAVE_FAILED', error: 'We could not save this receipt. Nothing was used up: scan it again in a minute.' });
+    return;
   }
-  // One receipt with several categories is one sale: its lines share the first line's id (HQ's Transactions page shows them together)
-  if (created.length > 1) await prisma.pointsTransaction.updateMany({ where: { id: { in: created.map((c) => c.id) } }, data: { saleId: created[0].id } });
-  await prisma.receiptScan.update({ where: { id: scanId }, data: { imageUrl, transactionIds: created.map((c) => c.id) } });
+  for (const { priced } of pricedLines) if (priced.promotionApplied && priced.activeOffer?.budgetCap != null) noteBudgetUse(priced.activeOffer, now).catch(() => {});
 
   // A clean scan is credited at once (Settings > Receipt scanning): clearly read, nothing odd, under the amount, an account that is not
   // brand new, under the weekly number, and not picked for the random spot check. Everything else waits for a manager.
@@ -266,17 +293,22 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   let approved = false;
   if (clean && !spotCheck) {
     let latest: any = null;
-    for (const c of created) {
-      const sale = await prisma.pointsTransaction.findUnique({ where: { id: c.id } });
-      if (!sale) continue;
-      const credited = await prisma.$transaction((db) => approveAndCredit(db, sale, TransactionStatus.FLAGGED));
-      if (credited) {
-        latest = credited;
-        pushChallengeAwards(credited.challengeAwards).catch(() => {});
-        pushReferralAwards(credited.referralAwards).catch(() => {});
+    let partial = false;
+    // a failure here leaves what is not credited held for a manager (the receipt stands), instead of an error for a receipt that was saved
+    try {
+      for (const c of created) {
+        const sale = await prisma.pointsTransaction.findUnique({ where: { id: c.id } });
+        if (!sale) continue;
+        const credited = await prisma.$transaction((db) => approveAndCredit(db, sale, TransactionStatus.FLAGGED));
+        if (credited) {
+          latest = credited;
+          pushChallengeAwards(credited.challengeAwards).catch(() => {});
+          pushReferralAwards(credited.referralAwards).catch(() => {});
+        }
       }
-    }
-    if (latest) {
+    } catch (e: any) { console.error('[receipt-scan] instant credit failed, the rest left for review:', e?.message ?? e); partial = true; }
+    if (latest && partial) await updateCustomerTierIfNeeded(customer.id, latest.periodPoints, latest.tier).catch(() => {});
+    if (latest && !partial) {
       approved = true;
       await updateCustomerTierIfNeeded(customer.id, latest.periodPoints, latest.tier).catch(() => {});
       await prisma.receiptScan.update({ where: { id: scanId }, data: { status: 'AUTO', flags: JSON.stringify([...flags, 'AUTO_APPROVED']) } });

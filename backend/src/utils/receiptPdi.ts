@@ -39,6 +39,8 @@ export function settleCategories(read: ReceiptRead, list: { name: string; depart
     if (!it?.name || it.prepay || it.category === 'NOT_ELIGIBLE' || it.category === 'GAS' || it.category === 'DIESEL') return it;
     const dept = departmentOf(it.name, keyed);
     if (!dept) return it;
+    // a lottery department in PDI: never earns (2026-11-08)
+    if (/LOTT|LOTTERY|LTRY/.test(dept)) return { ...it, category: 'NOT_ELIGIBLE' as ReadCategory, aiCategory: it.category, pdiDepartment: dept };
     const settled = DECISIVE[dept] ?? (GROCERY.has(dept) && (it.category === 'TOBACCO' || it.category === 'ALCOHOL') ? 'GROCERIES' : null);
     return settled && settled !== it.category ? { ...it, category: settled, aiCategory: it.category, pdiDepartment: dept } : { ...it, pdiDepartment: dept };
   });

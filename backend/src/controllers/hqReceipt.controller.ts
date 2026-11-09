@@ -127,10 +127,11 @@ export async function hqReadReceipt(req: AuthRequest, res: Response) {
 
   // The lines, as the customer's scan makes them
   read = await withPdiCategories(storeForLines.id, read);   // as the customer's scan does (2026-11-07)
-  const { lines, leftOut } = saleLines(read, storeForLines.enabledCategories);
+  const { lines, leftOut, winnings } = saleLines(read, storeForLines.enabledCategories);
+  if (winnings > 0) warn('LOTTERY_WINNINGS', `$${winnings.toFixed(2)} of lottery winnings were paid out on this receipt: the lines are cut to what the customer paid themselves (lottery never earns).`);
   let suggested = lines;
   if (read.items.length === 0) {
-    warn('ITEMS_UNREAD', 'The items could not be read: the whole amount is on one line. Split it by category if you can.');
+    warn('ITEMS_UNREAD', 'The items could not be read: the whole amount is on one line. Split it by category if you can, and take out any lottery (it never earns points).');
     const amount = read.subtotal ?? total;
     suggested = amount != null && amount > 0 ? [{ category: ProductCategory.OTHER, amount, gallons: null }] : [];
   }

@@ -42,6 +42,14 @@ export const HQ_SCAN_STATUSES = [HQ_READ, HQ_ENTERED];
 
 // ── What the AI reads ────────────────────────────────────────────────────────
 
+/**
+ * Lottery never earns points (the owner, 2026-11-08: "none at all"). The reader is asked to mark it NOT_ELIGIBLE, and a line whose name
+ * is plainly lottery is left out even when the reader called it something else: Texas Lottery games, scratch tickets, quick picks and
+ * prize payouts. Words that could be groceries ("MEGA" alone, "CASH" alone) are not on the list.
+ */
+export const LOTTERY_NAME = /\b(LOTTO|LOTTERY|LOTTERIES|LOTERIA|LOTT|LTRY|LOTRY|TX ?LOT|TEXAS ?LOT|POWER ?BALL|PWR ?BALL|MEGA ?MILLIONS?|MEGA ?MIL|MEGAMIL\w*|PICK ?[2-4]|DAILY ?4|CASH ?(?:5|FIVE)|TWO ?STEP|ALL ?OR ?NOTHING|SCRATCH\w*|INSTANT ?(?:TICKET|TKT|GAME)S?|QUICK ?PICK|QP)\b/i;
+export const isLotteryLine = (name: string | null | undefined) => !!name && LOTTERY_NAME.test(name);
+
 /** The categories the reader may give a line. Lottery, money orders, gift cards and the like earn nothing. */
 export const READ_CATEGORIES = ['GROCERIES', 'FROZEN_FOODS', 'FRESH_FOODS', 'GAS', 'DIESEL', 'HOT_FOODS', 'TOBACCO', 'ALCOHOL', 'NOT_ELIGIBLE', 'OTHER'] as const;
 export type ReadCategory = typeof READ_CATEGORIES[number];
@@ -88,8 +96,9 @@ Read it carefully and return ONLY a JSON object (no markdown, no explanation) wi
     off the item's amount, so they are not lines of their own),
     "category": one of GROCERIES (packaged food, snacks, drinks, candy, household), FROZEN_FOODS, FRESH_FOODS (fruit, sandwiches, dairy),
     GAS (gasoline), DIESEL, HOT_FOODS (food made in store: chicken, tenders, burritos, pizza, taquitos, corn dogs, coffee),
-    TOBACCO (cigarettes, cigars, vapes), ALCOHOL (beer, wine), NOT_ELIGIBLE (lottery, money order, gift card, prepaid card, bill payment,
-    cash back, deposit, fee), OTHER,
+    TOBACCO (cigarettes, cigars, vapes), ALCOHOL (beer, wine), NOT_ELIGIBLE (any lottery: Texas Lottery, Lotto Texas, Powerball, Mega
+    Millions, Pick 3, Daily 4, Cash Five, Texas Two Step, All or Nothing, scratch-off and instant tickets, quick picks, lottery prize
+    payouts; and money order, gift card, prepaid card, bill payment, cash back, deposit, fee), OTHER,
     "gallons": the gallons for a fuel line ("27.148G" is 27.148), else null,
     "prepay": true for a fuel prepay line ("PREPAY CA #03", "PREPAY CR #05": paid before pumping), else false}.
     A line named "TAX" with a quantity, above the Subtotal, is a sold item counted in the Subtotal: list it (category OTHER).
@@ -200,15 +209,22 @@ export function matchStore(read: ReceiptRead, stores: StoreForMatch[]): StoreFor
 
 export interface SaleLine { category: ProductCategory; amount: number; gallons: number | null }
 
+/** Lottery winnings paid out on a receipt ("Lottery Sales Winn", printed as a minus line), in dollars (positive). */
+export function lotteryWinnings(read: Pick<ReceiptRead, 'items'>): number {
+  return Math.round(read.items.filter((it) => isLotteryLine(it.name) && it.amount < 0).reduce((n, it) => n - it.amount, 0) * 100) / 100;
+}
+
 /**
  * The amount per Lucky Stop category: tobacco and alcohol are OTHER; NOT_ELIGIBLE lines earn nothing; a category the store does not
  * give points on is left out. Negative lines (discounts) reduce their category. Gas and diesel keep their gallons.
+ * Lottery never earns (2026-11-08): tickets bought are left out, and winnings paid out on the receipt pay for the items first, so only what
+ * the customer paid from their own pocket earns ($20 of items with $5 winnings earns on $15; winnings that cover it all leave nothing).
  */
-export function saleLines(read: ReceiptRead, storeCategories: ProductCategory[]): { lines: SaleLine[]; leftOut: string[] } {
+export function saleLines(read: ReceiptRead, storeCategories: ProductCategory[]): { lines: SaleLine[]; leftOut: string[]; winnings: number } {
   const by = new Map<ProductCategory, { amount: number; gallons: number }>();
   const leftOut: string[] = [];
   for (const it of read.items) {
-    if (it.category === 'NOT_ELIGIBLE') { leftOut.push(it.name || 'a line'); continue; }
+    if (it.category === 'NOT_ELIGIBLE' || isLotteryLine(it.name)) { if (it.amount >= 0) leftOut.push(it.name || 'a line'); continue; }   // lottery: never, whatever it was read as
     // Fuel paid before pumping: what was pumped is not on this receipt (a $50 prepay can be $20 pumped and $30 back), 2026-10-16
     if (it.prepay && it.amount > 0) { leftOut.push(it.name ? `${it.name} (prepaid gas)` : 'prepaid gas'); continue; }
     const cat = (it.category === 'TOBACCO' || it.category === 'ALCOHOL' ? 'OTHER' : it.category) as ProductCategory;
@@ -217,10 +233,25 @@ export function saleLines(read: ReceiptRead, storeCategories: ProductCategory[])
     cur.amount += it.amount; cur.gallons += it.gallons ?? 0;
     by.set(cat, cur);
   }
-  const lines = [...by.entries()]
+  let lines = [...by.entries()]
     .map(([category, v]) => ({ category, amount: Math.round(v.amount * 100) / 100, gallons: (category === 'GAS' || category === 'DIESEL') && v.gallons > 0 ? Math.round(v.gallons * 1000) / 1000 : null }))
     .filter((l) => l.amount >= 0.01);
-  return { lines, leftOut };
+  const winnings = lotteryWinnings(read);
+  if (winnings > 0 && lines.length) {
+    // the winnings pay for every line alike: each keeps its share of what the customer paid themselves (gallons too, so cents per gallon stay fair)
+    const sum = lines.reduce((n, l) => n + l.amount, 0);
+    const paid = Math.round((sum - winnings) * 100) / 100;
+    if (paid < 0.01) lines = [];
+    else {
+      const f = paid / sum;
+      lines = lines.map((l) => ({ ...l, amount: Math.round(l.amount * f * 100) / 100, gallons: l.gallons != null ? Math.round(l.gallons * f * 1000) / 1000 : null }));
+      const off = Math.round((paid - lines.reduce((n, l) => n + l.amount, 0)) * 100) / 100;   // cents lost to rounding go on the biggest line
+      if (off !== 0) { const big = lines.reduce((a, b) => (b.amount > a.amount ? b : a)); big.amount = Math.round((big.amount + off) * 100) / 100; }
+      lines = lines.filter((l) => l.amount >= 0.01);
+    }
+    leftOut.push(`$${winnings.toFixed(2)} of lottery winnings paid out (the items were partly paid with them)`);
+  }
+  return { lines, leftOut, winnings };
 }
 
 // ── The same receipt again ───────────────────────────────────────────────────
