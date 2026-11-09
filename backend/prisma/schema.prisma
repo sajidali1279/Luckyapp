@@ -709,6 +709,13 @@ model Offer {
   budgetCap           Float?
   dailyCapPerCustomer Float?
   budgetReachedAt     DateTime?
+  // Offers autopilot (2026-11-09, utils/offerAutopilot.ts): posted by the weekly job, not a person. autoIdea is the idea it came from
+  // (its id in Promotion ideas), autoWeek the Monday (store date) of the week it runs, autoNote why it was picked. A quiet one sends no
+  // push when it starts and no last-day reminder (only the week's biggest auto offer is announced).
+  autoIdea    String?
+  autoWeek    String?
+  autoNote    String?
+  quiet       Boolean     @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -718,6 +725,7 @@ model Offer {
 
   @@index([isActive, startDate, endDate])
   @@index([storeId])
+  @@index([autoWeek])
   @@map("offers")
 }
 

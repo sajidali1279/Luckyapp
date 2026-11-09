@@ -17,7 +17,7 @@ import { estimateOffer } from '../utils/offerEstimate';
 import { isRestrictedCategory } from '../utils/dealSuggest';
 import { AUDIENCES, forCustomer, audienceText } from '../utils/offerAudience';
 import { budgetSpent, budgetSpentMany } from '../utils/offerBudget';
-import { promotionIdeas } from '../utils/promotionIdeas';
+import { allIdeas } from '../utils/offerAutopilot';
 import { comboIdeas, COMBO_KEY_PREFIX } from '../utils/comboIdeas';
 import { cachedAnalytics, bucketTime } from '../utils/analyticsCache';
 import { offerLift } from '../utils/offerLift';
@@ -239,8 +239,10 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
   // HQ sees what each promotion with a budget has paid so far
   const spent = withScheduled ? await budgetSpentMany(offers.filter((o) => o.budgetCap != null).map((o) => o.id)) : new Map<string, number>();
   // onNow: false only for a happy-hour promotion outside its hours (shown all day, pays in its hours); hoursText says when
-  const data: Record<string, unknown>[] = offers.map((o) => ({
-    ...o, onNow: offerPaysAt(o, now), hoursText: hoursText(o),
+  // The autopilot's own notes (why it picked an offer) are HQ's: customers and staff get the offer without them
+  const isHQ = hasMinRole(req.user!.role, Role.SUPER_ADMIN);
+  const data: Record<string, unknown>[] = offers.map(({ autoIdea, autoWeek, autoNote, quiet, ...o }) => ({
+    ...o, ...(isHQ ? { autoIdea, autoWeek, autoNote, quiet } : {}), onNow: offerPaysAt(o, now), hoursText: hoursText(o),
     ...(withScheduled ? { audienceText: audienceText(o), ...(o.budgetCap != null ? { budgetSpent: spent.get(o.id) ?? 0 } : {}) } : {}),
   }));
   // A customer at a store also sees that store's shelf deals (labels with a deal, e.g. "2 for $5") in Today's Deals, as deals
@@ -815,7 +817,7 @@ export async function estimateOfferCost(req: AuthRequest, res: Response) {
 
 /** GET /offers/ideas (HQ): promotions worked out from the last 8 weeks of sales (utils/promotionIdeas.ts), each ready to post. */
 export async function getPromotionIdeas(_req: AuthRequest, res: Response) {
-  const data = await cachedAnalytics(`promotion-ideas:${bucketTime(new Date())}`, () => promotionIdeas());
+  const data = await cachedAnalytics(`promotion-ideas:${bucketTime(new Date())}`, () => allIdeas());   // with "It worked last time"
   res.json({ success: true, data });
 }
 

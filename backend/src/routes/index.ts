@@ -41,6 +41,7 @@ import {
   setShelfDealsHidden,
   setShelfDealHidden,
 } from '../controllers/offers.controller';
+import { getAutopilot, setAutopilot, stopAutopilotOffers } from '../controllers/offerAutopilot.controller';
 import { createOfferRequest, listOfferRequests, withdrawOfferRequest, approveOfferRequest, declineOfferRequest } from '../controllers/offerRequests.controller';
 import {
   generateReceiptToken,
@@ -399,6 +400,9 @@ router.get('/offers', authenticate, getActiveOffers); // All authenticated users
 router.get('/offers/history', authenticate, requireRole(Role.STORE_MANAGER), getOffersHistory);
 router.post('/offers/estimate', authenticate, requireRole(Role.STORE_MANAGER), estimateOfferCost);                 // What a promotion would cost (last 4 weeks of sales)
 router.get('/offers/ideas', authenticate, requireRole(Role.SUPER_ADMIN), getPromotionIdeas);           // Promotion ideas from the last 8 weeks of sales, ready to post
+router.get('/offers/autopilot', authenticate, requireRole(Role.SUPER_ADMIN), getAutopilot);              // Offers autopilot: the switch, budget, this week's auto offers
+router.put('/offers/autopilot', authenticate, requireRole(Role.SUPER_ADMIN), setAutopilot);              // Switch it on or off, budget, offers a week (on: runs at once if it can)
+router.post('/offers/autopilot/stop', authenticate, requireRole(Role.SUPER_ADMIN), stopAutopilotOffers); // This week's auto offers end now
 router.get('/offers/combo-ideas', authenticate, requireRole(Role.SUPER_ADMIN), getComboIdeas);                 // Combo ideas: two items for one price
 router.post('/offers/combo-ideas/dismiss', authenticate, requireRole(Role.SUPER_ADMIN), dismissComboIdea);
 router.post('/offers/combo-ideas/restore', authenticate, requireRole(Role.SUPER_ADMIN), restoreComboIdeas);

@@ -59,7 +59,7 @@ export async function announceOffer(offer: AnnounceableOffer): Promise<number> {
 export async function announceStartedOffers(now: Date = new Date()): Promise<number> {
   const since = new Date(now.getTime() - 14 * 86_400_000);
   const offers = await prisma.offer.findMany({
-    where: { isActive: true, startDate: { lte: now, gte: since }, endDate: { gte: now } },
+    where: { isActive: true, quiet: false, startDate: { lte: now, gte: since }, endDate: { gte: now } },   // a quiet autopilot offer is not announced
     select: { id: true, title: true, titleEs: true, storeId: true, endDate: true, createdAt: true, audience: true, audienceTier: true, audienceDays: true },
   });
   let sent = 0;

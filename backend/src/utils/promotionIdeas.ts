@@ -40,7 +40,7 @@ export const CAT_EN: Record<string, string> = { GROCERIES: 'groceries', FROZEN_F
 const CAT_ES: Record<string, string> = { GROCERIES: 'abarrotes', FROZEN_FOODS: 'congelados', FRESH_FOODS: 'comida fresca', GAS: 'gasolina', DIESEL: 'diésel', HOT_FOODS: 'comida caliente', OTHER: 'otros artículos' };
 const TIER_NAME: Record<string, string> = { BRONZE: 'Bronze', SILVER: 'Silver', GOLD: 'Gold', DIAMOND: 'Diamond', PLATINUM: 'Platinum' };
 
-export type IdeaKind = 'SLOW_HOURS' | 'FALLING_CATEGORY' | 'SLOW_STORE' | 'WIN_BACK';
+export type IdeaKind = 'SLOW_HOURS' | 'FALLING_CATEGORY' | 'SLOW_STORE' | 'WIN_BACK' | 'WORKED_BEFORE';   // WORKED_BEFORE: utils/offerAutopilot.ts
 
 /** What the post form is filled with. Dates are store days (YYYY-MM-DD). */
 export interface IdeaOffer {

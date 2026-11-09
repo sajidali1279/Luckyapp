@@ -20,6 +20,7 @@ import { startMissingCheckCron } from './utils/missing-check-cron';
 import { startEngagementCron } from './utils/engagement-cron';
 import { startReceiptRetentionCron } from './utils/receipt-retention-cron';
 import { startOfferAnnounceCron } from './utils/offerAnnounce';
+import { startOfferAutopilotCron } from './utils/offerAutopilot';
 import { startOfferLastDayCron } from './utils/offerLastDay';
 import { startNoticeAnnounceCron } from './utils/noticeAnnounce';
 import { startHotFoodAutoCancelCron } from './utils/hotFoodAutoCancel';
@@ -154,6 +155,7 @@ app.listen(PORT, () => {
   startChatRetentionCron();          // store chat older than 90 days (the staff privacy notice says 3 months)
   startReceiptRetentionCron();   // receipt photos older than 2 years
   startOfferAnnounceCron();
+  startOfferAutopilotCron();        // Offers autopilot: once a week while HQ has it on
   startOfferLastDayCron();
   startNoticeAnnounceCron();
   startSettingsRefresh();   // HQ settings: read now and every 30 seconds (utils/appSettings.ts)

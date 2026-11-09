@@ -1,3 +1,4 @@
+import { autopilotNotifications } from '../utils/offerAutopilot';
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
@@ -1771,6 +1772,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
 
   notifications.push(...await rewardChangeNotifications(now));
   notifications.push(...await promotionBudgetNotifications(now));
+  notifications.push(...await autopilotNotifications(now));   // the weekly Offers autopilot run (utils/offerAutopilot.ts)
   res.json({ success: true, data: await withSharedReads(notifications) });   // read by any HQ admin, on any computer
 }
 
@@ -2029,6 +2031,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   notifications.push(...await rewardChangeNotifications(now));
   notifications.push(...await promotionBudgetNotifications(now));
+  notifications.push(...await autopilotNotifications(now));   // the weekly Offers autopilot run (utils/offerAutopilot.ts)
   res.json({ success: true, data: await withSharedReads(notifications) });   // read by any HQ admin, on any computer
 }
 
