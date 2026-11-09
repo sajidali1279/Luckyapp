@@ -1268,6 +1268,8 @@ export default function EmployeeScanScreen() {
               autoFocus
             />
           </View>
+          {/* the owner, 2026-11-08: lottery (tickets or winnings), money orders and gift cards never earn: the cashier leaves them out */}
+          <Text style={s.noPointsNote}>{t('employeeScan.noPointsNote')}</Text>
 
           {/* Gas extras */}
           {isGasCat && (
@@ -1891,6 +1893,7 @@ const s = StyleSheet.create({
 
   // ── Category grid ─────────────────────────────────────────────────────────────
   fieldLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  noPointsNote: { fontSize: 13, color: '#B45309', fontWeight: '600', marginTop: 6, lineHeight: 18 },
   required: { color: COLORS.error, textTransform: 'none', fontWeight: '600' },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   catCell: {

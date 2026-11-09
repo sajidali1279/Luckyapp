@@ -1833,6 +1833,7 @@
     "genericErrorMsg": "Algo salió mal."
   },
   "employeeScan": {
+    "noPointsNote": "La lotería, los giros postales y las tarjetas de regalo no ganan puntos: no los incluyas.",
     "welcomeLocked": "Bloqueado: esta tienda pide {{amount}} gastados hoy primero. El cliente ha gastado {{spent}}.",
     "welcomeLockedNoStore": "Bloqueado: primero se necesita una compra de {{amount}} hoy.",
     "welcomeItemNotHere": "Este artículo no se ofrece en esta tienda. Pide al cliente que elija otro en su app.",

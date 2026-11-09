@@ -1833,6 +1833,7 @@
     "genericErrorMsg": "Something went wrong."
   },
   "employeeScan": {
+    "noPointsNote": "Lottery, money orders and gift cards earn no points: leave them out.",
     "welcomeLocked": "Locked: this store asks for {{amount}} spent today first. The customer has spent {{spent}}.",
     "welcomeLockedNoStore": "Locked: a purchase of {{amount}} today is needed first.",
     "welcomeItemNotHere": "This item is not offered at this store. Ask the customer to choose another in their app.",
