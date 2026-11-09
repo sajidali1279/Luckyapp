@@ -9,7 +9,7 @@ import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { C, FONT, RADIUS, INPUT } from '../lib/theme';
 import { Page, PageHeader, SectionTitle, Tabs, Button, Chip, Card, Badge, Notice, EmptyState, Field, MenuButton } from '../components/kit';
-import { LayoutTemplate, Lightbulb, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Pencil, Square, Clock, BellOff } from 'lucide-react';
+import { LayoutTemplate, Lightbulb, Zap, Plus, X, AlertTriangle, Info, MapPin, Globe, Tag, ChevronDown, ChevronRight, BarChart3, RotateCcw, Pencil, Square, Clock, BellOff, Bot } from 'lucide-react';
 import Modal from '../components/Modal';
 import { serverMessage } from '../lib/apiError';
 import { CATEGORY_LABELS, CATEGORY_OPTIONS, NO_CATEGORY_LABEL, categoryLabel } from '../lib/categories';
@@ -24,6 +24,7 @@ import ShelfDealsSection from '../components/offers/ShelfDealsSection';
 import ChallengesPanel from '../components/offers/ChallengesPanel';
 import WelcomeBonusSettings from '../components/WelcomeBonusSettings';
 import IdeasPanel, { type IdeaOffer } from '../components/offers/IdeasPanel';
+import AutopilotCard from '../components/offers/AutopilotCard';
 import ComboIdeasPanel, { type ComboOffer } from '../components/offers/ComboIdeasPanel';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 import { ImagePick } from '../components/offers/ImagePick';
@@ -923,6 +924,7 @@ export default function Offers() {
       )}
 
       {/* Templates */}
+      {isHQ && mainTab === 'promotions' && <AutopilotCard />}
       {showIdeas && isHQ && mainTab === 'promotions' && <IdeasPanel onUse={applyIdea} />}
 
       {showTemplates && (
@@ -1363,6 +1365,7 @@ function OfferTags({ offer, isPast, isScheduled }: { offer: any; isPast?: boolea
       {offer.titleEs && <Badge title={`In Spanish: ${offer.titleEs}`}>ES</Badge>}
       {audienceLabel(offer) && <Badge tone="info">{audienceLabel(offer)}</Badge>}
       {offer.budgetReachedAt && <Badge tone="warning">Budget used up</Badge>}
+      {offer.autoIdea && <Badge tone="info" icon={<Bot size={12} />} title={offer.autoNote ? `Posted by the autopilot. Why: ${offer.autoNote}` : 'Posted by the autopilot'}>Auto</Badge>}
     </div>
   );
 }

@@ -137,6 +137,10 @@ export const offersApi = {
   /** A new picture for an offer already posted, or none. */
   setImage: (offerId: string, file: File) => { const fd = new FormData(); fd.append('image', file); return api.post(`/offers/${offerId}/image`, fd); },
   removeImage: (offerId: string) => api.delete(`/offers/${offerId}/image`),
+  /** Offers autopilot (HQ): its switch, weekly budget and offers a week, this week's auto offers, the last runs. */
+  autopilot: () => api.get('/offers/autopilot'),
+  setAutopilot: (data: { enabled?: boolean; weeklyBudget?: number; perWeek?: number }) => api.put('/offers/autopilot', data),
+  stopAutopilot: () => api.post('/offers/autopilot/stop'),
   /** Promotion ideas from the last 8 weeks of sales (HQ), each ready to fill in the form. */
   ideas: () => api.get('/offers/ideas'),
   /** Combo ideas (HQ): two items for one price, from the catalog and what moves; new ones every day. */
