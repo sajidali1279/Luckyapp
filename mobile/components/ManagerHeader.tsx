@@ -7,6 +7,7 @@ import { COLORS } from '../constants';
 import { ChevronLeftIcon } from './Icons';
 import LargeTitleHeader from './LargeTitleHeader';
 import FocusStatusBar from './FocusStatusBar';
+import i18n from '../i18n';
 
 type Size = 'lg' | 'md' | 'sm';
 
@@ -42,7 +43,7 @@ export default function ManagerHeader({
         color={COLORS.managerPrimary}
         icon={icon}
         left={showBack ? (
-          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={i18n.t('customerHome.goBack')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />
           </TouchableOpacity>
         ) : undefined}
@@ -62,7 +63,7 @@ export default function ManagerHeader({
             style={s.backBtn}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Go back"
+            accessibilityLabel={i18n.t('customerHome.goBack')}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <ChevronLeftIcon size={22} color="#fff" strokeWidth={2.5} />

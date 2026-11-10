@@ -53,6 +53,7 @@ export default function GasPriceCard({
   gasUpdatedAt: string | null | undefined;
   dieselUpdatedAt: string | null | undefined;
 }) {
+  const { t } = useTranslation();   // the labels follow the app's language (audit 2026-11-11: they were always English)
   const gasChanged = useRecentlyChanged(gasUpdatedAt);
   const dieselChanged = useRecentlyChanged(dieselUpdatedAt);
 
@@ -61,10 +62,10 @@ export default function GasPriceCard({
   return (
     <View style={s.card}>
       {gasPrice != null && (
-        <PriceRow icon={<GasPumpIcon size={16} color="#fff" strokeWidth={2} />} label="Gas" price={gasPrice} changed={gasChanged} />
+        <PriceRow icon={<GasPumpIcon size={16} color="#fff" strokeWidth={2} />} label={t('customerHome.gas')} price={gasPrice} changed={gasChanged} />
       )}
       {dieselPrice != null && (
-        <PriceRow icon={<TruckIcon size={16} color="#fff" strokeWidth={2} />} label="Diesel" price={dieselPrice} changed={dieselChanged} />
+        <PriceRow icon={<TruckIcon size={16} color="#fff" strokeWidth={2} />} label={t('customerHome.diesel')} price={dieselPrice} changed={dieselChanged} />
       )}
     </View>
   );

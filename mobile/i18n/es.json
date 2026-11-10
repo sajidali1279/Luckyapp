@@ -198,6 +198,7 @@
     "team": "Equipo"
   },
   "drawer": {
+    "closeMenuA11y": "Cerrar el menú",
     "signOut": "Cerrar Sesión",
     "signOutConfirm": "¿Estás seguro de que quieres cerrar sesión?",
     "cancel": "Cancelar",
@@ -323,6 +324,11 @@
     "saveLanguageA11y": "Guardar el idioma elegido"
   },
   "promoModal": {
+    "closeA11y": "Cerrar el formulario para promocionar su negocio",
+    "changeImageA11y": "Cambiar la imagen del negocio",
+    "removeImageA11y": "Quitar la imagen del negocio",
+    "addImageA11y": "Agregar una imagen del negocio",
+    "submitA11y": "Enviar la solicitud de promoción del negocio",
     "title": "Promociona tu Negocio",
     "subtitle": "Cuéntanos sobre tu negocio y nos pondremos en contacto para configurar tu anuncio.",
     "yourName": "Tu Nombre",

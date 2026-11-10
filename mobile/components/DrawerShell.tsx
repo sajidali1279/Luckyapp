@@ -225,7 +225,7 @@ export default function DrawerShell({ children, bottomItems, groups, headerColor
                 style={s.drawerClose}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 accessibilityRole="button"
-                accessibilityLabel="Close menu"
+                accessibilityLabel={t('drawer.closeMenuA11y')}
               >
                 <XIcon size={18} color="#fff" strokeWidth={2.5} />
               </TouchableOpacity>

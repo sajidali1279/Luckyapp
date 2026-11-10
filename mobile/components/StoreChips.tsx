@@ -1,7 +1,8 @@
 // The row of store chips on the manager screens (Requests, Disputes, Schedule), with how many items wait at each store.
 // A manager with 12 stores used to see one total in the menu and no hint of which store it was at (2026-10-10).
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, TouchableOpacity, Text, View, StyleSheet } from 'react-native';
+import { ScrollView, TouchableOpacity, View, StyleSheet } from 'react-native';
+import { Text } from './ScaledText';   // capped font scaling, like every other screen (audit 2026-11-11)
 import { useTranslation } from 'react-i18next';
 
 interface Store { id: string; name: string }

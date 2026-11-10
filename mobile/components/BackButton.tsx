@@ -2,6 +2,7 @@ import { TouchableOpacity, StyleSheet, ViewStyle, StyleProp } from 'react-native
 import { router } from 'expo-router';
 import { ChevronLeftIcon } from './Icons';
 import { COLORS } from '../constants';
+import i18n from '../i18n';
 
 export default function BackButton({
   onPress,
@@ -19,7 +20,7 @@ export default function BackButton({
       style={[s.btn, { backgroundColor: isLight ? 'rgba(255,255,255,0.15)' : '#f1f5f9' }, style]}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel="Go back"
+      accessibilityLabel={i18n.t('customerHome.goBack')}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <ChevronLeftIcon size={22} color={isLight ? '#fff' : COLORS.text} strokeWidth={2.5} />

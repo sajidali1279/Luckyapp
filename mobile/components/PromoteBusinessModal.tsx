@@ -79,7 +79,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
         <View style={s.root}>
           <View style={s.header}>
             <Text style={s.title}>{t('promoModal.title')}</Text>
-            <ModalCloseButton onPress={onClose} label="Close promote your business form" color="#fff" style={s.closeBtn} />
+            <ModalCloseButton onPress={onClose} label={t('promoModal.closeA11y')} color="#fff" style={s.closeBtn} />
           </View>
           <Text style={s.subtitle}>{t('promoModal.subtitle')}</Text>
           <ScrollView keyboardShouldPersistTaps="handled" style={s.body} contentContainerStyle={{ gap: 12 }} showsVerticalScrollIndicator={false}>
@@ -114,7 +114,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
                     onPress={pickPromoImage}
                     activeOpacity={0.8}
                     accessibilityRole="button"
-                    accessibilityLabel="Change business image"
+                    accessibilityLabel={t('promoModal.changeImageA11y')}
                     hitSlop={{ top: 6, bottom: 6 }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -127,7 +127,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
                     onPress={() => setPromoImageUri(null)}
                     activeOpacity={0.8}
                     accessibilityRole="button"
-                    accessibilityLabel="Remove business image"
+                    accessibilityLabel={t('promoModal.removeImageA11y')}
                     hitSlop={{ top: 6, bottom: 6 }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -143,7 +143,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
                 onPress={pickPromoImage}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Add business image"
+                accessibilityLabel={t('promoModal.addImageA11y')}
               >
                 <ImageIcon size={28} color={COLORS.textMuted} strokeWidth={1.5} />
                 <Text style={s.imgPickerText}>{t('promoModal.tapToAdd')}</Text>
@@ -157,7 +157,7 @@ export default function PromoteBusinessModal({ visible, onClose }: { visible: bo
               onPress={() => submitPromoMutation.mutate()}
               disabled={submitPromoMutation.isPending || !promoBusinessName.trim() || !promoDesc.trim()}
               accessibilityRole="button"
-              accessibilityLabel="Submit business promotion request"
+              accessibilityLabel={t('promoModal.submitA11y')}
             >
               {submitPromoMutation.isPending
                 ? <ActivityIndicator color="#fff" />

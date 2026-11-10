@@ -198,6 +198,7 @@
     "team": "Team"
   },
   "drawer": {
+    "closeMenuA11y": "Close menu",
     "signOut": "Sign Out",
     "signOutConfirm": "Are you sure you want to sign out?",
     "cancel": "Cancel",
@@ -323,6 +324,11 @@
     "saveLanguageA11y": "Save language selection"
   },
   "promoModal": {
+    "closeA11y": "Close the promote your business form",
+    "changeImageA11y": "Change the business image",
+    "removeImageA11y": "Remove the business image",
+    "addImageA11y": "Add a business image",
+    "submitA11y": "Send the business promotion request",
     "title": "Promote Your Business",
     "subtitle": "Tell us about your business and we'll be in touch to set up your advertisement.",
     "yourName": "Your Name",
