@@ -375,13 +375,25 @@ export function MarginsDeals({ stores, states, storeId, setStore, openItem }: { 
 
 // ─── The hot food menu against the register ───────────────────────────────────
 
-interface HotFoodRow { id: string; name: string; appCents: number; query: string; custom: boolean; stores: { storeId: string; storeName: string; matches: number; pdiName: string | null; pdiCents: number | null; differs: boolean }[] }
+interface HotFoodRow { id: string; name: string; appCents: number; query: string; custom: boolean; registerCents: number | null; stores: { storeId: string; storeName: string; matches: number; pdiName: string | null; pdiCents: number | null; differs: boolean }[] }
 
 export function HotFoodCheck() {
   const qc = useQueryClient();
   const hq = useQuery({ queryKey: ['hot-food-check'], queryFn: () => itemsApi.hotFoodCheck().then((r) => r.data.data as { canEdit: boolean; items: HotFoodRow[] }) });
   const [editing, setEditing] = useState<HotFoodRow | null>(null);
+  const [repricing, setRepricing] = useState<HotFoodRow | null>(null);
   const [busy, setBusy] = useState(false);
+  async function useRegister() {
+    if (!repricing) return;
+    setBusy(true);
+    try {
+      await itemsApi.useHotFoodRegisterPrice(repricing.id);
+      toast.success(`${repricing.name} is now ${usd(repricing.registerCents)} in the app.`);
+      setRepricing(null);
+      qc.invalidateQueries({ queryKey: ['hot-food-check'] });
+      qc.invalidateQueries({ queryKey: ['hot-food-catalog'] });
+    } catch (e: any) { toast.error(e?.response?.data?.error ?? 'Not changed. Try again.'); } finally { setBusy(false); }
+  }
   const items = (hq.data?.items ?? []).filter((x) => x.stores.length > 0);
   const off = items.reduce((n, x) => n + x.stores.filter((st) => st.differs).length, 0);
   async function save(words: string | null) {
@@ -414,6 +426,9 @@ export function HotFoodCheck() {
                       <span style={{ fontWeight: 600 }}>{it.name}</span>
                       <div style={{ fontSize: FONT.caption, color: TEXT_MUTED }}>Words: "{it.query}"{it.custom ? '' : ' (from the name)'}</div>
                       {hq.data!.canEdit && <button type="button" style={{ ...s.linkBtn, fontSize: FONT.small }} onClick={() => setEditing(it)}>Change the words</button>}
+                      {hq.data!.canEdit && it.registerCents != null && (
+                        <div style={{ marginTop: 6 }}><Button size="sm" onClick={() => setRepricing(it)} aria-label={`Use the register price ${usd(it.registerCents)} for ${it.name}`}>Use the register price {usd(it.registerCents)}</Button></div>
+                      )}
                     </td>
                   )}
                   {i === 0 && <td style={s.td} rowSpan={it.stores.length}>{usd(it.appCents)}</td>}
@@ -425,6 +440,11 @@ export function HotFoodCheck() {
             </tbody>
           </table>
         </div>
+      )}
+      {repricing && (
+        <ConfirmModal open headingLevel="h2" title={`${repricing.name}: ${usd(repricing.registerCents)} in the app?`} busy={busy}
+          message={<>Every store's register charges {usd(repricing.registerCents)} for it; the app shows {usd(repricing.appCents)}. The app price changes for every store that has it on the menu.</>}
+          confirmLabel={`Use ${usd(repricing.registerCents)}`} onConfirm={() => void useRegister()} onCancel={() => setRepricing(null)} />
       )}
       {editing && (
         <ConfirmModal open headingLevel="h2" title={`Find "${editing.name}" in PDI`} busy={busy} withInput inputLabel="Words in the PDI item's name"

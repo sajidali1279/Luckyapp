@@ -263,6 +263,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
                     onMouseDown={() => { setName(sg.name); setShowSugg(false); }}>
                     <span style={{ fontWeight: 600 }}>{sg.name}</span>
                     {sg.category && <span style={p.suggCat}>{sg.category}</span>}
+                    {sg.source === 'pdi' && <span style={p.suggCat} title="An item in the stores' PDI lists">PDI</span>}
                   </div>
                 ))}
               </div>

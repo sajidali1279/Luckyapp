@@ -92,6 +92,18 @@ interface ProductRequest {
   expiresAt: string;
   createdAt: string;
   customer: { id: string; name: string | null; phone: string };
+  // what the stores' PDI item lists say about it (2026-11-11)
+  pdi?: { words: string; hasList: boolean; here: { name: string; priceCents: number | null }[]; elsewhere: { storeName: string; name: string }[] } | null;
+}
+
+/** "In this store's PDI list: Takis Blue Heat 4oz $2.79", or the other stores that sell it. */
+function PdiHint({ pdi }: { pdi: ProductRequest['pdi'] }) {
+  if (!pdi) return null;
+  const money = (c: number | null) => (c == null ? '' : ` $${(c / 100).toFixed(2)}`);
+  const style = { fontSize: 12, marginTop: 4, lineHeight: 1.5 } as const;
+  if (pdi.here.length) return <div style={{ ...style, color: '#17663a' }} data-testid="pr-pdi">In this store's PDI list: {pdi.here.map((h) => `${h.name}${money(h.priceCents)}`).join('; ')}. It may be out of stock or hard to find.</div>;
+  if (pdi.elsewhere.length) return <div style={{ ...style, color: '#1D3557' }} data-testid="pr-pdi">Not in this store's PDI list; sold at {pdi.elsewhere.map((e) => `${e.storeName.replace(/^Lucky Stop\s*/i, '')} (${e.name})`).join(', ')}.</div>;
+  return pdi.hasList ? <div style={{ ...style, color: '#6b7280' }} data-testid="pr-pdi">Not in any of the stores' PDI lists ("{pdi.words}").</div> : null;
 }
 
 const PR_STATUS_COLOR: Record<string, string> = { PENDING: '#8a5300', ACCEPTED: '#17663a', DECLINED: '#a51b28' };
@@ -734,6 +746,7 @@ export default function StoreRequests() {
                               <div style={{ flex: 1, minWidth: 130 }}>
                                 <div style={s.prProductName}>{pr.productName}</div>
                                 {pr.description && <div style={s.prDescription}>"{pr.description}"</div>}
+                                <PdiHint pdi={pr.pdi} />
                               </div>
                               <div style={{ ...s.prStatusBadge, background: statusBg, color: statusColor, borderColor: statusBorder }}>
                                 <span style={{ ...s.prStatusDot, background: statusDot }} />

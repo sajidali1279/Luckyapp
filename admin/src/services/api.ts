@@ -573,6 +573,7 @@ export const scannedProductApi = {
   delete: (id: string) => api.delete(`/scanned-products/${id}`),
   save: (data: { barcode: string; name: string; category?: string; brand?: string }) =>
     api.post('/scanned-products', data),
+  fillFromPdi: () => api.post('/scanned-products/from-pdi', {}, { timeout: 180_000 }),   // HQ: every PDI item not in it yet (2026-11-11)
 };
 
 export const employeeRequestApi = {
@@ -795,7 +796,7 @@ export const inventoryAnalyticsApi = {
     return api.get(`/inventory/analytics${q ? `?${q}` : ''}`);
   },
   getItemSuggestions: (params: { q: string; category?: string }) => {
-    const qs = new URLSearchParams({ q: params.q });
+    const qs = new URLSearchParams({ q: params.q, pdi: '1' });   // pdi=1: the stores' PDI item names too, tagged (2026-11-11, as the app since 2026-11-08)
     if (params.category) qs.set('category', params.category);
     return api.get(`/order-lists/suggestions?${qs.toString()}`);
   },
@@ -824,6 +825,7 @@ export const itemsApi = {
   setRewardQuery: (id: string, pdiQuery: string | null) => api.patch(`/items/reward-costs/${encodeURIComponent(id)}`, { pdiQuery }),
   hotFoodCheck: () => api.get('/items/hot-food-check'),
   setHotFoodQuery: (id: string, pdiQuery: string | null) => api.patch(`/items/hot-food-check/${encodeURIComponent(id)}`, { pdiQuery }),
+  useHotFoodRegisterPrice: (id: string) => api.post(`/items/hot-food-check/${encodeURIComponent(id)}/use-register`, {}),
 };
 
 export const pdiInvoicesApi = {

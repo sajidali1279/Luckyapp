@@ -12,6 +12,7 @@ import { Page, PageHeader, Button, Field } from '../components/kit';
 import { Plus, Search } from 'lucide-react';
 import { INPUT } from '../lib/theme';
 import Glyph from '../components/Glyph';
+import { useAuthStore } from '../store/authStore';
 
 interface ScannedProduct {
   id: string;
@@ -87,6 +88,20 @@ export default function ScannedProducts() {
   }, [editCategory, approvedCats]);
 
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  // Every PDI item into the catalog (2026-11-11, HQ): products already here are left as they are
+  const role = useAuthStore((st) => st.user?.role);
+  const hq = role === 'SUPER_ADMIN' || role === 'DEV_ADMIN';
+  const [askFill, setAskFill] = useState(false);
+  const [filling, setFilling] = useState(false);
+  async function fillFromPdi() {
+    setFilling(true);
+    try {
+      const r = (await scannedProductApi.fillFromPdi()).data.data as { added: number; already: number; leftOut: number };
+      toast.success(r.added ? `${r.added.toLocaleString()} products added from the PDI item lists. ${r.already.toLocaleString()} were already here and were left as they are.` : 'Every PDI item is already here.');
+      setAskFill(false);
+      qc.invalidateQueries({ queryKey: ['scanned-products'] });
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'The PDI items could not be added. Try again.'); } finally { setFilling(false); }
+  }
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['scanned-products', debSearch],
@@ -192,6 +207,15 @@ export default function ScannedProducts() {
 
   return (
     <Page>
+      <ConfirmModal
+        open={askFill}
+        title="Add every PDI item?"
+        message="Every product in the stores' PDI item lists that is not here yet is added, with PDI's name (and a category where its department is one kind of product, like Candy or Tobacco). Products already here are left exactly as they are. Lottery tickets and the stores' own short codes are left out. No shelf labels are made. New items from later PDI uploads are added by themselves."
+        confirmLabel="Add them"
+        busy={filling}
+        onConfirm={() => void fillFromPdi()}
+        onCancel={() => setAskFill(false)}
+      />
       <ConfirmModal
         open={!!confirmItem}
         title="Remove this product?"
@@ -355,7 +379,7 @@ export default function ScannedProducts() {
       {/* Header */}
       <PageHeader
         title="Scanned products"
-        description={<>Chain-wide barcode catalog (name, category, brand) built up by managers scanning products on mobile{!isLoading && ` · ${products.length}${products.length === 200 ? '+' : ''} shown`}</>}
+        description={<>Chain-wide barcode catalog (name, category, brand): products staff scanned, and every item in the stores' PDI lists{!isLoading && ` · ${products.length}${products.length === 200 ? '+' : ''} shown, most scanned first; search to find the rest`}</>}
         actions={
           <>
             <div style={{ position: 'relative', width: 260 }}>
@@ -363,12 +387,13 @@ export default function ScannedProducts() {
               <input
                 className="ui-input"
                 style={{ ...INPUT, paddingLeft: 32 }}
-                aria-label="Search by product name"
-                placeholder="Search by product name…"
+                aria-label="Search by product name or barcode"
+                placeholder="Search by name or barcode…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
+            {hq && <Button onClick={() => setAskFill(true)} disabled={filling}>{filling ? 'Adding...' : 'Add all PDI items'}</Button>}
             <Button variant="primary" icon={<Plus />} onClick={() => setShowAddModal(true)}>Add product</Button>
           </>
         }
@@ -417,7 +442,7 @@ export default function ScannedProducts() {
                             <span style={{ ...s.sourceBadge, background: meta.bg, color: meta.color }}>{meta.label}</span>
                           </TableCell>
                           <TableCell style={s.td}>{p.scanCount.toLocaleString()}</TableCell>
-                          <TableCell style={s.td}>{new Date(p.lastScannedAt).toLocaleDateString()}</TableCell>
+                          <TableCell style={s.td}>{p.scanCount === 0 ? <span style={{ color: TEXT_MUTED }}>Never scanned</span> : new Date(p.lastScannedAt).toLocaleDateString()}</TableCell>
                           <TableCell style={s.td}>
                             <div style={{ display: 'flex', gap: 6 }}>
                               <button style={s.editBtn} onClick={() => openEditModal(p)}>Edit</button>

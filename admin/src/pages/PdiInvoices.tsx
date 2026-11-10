@@ -233,6 +233,7 @@ interface ImportResult {
   changes?: { pricesUp: number; pricesDown: number; costsUp: number; newItems: number; goneItems: number } | null; newWithoutLabel?: number | null;
   // shelf labels put on the new register prices (2026-11-11: labels follow the register)
   labelsFollowed?: { updated: number; onSale: number; noPrice: number; conflicts: number } | null;
+  scannedAdded?: number | null;   // new products put in Scanned products (2026-11-11)
 }
 interface LabelPrices {
   hasList: boolean; compared: number; same: number; notInPdi: number;
@@ -477,6 +478,11 @@ export function ItemLists() {
                 {result.labelsFollowed.conflicts > 0 && ` ${result.labelsFollowed.conflicts.toLocaleString()} changed by someone at that moment were left alone.`}
               </div>
             </div>
+          )}
+          {!!result.scannedAdded && (
+            <p style={{ margin: '12px 0 0', fontSize: FONT.small, color: TEXT_MUTED }} data-testid="upload-scanned">
+              {result.scannedAdded.toLocaleString()} new {result.scannedAdded === 1 ? 'product was' : 'products were'} added to Scanned products, so a scan anywhere in the app finds {result.scannedAdded === 1 ? 'its' : 'their'} name.
+            </p>
           )}
           <div style={s.modalActions}>
             {result.changes && result.store.id && (
