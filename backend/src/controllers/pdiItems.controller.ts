@@ -16,7 +16,7 @@ import { savePlanned } from './labels.controller';
 import { itemKind, notARewardKind } from '../utils/pdiDepartments';
 import { dealPriceOf, dealVerdict } from '../utils/dealPrice';
 import { forgetCatalog, catalogOrNull, kindAt } from '../utils/itemCatalog';
-import { diffLists, looksLikeAnotherStore, type ChangeCounts } from '../utils/pdiPriceHistory';
+import { diffLists, looksLikeAnotherStore, isStandIn, type ChangeCounts } from '../utils/pdiPriceHistory';
 import { addPdiToScanned } from '../utils/scannedFromPdi';
 
 const SEARCH_LIMIT = 25;
@@ -47,7 +47,10 @@ export const fullCode = (code: string) => (code.length === 11 ? code + gs1CheckD
  *  when the new file shares under half its items with the last list (probably another store's file); `counts` is null on a first list. */
 export async function replaceItemList(storeId: string, items: PdiItemRow[], meta: { fileName: string | null; skipped: number; userId: string; anyway?: boolean }) {
   return prisma.$transaction(async (tx) => {
-    const old = await tx.pdiItem.findMany({ where: { storeId }, select: { code: true, upcKey: true, name: true, priceCents: true, costCents: true } });
+    // a stand-in list (its state's stores combined) is replaced with no comparison and no "another store's file?" question
+    const last = await tx.pdiItemImport.findFirst({ where: { storeId }, orderBy: { createdAt: 'desc' }, select: { fileName: true } });
+    const old = isStandIn(last?.fileName) ? []
+      : await tx.pdiItem.findMany({ where: { storeId }, select: { code: true, upcKey: true, name: true, priceCents: true, costCents: true } });
     const diff = diffLists(old, items);
     if (!meta.anyway && looksLikeAnotherStore(old.length, items.length, diff.shared, diff.unchanged)) {
       return { mismatch: { oldItems: old.length, newItems: items.length, shared: diff.shared, unchanged: diff.unchanged }, imp: null, counts: null };

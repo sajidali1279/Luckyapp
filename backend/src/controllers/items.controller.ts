@@ -277,7 +277,7 @@ export async function dealIdeasList(req: AuthRequest, res: Response) {
   const state = str(req.query.state, 4);
   let ids = scopeIds ?? cat.stores.map((s) => s.id);
   if (state) ids = ids.filter((id) => cat.stores.find((s) => s.id === id)?.state === state);
-  const listed = ids.filter((id) => cat.listStores.has(id));
+  const listed = ids.filter((id) => cat.listStores.has(id) && !cat.standIn.has(id));
   const ideas = dealIdeas(cat, new Set(ids), { minStores: Math.min(3, Math.max(1, listed.length)), department: str(req.query.department, 120), q: str(req.query.q) });
   const pages = Math.max(1, Math.ceil(ideas.length / PAGE_SIZE));
   const p = Math.min(page(req.query.page), pages);

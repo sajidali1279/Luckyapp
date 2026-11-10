@@ -79,7 +79,7 @@ export function dealIdeas(cat: Catalog, scope: Set<string> | null, opts: { minSt
     if (/^0000/.test(p.code)) continue;   // a store's own short code, not a product barcode
     if (opts.department && (p.department ?? '') !== opts.department) continue;
     if (words.length && !words.every((w) => p.search.includes(w))) continue;
-    const rows = p.prices.filter((x) => (!scope || scope.has(x.storeId)) && x.priceCents);
+    const rows = p.prices.filter((x) => (!scope || scope.has(x.storeId)) && x.priceCents && !cat.standIn?.has(x.storeId));   // a stand-in is not a store's own price
     if (rows.length < minStores) continue;
     const costed = rows.filter((x) => x.costCents);
     if (costed.length < 2) continue;
@@ -186,7 +186,7 @@ export function askedFor(cat: Catalog, text: string, storeId: string, scope: Set
       // for a customer (2026-11-11): never tobacco, alcohol, lottery, CBD, propane (the app shows no prices for them)
       if (opts.noRestricted && (notARewardKind(x.kind) || notARewardKind(p.kind))) continue;
       if (x.storeId === storeId) { if (here.length < 3) here.push({ name: x.name, priceCents: x.priceCents }); }
-      else if ((!scope || scope.has(x.storeId)) && !elsewhere.has(x.storeId)) elsewhere.set(x.storeId, x.name);
+      else if ((!scope || scope.has(x.storeId)) && !cat.standIn?.has(x.storeId) && !elsewhere.has(x.storeId)) elsewhere.set(x.storeId, x.name);
     }
   }
   const names = new Map(cat.stores.map((s) => [s.id, s.name]));

@@ -58,6 +58,12 @@ export function diffLists(old: ListItem[], next: ListItem[]): { rows: ChangeRow[
   return { rows, counts, shared, unchanged };
 }
 
+/** A stand-in list (2026-11-11): stores 3, 4, 11 and the truck stop had no PDI file, so each got its state's other stores combined (every
+ *  item once, at the price most of them charge), uploaded under a file name starting with this. The store's first real file replaces it
+ *  with no comparison: the stand-in's prices were never the store's own. */
+export const STAND_IN = 'Stand-in';
+export const isStandIn = (fileName: string | null | undefined) => !!fileName && fileName.startsWith(STAND_IN);
+
 /** True when the new list is probably another store's: it shares under half its items with the last one, or under 60% of the items it
  *  shares keep their price and cost. Only for lists of a real size (200 items or more on both sides). */
 export const looksLikeAnotherStore = (oldCount: number, newCount: number, shared: number, unchanged: number) =>
