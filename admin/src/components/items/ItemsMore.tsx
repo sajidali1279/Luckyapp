@@ -100,7 +100,7 @@ export function Changes({ stores, storeId, setStore, openItem }: { stores: ListS
             {d.changes.length === 0 ? <div style={s.loading}>Nothing here.</div> : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={s.table} aria-label="Changes">
-                  <thead><tr>{['Item', 'What changed', 'Register price', 'Cost'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                  <thead><tr>{['Item', 'What changed (register price)', 'Cost'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
                   <tbody>
                     {d.changes.map((c) => (
                       <tr key={c.code} data-testid="change-row">
@@ -109,8 +109,8 @@ export function Changes({ stores, storeId, setStore, openItem }: { stores: ListS
                             : <button type="button" style={s.linkBtn} onClick={() => openItem(c.key)}>{c.name}</button>}
                           <div style={{ fontSize: FONT.caption, color: TEXT_MUTED }}>{c.upc}</div>
                         </td>
-                        <td style={s.td}><ChangeBadge c={c} /></td>
-                        <td style={s.td}><FromTo a={c.oldPriceCents} b={c.newPriceCents} kind={c.kind} upIsBad={false} /></td>
+                        <td style={s.td}><ChangeBadge c={c} />
+                          <div style={{ fontSize: FONT.caption, marginTop: 4 }}><FromTo a={c.oldPriceCents} b={c.newPriceCents} kind={c.kind} upIsBad={false} /></div></td>
                         <td style={s.td}><FromTo a={c.oldCostCents} b={c.newCostCents} kind={c.kind} upIsBad /></td>
                       </tr>
                     ))}
@@ -247,15 +247,15 @@ export function MakeLabels({ stores, storeId, setStore }: { stores: ListStore[];
                 <thead><tr>
                   {d.canMake && <th style={{ ...s.th, width: 36 }}><input type="checkbox" aria-label="Tick every item on this page" checked={pageAll}
                     onChange={() => setPicked((p) => { const n = new Set(p); if (pageAll) d.items.forEach((x) => n.delete(x.key)); else for (const x of d.items) { if (n.size >= d.max) break; n.add(x.key); } return n; })} /></th>}
-                  {['Item', 'Department', 'Register price', 'In Labels'].map((h) => <th key={h} style={s.th}>{h}</th>)}
+                  {['Item', 'Department', 'In Labels'].map((h) => <th key={h} style={s.th}>{h}</th>)}
                 </tr></thead>
                 <tbody>
                   {d.items.map((x) => (
                     <tr key={x.key} data-testid="candidate-row" style={d.canMake ? s.row : undefined} onClick={d.canMake ? () => toggle(x.key) : undefined}>
                       {d.canMake && <td style={s.td}><input type="checkbox" aria-label={`Make a label for ${x.name}`} checked={picked.has(x.key)} onChange={() => toggle(x.key)} onClick={(e) => e.stopPropagation()} /></td>}
-                      <td style={{ ...s.td, whiteSpace: 'normal', minWidth: 200 }}><span style={{ fontWeight: 600 }}>{x.name}</span><div style={{ fontSize: FONT.caption, color: TEXT_MUTED }}>{x.upc}</div></td>
+                      <td style={{ ...s.td, whiteSpace: 'normal', minWidth: 180 }}><span style={{ fontWeight: 600 }}>{x.name}</span>
+                        <div style={{ fontSize: FONT.caption, color: TEXT_MUTED }}><b style={{ color: C.text }}>{usd(x.priceCents)}</b> at the register, {x.upc}</div></td>
                       <td style={s.td}>{x.department ?? ''}</td>
-                      <td style={s.td}>{usd(x.priceCents)}</td>
                       <td style={{ ...s.td, whiteSpace: 'normal' }}>{x.label ? <span style={{ fontSize: FONT.small }}>Label at other stores ({x.label.productName}{x.label.priceText ? `, $${x.label.priceText}` : ''})</span> : <span style={{ color: TEXT_MUTED }}>New label</span>}</td>
                     </tr>
                   ))}
@@ -303,17 +303,17 @@ export function MarginsDeals({ stores, states, storeId, setStore, openItem }: { 
         {mq.isError ? <ErrorState onRetry={() => mq.refetch()} /> : !mq.data ? <div style={s.loading}>Loading...</div> : (
           <div style={{ overflowX: 'auto' }}>
             <table style={s.table} aria-label="Margin by department">
-              <thead><tr>{['Department', 'Items', 'With a cost', 'Middle margin', 'Average', 'Below cost', 'Under 10%'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Department', 'Middle margin', 'Below cost', 'Under 10%', 'Average', 'Items', 'With a cost'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.department} data-testid="margin-row">
-                    <td style={{ ...s.td, fontWeight: 600 }}>{r.department || 'No department'}</td>
-                    <td style={s.td}>{r.items.toLocaleString()}</td>
-                    <td style={{ ...s.td, color: TEXT_MUTED }}>{r.withCost.toLocaleString()}</td>
+                    <td style={{ ...s.td, fontWeight: 600, whiteSpace: 'normal', minWidth: 120 }}>{r.department || 'No department'}</td>
                     <td style={{ ...s.td, fontWeight: 600, color: r.medianPct != null && r.medianPct < 10 ? C.danger : undefined }}>{pct(r.medianPct) || <span style={{ color: TEXT_MUTED }}>No costs</span>}</td>
-                    <td style={s.td}>{pct(r.averagePct)}</td>
                     <td style={s.td}>{r.belowCost ? <Badge tone="danger">{r.belowCost.toLocaleString()}</Badge> : <span style={{ color: TEXT_MUTED }}>0</span>}</td>
                     <td style={s.td}>{r.under10 ? <Badge tone="warning">{r.under10.toLocaleString()}</Badge> : <span style={{ color: TEXT_MUTED }}>0</span>}</td>
+                    <td style={s.td}>{pct(r.averagePct)}</td>
+                    <td style={s.td}>{r.items.toLocaleString()}</td>
+                    <td style={{ ...s.td, color: TEXT_MUTED }}>{r.withCost.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -347,7 +347,7 @@ export function MarginsDeals({ stores, states, storeId, setStore, openItem }: { 
             <div style={s.count} aria-live="polite">{ideas.total.toLocaleString()} {ideas.total === 1 ? 'idea' : 'ideas'}, most stores first{iq.isFetching ? ' (updating...)' : ''}</div>
             <div style={{ overflowX: 'auto' }}>
               <table style={s.table} aria-label="Deal ideas">
-                <thead><tr>{['Item', 'Stores', 'Register price', 'Margin now', 'Idea', 'After the deal'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                <thead><tr>{['Item', 'Idea', 'After the deal', 'Register price', 'Margin now', 'Stores'].map((h) => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
                 <tbody>
                   {ideas.ideas.map((x) => (
                     <tr key={x.key} data-testid="idea-row">
@@ -355,11 +355,11 @@ export function MarginsDeals({ stores, states, storeId, setStore, openItem }: { 
                         <button type="button" style={s.linkBtn} onClick={() => openItem(x.key)}>{x.name}</button>
                         <div style={{ fontSize: FONT.caption, color: TEXT_MUTED }}>{x.upc}{x.department ? `, ${x.department}` : ''}</div>
                       </td>
-                      <td style={s.td}>{x.stores}</td>
+                      <td style={s.td}><Badge tone="success">{x.dealText}</Badge></td>
+                      <td style={{ ...s.td, whiteSpace: 'normal', fontSize: FONT.small, minWidth: 140 }}>{usd(x.unitCents)} each: saves {x.savingPct}%, keeps {x.marginAfterPct}% margin</td>
                       <td style={s.td}>{x.minPriceCents === x.maxPriceCents ? usd(x.minPriceCents) : `${usd(x.minPriceCents)} to ${usd(x.maxPriceCents)}`}</td>
                       <td style={s.td}>{x.marginNowPct}% or more</td>
-                      <td style={s.td}><Badge tone="success">{x.dealText}</Badge></td>
-                      <td style={{ ...s.td, whiteSpace: 'normal', fontSize: FONT.small }}>{usd(x.unitCents)} each: saves {x.savingPct}%, keeps {x.marginAfterPct}% margin</td>
+                      <td style={s.td}>{x.stores}</td>
                     </tr>
                   ))}
                 </tbody>

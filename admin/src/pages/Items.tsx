@@ -91,7 +91,7 @@ export default function Items() {
   return (
     <Page>
       <PageHeader title="Items" icon={Boxes}
-        description="Every product in the stores' PDI item lists, with each store's own price and cost. Read only: register prices change in PDI, shelf labels in Labels." />
+        description="Every product in the stores' PDI item lists, with each store's own price and cost. Register prices change in PDI; here you see them, track what changed and make shelf labels from them." />
       <Tabs<Tab> ariaLabel="Items page sections" value={tab} onChange={(t) => set({ tab: t === 'finder' ? '' : t })}
         tabs={[
           { value: 'finder', label: 'Item finder' },
