@@ -39,6 +39,16 @@ interface LookupResult {
   priceText?: string | null;
   hasOverride?: boolean;
   status?: PrintStatus;
+  // 2026-11-10: the store's PDI item list. source 'PDI' = priceText is the register's (no shelf label, or no shelf price at this store)
+  source?: 'LABEL' | 'PDI';
+  registerPriceText?: string | null;
+}
+
+/** True when the shelf price and the register's are both plain prices and not the same. */
+function registerDiffers(r: LookupResult): boolean {
+  if (r.source !== 'LABEL' || !r.registerPriceText || !r.priceText) return false;
+  const a = Number(r.priceText), b = Number(r.registerPriceText);
+  return Number.isFinite(a) && Number.isFinite(b) && Math.round(a * 100) !== Math.round(b * 100);
 }
 
 interface Props {
@@ -300,6 +310,12 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
                   <Text style={st.priceBig}>${result.priceText}</Text>
                   {result.dealText ? <Text style={st.dealText}>{result.dealText}</Text> : null}
                   {result.hasOverride && <Text style={st.overrideNote}>{t('sharedPriceCheck.customPrice')}</Text>}
+                  {result.source === 'PDI' ? (
+                    <Text style={st.registerNote}>{t(result.id ? 'sharedPriceCheck.registerNoShelfPrice' : 'sharedPriceCheck.registerNoLabel')}</Text>
+                  ) : null}
+                  {registerDiffers(result) ? (
+                    <Text style={st.registerWarn}>{t('sharedPriceCheck.registerDiffers', { price: result.registerPriceText })}</Text>
+                  ) : null}
                   {result.status && (
                     <View style={[st.statusChip, { borderColor: STATUS_COLOR[result.status] }]}>
                       <Text style={[st.statusChipText, { color: STATUS_COLOR[result.status] }]}>{statusText(result.status)}</Text>
@@ -501,6 +517,8 @@ const st = StyleSheet.create({
   priceBig: { fontSize: 40, fontWeight: '900', color: COLORS.text, marginTop: 4 },
   dealText: { fontSize: 14, fontWeight: '700', color: '#b7791f', marginTop: 6 },
   overrideNote: { fontSize: 12, color: COLORS.textMuted, marginTop: 6 },
+  registerNote: { fontSize: 13, color: COLORS.textMuted, marginTop: 8, textAlign: 'center', lineHeight: 18 },
+  registerWarn: { fontSize: 13.5, fontWeight: '700', color: '#b42318', marginTop: 10, textAlign: 'center', lineHeight: 19 },
   statusChip: { marginTop: 14, borderWidth: 1.5, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5 },
   statusChipText: { fontSize: 12.5, fontWeight: '700' },
 
