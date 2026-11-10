@@ -13,6 +13,7 @@ import { readItemReport, PdiItemListError, PdiItemRow } from '../utils/pdiItemLi
 import { canonicalPrice, samePrice } from '../utils/labelPrice';
 import { endedSaleView, describeStorePrice } from '../utils/labelSale';
 import { savePlanned } from './labels.controller';
+import { notARewardDepartment } from '../utils/pdiDepartments';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
@@ -147,8 +148,8 @@ export async function barcodeInfo(req: AuthRequest, res: Response) {
   } });
 }
 
-// Never a reward: tobacco, beer, propane and PDI's test department (2026-11-08)
-const NOT_A_REWARD = new Set(['CIGS', 'BEER', 'PROPANE', 'TEST A DEPT']);
+// Never a reward: tobacco, alcohol, lottery, CBD, propane and PDI's test department (2026-11-08; both department naming styles 2026-11-10,
+// utils/pdiDepartments.ts)
 
 /** GET /pdi-items/reward-search?q&storeId (2026-11-08): PDI items for a reward with no shelf label, by name (every word), at the reward's
  *  store or (none given) the person's stores, each with the register price most of those stores charge. No tobacco, beer or propane. */
@@ -168,7 +169,7 @@ export async function rewardSearch(req: AuthRequest, res: Response) {
   });
   const byCode = new Map<string, { name: string; prices: Map<number, number> }>();
   for (const r of rows) {
-    if (r.department && NOT_A_REWARD.has(r.department.trim().toUpperCase())) continue;
+    if (notARewardDepartment(r.department)) continue;
     const e = byCode.get(r.code) ?? { name: r.name.trim(), prices: new Map<number, number>() };
     e.prices.set(r.priceCents!, (e.prices.get(r.priceCents!) ?? 0) + 1);
     byCode.set(r.code, e);
