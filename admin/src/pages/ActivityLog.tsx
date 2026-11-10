@@ -176,6 +176,19 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   LABEL_SALE_ENDED:          { label: 'Sale prices ended',      color: '#3c6e8f', bg: '#457b9d18', icon: '⏱️' },
   LABELS_MERGED:             { label: 'Same-barcode items merged', color: PRIMARY, bg: '#1D355718', icon: '🔗' },
   LABELS_IMPORTED:           { label: 'Labels imported',        color: PRIMARY, bg: '#1D355718', icon: '📥' },
+  // PDI and items (2026-11-06 to 11-11; they showed as raw codes until the audit of 2026-11-11)
+  PDI_ITEMS_IMPORTED:        { label: 'PDI item list uploaded', color: PRIMARY, bg: '#1D355718', icon: '📋' },
+  LABEL_PRICES_FROM_PDI:     { label: 'Labels on register price', color: PRIMARY, bg: '#1D355718', icon: '💲' },
+  LABELS_FROM_PDI:           { label: 'Labels made from PDI',   color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
+  SCANNED_PRODUCTS_FROM_PDI: { label: 'Scanned products from PDI', color: PRIMARY, bg: '#1D355718', icon: '📦' },
+  PDI_FILE_DOWNLOADED:       { label: 'PDI invoice file downloaded', color: PRIMARY, bg: '#1D355718', icon: '⬇️' },
+  PDI_INVOICE_DELETED:       { label: 'PDI invoice deleted',    color: '#a51b28', bg: '#c4213018', icon: '🗑️' },
+  PDI_VENDOR_CREATED:        { label: 'PDI vendor added',       color: PRIMARY, bg: '#1D355718', icon: '🚚' },
+  PDI_VENDOR_UPDATED:        { label: 'PDI vendor changed',     color: PRIMARY, bg: '#1D355718', icon: '🚚' },
+  PDI_VENDOR_DELETED:        { label: 'PDI vendor removed',     color: '#a51b28', bg: '#c4213018', icon: '🚚' },
+  OFFER_AUTOPILOT_SET:       { label: 'Offers autopilot set',   color: PRIMARY, bg: '#1D355718', icon: '🤖' },
+  OFFER_AUTOPILOT_STOP:      { label: 'Offers autopilot stopped', color: '#5a6472', bg: '#6c757d18', icon: '🤖' },
+  OFFER_AUTOPILOT_RUN:       { label: 'Offers autopilot ran',   color: '#5a6472', bg: '#6c757d18', icon: '🤖' },
   DEAL_RECOMMENDATIONS_RESTORED: { label: 'Deal suggestions shown again', color: PRIMARY, bg: '#1D355718', icon: '💡' },
   DEAL_LIMITS:               { label: 'Deal limits changed',    color: PRIMARY, bg: '#1D355718', icon: '📏' },
   DEALS_BULK:                { label: 'Deals set together',     color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
@@ -409,6 +422,16 @@ export default function ActivityLog() {
           </optgroup>
           <optgroup label="── Labels ──">
             {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','LABEL_CHANGE_REFUSED','PRINT_LABEL','STORE_LABEL_PRICE','STORE_LABEL_REMOVED','PUSH_LABEL_TO_ALL_STORES','LABEL_SALE_ENDED','LABELS_MERGED','LABELS_IMPORTED','DEAL_RECOMMENDATIONS_RESTORED','DEAL_LIMITS','DEALS_BULK','DEAL_LEARNING_RESET'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── PDI & items ──">
+            {['PDI_ITEMS_IMPORTED', 'LABEL_PRICES_FROM_PDI', 'LABELS_FROM_PDI', 'SCANNED_PRODUCTS_FROM_PDI', 'PDI_FILE_DOWNLOADED', 'PDI_INVOICE_DELETED', 'PDI_VENDOR_CREATED', 'PDI_VENDOR_UPDATED', 'PDI_VENDOR_DELETED'].map(k => (
+              <option key={k} value={k}>{ACTION_META[k].label}</option>
+            ))}
+          </optgroup>
+          <optgroup label="── Offers autopilot ──">
+            {['OFFER_AUTOPILOT_SET', 'OFFER_AUTOPILOT_STOP', 'OFFER_AUTOPILOT_RUN'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

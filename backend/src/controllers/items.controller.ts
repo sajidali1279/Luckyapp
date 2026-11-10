@@ -393,7 +393,7 @@ export async function setHotFoodQuery(req: AuthRequest, res: Response) {
   const it = await prisma.hotFoodCatalogItem.findUnique({ where: { id: String(req.params.id) }, select: { id: true, name: true } });
   if (!it) { res.status(404).json({ success: false, error: 'That menu item is gone.' }); return; }
   await prisma.hotFoodCatalogItem.update({ where: { id: it.id }, data: { pdiQuery: q } });
-  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATE', entity: 'HotFoodCatalogItem', entityId: it.id,
-    details: { summary: `Hot food ${it.name}: PDI search words ${q ? `"${q}"` : 'back to its name'}` } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATED', entity: 'hot_food_item', entityId: it.id,
+    details: { name: it.name, summary: `Hot food ${it.name}: PDI search words ${q ? `"${q}"` : 'back to its name'}` } });
   res.json({ success: true, data: { id: it.id, pdiQuery: q } });
 }

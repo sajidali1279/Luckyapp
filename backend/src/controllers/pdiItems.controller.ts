@@ -135,7 +135,10 @@ export async function importPdiItems(req: AuthRequest, res: Response) {
     .sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, items]) => ({ name, items }));
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'PDI_ITEMS_IMPORTED', entity: 'Store', entityId: store.id,
-    details: { fileName, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates, ...(done.counts ? { changes: done.counts } : {}), ...(anyway ? { notLikeLastList: true } : {}) },
+    details: {
+      summary: `Uploaded ${store.name}'s PDI item list: ${read.items.length.toLocaleString()} items${done.counts ? ` (${done.counts.pricesUp} prices up, ${done.counts.pricesDown} down, ${done.counts.newItems} new, ${done.counts.goneItems} gone)` : ''}${anyway ? '; confirmed although it did not look like the store\'s last list' : ''}.`,
+      fileName, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates, ...(done.counts ? { changes: done.counts } : {}), ...(anyway ? { notLikeLastList: true } : {}),
+    },
     storeId: store.id, storeName: store.name,
   });
   res.json({ success: true, data: {
