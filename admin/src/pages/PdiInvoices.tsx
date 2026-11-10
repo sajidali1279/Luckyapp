@@ -227,7 +227,11 @@ function Vendors({ hq }: { hq: boolean }) {
 }
 
 interface ItemListRow { storeId: string; name: string; items: number; importedAt: string | null; importedBy: string | null; fileName: string | null }
-interface ImportResult { store: { name: string }; items: number; skipped: number; duplicates: number; withCost: number; withPrice: number; departments: { name: string; items: number }[] }
+interface ImportResult {
+  store: { id?: string; name: string }; items: number; skipped: number; duplicates: number; withCost: number; withPrice: number; departments: { name: string; items: number }[];
+  // since the store's last list (2026-11-11); null on its first list
+  changes?: { pricesUp: number; pricesDown: number; costsUp: number; newItems: number; goneItems: number } | null; newWithoutLabel?: number | null;
+}
 interface LabelPrices {
   hasList: boolean; compared: number; same: number; notInPdi: number;
   different: {
@@ -246,6 +250,9 @@ export function ItemLists() {
   const listsQ = useQuery({ queryKey: ['pdi-item-lists'], queryFn: () => pdiInvoicesApi.itemLists().then((r) => r.data.data as { canUpload: boolean; stores: ItemListRow[] }) });
   const [uploading, setUploading] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
+  // a file that does not look like the store's last list (2026-11-11): the server's words, and the file to send again if HQ says it is right
+  const [mismatch, setMismatch] = useState<{ storeId: string; file: File; error: string } | null>(null);
+  const navigate = useNavigate();
   const [priceStore, setPriceStore] = useState('');
   const file = useRef<HTMLInputElement>(null);
   const target = useRef<string>('');
@@ -289,17 +296,24 @@ export function ItemLists() {
     } catch (e: any) { toast.error(e?.response?.data?.error ?? 'The prices could not be changed. Try again.'); } finally { setApplying(null); }
   }
 
-  async function upload(f: File | undefined) {
-    const storeId = target.current;
+  async function upload(f: File | undefined, storeIdIn?: string, anyway = false) {
+    const storeId = storeIdIn ?? target.current;
     if (!f || !storeId) return;
     setUploading(storeId);
+    setMismatch(null);
     try {
-      const r = await pdiInvoicesApi.importItems(storeId, f);
-      setResult(r.data.data as ImportResult);
+      const r = await pdiInvoicesApi.importItems(storeId, f, anyway);
+      setResult({ ...(r.data.data as ImportResult), store: { ...(r.data.data as ImportResult).store, id: storeId } });
       qc.invalidateQueries({ queryKey: ['pdi-item-lists'] });
       qc.invalidateQueries({ queryKey: ['pdi-label-prices'] });
       qc.invalidateQueries({ queryKey: ['pdi-invoice'] });
-    } catch (e: any) { toast.error(e?.response?.data?.error ?? 'The file could not be read. Try again.'); } finally { setUploading(null); }
+      qc.invalidateQueries({ queryKey: ['items'] });
+      qc.invalidateQueries({ queryKey: ['item-changes'] });
+      qc.invalidateQueries({ queryKey: ['label-candidates'] });
+    } catch (e: any) {
+      if (e?.response?.status === 409 && e?.response?.data?.code === 'LIST_MISMATCH') setMismatch({ storeId, file: f, error: e.response.data.error });
+      else toast.error(e?.response?.data?.error ?? 'The file could not be read. Try again.');
+    } finally { setUploading(null); }
   }
 
   if (listsQ.isError) return <ErrorState onRetry={() => listsQ.refetch()} />;
@@ -438,9 +452,33 @@ export function ItemLists() {
             </p>
           )}
           <div style={{ fontSize: FONT.small, color: TEXT_MUTED }}>Largest departments: {result.departments.slice(0, 6).map((d) => `${d.name} ${d.items.toLocaleString()}`).join(', ')}</div>
-          <div style={s.modalActions}><Button variant="primary" onClick={() => setResult(null)}>Done</Button></div>
+          {result.changes ? (
+            <div style={{ marginTop: 12 }} data-testid="upload-changes">
+              <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>Since the last list</div>
+              <div style={{ fontSize: FONT.body, color: C.text2, lineHeight: 1.6 }}>
+                {result.changes.pricesUp.toLocaleString()} prices up, {result.changes.pricesDown.toLocaleString()} down;{' '}
+                <span style={{ color: result.changes.costsUp ? C.danger : undefined }}>{result.changes.costsUp.toLocaleString()} costs up with the same price</span>;{' '}
+                {result.changes.newItems.toLocaleString()} new items{result.newWithoutLabel ? ` (${result.newWithoutLabel.toLocaleString()} with no shelf label)` : ''}, {result.changes.goneItems.toLocaleString()} gone.
+              </div>
+            </div>
+          ) : result.changes === null ? (
+            <p style={{ margin: '12px 0 0', fontSize: FONT.small, color: TEXT_MUTED }}>The first list since price history started: changes show from the store's next upload.</p>
+          ) : null}
+          <div style={s.modalActions}>
+            {result.changes && result.store.id && (
+              <Button onClick={() => { const id = result.store.id!; setResult(null); navigate(`/items?tab=changes&store=${encodeURIComponent(id)}`); }}>See the changes</Button>
+            )}
+            {!!result.newWithoutLabel && result.store.id && (
+              <Button onClick={() => { const id = result.store.id!; setResult(null); navigate(`/items?tab=labels&store=${encodeURIComponent(id)}`); }}>Make their labels</Button>
+            )}
+            <Button variant="primary" onClick={() => setResult(null)}>Done</Button>
+          </div>
         </Modal>
       )}
+      <ConfirmModal open={!!mismatch} headingLevel="h2" title="Is this the right store's file?" danger busy={!!uploading}
+        message={<>{mismatch?.error} Upload it anyway only if you are sure it is {stores.find((x) => x.storeId === mismatch?.storeId)?.name ?? 'this store'}'s report.</>}
+        confirmLabel="Upload it anyway" cancelLabel="Cancel" onCancel={() => setMismatch(null)}
+        onConfirm={() => { if (mismatch) void upload(mismatch.file, mismatch.storeId, true); }} />
     </>
   );
 }

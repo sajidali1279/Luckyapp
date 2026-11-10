@@ -14,6 +14,7 @@ import Modal from '../components/Modal';
 import { INPUT } from '../lib/theme';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import { useRewardCosts, RewardCostLine } from '../components/items/ItemsMore';
 
 interface CatalogItem {
   id: string;
@@ -301,6 +302,8 @@ function ChainSection({
   deletingId: string | null;
 }) {
   const meta = CHAIN_META[chain] || { icon: '🏪', color: '#374151' };
+  // what each reward costs the store, from the PDI item lists (2026-11-11; nothing shows while the lists are not uploaded)
+  const costs = useRewardCosts();
   return (
     <div style={cs.section}>
       <div style={{ ...cs.chainHeader, borderLeftColor: meta.color }}>
@@ -353,6 +356,7 @@ function ChainSection({
                         {item.followPrice === false ? `own points (price makes ${pointsForPrice(item.label.priceText)?.toLocaleString() ?? 'none'})` : 'follows the price'}
                       </span>
                     )}
+                    <RewardCostLine cost={costs.data?.get(item.id)} canEdit={item.canManage !== false} />
                   </TableCell>
                   <TableCell style={cs.td}>
                     <span style={{ fontWeight: 600, color: '#111827' }}>{(item.redeemedTotal ?? 0).toLocaleString()}</span>

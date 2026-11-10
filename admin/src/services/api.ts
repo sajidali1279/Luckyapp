@@ -814,6 +814,16 @@ export const adminApi = {
 export const itemsApi = {
   list: (params: Record<string, string | number>) => api.get('/items', { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
   get: (key: string) => api.get(`/items/${encodeURIComponent(key)}`),
+  // 2026-11-11: price history, shelf labels from PDI, margins, deal ideas, reward costs, hot food against the register
+  changes: (params: Record<string, string | number>) => api.get('/items/changes', { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
+  labelCandidates: (params: Record<string, string | number>) => api.get('/items/label-candidates', { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
+  makeLabels: (storeId: string, keys: string[]) => api.post('/items/make-labels', { storeId, keys }, { timeout: 180_000 }),
+  margins: (storeId: string) => api.get('/items/margins', { params: { storeId } }),
+  dealIdeas: (params: Record<string, string | number>) => api.get('/items/deal-ideas', { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
+  rewardCosts: () => api.get('/items/reward-costs'),
+  setRewardQuery: (id: string, pdiQuery: string | null) => api.patch(`/items/reward-costs/${encodeURIComponent(id)}`, { pdiQuery }),
+  hotFoodCheck: () => api.get('/items/hot-food-check'),
+  setHotFoodQuery: (id: string, pdiQuery: string | null) => api.patch(`/items/hot-food-check/${encodeURIComponent(id)}`, { pdiQuery }),
 };
 
 export const pdiInvoicesApi = {
@@ -841,9 +851,10 @@ export const pdiInvoicesApi = {
   removeVendor: (id: string) => api.delete(`/pdi-vendors/${id}`),
   // each store's item list as PDI knows it (2026-11-06): HQ uploads PDI's item report; the invoice lines are checked against it
   itemLists: () => api.get('/pdi-items/lists'),
-  importItems: (storeId: string, file: File) => {
+  importItems: (storeId: string, file: File, anyway = false) => {
     const fd = new FormData();
     fd.append('storeId', storeId);
+    if (anyway) fd.append('anyway', 'true');   // the file does not look like the store's last list, and HQ said it is (2026-11-11)
     fd.append('file', file, file.name);
     return api.post('/pdi-items/import', fd, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 180_000 });
   },

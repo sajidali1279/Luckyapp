@@ -9,6 +9,7 @@ import Modal from '../components/Modal';
 import ErrorState from '../components/ErrorState';
 import DataTablePagination from '../components/DataTablePagination';
 import { ItemLists } from './PdiInvoices';
+import { Changes, MakeLabels, MarginsDeals, HotFoodCheck, PriceHistory } from '../components/items/ItemsMore';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 
 // Items (2026-11-10, step 1 of the owner's items plan): every product in the stores' PDI item lists in one place, found by name or
@@ -16,9 +17,12 @@ import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 // (moved here from Invoices to PDI). Read only: register prices are changed in PDI and shelf labels in Labels. Each store's own list is
 // the truth for its prices: most prices are the same across a state, but some differ by store on purpose, so a difference is shown, not
 // fixed. HQ sees every store; a store manager sees their own stores. Backend: controllers/items.controller.ts, utils/itemCatalog.ts.
+// 2026-11-11 (the owner's seven ideas): Changes (what each upload changed), Make labels (shelf labels at the register price, HQ), Margins
+// & deal ideas, the hot food menu against the register (on Price checks), "Missing at a store", and each item's price history.
 
-type Filter = 'ALL' | 'DIFFERS' | 'DIFFERS_IN_STATE' | 'BELOW_COST' | 'LOW_MARGIN' | 'NO_COST' | 'NAMES';
-type Tab = 'finder' | 'checks' | 'lists';
+type Filter = 'ALL' | 'DIFFERS' | 'DIFFERS_IN_STATE' | 'BELOW_COST' | 'LOW_MARGIN' | 'NO_COST' | 'NAMES' | 'MISSING';
+type Tab = 'finder' | 'checks' | 'changes' | 'labels' | 'margins' | 'lists';
+const TABS: Tab[] = ['finder', 'checks', 'changes', 'labels', 'margins', 'lists'];
 interface Price { storeId: string; storeName: string; state: string | null; code: string; name: string; department: string | null; priceCents: number | null; costCents: number | null; marginPct: number | null }
 interface Item {
   key: string; upc: string; name: string; department: string | null; kind: string | null; prices: Price[]; minCents: number | null; maxCents: number | null;
@@ -34,6 +38,7 @@ interface Detail extends Item {
   label: { id: string; productName: string; priceText: string | null; dealText: string | null; category: string | null; stores: number; rewards: { id: string; title: string; pointsCost: number; isActive: boolean }[] } | null;
   otherLabels: number;
   scanned: { name: string; category: string | null; brand: string | null; source: string | null } | null;
+  history?: { storeName: string | null; kind: string; oldPriceCents: number | null; newPriceCents: number | null; oldCostCents: number | null; newCostCents: number | null; createdAt: string }[];
 }
 
 const usd = (c: number | null | undefined) => (c == null ? '' : `$${(c / 100).toFixed(2)}`);
@@ -46,12 +51,13 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: 'DIFFERS', label: 'Price differs between stores' },
   { value: 'NO_COST', label: 'No cost in PDI' },
   { value: 'NAMES', label: 'Different names at different stores' },
+  { value: 'MISSING', label: 'Missing at a store (most stores sell it)' },
 ];
 const STALE_DAYS = 14;
 
 export default function Items() {
   const [params, setParams] = useSearchParams();
-  const tab: Tab = params.get('tab') === 'checks' ? 'checks' : params.get('tab') === 'lists' ? 'lists' : 'finder';
+  const tab: Tab = (TABS as string[]).includes(params.get('tab') ?? '') ? (params.get('tab') as Tab) : 'finder';
   const role = useAuthStore((s) => s.user?.role);
   const hq = role === 'SUPER_ADMIN' || role === 'DEV_ADMIN';
   const get = (k: string) => params.get(k) ?? '';
@@ -78,15 +84,21 @@ export default function Items() {
   const withList = stores.filter((s) => s.items > 0);
   const missing = stores.filter((s) => s.items === 0);
   const stale = withList.filter((s) => s.uploadedAt && Date.now() - new Date(s.uploadedAt).getTime() > STALE_DAYS * 86_400_000);
+  // the store the Changes, Make labels and Margins tabs look at (kept in the address, shared by the three)
+  const storeId = withList.some((s) => s.id === get('store')) ? get('store') : withList[0]?.id ?? '';
+  const setStore = (id: string) => set({ store: id });
 
   return (
     <Page>
       <PageHeader title="Items" icon={Boxes}
         description="Every product in the stores' PDI item lists, with each store's own price and cost. Read only: register prices change in PDI, shelf labels in Labels." />
-      <Tabs<Tab> ariaLabel="Item finder, price checks or PDI lists" value={tab} onChange={(t) => set({ tab: t === 'finder' ? '' : t })}
+      <Tabs<Tab> ariaLabel="Items page sections" value={tab} onChange={(t) => set({ tab: t === 'finder' ? '' : t })}
         tabs={[
           { value: 'finder', label: 'Item finder' },
           { value: 'checks', label: 'Price checks', count: data ? data.counts.BELOW_COST + data.counts.LOW_MARGIN : undefined },
+          { value: 'changes', label: 'Changes' },
+          { value: 'labels', label: 'Make labels' },
+          { value: 'margins', label: 'Margins & deal ideas' },
           { value: 'lists', label: 'PDI lists', count: missing.length || undefined },
         ]} />
 
@@ -94,7 +106,16 @@ export default function Items() {
         <EmptyState icon={<Boxes />} title="No PDI item list yet" description={hq ? 'Upload each store\'s PDI "Current inventory by item" report on the PDI lists tab.' : 'HQ uploads each store\'s PDI item list.'}
           action={<Button variant="primary" onClick={() => set({ tab: 'lists' })}>Go to PDI lists</Button>} />
       ) : tab === 'checks' ? (
-        <Checks data={data} hq={hq} missing={missing.map((m) => m.name)} stale={stale.map((m) => m.name)} show={(filter, sort) => set({ tab: '', filter, sort: sort ?? '' })} lists={() => set({ tab: 'lists' })} />
+        <>
+          <Checks data={data} hq={hq} missing={missing.map((m) => m.name)} stale={stale.map((m) => m.name)} show={(filter, sort) => set({ tab: '', filter, sort: sort ?? '' })} lists={() => set({ tab: 'lists' })} />
+          <HotFoodCheck />
+        </>
+      ) : tab === 'changes' ? (
+        <Changes stores={withList} storeId={storeId} setStore={setStore} openItem={setOpen} />
+      ) : tab === 'labels' ? (
+        <MakeLabels stores={withList} storeId={storeId} setStore={setStore} />
+      ) : tab === 'margins' ? (
+        <MarginsDeals stores={withList} states={data.states} storeId={storeId} setStore={setStore} openItem={setOpen} />
       ) : (
         <>
           {(missing.length > 0 || stale.length > 0) && (
@@ -111,8 +132,11 @@ export default function Items() {
                 <input aria-label="Find an item by name or barcode" className="ui-input" style={{ ...INPUT, paddingLeft: 32 }} value={typed} maxLength={80}
                   onChange={(e) => setTyped(e.target.value)} placeholder="Name or barcode, e.g. monster 16oz or 070847811169" />
               </div>
-              <select aria-label="Show" style={s.select} value={query.filter} onChange={(e) => set({ filter: e.target.value === 'ALL' ? '' : e.target.value })}>
-                {FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}{data.counts[f.value] != null && f.value !== 'ALL' ? ` (${data.counts[f.value].toLocaleString()})` : ''}</option>)}
+              <select aria-label="Show" style={s.select} value={query.filter} onChange={(e) => {
+                const f = e.target.value;
+                set({ filter: f === 'ALL' ? '' : f, ...(f === 'MISSING' && !query.notAt && withList[0] ? { notAt: withList[0].id, at: '' } : {}) });
+              }}>
+                {FILTERS.filter((f) => f.value !== 'MISSING' || withList.length > 2).map((f) => <option key={f.value} value={f.value}>{f.label}{data.counts[f.value] != null && f.value !== 'ALL' && (f.value !== 'MISSING' || query.notAt) ? ` (${data.counts[f.value].toLocaleString()})` : ''}</option>)}
               </select>
               {data.states.length > 1 && (
                 <select aria-label="State" style={s.select} value={query.state} onChange={(e) => set({ state: e.target.value })}>
@@ -141,6 +165,9 @@ export default function Items() {
             </div>
             <div style={{ padding: '8px 14px', fontSize: FONT.small, color: TEXT_MUTED, borderBottom: `1px solid ${C.border}` }} aria-live="polite">
               {data.total.toLocaleString()} {data.total === 1 ? 'item' : 'items'}{listQ.isFetching ? ' (updating...)' : ''}
+              {query.filter === 'MISSING' && (query.notAt
+                ? <> that most of the other stores sell and {stores.find((x) => x.id === query.notAt)?.name ?? 'this store'} does not. Change the store in "Not carried at".</>
+                : <>. Pick the store in the store box ("Not carried at").</>)}
             </div>
             {data.items.length === 0 ? (
               <div style={s.loading}>No item matches. Try fewer words, or "All items".</div>
@@ -291,6 +318,10 @@ function ItemDetail({ itemKey, onClose }: { itemKey: string; onClose: () => void
               {d.label && d.label.rewards.length > 0 && <li>Reward{d.label.rewards.length > 1 ? 's' : ''}: {d.label.rewards.map((r) => `${r.title} (${r.pointsCost.toLocaleString()} pts${r.isActive ? '' : ', off'})`).join('; ')}</li>}
               <li>{d.scanned ? <>Scanned product: {d.scanned.name}{d.scanned.category ? `, ${d.scanned.category}` : ''}</> : 'Never scanned in the app.'}</li>
             </ul>
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, color: C.text, marginBottom: 6 }}>Price history</div>
+            <PriceHistory history={d.history ?? []} />
           </div>
           <p style={{ margin: 0, fontSize: FONT.small, color: TEXT_MUTED }}>Register prices change in PDI (then upload the store's list again). Shelf labels change in Labels.</p>
         </div>
