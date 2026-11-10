@@ -135,7 +135,13 @@ export default function PdiInvoices() {
             <DataTablePagination page={page} totalPages={listQ.data?.pages ?? 1} onPrevious={() => setPage((p) => Math.max(1, p - 1))} onNext={() => setPage((p) => p + 1)} />
           </Card>
         </>
-      ) : tab === 'vendors' ? <Vendors hq={hq} /> : <ItemLists />}
+      ) : tab === 'vendors' ? <Vendors hq={hq} /> : (
+        // the PDI item lists moved to the Items page (2026-11-10), with every item and its prices across the stores
+        <Card>
+          <p style={{ margin: '0 0 12px', color: C.text2 }}>The PDI item lists are now on the Items page, together with every item, its price at each store and the price checks.</p>
+          <Button variant="primary" onClick={() => navigate('/items?tab=lists')}>Open the PDI lists on Items</Button>
+        </Card>
+      )}
       {adding && meta && <NewInvoice meta={meta} onClose={() => setAdding(false)} onDone={(id) => navigate(`/pdi-invoices/${id}`)} />}
     </Page>
   );
@@ -235,7 +241,7 @@ const saleDay = (iso: string) => new Date(iso).toLocaleDateString('en-US', { tim
 
 /** Each store's items as PDI knows them (2026-11-06): HQ uploads PDI's item report per store; every invoice line is then checked against
  *  it, and the shelf labels whose price is not the register's are listed. */
-function ItemLists() {
+export function ItemLists() {
   const qc = useQueryClient();
   const listsQ = useQuery({ queryKey: ['pdi-item-lists'], queryFn: () => pdiInvoicesApi.itemLists().then((r) => r.data.data as { canUpload: boolean; stores: ItemListRow[] }) });
   const [uploading, setUploading] = useState<string | null>(null);

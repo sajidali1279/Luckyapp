@@ -810,6 +810,12 @@ export const adminApi = {
 };
 
 // Invoices to PDI (2026-10-27): a vendor invoice's photos read into the file PDI imports (pages/PdiInvoices.tsx, pages/PdiInvoice.tsx)
+// The Items page (2026-11-10): every product in the stores' PDI item lists, read only
+export const itemsApi = {
+  list: (params: Record<string, string | number>) => api.get('/items', { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
+  get: (key: string) => api.get(`/items/${encodeURIComponent(key)}`),
+};
+
 export const pdiInvoicesApi = {
   meta: () => api.get('/pdi-invoices/meta'),
   /** vendorId 'none': the invoices still waiting for someone to say which vendor they are from */

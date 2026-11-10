@@ -46,6 +46,7 @@ import {
   Headphones,
   FileText,
   ReceiptText,
+  Boxes,
   ClipboardCheck,
   ListChecks,
   LogOut,
@@ -352,6 +353,7 @@ export function AppSidebar() {
                 <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order list" badge={categoriesPendingCount} />
               )}
               <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned products" />
+              <SidebarNavItem to="/items" icon={<Boxes size={16} />} label="Items" />
               <SidebarNavItem to="/labels" icon={<Printer size={16} />} label="Labels" />
               <SidebarNavItem to="/pdi-invoices" icon={<ReceiptText size={16} />} label="Invoices to PDI" />
               {(isDevAdmin || isSuperAdmin) && (

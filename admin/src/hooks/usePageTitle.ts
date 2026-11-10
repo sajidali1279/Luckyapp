@@ -22,6 +22,7 @@ const TITLES: Record<string, string> = {
   '/store-requests': 'Requests',
   '/order-list': 'Order list',
   '/scanned-products': 'Scanned products',
+  '/items': 'Items',
   '/labels': 'Labels',
   '/pdi-invoices': 'Invoices to PDI',
   '/careers': 'Careers',

@@ -58,6 +58,7 @@ const DailyReports           = lazyPage(() => import('./pages/DailyReports'));
 const DailyTasks             = lazyPage(() => import('./pages/DailyTasks'));
 const GrantRedeem            = lazyPage(() => import('./pages/GrantRedeem'));
 const PdiInvoices            = lazyPage(() => import('./pages/PdiInvoices'));
+const Items                  = lazyPage(() => import('./pages/Items'));
 const PdiInvoice             = lazyPage(() => import('./pages/PdiInvoice'));
 
 // A 4xx (a refused form, an unauthorized or not-found request) will not succeed by asking again, so it is
@@ -195,6 +196,8 @@ export default function App() {
               <Route path="/documents" element={<Documents />} />
               {/* Invoices to PDI: HQ for any store, a manager for their own stores (the server keeps each to its stores). It sat inside the
                   HQ-only block until 2026-11-03, so the sidebar link took managers back to the dashboard. */}
+              {/* Items (2026-11-10): HQ and store managers, read only; the server keeps a manager to their own stores */}
+              <Route path="/items" element={<Items />} />
               <Route path="/pdi-invoices" element={<PdiInvoices />} />
               <Route path="/pdi-invoices/:id" element={<PdiInvoice />} />
               <Route element={<DevAdminOnly />}>
