@@ -14,6 +14,7 @@ import { canonicalPrice, samePrice } from '../utils/labelPrice';
 import { endedSaleView, describeStorePrice } from '../utils/labelSale';
 import { savePlanned } from './labels.controller';
 import { notARewardDepartment } from '../utils/pdiDepartments';
+import { dealPriceOf, dealVerdict } from '../utils/dealPrice';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
@@ -146,6 +147,42 @@ export async function barcodeInfo(req: AuthRequest, res: Response) {
     found: true, name: at.name.trim(), priceText: best ? (best[0] / 100).toFixed(2) : null,
     priceStores: best?.[1].length ?? 0, stores: rows.length, storeName,
   } });
+}
+
+/** GET /pdi-items/deal-check?q&dealText (2026-11-10): a deal's price against each store's register, for the deal form. q is a product name
+ *  (every word) or a barcode; up to 6 products, each with every one of the person's stores that has it in PDI: the register price, the
+ *  cost (managers see only their own stores, as everywhere on these pages) and what the deal is there (a saving, no saving, below cost).
+ *  The deal's words give the price per item ("2 for $5" is $2.50 each); words with no price ("$1 off") come back with deal null. */
+export async function dealCheck(req: AuthRequest, res: Response) {
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+  const deal = dealPriceOf(typeof req.query.dealText === 'string' ? req.query.dealText.slice(0, 60) : '');
+  const words = q.split(/\s+/).filter(Boolean).slice(0, 6);
+  if (q.length < 2 || !words.length) { res.json({ success: true, data: { deal, products: [], listStores: 0 } }); return; }
+  const ids = await storeIdsFor(req.user!);
+  const scope = ids ? { storeId: { in: ids } } : {};
+  const digits = q.replace(/\D/g, '');
+  const byBarcode = /^\d{6,14}$/.test(q.replace(/\s/g, ''));
+  const rows = await prisma.pdiItem.findMany({
+    where: { ...scope, ...(byBarcode ? { upcKey: barcodeKey(digits) } : { AND: words.map((w) => ({ name: { contains: w, mode: 'insensitive' as const } })) }) },
+    select: { storeId: true, code: true, name: true, department: true, priceCents: true, costCents: true }, take: 600,
+  });
+  const [stores, lists] = await Promise.all([
+    prisma.store.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.storeId))] } }, select: { id: true, name: true, state: true } }),
+    prisma.pdiItem.groupBy({ by: ['storeId'], where: scope, _count: { _all: true } }),
+  ]);
+  const byCode = new Map<string, typeof rows>();
+  for (const r of rows) byCode.set(r.code, [...(byCode.get(r.code) ?? []), r]);
+  const products = [...byCode.entries()].sort((a, b) => b[1].length - a[1].length || a[1][0].name.localeCompare(b[1][0].name)).slice(0, 6).map(([code, list]) => ({
+    code, upc: fullCode(code), name: list[0].name.trim(), department: list[0].department,
+    stores: list.map((r) => {
+      const s = stores.find((x) => x.id === r.storeId);
+      return {
+        storeId: r.storeId, storeName: s?.name ?? 'Store', state: s?.state ?? null, priceCents: r.priceCents, costCents: r.costCents,
+        verdict: deal ? dealVerdict(deal.unitCents, r) : null,
+      };
+    }).sort((a, b) => a.storeName.localeCompare(b.storeName, undefined, { numeric: true })),
+  }));
+  res.json({ success: true, data: { deal, products, listStores: lists.length } });
 }
 
 // Never a reward: tobacco, alcohol, lottery, CBD, propane and PDI's test department (2026-11-08; both department naming styles 2026-11-10,

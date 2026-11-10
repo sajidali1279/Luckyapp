@@ -13,6 +13,8 @@ import { startOfStoreDate, endOfStoreDate, isRealDateKey } from '../utils/storeT
 import { storeDateKey } from '../utils/storeTime';
 import { checkHours, offerPaysAt, hoursText } from '../utils/offerHours';
 import { shelfDealsForStore, shelfDealsShownAt } from '../utils/shelfDeals';
+import { dealPriceOf, dealProblems } from '../utils/dealPrice';
+import { barcodeKey } from '../utils/barcode';
 import { estimateOffer } from '../utils/offerEstimate';
 import { isRestrictedCategory } from '../utils/dealSuggest';
 import { AUDIENCES, forCustomer, audienceText } from '../utils/offerAudience';
@@ -897,16 +899,36 @@ export async function translateOffer(req: AuthRequest, res: Response) {
 
 // ─── Shelf deals (from Labels) ────────────────────────────────────────────────
 
-/** GET /offers/shelf-deals (HQ): every label with a deal: how many stores carry it, and whether it is hidden from the app. */
+/** GET /offers/shelf-deals (HQ): every label with a deal: how many stores carry it, and whether it is hidden from the app. Since 2026-11-10
+ *  also the deal's price against the register at each store that carries it (PDI item lists): the stores where it is no saving or
+ *  below cost, since one chain-wide deal meets different prices at different stores. */
 export async function listShelfDeals(_req: AuthRequest, res: Response) {
   const [labels, shown] = await Promise.all([
     prisma.label.findMany({
       where: { dealText: { not: null } },
-      select: { id: true, productName: true, dealText: true, priceText: true, category: true, dealHiddenInApp: true, updatedAt: true, _count: { select: { storeLabels: true } } },
+      select: { id: true, productName: true, dealText: true, priceText: true, category: true, dealHiddenInApp: true, updatedAt: true, barcode: true,
+        storeLabels: { select: { storeId: true } }, _count: { select: { storeLabels: true } } },
       orderBy: { updatedAt: 'desc' },
     }),
     shelfDealsShownAt(),
   ]);
+  const keys = [...new Set(labels.filter((l) => l.barcode && dealPriceOf(l.dealText)).map((l) => barcodeKey(l.barcode!)))];
+  const [pdiRows, storeNames] = keys.length
+    ? await Promise.all([
+      prisma.pdiItem.findMany({ where: { upcKey: { in: keys } }, select: { storeId: true, upcKey: true, priceCents: true, costCents: true } }),
+      prisma.store.findMany({ select: { id: true, name: true } }),
+    ])
+    : [[], []];
+  const priceCheck = (l: (typeof labels)[number]) => {
+    const deal = dealPriceOf(l.dealText);
+    if (!deal || !l.barcode) return null;
+    const key = barcodeKey(l.barcode);
+    const carried = new Set(l.storeLabels.map((s) => s.storeId));
+    const rows = pdiRows.filter((r) => r.upcKey === key && carried.has(r.storeId))
+      .map((r) => ({ storeName: storeNames.find((s) => s.id === r.storeId)?.name ?? 'Store', priceCents: r.priceCents, costCents: r.costCents }));
+    const p = dealProblems(deal.unitCents, rows);
+    return p.checked ? { unitCents: deal.unitCents, ...p } : null;
+  };
   res.json({
     success: true,
     data: labels.filter((l) => l.dealText && l.dealText.trim()).map((l) => ({
@@ -914,6 +936,7 @@ export async function listShelfDeals(_req: AuthRequest, res: Response) {
       category: l.category, updatedAt: l.updatedAt,
       restricted: isRestrictedCategory(l.category),   // tobacco, vape or alcohol: never shown in the app
       shownAt: shown.shownAt.get(l.id) ?? 0,           // active stores whose customers see it right now (2026-10-18)
+      priceCheck: priceCheck(l),                        // null: no price in the words, no barcode, or no store's PDI list has it
     })),
     // a store shows only its first `perStore` label deals: "showing" on the page means shownAt > 0, not "not hidden"
     meta: { perStore: shown.perStore, stores: shown.stores },
