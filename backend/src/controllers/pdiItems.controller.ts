@@ -15,12 +15,13 @@ import { endedSaleView, describeStorePrice } from '../utils/labelSale';
 import { savePlanned } from './labels.controller';
 import { notARewardDepartment } from '../utils/pdiDepartments';
 import { dealPriceOf, dealVerdict } from '../utils/dealPrice';
+import { forgetCatalog } from '../utils/itemCatalog';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
 
 /** The stores a person may use: null for every store (HQ, or a manager with access to all of them). */
-async function storeIdsFor(user: { id: string; role: Role }): Promise<string[] | null> {
+export async function storeIdsFor(user: { id: string; role: Role }): Promise<string[] | null> {
   if (hasMinRole(user.role, Role.SUPER_ADMIN)) return null;
   const u = await prisma.user.findUnique({ where: { id: user.id }, select: { allStoresAccess: true } });
   if (u?.allStoresAccess) return null;
@@ -82,6 +83,7 @@ export async function importPdiItems(req: AuthRequest, res: Response) {
   catch (e) { if (e instanceof PdiItemListError) { res.status(400).json({ success: false, error: e.message }); return; } throw e; }
   const fileName = (file.originalname || '').slice(0, 200) || null;
   await replaceItemList(store.id, read.items, { fileName, skipped: read.skipped, userId: req.user!.id });
+  forgetCatalog();   // the Items page builds its products again
   const departments = [...read.items.reduce((m, i) => m.set(i.department ?? 'None', (m.get(i.department ?? 'None') ?? 0) + 1), new Map<string, number>())]
     .sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, items]) => ({ name, items }));
   audit({
