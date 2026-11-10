@@ -7,12 +7,13 @@
 // memory; any new upload (a new pdi_item_imports row) builds them again on the next request.
 import prisma from '../config/prisma';
 import { barcodeKey, gs1CheckDigit } from './barcode';
-import { departmentKind, type DepartmentKind } from './pdiDepartments';
+import { departmentKind, itemKind, restrictedAcrossStores, restrictedKind, type DepartmentKind } from './pdiDepartments';
 
 export interface CatalogStore { id: string; name: string; state: string | null }
-export interface StorePrice { storeId: string; code: string; name: string; department: string | null; priceCents: number | null; costCents: number | null }
+export interface StorePrice { storeId: string; code: string; name: string; department: string | null; priceCents: number | null; costCents: number | null;
+  kind?: DepartmentKind | null }   // what it is at this store: its department, a ticket by its name, or what most stores call it (utils/pdiDepartments.ts)
 export interface Product { key: string; code: string; upc: string; name: string; department: string | null; kind: DepartmentKind | null; prices: StorePrice[]; search: string }
-export interface Catalog { version: string; builtAt: Date; stores: CatalogStore[]; products: Product[] }
+export interface Catalog { version: string; builtAt: Date; stores: CatalogStore[]; products: Product[]; byKey: Map<string, Product> }
 
 /** Margins below this (percent of the price) are "low margin" unless asked otherwise. */
 export const LOW_MARGIN_PCT = 10;
@@ -58,14 +59,20 @@ export async function buildCatalog(version: string): Promise<Catalog> {
   const products: Product[] = [];
   for (const [key, prices] of byKey) {
     prices.sort((a, b) => (rank.get(a.storeId) ?? 99) - (rank.get(b.storeId) ?? 99));   // stores in number order, once
+    const own = prices.map((p) => itemKind(p.department, p.name, p.priceCents));
+    prices.forEach((p, i) => {
+      const others = prices.map((o, j) => ({ name: o.name, kind: own[j] })).filter((_, j) => j !== i);
+      p.kind = restrictedAcrossStores(p.code, p.name, others, p.department) ?? own[i];
+    });
     const code = codeOf.get(key)!;
     const name = mostCommon(prices.map((p) => p.name)) ?? '';
     const department = mostCommon(prices.map((p) => p.department).filter((d): d is string => !!d)) ?? null;
     const names = [...new Set(prices.map((p) => p.name.toUpperCase()))].join(' ');
-    products.push({ key, code, upc: code.length === 11 ? code + gs1CheckDigit(code) : code, name, department, kind: departmentKind(department), prices, search: `${names} ${code} ${key} ${code.length === 11 ? code + gs1CheckDigit(code) : ''}` });
+    const kinds = prices.map((p) => p.kind ?? null);
+    products.push({ key, code, upc: code.length === 11 ? code + gs1CheckDigit(code) : code, name, department, kind: restrictedKind(kinds) ?? mostCommon(kinds) ?? departmentKind(department), prices, search: `${names} ${code} ${key} ${code.length === 11 ? code + gs1CheckDigit(code) : ''}` });
   }
   products.sort((a, b) => a.name.localeCompare(b.name));
-  return { version, builtAt: new Date(), stores, products };
+  return { version, builtAt: new Date(), stores, products, byKey: new Map(products.map((p) => [p.key, p])) };
 }
 
 /** The products, built again only when a list was uploaded since. */
@@ -178,9 +185,20 @@ export function searchCatalog(cat: Catalog, scopeIds: string[] | null, query: It
   };
 }
 
+/** What a product is at one store (its kind), from the products; undefined when the store's list does not have it. */
+export function kindAt(cat: Catalog, key: string, storeId: string): DepartmentKind | null | undefined {
+  const row = cat.byKey.get(key)?.prices.find((p) => p.storeId === storeId);
+  return row ? row.kind ?? null : undefined;
+}
+
+/** The products, or null when they cannot be built (the kinds then come from each store's own departments). */
+export async function catalogOrNull(): Promise<Catalog | null> {
+  try { return await getCatalog(); } catch (e) { console.error('[items] catalog failed:', (e as Error).message); return null; }
+}
+
 /** One product by its key, as this person sees it. */
 export function productFor(cat: Catalog, key: string, scopeIds: string[] | null) {
-  const p = cat.products.find((x) => x.key === key);
+  const p = cat.byKey.get(key);
   if (!p) return null;
   return viewOf(p, new Map(cat.stores.map((s) => [s.id, s])), scopeIds ? new Set(scopeIds) : null);
 }

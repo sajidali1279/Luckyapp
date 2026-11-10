@@ -13,9 +13,9 @@ import { readItemReport, PdiItemListError, PdiItemRow } from '../utils/pdiItemLi
 import { canonicalPrice, samePrice } from '../utils/labelPrice';
 import { endedSaleView, describeStorePrice } from '../utils/labelSale';
 import { savePlanned } from './labels.controller';
-import { notARewardDepartment } from '../utils/pdiDepartments';
+import { itemKind, notARewardKind } from '../utils/pdiDepartments';
 import { dealPriceOf, dealVerdict } from '../utils/dealPrice';
-import { forgetCatalog } from '../utils/itemCatalog';
+import { forgetCatalog, catalogOrNull, kindAt } from '../utils/itemCatalog';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
@@ -204,11 +204,16 @@ export async function rewardSearch(req: AuthRequest, res: Response) {
   }
   const rows = await prisma.pdiItem.findMany({
     where: { ...(ids ? { storeId: { in: ids } } : {}), AND: words.map((w) => ({ name: { contains: w, mode: 'insensitive' as const } })), priceCents: { gt: 0, lt: 100_000 } },
-    select: { code: true, name: true, department: true, priceCents: true }, orderBy: { name: 'asc' }, take: 400,
+    select: { code: true, upcKey: true, storeId: true, name: true, department: true, priceCents: true }, orderBy: { name: 'asc' }, take: 400,
   });
+  // what each one is (2026-11-10): a lottery ticket by its name, and what most stores call a product this store files under groceries;
+  // a product that is not a reward at ANY store it is listed at is left out everywhere
+  const cat = await catalogOrNull();
+  const kindOfRow = (r: (typeof rows)[number]) => { const k = cat ? kindAt(cat, r.upcKey, r.storeId) : undefined; return k !== undefined ? k : itemKind(r.department, r.name, r.priceCents); };
+  const banned = new Set(rows.filter((r) => notARewardKind(kindOfRow(r))).map((r) => r.code));
   const byCode = new Map<string, { name: string; prices: Map<number, number> }>();
   for (const r of rows) {
-    if (notARewardDepartment(r.department)) continue;
+    if (banned.has(r.code)) continue;
     const e = byCode.get(r.code) ?? { name: r.name.trim(), prices: new Map<number, number>() };
     e.prices.set(r.priceCents!, (e.prices.get(r.priceCents!) ?? 0) + 1);
     byCode.set(r.code, e);

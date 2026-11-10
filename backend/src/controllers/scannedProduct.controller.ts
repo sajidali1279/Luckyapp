@@ -7,6 +7,7 @@ import { barcodeKey, barcodeVariants, canonicalBarcode } from '../utils/barcode'
 import { Role } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import { appCategoryFor } from '../utils/pdiDepartments';
+import { catalogOrNull, kindAt } from '../utils/itemCatalog';
 
 // The app category a PDI department becomes (decided 2026-11-07, for the owner; Texas department names added 2026-11-10): only the
 // departments that are one kind of product (utils/pdiDepartments.ts appCategoryFor). GROC, GROCERY and the others mix soda, candy, chips,
@@ -16,11 +17,16 @@ import { appCategoryFor } from '../utils/pdiDepartments';
  *  else any store's (names do not differ by store). */
 async function pdiItemFor(barcode: string, user: { id: string; role: Role }): Promise<{ name: string; category: string | null } | null> {
   if (!/^\d{6,14}$/.test(barcode.trim())) return null;
-  const hits = await prisma.pdiItem.findMany({ where: { upcKey: barcodeKey(barcode) }, select: { storeId: true, name: true, department: true }, take: 20 });
+  const key = barcodeKey(barcode);
+  const hits = await prisma.pdiItem.findMany({ where: { upcKey: key }, select: { storeId: true, name: true, department: true }, take: 20 });
   if (!hits.length) return null;
   const mine = hasMinRole(user.role, Role.SUPER_ADMIN) ? [] : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);
   const hit = hits.find((h) => mine.includes(h.storeId)) ?? hits[0];
-  return { name: hit.name.slice(0, 200), category: appCategoryFor(hit.department) };
+  // the kind across the stores (2026-11-10): store 9 files the 4K cigars under GROCERY, most stores under CIGARS
+  const cat = await catalogOrNull();
+  const kind = cat ? kindAt(cat, key, hit.storeId) : undefined;
+  if (kind === 'LOTTERY') return { name: hit.name.slice(0, 200), category: null };
+  return { name: hit.name.slice(0, 200), category: appCategoryFor(hit.department) ?? (kind === 'TOBACCO' ? 'Tobacco' : null) };
 }
 
 // ─── GET /scanned-products/barcode/:barcode ───────────────────────────────────
