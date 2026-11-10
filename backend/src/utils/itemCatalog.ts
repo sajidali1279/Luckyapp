@@ -9,12 +9,14 @@ import prisma from '../config/prisma';
 import { gs1CheckDigit } from './barcode';
 import { pdiKey } from './pdiItemList';
 import { departmentKind, itemKind, restrictedAcrossStores, restrictedKind, type DepartmentKind } from './pdiDepartments';
+import { carriedByMost } from './itemInsights';
 
 export interface CatalogStore { id: string; name: string; state: string | null }
 export interface StorePrice { storeId: string; code: string; name: string; department: string | null; priceCents: number | null; costCents: number | null;
   kind?: DepartmentKind | null }   // what it is at this store: its department, a ticket by its name, or what most stores call it (utils/pdiDepartments.ts)
 export interface Product { key: string; code: string; upc: string; name: string; department: string | null; kind: DepartmentKind | null; prices: StorePrice[]; search: string }
-export interface Catalog { version: string; builtAt: Date; stores: CatalogStore[]; products: Product[]; byKey: Map<string, Product> }
+export interface Catalog { version: string; builtAt: Date; stores: CatalogStore[]; products: Product[]; byKey: Map<string, Product>;
+  listStores: Set<string> }   // the stores with a list uploaded
 
 /** Margins below this (percent of the price) are "low margin" unless asked otherwise. */
 export const LOW_MARGIN_PCT = 10;
@@ -73,7 +75,7 @@ export async function buildCatalog(version: string): Promise<Catalog> {
     products.push({ key, code, upc: code.length === 11 ? code + gs1CheckDigit(code) : code, name, department, kind: restrictedKind(kinds) ?? mostCommon(kinds) ?? departmentKind(department), prices, search: `${names} ${code} ${key} ${code.length === 11 ? code + gs1CheckDigit(code) : ''}` });
   }
   products.sort((a, b) => a.name.localeCompare(b.name));
-  return { version, builtAt: new Date(), stores, products, byKey: new Map(products.map((p) => [p.key, p])) };
+  return { version, builtAt: new Date(), stores, products, byKey: new Map(products.map((p) => [p.key, p])), listStores: new Set(rows.map((r) => r.storeId)) };
 }
 
 /** The products, built again only when a list was uploaded since. */
@@ -123,8 +125,9 @@ export function viewOf(p: Product, stores: Map<string, CatalogStore>, scope: Set
   };
 }
 
-export type ItemFilter = 'ALL' | 'DIFFERS' | 'DIFFERS_IN_STATE' | 'BELOW_COST' | 'LOW_MARGIN' | 'NO_COST' | 'NAMES';
-export const ITEM_FILTERS: ItemFilter[] = ['ALL', 'DIFFERS', 'DIFFERS_IN_STATE', 'BELOW_COST', 'LOW_MARGIN', 'NO_COST', 'NAMES'];
+// MISSING (2026-11-11): with notAt, the items most of the other stores carry and that store does not
+export type ItemFilter = 'ALL' | 'DIFFERS' | 'DIFFERS_IN_STATE' | 'BELOW_COST' | 'LOW_MARGIN' | 'NO_COST' | 'NAMES' | 'MISSING';
+export const ITEM_FILTERS: ItemFilter[] = ['ALL', 'DIFFERS', 'DIFFERS_IN_STATE', 'BELOW_COST', 'LOW_MARGIN', 'NO_COST', 'NAMES', 'MISSING'];
 
 const passes = (v: ProductView, f: ItemFilter) =>
   f === 'ALL' ? true
@@ -133,7 +136,8 @@ const passes = (v: ProductView, f: ItemFilter) =>
   : f === 'BELOW_COST' ? v.belowCost.length > 0
   : f === 'LOW_MARGIN' ? v.lowMargin.length > 0
   : f === 'NO_COST' ? v.noCost
-  : v.names > 1;
+  : f === 'NAMES' ? v.names > 1
+  : false;   // MISSING needs the store: searchCatalog
 
 export interface ItemQuery {
   q?: string; department?: string; state?: string; filter?: ItemFilter; at?: string; notAt?: string; lowPct?: number; page?: number;
@@ -155,20 +159,26 @@ export function searchCatalog(cat: Catalog, scopeIds: string[] | null, query: It
   // a whole barcode as scanned (12 or 13 digits, with or without its check digit) is matched by its key
   const wholeKey = byCode && digits.length >= 6 ? pdiKey(digits) : null;
 
-  const counts: Record<ItemFilter, number> = { ALL: 0, DIFFERS: 0, DIFFERS_IN_STATE: 0, BELOW_COST: 0, LOW_MARGIN: 0, NO_COST: 0, NAMES: 0 };
+  const counts: Record<ItemFilter, number> = { ALL: 0, DIFFERS: 0, DIFFERS_IN_STATE: 0, BELOW_COST: 0, LOW_MARGIN: 0, NO_COST: 0, NAMES: 0, MISSING: 0 };
+  // the stores looked at that have a list, for "most stores carry it" (MISSING): the store it is missing at counts as looked at
+  const listed = new Set([...cat.listStores].filter((id) => scope.has(id) || id === query.notAt));
+  const missing = (p: Product) => !!query.notAt && (!scopeIds || scopeIds.includes(query.notAt)) && cat.listStores.has(query.notAt)
+    && !p.prices.some((x) => x.storeId === query.notAt) && carriedByMost(p, query.notAt, listed);
   const departments = new Map<string, number>();
   const hits: ProductView[] = [];
   for (const p of cat.products) {
     const v = viewOf(p, stores, scope, lowPct);
     if (!v) continue;
     for (const f of ITEM_FILTERS) if (passes(v, f)) counts[f]++;
+    const isMissing = missing(p);
+    if (isMissing) counts.MISSING++;
     const d = v.department ?? '';
     departments.set(d, (departments.get(d) ?? 0) + 1);
     if (query.department !== undefined && query.department !== '' && (v.department ?? '') !== query.department) continue;
     if (words.length && !(byCode ? p.key === wholeKey || p.search.includes(digits) : words.every((w) => p.search.includes(w)))) continue;
     if (query.at && !v.prices.some((x) => x.storeId === query.at)) continue;
     if (query.notAt && v.prices.some((x) => x.storeId === query.notAt)) continue;
-    if (!passes(v, filter)) continue;
+    if (filter === 'MISSING' ? !isMissing : !passes(v, filter)) continue;
     hits.push(v);
   }
   const spread = (v: ProductView) => (v.maxCents ?? 0) - (v.minCents ?? 0);

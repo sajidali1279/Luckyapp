@@ -16,6 +16,7 @@ import { savePlanned } from './labels.controller';
 import { itemKind, notARewardKind } from '../utils/pdiDepartments';
 import { dealPriceOf, dealVerdict } from '../utils/dealPrice';
 import { forgetCatalog, catalogOrNull, kindAt } from '../utils/itemCatalog';
+import { diffLists, looksLikeAnotherStore, type ChangeCounts } from '../utils/pdiPriceHistory';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
@@ -41,13 +42,29 @@ async function storeFor(req: AuthRequest, res: Response, storeId: unknown) {
 export const fullCode = (code: string) => (code.length === 11 ? code + gs1CheckDigit(code) : code);
 
 /** Replaces a store's whole list with the items read from its report, and records the upload. */
-export async function replaceItemList(storeId: string, items: PdiItemRow[], meta: { fileName: string | null; skipped: number; userId: string }) {
+/** The store's new list in place of the old one, with what changed between them (2026-11-11: price history). Refused, unless `anyway`,
+ *  when the new file shares under half its items with the last list (probably another store's file); `counts` is null on a first list. */
+export async function replaceItemList(storeId: string, items: PdiItemRow[], meta: { fileName: string | null; skipped: number; userId: string; anyway?: boolean }) {
   return prisma.$transaction(async (tx) => {
+    const old = await tx.pdiItem.findMany({ where: { storeId }, select: { code: true, upcKey: true, name: true, priceCents: true, costCents: true } });
+    const diff = diffLists(old, items);
+    if (!meta.anyway && looksLikeAnotherStore(old.length, items.length, diff.shared, diff.unchanged)) {
+      return { mismatch: { oldItems: old.length, newItems: items.length, shared: diff.shared, unchanged: diff.unchanged }, imp: null, counts: null };
+    }
     await tx.pdiItem.deleteMany({ where: { storeId } });
     for (let i = 0; i < items.length; i += CHUNK) {
       await tx.pdiItem.createMany({ data: items.slice(i, i + CHUNK).map((it) => ({ storeId, ...it })) });
     }
-    return tx.pdiItemImport.create({ data: { storeId, fileName: meta.fileName, items: items.length, skipped: meta.skipped, importedById: meta.userId } });
+    const counts: ChangeCounts | null = old.length ? diff.counts : null;
+    const imp = await tx.pdiItemImport.create({ data: {
+      storeId, fileName: meta.fileName, items: items.length, skipped: meta.skipped, importedById: meta.userId, ...(counts ?? {}),
+    } });
+    if (counts) {
+      for (let i = 0; i < diff.rows.length; i += CHUNK) {
+        await tx.pdiPriceChange.createMany({ data: diff.rows.slice(i, i + CHUNK).map((r) => ({ storeId, importId: imp.id, ...r, name: r.name.slice(0, 200) })) });
+      }
+    }
+    return { mismatch: null, imp, counts };
   }, { timeout: 120_000, maxWait: 20_000 });
 }
 
@@ -82,16 +99,36 @@ export async function importPdiItems(req: AuthRequest, res: Response) {
   try { read = readItemReport(file.buffer); }
   catch (e) { if (e instanceof PdiItemListError) { res.status(400).json({ success: false, error: e.message }); return; } throw e; }
   const fileName = (file.originalname || '').slice(0, 200) || null;
-  await replaceItemList(store.id, read.items, { fileName, skipped: read.skipped, userId: req.user!.id });
+  const anyway = (req.body as { anyway?: string }).anyway === 'true';
+  const done = await replaceItemList(store.id, read.items, { fileName, skipped: read.skipped, userId: req.user!.id, anyway });
+  if (done.mismatch) {
+    const m = done.mismatch;
+    const why = m.shared * 2 < Math.min(m.oldItems, m.newItems)
+      ? `only ${m.shared.toLocaleString()} of its ${m.newItems.toLocaleString()} items are on ${store.name}'s last list`
+      : `only ${m.unchanged.toLocaleString()} of the ${m.shared.toLocaleString()} items it shares with ${store.name}'s last list have the same price and cost`;
+    res.status(409).json({ success: false, code: 'LIST_MISMATCH', data: m, error:
+      `This file does not look like ${store.name}'s list: ${why}. It may be another store's report. Nothing was changed.` });
+    return;
+  }
   forgetCatalog();   // the Items page builds its products again
+  // the new items with no shelf label yet (on this store's label list), for "make their labels" on the Items page
+  let newWithoutLabel: number | null = null;
+  if (done.counts?.newItems) {
+    const fresh = await prisma.pdiPriceChange.findMany({ where: { importId: done.imp!.id, kind: 'NEW' }, select: { upcKey: true }, take: 20_000 });
+    const keys = new Set(fresh.map((f) => f.upcKey));
+    const labelled = await prisma.label.findMany({ where: { barcode: { not: null }, storeLabels: { some: { storeId: store.id } } }, select: { barcode: true } });
+    const has = new Set(labelled.map((l) => pdiKey(l.barcode!)));
+    newWithoutLabel = [...keys].filter((k) => !has.has(k)).length;
+  }
   const departments = [...read.items.reduce((m, i) => m.set(i.department ?? 'None', (m.get(i.department ?? 'None') ?? 0) + 1), new Map<string, number>())]
     .sort((a, b) => b[1] - a[1]).slice(0, 12).map(([name, items]) => ({ name, items }));
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'PDI_ITEMS_IMPORTED', entity: 'Store', entityId: store.id,
-    details: { fileName, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates }, storeId: store.id, storeName: store.name,
+    details: { fileName, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates, ...(done.counts ? { changes: done.counts } : {}), ...(anyway ? { notLikeLastList: true } : {}) },
+    storeId: store.id, storeName: store.name,
   });
   res.json({ success: true, data: {
-    store, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates, departments,
+    store, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates, departments, changes: done.counts, newWithoutLabel,
     withCost: read.items.filter((i) => i.costCents).length, withPrice: read.items.filter((i) => i.priceCents).length,
   } });
 }

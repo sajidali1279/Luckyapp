@@ -90,7 +90,7 @@ import {
 } from '../controllers/pdiInvoice.controller';
 import { MAX_PHOTOS as PDI_MAX_PHOTOS } from '../utils/pdiRead';
 import { listPdiItemLists, importPdiItems, searchPdiItems, labelPriceCheck, registerPrice, applyRegisterPrices, barcodeInfo, rewardSearch, dealCheck } from '../controllers/pdiItems.controller';
-import { listItems, getItem } from '../controllers/items.controller';
+import { listItems, getItem, listChanges, labelCandidates, makeLabels, margins, dealIdeasList, rewardCosts, setRewardQuery, hotFoodCheck, setHotFoodQuery } from '../controllers/items.controller';
 import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
 import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards, testUserPush } from '../controllers/customerProfile.controller';
@@ -356,6 +356,16 @@ router.post('/pdi-items/label-prices/apply', authenticate, requireRole(Role.STOR
 router.get('/pdi-items/price', authenticate, requireRole(Role.EMPLOYEE), registerPrice);
 router.get('/pdi-items/barcode', authenticate, requireRole(Role.STORE_MANAGER), barcodeInfo);
 router.get('/items', authenticate, requireRole(Role.STORE_MANAGER), listItems);          // Items page: every product in the PDI lists, by store (read only)
+// 2026-11-11 (before /items/:key): price history, shelf labels from PDI, margins, deal ideas, reward costs, hot food against the register
+router.get('/items/changes', authenticate, requireRole(Role.STORE_MANAGER), listChanges);                 // what changed at a store's upload
+router.get('/items/label-candidates', authenticate, requireRole(Role.STORE_MANAGER), labelCandidates);    // a store's PDI items with no shelf label
+router.post('/items/make-labels', authenticate, requireRole(Role.SUPER_ADMIN), makeLabels);               // HQ: those labels at the register price
+router.get('/items/margins', authenticate, requireRole(Role.STORE_MANAGER), margins);                     // a store's departments and their margins
+router.get('/items/deal-ideas', authenticate, requireRole(Role.STORE_MANAGER), dealIdeasList);            // "2 for" deals that keep a fair margin
+router.get('/items/reward-costs', authenticate, requireRole(Role.STORE_MANAGER), rewardCosts);            // what each reward costs the store
+router.patch('/items/reward-costs/:id', authenticate, requireRole(Role.STORE_MANAGER), setRewardQuery);   // the words that find a reward in PDI
+router.get('/items/hot-food-check', authenticate, requireRole(Role.STORE_MANAGER), hotFoodCheck);         // the hot food menu against the register
+router.patch('/items/hot-food-check/:id', authenticate, requireRole(Role.SUPER_ADMIN), setHotFoodQuery);   // HQ: the words that find it in PDI
 router.get('/items/:key', authenticate, requireRole(Role.STORE_MANAGER), getItem);       // one product at each store, with its label, rewards and deal
 router.get('/pdi-items/deal-check', authenticate, requireRole(Role.STORE_MANAGER), dealCheck);   // a deal's price against each store's register
 router.get('/pdi-items/reward-search', authenticate, requireRole(Role.STORE_MANAGER), rewardSearch);   // PDI items by name, for a reward's points   // name + usual register price, for a new label in admin   // a barcode's register price at the store, for a new label

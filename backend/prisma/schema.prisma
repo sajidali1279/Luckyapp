@@ -399,6 +399,7 @@ model Store {
   pdiInvoices           PdiInvoice[]
   pdiItems              PdiItem[]
   pdiItemImports        PdiItemImport[]
+  pdiPriceChanges       PdiPriceChange[]
   // Store hours: regular weekly schedule (StoreHours) plus date-specific
   // overrides for holidays etc. (StoreHoliday), see both models below.
   storeHours            StoreHours[]
@@ -1229,6 +1230,8 @@ model RedemptionCatalogItem {
   labelId     String?
   // false = HQ (or the store's manager) typed their own points: it stays linked (to see the item and its price) but no longer follows it
   followPrice Boolean  @default(true)
+  // The words that find what this reward is in the PDI item lists (2026-11-11, "frazil 12"), for what it costs the store; null = from the title
+  pdiQuery    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1725,6 +1728,7 @@ model HotFoodCatalogItem {
   description      String?
   category         String?                     // Chicken, Wings, Sides, Family Meals... (utils/hotFoodCategories.ts); the app's menu is grouped by it
   price            Float
+  pdiQuery         String?                     // the words that find it in the stores' PDI hot food (2026-11-11); null = from the name
   imageUrl         String?
   estimatedMinutes Int?
   createdAt        DateTime @default(now())
@@ -2283,9 +2287,41 @@ model PdiItemImport {
   skipped      Int      @default(0)
   importedById String?
   createdAt    DateTime @default(now())
+  // what changed since the store's last list (2026-11-11); null on a store's first list (nothing to compare with)
+  pricesUp     Int?
+  pricesDown   Int?
+  costsUp      Int?     // the cost went up while the shelf price stayed the same: the margin shrank
+  newItems     Int?
+  goneItems    Int?
 
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store   Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  changes PdiPriceChange[]
 
   @@index([storeId, createdAt])
   @@map("pdi_item_imports")
+}
+
+// One item's change between a store's last PDI list and the new one (2026-11-11): CHANGED (its price or cost), NEW (not on the last
+// list) or GONE (on the last list, not on this one). Kept so each upload shows "what changed since last time" and an item its history.
+model PdiPriceChange {
+  id            String   @id @default(uuid())
+  storeId       String
+  importId      String
+  code          String
+  upcKey        String
+  name          String
+  kind          String   // CHANGED | NEW | GONE
+  oldPriceCents Int?
+  newPriceCents Int?
+  oldCostCents  Int?
+  newCostCents  Int?
+  createdAt     DateTime @default(now())
+
+  store  Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  import PdiItemImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@index([importId])
+  @@index([upcKey])
+  @@map("pdi_price_changes")
 }
