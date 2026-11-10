@@ -55,7 +55,7 @@ import { getMappings, addMapping, deleteMapping, getMyMappings } from '../contro
 import { getMyNotifications, markAllRead, markOneRead, getUnreadCount, getHomeAnnouncement, broadcastNotification, getBroadcastAudience, listBroadcasts } from '../controllers/notifications.controller';
 import { getMyChatStores, getChatPeople, getMessages, sendMessage, clearChat, getUnreadCount as getChatUnreadCount, getUnreadCountByStore as getChatUnreadCountByStore } from '../controllers/chat.controller';
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, getPendingCountByStore, acknowledgeRequest } from '../controllers/storeRequest.controller';
-import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore } from '../controllers/productRequest.controller';
+import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore, checkProductAtStore } from '../controllers/productRequest.controller';
 import {
   getActiveList, getListHistory, getListById, openList, closeList,
   addItem, updateItem, removeItem, updateItemStatus, reorderItems,
@@ -688,6 +688,7 @@ router.patch('/store-requests/:requestId/acknowledge', authenticate, requireRole
 // ─── Product Requests (Customer) ─────────────────────────────────────────────
 router.post('/product-requests', authenticate, requireRole(Role.CUSTOMER), submitProductRequest);
 router.get('/product-requests/mine', authenticate, requireRole(Role.CUSTOMER), getMyProductRequests);
+router.get('/product-requests/check', authenticate, requireRole(Role.CUSTOMER), checkProductAtStore);   // does the store already sell it (PDI lists)
 router.get('/product-requests/pending-count', authenticate, requireRole(Role.STORE_MANAGER), getPendingProductRequestCount);
 router.get('/product-requests/pending-by-store', authenticate, requireRole(Role.STORE_MANAGER), getPendingProductRequestCountByStore); // Per-store breakdown for multi-store sidebar
 router.get('/product-requests/store/:storeId', authenticate, requireRole(Role.STORE_MANAGER), getStoreProductRequests);

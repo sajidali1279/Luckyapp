@@ -174,7 +174,7 @@ const ASK_FILLER = new Set(['ANY', 'THE', 'AND', 'FOR', 'WITH', 'PLEASE', 'YOU',
 
 /** The PDI items a typed product name ("Takis Blue Heat") can be: every word of 3+ letters in the item's name. At the given store first
  *  (up to 3, with prices), then the other stores (of `scope`) that carry one. Null when the name has no usable word. */
-export function askedFor(cat: Catalog, text: string, storeId: string, scope: Set<string> | null) {
+export function askedFor(cat: Catalog, text: string, storeId: string, scope: Set<string> | null, opts: { noRestricted?: boolean } = {}) {
   const words = text.toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w.length >= 3 && !ASK_FILLER.has(w)).slice(0, 4);
   if (!words.length) return null;
   const here: { name: string; priceCents: number | null }[] = [];
@@ -183,6 +183,8 @@ export function askedFor(cat: Catalog, text: string, storeId: string, scope: Set
     if (!words.every((w) => p.search.includes(w))) continue;
     for (const x of p.prices) {
       if (!words.every((w) => x.name.toUpperCase().includes(w))) continue;
+      // for a customer (2026-11-11): never tobacco, alcohol, lottery, CBD, propane (the app shows no prices for them)
+      if (opts.noRestricted && (notARewardKind(x.kind) || notARewardKind(p.kind))) continue;
       if (x.storeId === storeId) { if (here.length < 3) here.push({ name: x.name, priceCents: x.priceCents }); }
       else if ((!scope || scope.has(x.storeId)) && !elsewhere.has(x.storeId)) elsewhere.set(x.storeId, x.name);
     }

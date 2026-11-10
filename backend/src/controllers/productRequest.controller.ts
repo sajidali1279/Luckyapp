@@ -123,6 +123,22 @@ export async function getStoreProductRequests(req: AuthRequest, res: Response) {
   res.json({ success: true, data: requests.map((r) => ({ ...r, pdi: cat ? askedFor(cat, r.productName, storeId, scope) : null })) });
 }
 
+// ─── GET /product-requests/check?storeId&q  (Customer, 2026-11-11) ────────────
+// While a customer types the product they want: does the store already sell it (the stores' PDI item lists)? Then the app says so, with
+// the register price, before they send a request (it may be out of stock or on another shelf); else the other stores that sell it. Never
+// tobacco, alcohol, lottery, CBD or propane. Empty when the lists cannot be read or the name has no usable word.
+
+export async function checkProductAtStore(req: AuthRequest, res: Response) {
+  const storeId = typeof req.query.storeId === 'string' ? req.query.storeId.slice(0, 64) : '';
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 100) : '';
+  const none = { here: [] as { name: string; priceCents: number | null }[], elsewhere: [] as { storeName: string }[] };
+  if (!storeId || q.length < 3) { res.json({ success: true, data: none }); return; }
+  const cat = await catalogOrNull();
+  const found = cat ? askedFor(cat, q, storeId, null, { noRestricted: true }) : null;
+  if (!found) { res.json({ success: true, data: none }); return; }
+  res.json({ success: true, data: { here: found.here, elsewhere: found.elsewhere.slice(0, 3).map((e) => ({ storeName: e.storeName })) } });
+}
+
 // ─── PATCH /product-requests/:id/respond  (StoreManager+) ────────────────────
 
 export async function respondToProductRequest(req: AuthRequest, res: Response) {

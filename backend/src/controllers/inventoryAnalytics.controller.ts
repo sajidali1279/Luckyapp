@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
+import { catalogOrNull } from '../utils/itemCatalog';
 
 // GET /inventory/analytics?storeId=&period=7|30|90|all&category=
 // Returns: topItems, categoryBreakdown, storeBreakdown (admin only),
@@ -61,10 +62,31 @@ export async function getInventoryAnalytics(req: AuthRequest, res: Response) {
     take: 20,
   });
 
+  // each top item's register price and margin from the stores' PDI item lists (2026-11-11), when its name is a PDI item's name at the
+  // stores looked at (names picked from the PDI suggestions are); null otherwise
+  const cat = rawItems.length ? await catalogOrNull() : null;
+  const wanted = new Set(rawItems.map((r) => r.name.trim().toUpperCase()));
+  const pdiRows = new Map<string, { priceCents: number | null; costCents: number | null }[]>();
+  if (cat) for (const p of cat.products) for (const x of p.prices) {
+    const k = x.name.trim().toUpperCase();
+    if (!wanted.has(k) || (storeIds && !storeIds.includes(x.storeId))) continue;
+    pdiRows.set(k, [...(pdiRows.get(k) ?? []), { priceCents: x.priceCents, costCents: x.costCents }]);
+  }
+  const pdiOf = (name: string) => {
+    const rows = pdiRows.get(name.trim().toUpperCase());
+    if (!rows?.length) return null;
+    const prices = rows.map((r) => r.priceCents).filter((c): c is number => !!c);
+    const margins = rows.filter((r) => r.priceCents && r.costCents).map((r) => ((r.priceCents! - r.costCents!) / r.priceCents!) * 100);
+    return {
+      stores: rows.length, minCents: prices.length ? Math.min(...prices) : null, maxCents: prices.length ? Math.max(...prices) : null,
+      marginPct: margins.length ? Math.round((margins.reduce((a, b) => a + b, 0) / margins.length) * 10) / 10 : null,
+    };
+  };
   const topItems = rawItems.map(r => ({
     name: r.name,
     category: r.category,
     orderCount: r._count.id,
+    pdi: pdiOf(r.name),
   }));
 
   // Category breakdown

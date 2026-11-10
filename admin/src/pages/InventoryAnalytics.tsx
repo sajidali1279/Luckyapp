@@ -88,7 +88,8 @@ export default function InventoryAnalytics() {
   });
   const analytics = data?.data?.data;
 
-  const topItems:     { name: string; category: string | null; orderCount: number }[] = analytics?.topItems     || [];
+  const topItems:     { name: string; category: string | null; orderCount: number; pdi?: { stores: number; minCents: number | null; maxCents: number | null; marginPct: number | null } | null }[] = analytics?.topItems     || [];
+  const usd = (c: number | null) => (c == null ? '' : `$${(c / 100).toFixed(2)}`);
   const catBreakdown: { category: string; count: number; pct: number }[]              = analytics?.categoryBreakdown || [];
   const storeBrkdown: { storeId: string; storeName: string; itemCount: number }[]     = analytics?.storeBreakdown || [];
   const totalItems: number = analytics?.totalItems ?? 0;
@@ -221,6 +222,8 @@ export default function InventoryAnalytics() {
                   <TableHead style={s.th}>#</TableHead>
                   <TableHead style={s.th}>Item</TableHead>
                   <TableHead style={s.th}>Category</TableHead>
+                  <TableHead style={s.th}>Register (PDI)</TableHead>
+                  <TableHead style={s.th}>Margin</TableHead>
                   <TableHead style={{ ...s.th, textAlign: 'right' }}>Orders</TableHead>
                 </TableRow>
               </TableHeader>
@@ -230,11 +233,13 @@ export default function InventoryAnalytics() {
                     <TableCell style={s.td}>{idx + 1}</TableCell>
                     <TableCell style={s.td}>{item.name}</TableCell>
                     <TableCell style={{ ...s.td, color: TEXT_MUTED }}>{item.category || ''}</TableCell>
+                    <TableCell style={s.td} data-testid="top-item-register">{item.pdi ? (item.pdi.minCents === item.pdi.maxCents ? usd(item.pdi.minCents) : `${usd(item.pdi.minCents)} to ${usd(item.pdi.maxCents)}`) || 'No price' : <span style={{ color: TEXT_MUTED }}>Not in PDI</span>}</TableCell>
+                    <TableCell style={{ ...s.td, color: item.pdi?.marginPct != null && item.pdi.marginPct < 10 ? '#b42318' : undefined }}>{item.pdi?.marginPct != null ? `${item.pdi.marginPct}%` : ''}</TableCell>
                     <TableCell style={{ ...s.td, textAlign: 'right', fontWeight: 700 }}>{item.orderCount}</TableCell>
                   </TableRow>
                 ))}
                 {topItems.length === 0 && (
-                  <TableRow><TableCell colSpan={4} style={{ ...s.td, textAlign: 'center', color: TEXT_MUTED }}>No data</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} style={{ ...s.td, textAlign: 'center', color: TEXT_MUTED }}>No data</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
