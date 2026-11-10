@@ -17,7 +17,7 @@ import { serverMessage } from '../lib/apiError';
 interface Notification {
   id: string;
   type: 'BILLING' | 'TRANSACTION' | 'SCHEDULE' | 'REVENUE' | 'PLATFORM';
-  category: 'billing' | 'transactions' | 'scheduling' | 'customers' | 'disputes' | 'requests';
+  category: 'billing' | 'transactions' | 'scheduling' | 'customers' | 'disputes' | 'requests' | 'items';
   title: string;
   message: string;
   createdAt: string;
@@ -57,7 +57,7 @@ const SCHEDULE_ICON: Record<string, string> = {
   FILL_IN:  '🔄',
 };
 
-type TabKey = 'all' | 'billing' | 'transactions' | 'scheduling' | 'customers' | 'disputes' | 'requests' | 'send';
+type TabKey = 'all' | 'billing' | 'transactions' | 'scheduling' | 'customers' | 'disputes' | 'requests' | 'items' | 'send';
 
 // Fallback category derivation for old API responses without the category field
 function deriveCategory(n: any): Notification['category'] {
@@ -199,6 +199,7 @@ export default function Notifications() {
     { key: 'disputes',     label: 'Disputes' },
     { key: 'requests',     label: 'Requests' },
     { key: 'scheduling',   label: 'Scheduling' },
+    { key: 'items',        label: 'Items' },
     { key: 'send',         label: 'Send push' },
   ];
   const DEV_TABS: { key: TabKey; label: string }[] = [
@@ -209,6 +210,7 @@ export default function Notifications() {
     { key: 'disputes',     label: 'Disputes' },
     { key: 'requests',     label: 'Requests' },
     { key: 'scheduling',   label: 'Scheduling' },
+    { key: 'items',        label: 'Items' },
     { key: 'send',         label: 'Send push' },
   ];
   const TABS = isDevAdmin ? DEV_TABS : SUPER_TABS;
@@ -221,6 +223,7 @@ export default function Notifications() {
     customers:    { icon: '🏪', title: 'No customer alerts',      text: 'Customer activity updates will appear here.' },
     disputes:     { icon: '⚠️', title: 'No missing-points reports', text: 'Customer disputes will appear here when someone reports missing points.' },
     requests:     { icon: '📋', title: 'No open requests',        text: 'Store alerts, product requests and stock requests will appear here.' },
+    items:        { icon: '📦', title: 'PDI lists are fresh',     text: 'A reminder shows here when a store\'s PDI item list is over a month old.' },
     send:         { icon: '',   title: '',                         text: '' },
   };
 

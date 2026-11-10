@@ -1460,6 +1460,40 @@ export async function getStorePlanHistory(req: AuthRequest, res: Response) {
 
 // SuperAdmin, derived notification feed (no DB table needed)
 /** Rewards a store manager added, changed or switched off in the last 14 days. The chain's catalog is HQ's, so HQ is told. */
+// The stores' PDI item lists are the base of the item data (2026-11-11), so they must stay fresh: the owner chose a monthly reminder. Shown
+// while any active store's last upload is over PDI_STALE_DAYS old (or it has none), until it is uploaded again; its id holds the month and
+// the stores, so a list read this month comes back as new only when another store goes stale or next month starts.
+export const PDI_STALE_DAYS = 30;
+export async function pdiListNotifications(now: Date) {
+  // never allowed to take the whole list down: any problem reading the lists just leaves the reminder out
+  const [stores, imports] = await Promise.resolve().then(() => Promise.all([
+    prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+    prisma.pdiItemImport.findMany({ orderBy: { createdAt: 'desc' }, distinct: ['storeId'], select: { storeId: true, createdAt: true, fileName: true } }),
+  ])).catch(() => [[], []] as [{ id: string; name: string }[], { storeId: string; createdAt: Date; fileName: string | null }[]]);
+  if (!stores.length) return [];
+  const stale = stores.map((s) => {
+    const last = imports.find((i) => i.storeId === s.id);
+    const days = last ? Math.floor((now.getTime() - last.createdAt.getTime()) / 86_400_000) : null;
+    return { s, days, standIn: !!last?.fileName?.startsWith('Stand-in') };
+  }).filter((x) => x.days === null || x.days > PDI_STALE_DAYS)
+    .sort((a, b) => a.s.name.localeCompare(b.s.name, undefined, { numeric: true }));
+  if (!stale.length) return [];
+  const month = now.toISOString().slice(0, 7);
+  const list = stale.map((x) => `${x.s.name.replace(/^Lucky Stop\s*/i, '')} (${x.days === null ? 'no list' : `${x.days} days${x.standIn ? ', stand-in' : ''}`})`).join(', ');
+  return [{
+    id: `pdi-lists-${month}-${stale.map((x) => x.s.id.slice(0, 6)).join('')}`,
+    type: 'PLATFORM',
+    category: 'items',
+    title: `PDI item lists to refresh: ${stale.length} ${stale.length === 1 ? 'store' : 'stores'}`,
+    message: `Over a month since the last upload: ${list}. Prices, shelf labels and price checks are only as fresh as these lists. Save each store's "Current inventory by item" report in PDI and upload it on Items > PDI lists.`,
+    createdAt: now.toISOString(),
+    isRead: false,
+    severity: 'warning',
+    actionUrl: '/items?tab=lists',
+    actionLabel: 'Open the PDI lists',
+  }];
+}
+
 export async function rewardChangeNotifications(now: Date) {
   // Never allowed to take the whole list down: any problem reading the log just leaves these lines out
   const rows = await Promise.resolve()
@@ -1768,6 +1802,7 @@ export async function getSuperAdminNotifications(_req: AuthRequest, res: Respons
     });
   }
 
+  notifications.push(...await pdiListNotifications(now));
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   notifications.push(...await rewardChangeNotifications(now));
@@ -2028,6 +2063,7 @@ export async function getDevAdminNotifications(_req: AuthRequest, res: Response)
     });
   }
 
+  notifications.push(...await pdiListNotifications(now));
   notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   notifications.push(...await rewardChangeNotifications(now));
   notifications.push(...await promotionBudgetNotifications(now));
