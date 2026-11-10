@@ -1,5 +1,6 @@
 {
   "employeeRecent": {
+    "loadError": "Your recent sales could not be loaded. Check the connection and try again.",
     "title": "Recent sales",
     "sub": "Your sales and redemptions today",
     "empty": "Nothing yet today. Sales you grant show here.",
@@ -980,6 +981,8 @@
     "shiftA11y": "{{shift}} shift, {{done}} of {{total}} completed"
   },
   "employeeHome": {
+    "promotionsLoadError": "The promotions could not be loaded",
+    "tapToRetry": "Tap to try again.",
     "goodMorning": "Good morning",
     "goodAfternoon": "Good afternoon",
     "goodEvening": "Good evening",

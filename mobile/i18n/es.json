@@ -1,5 +1,6 @@
 {
   "employeeRecent": {
+    "loadError": "No se pudieron cargar sus ventas recientes. Revise la conexión e intente de nuevo.",
     "title": "Ventas recientes",
     "sub": "Tus ventas y canjes de hoy",
     "empty": "Nada todavía hoy. Las ventas que otorgues aparecen aquí.",
@@ -980,6 +981,8 @@
     "shiftA11y": "Turno {{shift}}, {{done}} de {{total}} completadas"
   },
   "employeeHome": {
+    "promotionsLoadError": "No se pudieron cargar las promociones",
+    "tapToRetry": "Toque para intentar de nuevo.",
     "onDutyStatus": "En Turno · {{role}}",
     "hotFoodOrdersTitle": "Pedidos de Comida Caliente",
     "dailyReportSubmittedBy": "✓ Enviado por {{name}} a las {{time}}",

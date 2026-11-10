@@ -22,6 +22,7 @@ import { COLORS } from '../../constants';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
 import ModalToastHost from '../../components/ModalToastHost';
 import { usePoll } from '../../hooks/usePoll';
+import ErrorState from '../../components/ErrorState';
 
 type Line = { id: string; category: string; purchaseAmount: number; points: number; status: 'CREDITED' | 'HELD' | 'NOT_FINISHED' | 'REJECTED' | 'VOIDED'; addOn: boolean };
 type Sale = { saleId: string; storeId: string; createdAt: string; store: string | null; customer: { name: string; last4: string }; lines: Line[]; canAddReceipt: boolean; addReceiptUntil: string };
@@ -125,7 +126,9 @@ export default function RecentScreen() {
     ]);
   };
 
-  const empty = !q.isLoading && sales.length === 0 && redemptions.length === 0;
+  // a failed load is said as such, not as "nothing yet today" (audit 2026-11-11: a cashier could think their sales were lost)
+  const failed = q.isError && !data;
+  const empty = !q.isLoading && !failed && sales.length === 0 && redemptions.length === 0;
   return (
     <SafeAreaView style={s.safe} edges={['top', 'left', 'right']}>
       <FocusStatusBar barStyle="dark-content" />
@@ -137,7 +140,9 @@ export default function RecentScreen() {
         </View>
       </View>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
-        {q.isLoading ? <ActivityIndicator style={{ marginTop: 30 }} /> : empty ? (
+        {q.isLoading ? <ActivityIndicator style={{ marginTop: 30 }} /> : failed ? (
+          <ErrorState message={t('employeeRecent.loadError')} onRetry={() => q.refetch()} />
+        ) : empty ? (
           <Text style={s.empty}>{t('employeeRecent.empty')}</Text>
         ) : (
           <>

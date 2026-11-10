@@ -84,7 +84,7 @@ export default function EmployeeHomeScreen() {
   }, []);
 
   const {
-    data: offersData, isLoading: offersLoading,
+    data: offersData, isLoading: offersLoading, isError: offersFailed,
     refetch: refetchOffers, isRefetching: offersRefetching,
   } = useQuery({ queryKey: ['offers', storeId], queryFn: () => offersApi.getActive(storeId) });
 
@@ -371,6 +371,12 @@ export default function EmployeeHomeScreen() {
 
           {offersLoading ? (
             <View style={s.loadingCard}><ActivityIndicator color={COLORS.primary} /></View>
+          ) : offersFailed && !offersData ? (
+            // a failed load is not "no promotions" (audit 2026-11-11: a cashier could tell a customer there is none)
+            <TouchableOpacity style={s.emptyCard} onPress={() => refetchOffers()} accessibilityRole="button" accessibilityLabel={t('employeeHome.promotionsLoadError')}>
+              <Text style={s.emptyTitle}>{t('employeeHome.promotionsLoadError')}</Text>
+              <Text style={s.emptySub}>{t('employeeHome.tapToRetry')}</Text>
+            </TouchableOpacity>
           ) : promotions.length === 0 ? (
             <View style={s.emptyCard}>
               <View style={s.emptyIconWrap}>
