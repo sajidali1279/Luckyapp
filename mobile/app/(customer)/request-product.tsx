@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -88,6 +88,19 @@ export default function RequestProductScreen() {
     staleTime: 5 * 60 * 1000,
   });
   const stores: Store[] = gasPricesData?.data?.data ?? [];
+
+  // While the customer types: does the chosen store already sell it? (2026-11-11, the stores' PDI item lists.) The request can still be
+  // sent: it may be sold out or on another shelf.
+  const [askName, setAskName] = useState('');
+  useEffect(() => { const tm = setTimeout(() => setAskName(productName.trim()), 600); return () => clearTimeout(tm); }, [productName]);
+  const { data: carriedData } = useQuery({
+    queryKey: ['product-carried', selectedStore?.id, askName.toLowerCase()],
+    queryFn: () => productRequestApi.check(selectedStore!.id, askName),
+    enabled: !!selectedStore && askName.length >= 3 && showForm && !submitted,
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
+  const carried: { here: { name: string; priceCents: number | null }[]; elsewhere: { storeName: string }[] } | null = carriedData?.data?.data ?? null;
 
   const { data: myRequestsData, isLoading, isError, refetch } = useQuery({
     queryKey: ['my-product-requests'],
@@ -254,6 +267,22 @@ export default function RequestProductScreen() {
                   maxLength={100}
                   returnKeyType="next"
                 />
+                {carried && carried.here.length > 0 && askName.length >= 3 && (
+                  <View style={styles.carriedBox} accessibilityLiveRegion="polite">
+                    <Text style={styles.carriedTitle}>{t('customerRequestProduct.carriedHere', { store: selectedStore?.name ?? '' })}</Text>
+                    {carried.here.slice(0, 3).map((h) => (
+                      <Text key={h.name} style={styles.carriedItem}>
+                        {h.priceCents ? t('customerRequestProduct.carriedItemPrice', { name: h.name, price: (h.priceCents / 100).toFixed(2) }) : h.name}
+                      </Text>
+                    ))}
+                    <Text style={styles.carriedHint}>{t('customerRequestProduct.carriedHint')}</Text>
+                  </View>
+                )}
+                {carried && carried.here.length === 0 && carried.elsewhere.length > 0 && askName.length >= 3 && (
+                  <View style={[styles.carriedBox, styles.carriedElsewhere]} accessibilityLiveRegion="polite">
+                    <Text style={styles.carriedHint}>{t('customerRequestProduct.carriedElsewhere', { stores: carried.elsewhere.map((e) => e.storeName).join(', ') })}</Text>
+                  </View>
+                )}
 
                 {/* Category */}
                 <Text style={styles.fieldLabel}>{t('customerRequestProduct.categoryLabel')} <Text style={styles.optional}>{t('customerRequestProduct.optionalSuffix')}</Text></Text>
@@ -501,6 +530,15 @@ const styles = StyleSheet.create({
     fontSize: 14, color: '#1a1a2e', backgroundColor: '#fafafa',
   },
   textarea: { minHeight: 80, paddingTop: 12 },
+
+  carriedBox: {
+    backgroundColor: '#ecfdf3', borderRadius: 10, padding: 12, marginTop: 10,
+    borderWidth: 1, borderColor: '#abefc6', gap: 4,
+  },
+  carriedElsewhere: { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' },
+  carriedTitle: { fontSize: 13, fontWeight: '700', color: '#05603a' },
+  carriedItem: { fontSize: 13, color: '#1a1a2e', fontWeight: '600' },
+  carriedHint: { fontSize: 12, color: '#475467', lineHeight: 17 },
 
   hintBox: {
     backgroundColor: '#fffbeb', borderRadius: 10, padding: 12,

@@ -322,6 +322,8 @@ export const productRequestApi = {
   submit: (data: { storeId: string; productName: string; category?: string; description?: string }) =>
     api.post('/product-requests', data),
   getMine: () => api.get('/product-requests/mine'),
+  // does the store already sell it (the stores' PDI item lists, 2026-11-11): { here: [{ name, priceCents }], elsewhere: [{ storeName }] }
+  check: (storeId: string, q: string) => api.get('/product-requests/check', { params: { storeId, q } }),
   getPendingCount: () => api.get('/product-requests/pending-count'),
   getPendingByStore: () => api.get('/product-requests/pending-by-store'),   // { [storeId]: count }
   getStoreRequests: (storeId: string) =>
