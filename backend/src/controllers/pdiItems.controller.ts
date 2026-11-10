@@ -18,6 +18,8 @@ import { dealPriceOf, dealVerdict } from '../utils/dealPrice';
 import { forgetCatalog, catalogOrNull, kindAt } from '../utils/itemCatalog';
 import { diffLists, looksLikeAnotherStore, isStandIn, type ChangeCounts } from '../utils/pdiPriceHistory';
 import { addPdiToScanned } from '../utils/scannedFromPdi';
+import { sendPushToUsers } from '../utils/push';
+import { labelsUrlManager } from '../utils/notificationRoutes';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
@@ -121,6 +123,15 @@ export async function importPdiItems(req: AuthRequest, res: Response) {
   let labelsFollowed: Awaited<ReturnType<typeof putLabelsOnRegister>> | null = null;
   try { labelsFollowed = await putLabelsOnRegister(store, 'ON_LIST', false, { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role }, 'UPLOAD'); }
   catch (e) { console.error('[pdi] labels to the register price after the upload failed:', (e as Error).message); }
+  // the store's managers hear that labels need reprinting (2026-11-11: else the shelf stays wrong until someone opens Labels)
+  if (labelsFollowed?.updated) {
+    const n = labelsFollowed.updated;
+    prisma.userStoreRole.findMany({ where: { storeId: store.id, role: 'STORE_MANAGER', user: { isActive: true } }, select: { userId: true } })
+      .then((m) => sendPushToUsers(m.map((x) => x.userId), '🏷️ Shelf labels to reprint',
+        `${n} shelf ${n === 1 ? 'label' : 'labels'} at ${store.name} ${n === 1 ? 'has a' : 'have'} new ${n === 1 ? 'price' : 'prices'} from the register. Reprint ${n === 1 ? 'it' : 'them'} in Labels.`,
+        'LABELS_REPRINT', labelsUrlManager()))
+      .catch((e) => console.error('[pdi] reprint alert failed:', (e as Error).message));
+  }
   // the store's new products go into Scanned products too (2026-11-11), so a scan anywhere in the app finds their name
   let scannedAdded: number | null = null;
   try { scannedAdded = (await addPdiToScanned()).added; }

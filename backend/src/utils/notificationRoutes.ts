@@ -12,6 +12,10 @@ export function offerUrl(offerId?: string): string {
   // The id lets the server tell that a promotion has already been announced; the home screen only reads scrollTo
   return `/(customer)/home?scrollTo=offers${offerId ? `&offerId=${offerId}` : ''}`;
 }
+/** The manager app's Labels screen (2026-11-11: shelf labels to reprint after a PDI list upload moved their prices). */
+export function labelsUrlManager(): string {
+  return '/(manager)/labels';
+}
 export function careersUrl(): string {
   return '/(customer)/careers';
 }
