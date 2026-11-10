@@ -111,6 +111,12 @@ export async function importPdiItems(req: AuthRequest, res: Response) {
     return;
   }
   forgetCatalog();   // the Items page builds its products again
+  // Shelf labels follow the register (the owner, 2026-11-11): every label on this store's list goes on the new list's register price, and
+  // one whose shelf price changes goes on the store's reprint list. A sale with an end date is left alone. A failure here never fails the
+  // upload (the list is already saved): the "Label prices against the register" box still offers "Update all".
+  let labelsFollowed: Awaited<ReturnType<typeof putLabelsOnRegister>> | null = null;
+  try { labelsFollowed = await putLabelsOnRegister(store, 'ON_LIST', false, { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role }, 'UPLOAD'); }
+  catch (e) { console.error('[pdi] labels to the register price after the upload failed:', (e as Error).message); }
   // the new items with no shelf label yet (on this store's label list), for "make their labels" on the Items page
   let newWithoutLabel: number | null = null;
   if (done.counts?.newItems) {
@@ -129,6 +135,7 @@ export async function importPdiItems(req: AuthRequest, res: Response) {
   });
   res.json({ success: true, data: {
     store, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates, departments, changes: done.counts, newWithoutLabel,
+    labelsFollowed: labelsFollowed && { updated: labelsFollowed.updated, onSale: labelsFollowed.onSale, noPrice: labelsFollowed.noPrice, conflicts: labelsFollowed.conflicts },
     withCost: read.items.filter((i) => i.costCents).length, withPrice: read.items.filter((i) => i.priceCents).length,
   } });
 }
@@ -322,15 +329,26 @@ export async function applyRegisterPrices(req: AuthRequest, res: Response) {
   if (ids.length > APPLY_MAX) { res.status(400).json({ success: false, error: `At most ${APPLY_MAX} labels at once.` }); return; }
   const addMissing = body.addMissing === true;
 
+  const out = await putLabelsOnRegister(store, ids, addMissing, { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role }, 'BUTTON');
+  res.json({ success: true, data: out });
+}
+
+/** Puts labels at a store on the register's price from its PDI list (2026-11-08, the "Use register price" and "Update all" buttons), and
+ *  since 2026-11-11 after every upload of the store's list (the owner: shelf labels follow the register), with ids 'ON_LIST': every label on
+ *  the store's list. A label whose shelf price really changes goes back on the store's print list. Left alone: a sale with an end date, a
+ *  label PDI has no usable price for, one not on the store's list unless addMissing. Every change is in the Activity log. */
+export async function putLabelsOnRegister(
+  store: { id: string; name: string }, ids: string[] | 'ON_LIST', addMissing: boolean,
+  actor: { actorId: string; actorName?: string; actorRole: Role }, why: 'BUTTON' | 'UPLOAD',
+) {
   const labels = await prisma.label.findMany({
-    where: { id: { in: ids }, barcode: { not: null } },
+    where: ids === 'ON_LIST' ? { barcode: { not: null }, storeLabels: { some: { storeId: store.id } } } : { id: { in: ids }, barcode: { not: null } },
     select: { id: true, productName: true, barcode: true, priceText: true, storeLabels: { where: { storeId: store.id }, select: { id: true, priceText: true, overrideExpiresAt: true, printedAt: true } } },
   });
   const items = await prisma.pdiItem.findMany({ where: { storeId: store.id, upcKey: { in: [...new Set(labels.map((l) => pdiKey(l.barcode!)))] } }, select: { upcKey: true, priceCents: true } });
   const byKey = new Map(items.map((i) => [i.upcKey, i]));
   const now = new Date();
-  const out = { updated: 0, added: 0, same: 0, notOnList: 0, onSale: 0, noPrice: 0, conflicts: 0, gone: ids.length - labels.length };
-  const actor = { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role };
+  const out = { updated: 0, added: 0, same: 0, notOnList: 0, onSale: 0, noPrice: 0, conflicts: 0, gone: ids === 'ON_LIST' ? 0 : ids.length - labels.length };
 
   for (const l of labels) {
     const cents = byKey.get(pdiKey(l.barcode!))?.priceCents;
@@ -365,8 +383,8 @@ export async function applyRegisterPrices(req: AuthRequest, res: Response) {
   if (out.updated + out.added > 0) {
     audit({
       ...actor, action: 'LABEL_PRICES_FROM_PDI', entity: 'Store', entityId: store.id, storeId: store.id, storeName: store.name,
-      details: { summary: `Put ${out.updated + out.added} label prices at ${store.name} on the register price from PDI (${out.updated} changed, ${out.added} added).`, ...out },
+      details: { summary: `${why === 'UPLOAD' ? 'After the PDI list upload, put' : 'Put'} ${out.updated + out.added} label prices at ${store.name} on the register price from PDI (${out.updated} changed, ${out.added} added).`, ...out },
     });
   }
-  res.json({ success: true, data: out });
+  return out;
 }

@@ -231,6 +231,8 @@ interface ImportResult {
   store: { id?: string; name: string }; items: number; skipped: number; duplicates: number; withCost: number; withPrice: number; departments: { name: string; items: number }[];
   // since the store's last list (2026-11-11); null on its first list
   changes?: { pricesUp: number; pricesDown: number; costsUp: number; newItems: number; goneItems: number } | null; newWithoutLabel?: number | null;
+  // shelf labels put on the new register prices (2026-11-11: labels follow the register)
+  labelsFollowed?: { updated: number; onSale: number; noPrice: number; conflicts: number } | null;
 }
 interface LabelPrices {
   hasList: boolean; compared: number; same: number; notInPdi: number;
@@ -323,7 +325,7 @@ export function ItemLists() {
         Each store's items as PDI knows them: name, department, cost and register price. Every invoice line is checked against its store's
         list, so a UPC that PDI does not have is caught here instead of PDI refusing the file, and a line with no UPC can find its item by
         name. {listsQ.data?.canUpload
-          ? 'To add or refresh a store\'s list, save PDI\'s "Current inventory by item" report for that store and upload it here; the new file replaces the old list. Refresh it when prices change.'
+          ? 'To add or refresh a store\'s list, save PDI\'s "Current inventory by item" report for that store and upload it here; the new file replaces the old list, and the store\'s shelf labels move to the new register prices (a changed one goes on its reprint list). Refresh it when prices change.'
           : 'HQ uploads each store\'s list from PDI.'}
       </HowItWorks>
       <Card padding={0} style={{ marginBottom: 16 }}>
@@ -464,6 +466,18 @@ export function ItemLists() {
           ) : result.changes === null ? (
             <p style={{ margin: '12px 0 0', fontSize: FONT.small, color: TEXT_MUTED }}>The first list since price history started: changes show from the store's next upload.</p>
           ) : null}
+          {result.labelsFollowed && (
+            <div style={{ marginTop: 12 }} data-testid="upload-labels">
+              <div style={{ fontWeight: 600, color: C.text, marginBottom: 4 }}>Shelf labels</div>
+              <div style={{ fontSize: FONT.body, color: C.text2, lineHeight: 1.6 }}>
+                {result.labelsFollowed.updated
+                  ? `${result.labelsFollowed.updated.toLocaleString()} ${result.labelsFollowed.updated === 1 ? 'label is' : 'labels are'} now at the register price and on the store's reprint list.`
+                  : 'Every label already matches the register.'}
+                {result.labelsFollowed.onSale > 0 && ` ${result.labelsFollowed.onSale.toLocaleString()} on a sale with an end date were left alone.`}
+                {result.labelsFollowed.conflicts > 0 && ` ${result.labelsFollowed.conflicts.toLocaleString()} changed by someone at that moment were left alone.`}
+              </div>
+            </div>
+          )}
           <div style={s.modalActions}>
             {result.changes && result.store.id && (
               <Button onClick={() => { const id = result.store.id!; setResult(null); navigate(`/items?tab=changes&store=${encodeURIComponent(id)}`); }}>See the changes</Button>
