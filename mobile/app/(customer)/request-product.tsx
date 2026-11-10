@@ -92,7 +92,11 @@ export default function RequestProductScreen() {
   // While the customer types: does the chosen store already sell it? (2026-11-11, the stores' PDI item lists.) The request can still be
   // sent: it may be sold out or on another shelf.
   const [askName, setAskName] = useState('');
-  useEffect(() => { const tm = setTimeout(() => setAskName(productName.trim()), 600); return () => clearTimeout(tm); }, [productName]);
+  useEffect(() => {
+    if (!productName.trim()) { setAskName(''); return; }   // a cleared or reset form drops the last answer at once
+    const tm = setTimeout(() => setAskName(productName.trim()), 600);
+    return () => clearTimeout(tm);
+  }, [productName]);
   const { data: carriedData } = useQuery({
     queryKey: ['product-carried', selectedStore?.id, askName.toLowerCase()],
     queryFn: () => productRequestApi.check(selectedStore!.id, askName),
@@ -270,8 +274,8 @@ export default function RequestProductScreen() {
                 {carried && carried.here.length > 0 && askName.length >= 3 && (
                   <View style={styles.carriedBox} accessibilityLiveRegion="polite">
                     <Text style={styles.carriedTitle}>{t('customerRequestProduct.carriedHere', { store: selectedStore?.name ?? '' })}</Text>
-                    {carried.here.slice(0, 3).map((h) => (
-                      <Text key={h.name} style={styles.carriedItem}>
+                    {carried.here.slice(0, 3).map((h, i) => (
+                      <Text key={`${i}-${h.name}`} style={styles.carriedItem}>
                         {h.priceCents ? t('customerRequestProduct.carriedItemPrice', { name: h.name, price: (h.priceCents / 100).toFixed(2) }) : h.name}
                       </Text>
                     ))}
