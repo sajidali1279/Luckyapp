@@ -9,6 +9,8 @@ import { Role } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import { appCategoryFor } from '../utils/pdiDepartments';
 import { catalogOrNull, kindAt } from '../utils/itemCatalog';
+import { addPdiToScanned } from '../utils/scannedFromPdi';
+import { audit } from '../utils/audit';
 
 // The app category a PDI department becomes (decided 2026-11-07, for the owner; Texas department names added 2026-11-10): only the
 // departments that are one kind of product (utils/pdiDepartments.ts appCategoryFor). GROC, GROCERY and the others mix soda, candy, chips,
@@ -125,7 +127,10 @@ export async function saveProduct(req: AuthRequest, res: Response) {
 export async function listProducts(req: AuthRequest, res: Response) {
   const { q, source } = req.query as { q?: string; source?: string };
   const where: Record<string, unknown> = {};
-  if (q)      where.name    = { contains: q, mode: 'insensitive' };
+  // a name, or (2026-11-11) a barcode or part of one: digits only
+  const digits = (q ?? '').replace(/\s/g, '');
+  if (q && /^\d{4,14}$/.test(digits)) where.OR = [{ barcode: { contains: digits } }, { barcode: { in: barcodeVariants(digits) } }, { name: { contains: q, mode: 'insensitive' } }];
+  else if (q) where.name = { contains: q, mode: 'insensitive' };
   if (source) where.source  = source;
 
   const products = await prisma.scannedProduct.findMany({
@@ -134,6 +139,19 @@ export async function listProducts(req: AuthRequest, res: Response) {
     take: 200,
   });
   res.json({ success: true, data: products });
+}
+
+// ─── POST /scanned-products/from-pdi ───────────────────────────────────────────
+// HQ (2026-11-11): every product in the stores' PDI item lists that is not in Scanned products yet, added with PDI's name. Products already
+// there are left as they are. Also run after every PDI list upload (controllers/pdiItems.controller.ts).
+
+export async function fillFromPdi(req: AuthRequest, res: Response) {
+  const out = await addPdiToScanned();
+  if (out.added) {
+    audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'SCANNED_PRODUCTS_FROM_PDI', entity: 'ScannedProduct', entityId: 'pdi',
+      details: { summary: `Added ${out.added.toLocaleString()} products from the PDI item lists to Scanned products (${out.already.toLocaleString()} were already there).`, ...out } });
+  }
+  res.json({ success: true, data: out });
 }
 
 // ─── DELETE /scanned-products/:id ────────────────────────────────────────────

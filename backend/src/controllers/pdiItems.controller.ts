@@ -17,6 +17,7 @@ import { itemKind, notARewardKind } from '../utils/pdiDepartments';
 import { dealPriceOf, dealVerdict } from '../utils/dealPrice';
 import { forgetCatalog, catalogOrNull, kindAt } from '../utils/itemCatalog';
 import { diffLists, looksLikeAnotherStore, type ChangeCounts } from '../utils/pdiPriceHistory';
+import { addPdiToScanned } from '../utils/scannedFromPdi';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
@@ -117,6 +118,10 @@ export async function importPdiItems(req: AuthRequest, res: Response) {
   let labelsFollowed: Awaited<ReturnType<typeof putLabelsOnRegister>> | null = null;
   try { labelsFollowed = await putLabelsOnRegister(store, 'ON_LIST', false, { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role }, 'UPLOAD'); }
   catch (e) { console.error('[pdi] labels to the register price after the upload failed:', (e as Error).message); }
+  // the store's new products go into Scanned products too (2026-11-11), so a scan anywhere in the app finds their name
+  let scannedAdded: number | null = null;
+  try { scannedAdded = (await addPdiToScanned()).added; }
+  catch (e) { console.error('[pdi] adding the list to Scanned products failed:', (e as Error).message); }
   // the new items with no shelf label yet (on this store's label list), for "make their labels" on the Items page
   let newWithoutLabel: number | null = null;
   if (done.counts?.newItems) {
@@ -135,6 +140,7 @@ export async function importPdiItems(req: AuthRequest, res: Response) {
   });
   res.json({ success: true, data: {
     store, items: read.items.length, skipped: read.skipped, duplicates: read.duplicates, departments, changes: done.counts, newWithoutLabel,
+    scannedAdded,
     labelsFollowed: labelsFollowed && { updated: labelsFollowed.updated, onSale: labelsFollowed.onSale, noPrice: labelsFollowed.noPrice, conflicts: labelsFollowed.conflicts },
     withCost: read.items.filter((i) => i.costCents).length, withPrice: read.items.filter((i) => i.priceCents).length,
   } });

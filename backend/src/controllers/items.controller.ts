@@ -338,20 +338,51 @@ export async function hotFoodCheck(req: AuthRequest, res: Response) {
   const hasHotFood = new Set<string>();
   for (const p of cat.products) for (const x of p.prices) if (x.kind === 'HOT_FOOD') hasHotFood.add(x.storeId);
   res.json({ success: true, data: { canEdit: isHq(req), items: items.map((it) => {
-    const query = it.pdiQuery ?? defaultQuery(it.name);
-    const appCents = Math.round(it.price * 100);
-    const stores = it.stores.map((s) => s.storeId).filter((id) => inScope(scope, id) && hasHotFood.has(id))
-      .sort((a, b) => (storeName.get(a) ?? '').localeCompare(storeName.get(b) ?? '', undefined, { numeric: true }));
-    return {
-      id: it.id, name: it.name, appCents, query, custom: it.pdiQuery != null,
-      stores: stores.map((id) => {
-        const m = hotFoodMatches(cat, query, id);
-        const same = m.find((x) => x.priceCents === appCents);
-        const best = same ?? m[0] ?? null;
-        return { storeId: id, storeName: storeName.get(id) ?? 'Store', matches: m.length, pdiName: best?.name ?? null, pdiCents: best?.priceCents ?? null, differs: !!best && !same };
-      }),
-    };
+    const stores = hotFoodRows(cat, it, scope, hasHotFood, storeName);
+    return { id: it.id, name: it.name, appCents: Math.round(it.price * 100), query: it.pdiQuery ?? defaultQuery(it.name), custom: it.pdiQuery != null,
+      stores, registerCents: oneRegisterPrice(stores, Math.round(it.price * 100)) };
   }) } });
+}
+
+/** One hot food item at each of its stores with a PDI list (in scope), next to the PDI hot food item its words find. */
+function hotFoodRows(cat: Catalog, it: { name: string; price: number; pdiQuery: string | null; stores: { storeId: string }[] }, scope: string[] | null, hasHotFood: Set<string>, storeName: Map<string, string>) {
+  const query = it.pdiQuery ?? defaultQuery(it.name);
+  const appCents = Math.round(it.price * 100);
+  return it.stores.map((s) => s.storeId).filter((id) => inScope(scope, id) && hasHotFood.has(id))
+    .sort((a, b) => (storeName.get(a) ?? '').localeCompare(storeName.get(b) ?? '', undefined, { numeric: true }))
+    .map((id) => {
+      const m = hotFoodMatches(cat, query, id);
+      const same = m.find((x) => x.priceCents === appCents);
+      const best = same ?? m[0] ?? null;
+      return { storeId: id, storeName: storeName.get(id) ?? 'Store', matches: m.length, pdiName: best?.name ?? null, pdiCents: best?.priceCents ?? null, differs: !!best && !same };
+    });
+}
+
+/** The register price every store found agrees on, when it is not the app's (2026-11-11: "Use the register price"); null otherwise. */
+const oneRegisterPrice = (rows: { pdiCents: number | null; matches: number }[], appCents: number): number | null => {
+  const found = rows.filter((r) => r.matches === 1 && r.pdiCents);   // only stores where the words find exactly one item
+  if (!found.length || found.length !== rows.filter((r) => r.matches > 0).length) return null;
+  const prices = new Set(found.map((r) => r.pdiCents!));
+  const [only] = [...prices];
+  return prices.size === 1 && only !== appCents && only < 100_000 ? only : null;
+};
+
+/** POST /items/hot-food-check/:id/use-register (HQ): the menu item's app price becomes the price every store's register agrees on. */
+export async function useHotFoodRegisterPrice(req: AuthRequest, res: Response) {
+  if (!isHq(req)) { res.status(403).json({ success: false, error: 'Only HQ changes the hot food menu.' }); return; }
+  const it = await prisma.hotFoodCatalogItem.findUnique({ where: { id: String(req.params.id) },
+    select: { id: true, name: true, price: true, pdiQuery: true, stores: { where: { isAvailable: true }, select: { storeId: true } } } });
+  if (!it) { res.status(404).json({ success: false, error: 'That menu item is gone.' }); return; }
+  const cat = await getCatalog();
+  const hasHotFood = new Set<string>();
+  for (const p of cat.products) for (const x of p.prices) if (x.kind === 'HOT_FOOD') hasHotFood.add(x.storeId);
+  const cents = oneRegisterPrice(hotFoodRows(cat, it, null, hasHotFood, new Map(cat.stores.map((s) => [s.id, s.name]))), Math.round(it.price * 100));
+  if (cents == null) { res.status(409).json({ success: false, error: 'The registers do not agree on one price for it (or it already is the app price). Nothing was changed.' }); return; }
+  const price = cents / 100;
+  await prisma.hotFoodCatalogItem.update({ where: { id: it.id }, data: { price } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATED', entity: 'hot_food_item', entityId: it.id,
+    details: { name: it.name, changes: { price: { was: it.price, now: price } }, summary: `Hot food ${it.name}: app price $${it.price.toFixed(2)} to $${price.toFixed(2)}, the stores' register price in PDI` } });
+  res.json({ success: true, data: { id: it.id, price } });
 }
 
 /** PATCH /items/hot-food-check/:id {pdiQuery} (HQ): the words that find a hot food item in the stores' PDI hot food (null: from its name). */

@@ -8,6 +8,9 @@ import { hasMinRole } from '../middleware/auth';
 import { Role, OrderItemSource } from '@prisma/client';
 import { generateListName } from './orderList.controller';
 import { rule } from '../utils/appSettings';
+import { catalogOrNull } from '../utils/itemCatalog';
+import { askedFor } from '../utils/itemInsights';
+import { storeIdsFor } from './pdiItems.controller';
 
 const DECLINE_MESSAGE =
   'Product supply unavailable with current set of vendors but request is identified, validated, stored for future references.';
@@ -112,7 +115,12 @@ export async function getStoreProductRequests(req: AuthRequest, res: Response) {
     orderBy: { createdAt: 'desc' },
   });
 
-  res.json({ success: true, data: requests });
+  // what the stores' PDI item lists say about each product asked for (2026-11-11): this store may already sell it (out of stock, or the
+  // customer missed it), or another of the person's stores does (same vendor). Left out when the lists cannot be read.
+  const cat = requests.length ? await catalogOrNull() : null;
+  const scopeIds = cat ? await storeIdsFor(req.user!) : null;
+  const scope = scopeIds ? new Set(scopeIds) : null;
+  res.json({ success: true, data: requests.map((r) => ({ ...r, pdi: cat ? askedFor(cat, r.productName, storeId, scope) : null })) });
 }
 
 // ─── PATCH /product-requests/:id/respond  (StoreManager+) ────────────────────

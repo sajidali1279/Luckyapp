@@ -167,3 +167,31 @@ export function carriedByMost(p: Product, missingAt: string, listStores: Set<str
   const n = p.prices.filter((x) => x.storeId !== missingAt && listStores.has(x.storeId)).length;
   return n >= 2 && n * 2 > others.length;
 }
+
+// ─── A product asked for by name (customer product requests) ──────────────────
+
+const ASK_FILLER = new Set(['ANY', 'THE', 'AND', 'FOR', 'WITH', 'PLEASE', 'YOU', 'GUYS', 'CAN', 'GET', 'SOME', 'MORE', 'NEW', 'FLAVOR', 'FLAVORS', 'PACK']);
+
+/** The PDI items a typed product name ("Takis Blue Heat") can be: every word of 3+ letters in the item's name. At the given store first
+ *  (up to 3, with prices), then the other stores (of `scope`) that carry one. Null when the name has no usable word. */
+export function askedFor(cat: Catalog, text: string, storeId: string, scope: Set<string> | null) {
+  const words = text.toUpperCase().replace(/[^A-Z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w.length >= 3 && !ASK_FILLER.has(w)).slice(0, 4);
+  if (!words.length) return null;
+  const here: { name: string; priceCents: number | null }[] = [];
+  const elsewhere = new Map<string, string>();   // store id -> an item's name there
+  for (const p of cat.products) {
+    if (!words.every((w) => p.search.includes(w))) continue;
+    for (const x of p.prices) {
+      if (!words.every((w) => x.name.toUpperCase().includes(w))) continue;
+      if (x.storeId === storeId) { if (here.length < 3) here.push({ name: x.name, priceCents: x.priceCents }); }
+      else if ((!scope || scope.has(x.storeId)) && !elsewhere.has(x.storeId)) elsewhere.set(x.storeId, x.name);
+    }
+  }
+  const names = new Map(cat.stores.map((s) => [s.id, s.name]));
+  const hasList = cat.listStores.has(storeId);
+  return {
+    words: words.join(' ').toLowerCase(), hasList, here,
+    elsewhere: [...elsewhere].map(([id, name]) => ({ storeName: names.get(id) ?? 'Store', name }))
+      .sort((a, b) => a.storeName.localeCompare(b.storeName, undefined, { numeric: true })).slice(0, 6),
+  };
+}

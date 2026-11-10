@@ -90,12 +90,12 @@ import {
 } from '../controllers/pdiInvoice.controller';
 import { MAX_PHOTOS as PDI_MAX_PHOTOS } from '../utils/pdiRead';
 import { listPdiItemLists, importPdiItems, searchPdiItems, labelPriceCheck, registerPrice, applyRegisterPrices, barcodeInfo, rewardSearch, dealCheck } from '../controllers/pdiItems.controller';
-import { listItems, getItem, listChanges, labelCandidates, makeLabels, margins, dealIdeasList, rewardCosts, setRewardQuery, hotFoodCheck, setHotFoodQuery } from '../controllers/items.controller';
+import { listItems, getItem, listChanges, labelCandidates, makeLabels, margins, dealIdeasList, rewardCosts, setRewardQuery, hotFoodCheck, setHotFoodQuery, useHotFoodRegisterPrice } from '../controllers/items.controller';
 import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
 import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards, testUserPush } from '../controllers/customerProfile.controller';
 import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
-import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct } from '../controllers/scannedProduct.controller';
+import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct, fillFromPdi } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
@@ -366,6 +366,7 @@ router.get('/items/reward-costs', authenticate, requireRole(Role.STORE_MANAGER),
 router.patch('/items/reward-costs/:id', authenticate, requireRole(Role.STORE_MANAGER), setRewardQuery);   // the words that find a reward in PDI
 router.get('/items/hot-food-check', authenticate, requireRole(Role.STORE_MANAGER), hotFoodCheck);         // the hot food menu against the register
 router.patch('/items/hot-food-check/:id', authenticate, requireRole(Role.SUPER_ADMIN), setHotFoodQuery);   // HQ: the words that find it in PDI
+router.post('/items/hot-food-check/:id/use-register', authenticate, requireRole(Role.SUPER_ADMIN), useHotFoodRegisterPrice);   // HQ: app price = the registers' price
 router.get('/items/:key', authenticate, requireRole(Role.STORE_MANAGER), getItem);       // one product at each store, with its label, rewards and deal
 router.get('/pdi-items/deal-check', authenticate, requireRole(Role.STORE_MANAGER), dealCheck);   // a deal's price against each store's register
 router.get('/pdi-items/reward-search', authenticate, requireRole(Role.STORE_MANAGER), rewardSearch);   // PDI items by name, for a reward's points   // name + usual register price, for a new label in admin   // a barcode's register price at the store, for a new label
@@ -727,6 +728,7 @@ router.post  ('/scanned-products',                  authenticate, requireRole(Ro
 router.get   ('/scanned-products',                  authenticate, requireRole(Role.STORE_MANAGER), listProducts);   // Browse catalog (managers+)
 router.patch ('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), updateProduct);  // Edit name/category/brand (managers+), barcode not editable
 router.delete('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), deleteProduct);  // Remove bad entry (managers+)
+router.post  ('/scanned-products/from-pdi',          authenticate, requireRole(Role.SUPER_ADMIN), fillFromPdi);   // HQ: every PDI item not in it yet (2026-11-11)
 router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), extractFromPhoto); // AI photo import
 
 // ─── Labels (printable shelf/price tags, chain-wide catalog) ────────────────────
