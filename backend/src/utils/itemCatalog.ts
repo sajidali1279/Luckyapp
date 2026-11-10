@@ -6,7 +6,8 @@
 // The lists hold about 8,000 items a store (65,000 rows for 8 stores), so the products are put together once per upload and kept in
 // memory; any new upload (a new pdi_item_imports row) builds them again on the next request.
 import prisma from '../config/prisma';
-import { barcodeKey, gs1CheckDigit } from './barcode';
+import { gs1CheckDigit } from './barcode';
+import { pdiKey } from './pdiItemList';
 import { departmentKind, itemKind, restrictedAcrossStores, restrictedKind, type DepartmentKind } from './pdiDepartments';
 
 export interface CatalogStore { id: string; name: string; state: string | null }
@@ -152,7 +153,7 @@ export function searchCatalog(cat: Catalog, scopeIds: string[] | null, query: It
   const byCode = digits.length >= 4 && digits.length === (query.q ?? '').replace(/\s/g, '').length;
   const filter = query.filter ?? 'ALL';
   // a whole barcode as scanned (12 or 13 digits, with or without its check digit) is matched by its key
-  const wholeKey = byCode && digits.length >= 6 ? barcodeKey(digits) : null;
+  const wholeKey = byCode && digits.length >= 6 ? pdiKey(digits) : null;
 
   const counts: Record<ItemFilter, number> = { ALL: 0, DIFFERS: 0, DIFFERS_IN_STATE: 0, BELOW_COST: 0, LOW_MARGIN: 0, NO_COST: 0, NAMES: 0 };
   const departments = new Map<string, number>();

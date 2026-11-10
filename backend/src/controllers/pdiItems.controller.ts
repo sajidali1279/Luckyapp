@@ -8,8 +8,8 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { hasMinRole } from '../middleware/auth';
 import { audit } from '../utils/audit';
-import { barcodeKey, gs1CheckDigit } from '../utils/barcode';
-import { readItemReport, PdiItemListError, PdiItemRow } from '../utils/pdiItemList';
+import { gs1CheckDigit } from '../utils/barcode';
+import { readItemReport, PdiItemListError, PdiItemRow, pdiKey } from '../utils/pdiItemList';
 import { canonicalPrice, samePrice } from '../utils/labelPrice';
 import { endedSaleView, describeStorePrice } from '../utils/labelSale';
 import { savePlanned } from './labels.controller';
@@ -123,7 +123,7 @@ export async function registerPrice(req: AuthRequest, res: Response) {
   if (!store) return;
   const barcode = typeof req.query.barcode === 'string' ? req.query.barcode.trim() : '';
   if (!/^\d{6,14}$/.test(barcode)) { res.json({ success: true, data: { priceText: null } }); return; }
-  const item = await prisma.pdiItem.findFirst({ where: { storeId: store.id, upcKey: barcodeKey(barcode) }, select: { priceCents: true, name: true } });
+  const item = await prisma.pdiItem.findFirst({ where: { storeId: store.id, upcKey: pdiKey(barcode) }, select: { priceCents: true, name: true } });
   res.json({ success: true, data: { priceText: item?.priceCents ? (item.priceCents / 100).toFixed(2) : null } });
 }
 
@@ -135,7 +135,7 @@ export async function barcodeInfo(req: AuthRequest, res: Response) {
   if (!/^\d{6,14}$/.test(barcode)) { res.json({ success: true, data: none }); return; }
   const ids = await storeIdsFor(req.user!);
   const rows = await prisma.pdiItem.findMany({
-    where: { upcKey: barcodeKey(barcode), ...(ids ? { storeId: { in: ids } } : {}) },
+    where: { upcKey: pdiKey(barcode), ...(ids ? { storeId: { in: ids } } : {}) },
     select: { storeId: true, name: true, priceCents: true }, take: 100,
   });
   if (!rows.length) { res.json({ success: true, data: none }); return; }
@@ -165,7 +165,7 @@ export async function dealCheck(req: AuthRequest, res: Response) {
   const digits = q.replace(/\D/g, '');
   const byBarcode = /^\d{6,14}$/.test(q.replace(/\s/g, ''));
   const rows = await prisma.pdiItem.findMany({
-    where: { ...scope, ...(byBarcode ? { upcKey: barcodeKey(digits) } : { AND: words.map((w) => ({ name: { contains: w, mode: 'insensitive' as const } })) }) },
+    where: { ...scope, ...(byBarcode ? { upcKey: pdiKey(digits) } : { AND: words.map((w) => ({ name: { contains: w, mode: 'insensitive' as const } })) }) },
     select: { storeId: true, code: true, name: true, department: true, priceCents: true, costCents: true }, take: 600,
   });
   const [stores, lists] = await Promise.all([
@@ -242,7 +242,7 @@ export async function labelPriceCheck(req: AuthRequest, res: Response) {
     select: { id: true, productName: true, barcode: true, priceText: true, storeLabels: { where: { storeId: store.id }, select: { priceText: true, overrideExpiresAt: true, printedAt: true } } },
   });
   const now = new Date();
-  const keys = [...new Set(labels.map((l) => barcodeKey(l.barcode!)))];
+  const keys = [...new Set(labels.map((l) => pdiKey(l.barcode!)))];
   const items = await prisma.pdiItem.findMany({ where: { storeId: store.id, upcKey: { in: keys } }, select: { upcKey: true, name: true, priceCents: true } });
   const byKey = new Map(items.map((i) => [i.upcKey, i]));
   let compared = 0, same = 0, notInPdi = 0;
@@ -255,7 +255,7 @@ export async function labelPriceCheck(req: AuthRequest, res: Response) {
     const own = row?.priceText;
     const labelCents = priceOf(own ?? l.priceText);
     if (labelCents === null) continue;
-    const item = byKey.get(barcodeKey(l.barcode!));
+    const item = byKey.get(pdiKey(l.barcode!));
     if (!item) { notInPdi++; continue; }
     if (!item.priceCents) continue;
     compared++;
@@ -289,14 +289,14 @@ export async function applyRegisterPrices(req: AuthRequest, res: Response) {
     where: { id: { in: ids }, barcode: { not: null } },
     select: { id: true, productName: true, barcode: true, priceText: true, storeLabels: { where: { storeId: store.id }, select: { id: true, priceText: true, overrideExpiresAt: true, printedAt: true } } },
   });
-  const items = await prisma.pdiItem.findMany({ where: { storeId: store.id, upcKey: { in: [...new Set(labels.map((l) => barcodeKey(l.barcode!)))] } }, select: { upcKey: true, priceCents: true } });
+  const items = await prisma.pdiItem.findMany({ where: { storeId: store.id, upcKey: { in: [...new Set(labels.map((l) => pdiKey(l.barcode!)))] } }, select: { upcKey: true, priceCents: true } });
   const byKey = new Map(items.map((i) => [i.upcKey, i]));
   const now = new Date();
   const out = { updated: 0, added: 0, same: 0, notOnList: 0, onSale: 0, noPrice: 0, conflicts: 0, gone: ids.length - labels.length };
   const actor = { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role };
 
   for (const l of labels) {
-    const cents = byKey.get(barcodeKey(l.barcode!))?.priceCents;
+    const cents = byKey.get(pdiKey(l.barcode!))?.priceCents;
     const register = cents ? canonicalPrice((cents / 100).toFixed(2)) : null;
     if (!register) { out.noPrice++; continue; }
     const next = samePrice(l.priceText, register) ? null : register;   // the chain price already is the register's: no store price needed

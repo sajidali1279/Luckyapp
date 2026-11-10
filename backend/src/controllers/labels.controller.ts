@@ -14,6 +14,8 @@ import { labelChanges, refusalFor, describeChanges, editSummary, DELETE_ROLE_MES
 import { recordDealEdits } from '../utils/dealLearning';
 import { syncRewardPoints, auditRewardSync, RewardPointChange } from '../utils/rewardPoints';
 import { endedSaleView, saleEnded, parseSaleEnd, planPriceSave, describeStorePrice } from '../utils/labelSale';
+import { pdiKey } from '../utils/pdiItemList';
+import { appCategoryFor } from '../utils/pdiDepartments';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
 // allStoresAccess or an explicit UserStoreRole for this specific store.
@@ -744,9 +746,24 @@ export async function markLabelsPrinted(req: AuthRequest, res: Response) {
   res.json({ success: true, data: { printedCount: good.length, totalCopies, notMarked } });
 }
 
+/** What this store's register charges for a barcode, from its PDI item list (2026-11-10), with the day the list was uploaded. */
+async function registerAt(storeId: string, barcode: string) {
+  if (!/^\d{6,14}$/.test(barcode.trim())) return null;
+  const item = await prisma.pdiItem.findFirst({ where: { storeId, upcKey: pdiKey(barcode) }, select: { name: true, department: true, priceCents: true } });
+  if (!item) return null;
+  const last = await prisma.pdiItemImport.findFirst({ where: { storeId }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
+  const priceText = item.priceCents && item.priceCents < 100_000 ? (item.priceCents / 100).toFixed(2) : null;
+  return { name: item.name.trim(), department: item.department, priceText, asOf: last?.createdAt ?? null };
+}
+
 // GET /labels/lookup?storeId=X&barcode=Y, mobile Price Check. Resolves a
 // single scanned barcode straight to this store's price, without pulling
 // the whole catalog down for a one-item lookup.
+// 2026-11-10: the store's PDI item list answers too. An item with no shelf label (most of the 8,000 a store sells) used to come back
+// "not found" and the cashier was asked to name it; a label with no price at this store said "not priced". Both now show the register
+// price. The answer keeps the shape the apps already out there read (found, productName, priceText; no status, so no "printed" chip):
+// registerPriceText, registerAsOf, source and labelStatus are for the next app build, which also warns when the shelf label and the
+// register disagree.
 export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response) {
   const { storeId, barcode } = req.query;
   if (typeof storeId !== 'string' || !storeId || typeof barcode !== 'string' || !barcode) {
@@ -758,19 +775,41 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
     return;
   }
 
-  const label = await prisma.label.findFirst({
-    where: { barcode: { in: barcodeVariants(barcode) } },
-    orderBy: { createdAt: 'asc' },   // the same answer every time if two items share it (Labels > Same barcode merges them)
-    include: { storeLabels: { where: { storeId } } },
-  });
+  const [label, register] = await Promise.all([
+    prisma.label.findFirst({
+      where: { barcode: { in: barcodeVariants(barcode) } },
+      orderBy: { createdAt: 'asc' },   // the same answer every time if two items share it (Labels > Same barcode merges them)
+      include: { storeLabels: { where: { storeId } } },
+    }),
+    registerAt(storeId, barcode),
+  ]);
+  const fromRegister = register ? { registerPriceText: register.priceText, registerAsOf: register.asOf } : { registerPriceText: null, registerAsOf: null };
 
   if (!label) {
-    res.json({ success: true, data: { found: false, barcode } });
+    if (register?.priceText) {
+      res.json({ success: true, data: {
+        found: true, barcode, productName: register.name, category: appCategoryFor(register.department),
+        basePriceText: null, dealText: null, priceText: register.priceText, hasOverride: false,
+        source: 'PDI', labelStatus: 'NO_LABEL', ...fromRegister,
+      } });
+      return;
+    }
+    res.json({ success: true, data: { found: false, barcode, ...fromRegister } });
     return;
   }
 
   const storeLabel = endedSaleView(label.storeLabels[0] ?? null); // a sale that has ended is over now, not when the 15-minute job gets to it
   const effectivePrice = storeLabel ? resolveEffectivePrice(label, storeLabel) : null;
+  const status = printStatus(storeLabel, effectivePrice);
+  if (!effectivePrice && register?.priceText) {
+    // a label this store has no price on: the register's price, and the label can still go on My Prints
+    res.json({ success: true, data: {
+      found: true, id: label.id, productName: label.productName, barcode: label.barcode, category: label.category, template: label.template,
+      basePriceText: label.priceText, dealText: null, storeLabelId: storeLabel?.id ?? null, priceText: register.priceText, hasOverride: false,
+      printedAt: storeLabel?.printedAt ?? null, source: 'PDI', labelStatus: status, ...fromRegister,
+    } });
+    return;
+  }
   res.json({
     success: true,
     data: {
@@ -786,7 +825,8 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
       priceText: effectivePrice,
       hasOverride: !!storeLabel?.priceText,
       printedAt: storeLabel?.printedAt ?? null,
-      status: printStatus(storeLabel, effectivePrice),
+      status,
+      source: 'LABEL', labelStatus: status, ...fromRegister,
     },
   });
 }

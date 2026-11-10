@@ -3,7 +3,8 @@ import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { ensureLabelForBarcode } from '../utils/labelSync';
-import { barcodeKey, barcodeVariants, canonicalBarcode } from '../utils/barcode';
+import { barcodeVariants, canonicalBarcode } from '../utils/barcode';
+import { pdiKey } from '../utils/pdiItemList';
 import { Role } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
 import { appCategoryFor } from '../utils/pdiDepartments';
@@ -17,7 +18,7 @@ import { catalogOrNull, kindAt } from '../utils/itemCatalog';
  *  else any store's (names do not differ by store). */
 async function pdiItemFor(barcode: string, user: { id: string; role: Role }): Promise<{ name: string; category: string | null } | null> {
   if (!/^\d{6,14}$/.test(barcode.trim())) return null;
-  const key = barcodeKey(barcode);
+  const key = pdiKey(barcode);   // a small pack's short UPC-E too (2026-11-10)
   const hits = await prisma.pdiItem.findMany({ where: { upcKey: key }, select: { storeId: true, name: true, department: true }, take: 20 });
   if (!hits.length) return null;
   const mine = hasMinRole(user.role, Role.SUPER_ADMIN) ? [] : (await prisma.userStoreRole.findMany({ where: { userId: user.id }, select: { storeId: true } })).map((r) => r.storeId);

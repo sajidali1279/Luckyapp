@@ -14,7 +14,7 @@ import { storeDateKey } from '../utils/storeTime';
 import { checkHours, offerPaysAt, hoursText } from '../utils/offerHours';
 import { shelfDealsForStore, shelfDealsShownAt } from '../utils/shelfDeals';
 import { dealPriceOf, dealProblems } from '../utils/dealPrice';
-import { barcodeKey } from '../utils/barcode';
+import { pdiKey } from '../utils/pdiItemList';
 import { estimateOffer } from '../utils/offerEstimate';
 import { isRestrictedCategory } from '../utils/dealSuggest';
 import { AUDIENCES, forCustomer, audienceText } from '../utils/offerAudience';
@@ -912,7 +912,7 @@ export async function listShelfDeals(_req: AuthRequest, res: Response) {
     }),
     shelfDealsShownAt(),
   ]);
-  const keys = [...new Set(labels.filter((l) => l.barcode && dealPriceOf(l.dealText)).map((l) => barcodeKey(l.barcode!)))];
+  const keys = [...new Set(labels.filter((l) => l.barcode && dealPriceOf(l.dealText)).map((l) => pdiKey(l.barcode!)))];
   const [pdiRows, storeNames] = keys.length
     ? await Promise.all([
       prisma.pdiItem.findMany({ where: { upcKey: { in: keys } }, select: { storeId: true, upcKey: true, priceCents: true, costCents: true } }),
@@ -922,7 +922,7 @@ export async function listShelfDeals(_req: AuthRequest, res: Response) {
   const priceCheck = (l: (typeof labels)[number]) => {
     const deal = dealPriceOf(l.dealText);
     if (!deal || !l.barcode) return null;
-    const key = barcodeKey(l.barcode);
+    const key = pdiKey(l.barcode);
     const carried = new Set(l.storeLabels.map((s) => s.storeId));
     const rows = pdiRows.filter((r) => r.upcKey === key && carried.has(r.storeId))
       .map((r) => ({ storeName: storeNames.find((s) => s.id === r.storeId)?.name ?? 'Store', priceCents: r.priceCents, costCents: r.costCents }));

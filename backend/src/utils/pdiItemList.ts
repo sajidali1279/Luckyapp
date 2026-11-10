@@ -5,6 +5,7 @@
 // The report's counts are never used: most are below zero. No library: an .xlsx is a zip of XML, read with Node's own zlib.
 import { inflateRawSync } from 'zlib';
 import { barcodeKey, gs1CheckDigit } from './barcode';
+import { upcEtoA } from './pdiInvoice';
 
 export interface PdiItemRow {
   code: string;           // PDI's scan code, digits, padded to 11 when shorter
@@ -115,6 +116,18 @@ export function scanCode(raw: string | undefined): string | null {
   else return null;
   if (!/^\d{1,14}$/.test(s) || /^0+$/.test(s)) return null;
   return s.length <= 11 ? s.padStart(11, '0') : s;
+}
+
+/** The PDI matching key of a barcode as scanned or typed (2026-11-10). PDI lists small packs (gum, candy, cigarette packs) under their
+ *  full UPC (Marlboro 02820017833), while the pack's short UPC-E barcode reads as 8 digits (0, six digits, the check digit): those are
+ *  expanded first, when the check digit agrees. Every other barcode is matched on its digits, as everywhere (utils/barcode.ts). */
+export function pdiKey(barcode: string): string {
+  const b = barcode.trim();
+  if (/^[01]\d{7}$/.test(b)) {
+    const body = upcEtoA(b[0], b.slice(1, 7));
+    if (gs1CheckDigit(body) === Number(b[7])) return barcodeKey(body + b[7]);
+  }
+  return barcodeKey(b);
 }
 
 /** The matching key of the barcode a code stands for: an 11-digit code is a UPC without its check digit, so the check digit is added. */
