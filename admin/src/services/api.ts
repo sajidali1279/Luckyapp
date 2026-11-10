@@ -847,6 +847,8 @@ export const pdiInvoicesApi = {
   barcodeInfo: (barcode: string) => api.get('/pdi-items/barcode', { params: { barcode } }),
   // PDI items by name with their usual register price, for a reward with no shelf label (2026-11-08)
   rewardSearch: (q: string, storeId?: string) => api.get('/pdi-items/reward-search', { params: { q, ...(storeId ? { storeId } : {}) } }),
+  // a deal's price against each store's register, for the deal form (2026-11-10)
+  dealCheck: (q: string, dealText: string) => api.get('/pdi-items/deal-check', { params: { q, dealText } }),
   // labels at a store onto the register price from its PDI list (2026-11-08); addMissing also adds the ones not on the store's list
   applyLabelPrices: (storeId: string, labelIds: string[], addMissing: boolean) =>
     api.post('/pdi-items/label-prices/apply', { storeId, labelIds, addMissing }, { timeout: 180_000 }),

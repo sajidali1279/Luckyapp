@@ -25,6 +25,7 @@ import ChallengesPanel from '../components/offers/ChallengesPanel';
 import WelcomeBonusSettings from '../components/WelcomeBonusSettings';
 import IdeasPanel, { type IdeaOffer } from '../components/offers/IdeasPanel';
 import AutopilotCard from '../components/offers/AutopilotCard';
+import DealPriceCheck from '../components/offers/DealPriceCheck';
 import ComboIdeasPanel, { type ComboOffer } from '../components/offers/ComboIdeasPanel';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 import { ImagePick } from '../components/offers/ImagePick';
@@ -1215,6 +1216,7 @@ export default function Offers() {
                 <Field label="Deal text" htmlFor="deal-text" required hint="Shown large in the app.">
                   <input id="deal-text" className="ui-input" style={INPUT} value={dealText} onChange={(e) => setDealText(e.target.value)} placeholder="e.g. 2 for $5, 3 for $4, Buy 2 Get 1 Free" maxLength={40} />
                 </Field>
+                <DealPriceCheck dealText={dealText} storeId={dealType === 'SPECIFIC_STORE' ? dealStoreId : ''} />
                 <Field label="Description (optional)" htmlFor="deal-desc">
                   <input id="deal-desc" className="ui-input" style={INPUT} value={dealDescription} onChange={(e) => setDealDescription(e.target.value)} placeholder="Any extra details about the deal" />
                 </Field>
@@ -1527,6 +1529,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
           <textarea id="edit-offer-desc" className="ui-input" style={{ ...INPUT, minHeight: 72, resize: 'vertical' }} value={description} maxLength={500} onChange={(e) => setDescription(e.target.value)} />
         </Field>
         <SpanishFields idPrefix="edit-offer" value={spanish} onChange={setSpanish} english={{ title, description, dealText: offer.dealText ?? '' }} withDeal={!!offer.dealText} />
+        {offer.dealText && <DealPriceCheck dealText={offer.dealText} storeId={offer.storeId ?? ''} idPrefix="edit-offer" />}
         <ImagePick id="edit-offer-image" file={picture} onFile={setPicture} current={offer.imageUrl} removed={removePicture} onRemoveCurrent={setRemovePicture} category={offer.category} label="Picture" />
         <div style={s.twoCol}>
           <Field label="First day" htmlFor="edit-offer-start" hint={started ? 'Already running.' : undefined}>

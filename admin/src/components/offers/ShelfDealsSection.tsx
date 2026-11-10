@@ -10,10 +10,15 @@ import { Link } from 'react-router-dom';
 import { offersApi } from '../../services/api';
 import { serverMessage } from '../../lib/apiError';
 import { C, FONT, INPUT } from '../../lib/theme';
-import { Button, Card, Badge, SectionTitle, HowItWorks } from '../kit';
+import { Button, Card, Badge, SectionTitle, HowItWorks, Notice } from '../kit';
 import ErrorState from '../ErrorState';
 
-type Deal = { labelId: string; productName: string; dealText: string; priceText: string | null; hidden: boolean; stores: number; category: string | null; restricted: boolean; shownAt: number };
+// priceCheck (2026-11-10): the deal's price per item against the register at each store that carries the label (PDI item lists): where it
+// is no saving or below cost. null when the words name no price, the label has no barcode, or no store's list has it.
+type PriceCheck = { unitCents: number; checked: number; notSaving: string[]; belowCost: string[] };
+type Deal = { labelId: string; productName: string; dealText: string; priceText: string | null; hidden: boolean; stores: number; category: string | null; restricted: boolean; shownAt: number; priceCheck?: PriceCheck | null };
+const short = (names: string[]) => names.map((n) => n.replace(/^Lucky Stop\s*/i, '')).join(', ');
+const priceTrouble = (d: Deal) => !!d.priceCheck && (d.priceCheck.notSaving.length > 0 || d.priceCheck.belowCost.length > 0);
 type Status = '' | 'SHOWING' | 'WAITING' | 'HIDDEN' | 'NEVER' | 'NO_STORE';
 const STATUS_LABEL: Record<Exclude<Status, ''>, string> = {
   SHOWING: 'In the app now', WAITING: 'Allowed, not in the app now', HIDDEN: 'Hidden', NEVER: 'Tobacco or alcohol (never shown)', NO_STORE: 'No store carries it',
@@ -47,6 +52,7 @@ export default function ShelfDealsSection() {
   }, [deals, search, status, category]);
   const visible = shown.slice(0, limit);
   const pickable = shown.filter((d) => !d.restricted);
+  const troubled = deals.filter((d) => !d.restricted && priceTrouble(d)).length;
   const allPicked = pickable.length > 0 && pickable.every((d) => picked.has(d.labelId));
   const pickedDeals = deals.filter((d) => picked.has(d.labelId));
   const toHide = pickedDeals.filter((d) => !d.hidden).length;
@@ -114,6 +120,11 @@ export default function ShelfDealsSection() {
               )}
             </div>
 
+            {troubled > 0 && (
+              <Notice tone="warning" style={{ marginBottom: 8 }}>
+                {troubled} {troubled === 1 ? 'deal is' : 'deals are'} no saving or below cost at some stores, checked against each store's register price in PDI. Change the deal on the label, or check those stores' prices.
+              </Notice>
+            )}
             {shown.length === 0 ? (
               <Card muted style={{ fontSize: FONT.body, color: C.text2 }}>No shelf deal matches.</Card>
             ) : (
@@ -129,6 +140,12 @@ export default function ShelfDealsSection() {
                         <div style={{ fontSize: FONT.small, color: C.muted }}>
                           {d.priceText ? `Regular $${String(d.priceText).replace(/^\$/, '')}. ` : ''}{words(d.category)}. <Printer size={11} aria-hidden style={{ display: 'inline-block', verticalAlign: -1 }} /> {d.stores === 0 ? 'No store carries this label yet' : `Label at ${d.stores} ${d.stores === 1 ? 'store' : 'stores'}`}
                         </div>
+                        {d.priceCheck && priceTrouble(d) && (
+                          <div data-testid="shelf-deal-price" style={{ fontSize: FONT.small, marginTop: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {d.priceCheck.belowCost.length > 0 && <span style={{ color: C.danger }}>Below cost at {short(d.priceCheck.belowCost)} (${(d.priceCheck.unitCents / 100).toFixed(2)} each)</span>}
+                            {d.priceCheck.notSaving.length > 0 && <span style={{ color: C.warning }}>Not a saving at {short(d.priceCheck.notSaving)}: the register already charges ${(d.priceCheck.unitCents / 100).toFixed(2)} or less</span>}
+                          </div>
+                        )}
                       </div>
                       {st === 'SHOWING' ? <Badge tone="success">In the app at {d.shownAt} of {d.stores} {d.stores === 1 ? 'store' : 'stores'}</Badge>
                         : st === 'WAITING' ? <Badge title="Allowed, but each store shows only its newest label deals">Not in the app now</Badge>
