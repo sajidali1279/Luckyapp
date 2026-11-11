@@ -181,6 +181,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   LABEL_PRICES_FROM_PDI:     { label: 'Labels on register price', color: PRIMARY, bg: '#1D355718', icon: '💲' },
   LABELS_FROM_PDI:           { label: 'Labels made from PDI',   color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
   SCANNED_PRODUCTS_FROM_PDI: { label: 'Scanned products from PDI', color: PRIMARY, bg: '#1D355718', icon: '📦' },
+  SCANNED_PRODUCTS_BULK:     { label: 'Scanned products changed', color: PRIMARY, bg: '#1D355718', icon: '📦' },
   PDI_FILE_DOWNLOADED:       { label: 'PDI invoice file downloaded', color: PRIMARY, bg: '#1D355718', icon: '⬇️' },
   PDI_INVOICE_DELETED:       { label: 'PDI invoice deleted',    color: '#a51b28', bg: '#c4213018', icon: '🗑️' },
   PDI_VENDOR_CREATED:        { label: 'PDI vendor added',       color: PRIMARY, bg: '#1D355718', icon: '🚚' },
@@ -426,7 +427,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── PDI & items ──">
-            {['PDI_ITEMS_IMPORTED', 'LABEL_PRICES_FROM_PDI', 'LABELS_FROM_PDI', 'SCANNED_PRODUCTS_FROM_PDI', 'PDI_FILE_DOWNLOADED', 'PDI_INVOICE_DELETED', 'PDI_VENDOR_CREATED', 'PDI_VENDOR_UPDATED', 'PDI_VENDOR_DELETED'].map(k => (
+            {['PDI_ITEMS_IMPORTED', 'LABEL_PRICES_FROM_PDI', 'LABELS_FROM_PDI', 'SCANNED_PRODUCTS_FROM_PDI', 'SCANNED_PRODUCTS_BULK', 'PDI_FILE_DOWNLOADED', 'PDI_INVOICE_DELETED', 'PDI_VENDOR_CREATED', 'PDI_VENDOR_UPDATED', 'PDI_VENDOR_DELETED'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

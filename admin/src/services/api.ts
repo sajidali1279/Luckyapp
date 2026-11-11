@@ -574,6 +574,11 @@ export const scannedProductApi = {
   save: (data: { barcode: string; name: string; category?: string; brand?: string }) =>
     api.post('/scanned-products', data),
   fillFromPdi: () => api.post('/scanned-products/from-pdi', {}, { timeout: 180_000 }),   // HQ: every PDI item not in it yet (2026-11-11)
+  // pages, filters and bulk changes (2026-11-11: about 18,000 products since the PDI lists went in)
+  listPaged: (params: Record<string, string | number>) => api.get('/scanned-products', { params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)) }),
+  idsMatching: (params: Record<string, string | number>) => api.get('/scanned-products', { params: { ...Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null)), page: 1, idsOnly: '1' } }),
+  bulkCategory: (ids: string[], category: string | null) => api.post('/scanned-products/bulk-category', { ids, category }, { timeout: 120_000 }),
+  bulkDelete: (ids: string[]) => api.post('/scanned-products/bulk-delete', { ids }, { timeout: 120_000 }),
 };
 
 export const employeeRequestApi = {

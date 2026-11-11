@@ -95,7 +95,7 @@ import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBac
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
 import { getCustomerProfile, getCustomerActivity, listCustomerNotes, addCustomerNote, deleteCustomerNote, unlockCustomer, getCustomerHistory, getCustomerReceiptCards, testUserPush } from '../controllers/customerProfile.controller';
 import { getCustomerInsights, getPromotionInsights, getPointsInsights, getStaffInsights, getHeatmap, getForecast, getScorecards } from '../controllers/insights.controller';
-import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct, fillFromPdi } from '../controllers/scannedProduct.controller';
+import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct, fillFromPdi, bulkSetCategory, bulkDeleteProducts } from '../controllers/scannedProduct.controller';
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
@@ -729,6 +729,8 @@ router.post  ('/scanned-products',                  authenticate, requireRole(Ro
 router.get   ('/scanned-products',                  authenticate, requireRole(Role.STORE_MANAGER), listProducts);   // Browse catalog (managers+)
 router.patch ('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), updateProduct);  // Edit name/category/brand (managers+), barcode not editable
 router.delete('/scanned-products/:id',              authenticate, requireRole(Role.STORE_MANAGER), deleteProduct);  // Remove bad entry (managers+)
+router.post  ('/scanned-products/bulk-category',     authenticate, requireRole(Role.STORE_MANAGER), bulkSetCategory);      // one category for many (2026-11-11)
+router.post  ('/scanned-products/bulk-delete',       authenticate, requireRole(Role.STORE_MANAGER), bulkDeleteProducts);   // remove many (2026-11-11)
 router.post  ('/scanned-products/from-pdi',          authenticate, requireRole(Role.SUPER_ADMIN), fillFromPdi);   // HQ: every PDI item not in it yet (2026-11-11)
 router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), extractFromPhoto); // AI photo import
 

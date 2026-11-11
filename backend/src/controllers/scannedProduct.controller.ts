@@ -126,6 +126,8 @@ export async function saveProduct(req: AuthRequest, res: Response) {
 
 export async function listProducts(req: AuthRequest, res: Response) {
   const { q, source } = req.query as { q?: string; source?: string };
+  // The admin page asks for pages (2026-11-11: about 18,000 products since the PDI lists went in); the apps keep the plain list
+  if (req.query.page !== undefined) { await listProductsPaged(req, res); return; }
   const where: Record<string, unknown> = {};
   // a name, or (2026-11-11) a barcode or part of one: digits only
   const digits = (q ?? '').replace(/\s/g, '');
@@ -139,6 +141,85 @@ export async function listProducts(req: AuthRequest, res: Response) {
     take: 200,
   });
   res.json({ success: true, data: products });
+}
+
+// ─── The admin's paged list and bulk changes (2026-11-11) ───────────────────────
+
+export const SCANNED_PAGE_SIZE = 50;
+const SOURCES = ['manual', 'openfoodfacts', 'pdi'];
+export const NO_CATEGORY = '__none__';
+export const BULK_MAX = 5000;
+
+/** The filters of the admin's list as a database where. */
+function scannedWhere(query: Record<string, unknown>) {
+  const str = (v: unknown) => (typeof v === 'string' ? v.trim().slice(0, 100) : '');
+  const q = str(query.q), source = str(query.source), category = str(query.category), scanned = str(query.scanned);
+  const where: Record<string, unknown>[] = [];
+  const digits = q.replace(/\s/g, '');
+  if (q && /^\d{4,14}$/.test(digits)) where.push({ OR: [{ barcode: { contains: digits } }, { barcode: { in: barcodeVariants(digits) } }, { name: { contains: q, mode: 'insensitive' } }] });
+  else if (q) where.push({ AND: q.split(/\s+/).slice(0, 6).map((w) => ({ name: { contains: w, mode: 'insensitive' } })) });
+  if (SOURCES.includes(source)) where.push({ source });
+  if (category === NO_CATEGORY) where.push({ OR: [{ category: null }, { category: '' }] });
+  else if (category) where.push({ category });
+  if (scanned === 'never') where.push({ scanCount: 0 });
+  else if (scanned === 'yes') where.push({ scanCount: { gt: 0 } });
+  return where.length ? { AND: where } : {};
+}
+
+/** GET /scanned-products?page&q&source&category&scanned&sort (admin): one page, the total, and the counts for the filters. With idsOnly=1,
+ *  the ids of every product that matches (up to BULK_MAX), for "select all that match". */
+async function listProductsPaged(req: AuthRequest, res: Response) {
+  const where = scannedWhere(req.query as Record<string, unknown>);
+  if (req.query.idsOnly === '1') {
+    const rows = await prisma.scannedProduct.findMany({ where, select: { id: true }, take: BULK_MAX });
+    res.json({ success: true, data: { ids: rows.map((r) => r.id), capped: rows.length === BULK_MAX } });
+    return;
+  }
+  const sort = req.query.sort === 'name' ? [{ name: 'asc' as const }] : req.query.sort === 'newest' ? [{ createdAt: 'desc' as const }] : [{ scanCount: 'desc' as const }, { lastScannedAt: 'desc' as const }];
+  const [total, sources, categories] = await Promise.all([
+    prisma.scannedProduct.count({ where }),
+    prisma.scannedProduct.groupBy({ by: ['source'], _count: { _all: true } }),
+    prisma.scannedProduct.groupBy({ by: ['category'], _count: { _all: true }, orderBy: { _count: { category: 'desc' } }, take: 300 }),
+  ]);
+  const pages = Math.max(1, Math.ceil(total / SCANNED_PAGE_SIZE));
+  const page = Math.min(Math.max(1, Math.floor(Number(req.query.page) || 1)), pages);
+  const items = await prisma.scannedProduct.findMany({ where, orderBy: sort, skip: (page - 1) * SCANNED_PAGE_SIZE, take: SCANNED_PAGE_SIZE });
+  const none = categories.filter((c) => !c.category).reduce((n, c) => n + c._count._all, 0);
+  res.json({ success: true, data: {
+    items, total, page, pages,
+    sources: Object.fromEntries(sources.map((s) => [s.source, s._count._all])),
+    categories: [...categories.filter((c) => c.category).map((c) => ({ name: c.category!, items: c._count._all })).sort((a, b) => a.name.localeCompare(b.name)),
+      ...(none ? [{ name: NO_CATEGORY, items: none }] : [])],
+  } });
+}
+
+const bulkIds = (v: unknown): string[] | null => {
+  if (!Array.isArray(v)) return null;
+  const ids = [...new Set(v.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 64))];
+  return ids.length && ids.length <= BULK_MAX ? ids : null;
+};
+
+/** POST /scanned-products/bulk-category {ids, category} (manager+): one category (or none) for many products. */
+export async function bulkSetCategory(req: AuthRequest, res: Response) {
+  const ids = bulkIds(req.body?.ids);
+  if (!ids) { res.status(400).json({ success: false, error: `Pick between 1 and ${BULK_MAX.toLocaleString()} products.` }); return; }
+  const raw = req.body?.category;
+  const category = raw === null || raw === '' ? null : typeof raw === 'string' ? raw.trim().slice(0, 100) || null : undefined;
+  if (category === undefined) { res.status(400).json({ success: false, error: 'Type the category, or leave it empty for none.' }); return; }
+  const { count } = await prisma.scannedProduct.updateMany({ where: { id: { in: ids } }, data: { category } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'SCANNED_PRODUCTS_BULK', entity: 'ScannedProduct', entityId: 'bulk',
+    details: { summary: `Set the category of ${count.toLocaleString()} scanned products to ${category ? `"${category}"` : 'none'}.`, count, category } });
+  res.json({ success: true, data: { updated: count } });
+}
+
+/** POST /scanned-products/bulk-delete {ids} (manager+): removes many products (a scan of one asks for its name again). */
+export async function bulkDeleteProducts(req: AuthRequest, res: Response) {
+  const ids = bulkIds(req.body?.ids);
+  if (!ids) { res.status(400).json({ success: false, error: `Pick between 1 and ${BULK_MAX.toLocaleString()} products.` }); return; }
+  const { count } = await prisma.scannedProduct.deleteMany({ where: { id: { in: ids } } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'SCANNED_PRODUCTS_BULK', entity: 'ScannedProduct', entityId: 'bulk',
+    details: { summary: `Removed ${count.toLocaleString()} products from Scanned products.`, count } });
+  res.json({ success: true, data: { removed: count } });
 }
 
 // ─── POST /scanned-products/from-pdi ───────────────────────────────────────────

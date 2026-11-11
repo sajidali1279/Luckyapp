@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, CSSProperties } from 'react';
+import { useState, useEffect, CSSProperties } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { scannedProductApi, orderCategoriesApi } from '../services/api';
@@ -9,6 +9,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '.
 import TableSkeleton from '../components/TableSkeleton';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { Page, PageHeader, Button, Field } from '../components/kit';
+import DataTablePagination from '../components/DataTablePagination';
 import { Plus, Search } from 'lucide-react';
 import { INPUT } from '../lib/theme';
 import Glyph from '../components/Glyph';
@@ -31,11 +32,6 @@ const SOURCE_META: Record<string, { label: string; bg: string; color: string }> 
   pdi:           { label: 'From PDI',         bg: '#fff4e5', color: '#8a5300' },   // named from a store's PDI item list on a scan (2026-11-06)
 };
 
-// A category with more than this many items collapses to a preview with a
-// "Show all" expander, so the page isn't dominated by whichever category
-// happens to have the most entries. Matches the same pattern used in
-// mobile's Browse tab (mobile/app/(manager)/catalog.tsx).
-const CATEGORY_PREVIEW_COUNT = 5;
 
 export default function ScannedProducts() {
   const qc = useQueryClient();
@@ -87,7 +83,6 @@ export default function ScannedProducts() {
     setShowEditCatSugg(true);
   }, [editCategory, approvedCats]);
 
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
   // Every PDI item into the catalog (2026-11-11, HQ): products already here are left as they are
   const role = useAuthStore((st) => st.user?.role);
   const hq = role === 'SUPER_ADMIN' || role === 'DEV_ADMIN';
@@ -103,28 +98,54 @@ export default function ScannedProducts() {
     } catch (e: any) { toast.error(e?.response?.data?.error || 'The PDI items could not be added. Try again.'); } finally { setFilling(false); }
   }
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['scanned-products', debSearch],
-    queryFn: () => scannedProductApi.list(debSearch.trim() || undefined),
+  // Pages, filters and picking many (2026-11-11): about 18,000 products since the PDI lists went in, where it showed the 200 most scanned
+  const [source, setSource] = useState('');
+  const [category, setCategory] = useState('');
+  const [scanned, setScanned] = useState('');
+  const [sort, setSort] = useState('scans');
+  const [page, setPage] = useState(1);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [allMatching, setAllMatching] = useState(false);   // every product that matches is picked (its ids fetched when acting)
+  const [bulk, setBulk] = useState<'category' | 'delete' | null>(null);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const filters = { q: debSearch.trim(), source, category, scanned, sort };
+  useEffect(() => { setPage(1); setPicked(new Set()); setAllMatching(false); }, [debSearch, source, category, scanned, sort]);
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+    queryKey: ['scanned-products', filters, page],
+    placeholderData: (prev) => prev,
+    queryFn: () => scannedProductApi.listPaged({ ...filters, page }).then((r) => r.data.data as {
+      items: ScannedProduct[]; total: number; page: number; pages: number; sources: Record<string, number>; categories: { name: string; items: number }[];
+    }),
   });
-  const products: ScannedProduct[] = data?.data?.data || [];
-
-  const grouped = useMemo(() => {
-    const map: Record<string, ScannedProduct[]> = {};
-    products.forEach(p => {
-      const cat = p.category || 'Uncategorized';
-      (map[cat] = map[cat] || []).push(p);
-    });
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
-  }, [products]);
-
-  function toggleExpanded(cat: string) {
-    setExpandedCats(prev => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat); else next.add(cat);
-      return next;
-    });
+  const products: ScannedProduct[] = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const pickedCount = allMatching ? total : picked.size;
+  const pageAll = products.length > 0 && products.every((p) => allMatching || picked.has(p.id));
+  const togglePick = (id: string) => { setAllMatching(false); setPicked((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; }); };
+  const togglePage = () => { setAllMatching(false); setPicked((prev) => { const n = new Set(prev); if (pageAll) products.forEach((p) => n.delete(p.id)); else products.forEach((p) => n.add(p.id)); return n; }); };
+  async function pickedIds(): Promise<string[]> {
+    if (!allMatching) return [...picked];
+    const r = (await scannedProductApi.idsMatching(filters)).data.data as { ids: string[]; capped: boolean };
+    if (r.capped) toast(`Only the first ${r.ids.length.toLocaleString()} are changed at once. Run it again for the rest.`);
+    return r.ids;
   }
+  async function runBulk(value?: string) {
+    if (!bulk) return;
+    setBulkBusy(true);
+    try {
+      const ids = await pickedIds();
+      if (bulk === 'category') {
+        const r = (await scannedProductApi.bulkCategory(ids, value?.trim() ? value.trim() : null)).data.data as { updated: number };
+        toast.success(`${r.updated.toLocaleString()} ${r.updated === 1 ? 'product' : 'products'}: category ${value?.trim() ? `"${value.trim()}"` : 'cleared'}.`);
+      } else {
+        const r = (await scannedProductApi.bulkDelete(ids)).data.data as { removed: number };
+        toast.success(`${r.removed.toLocaleString()} ${r.removed === 1 ? 'product' : 'products'} removed.`);
+      }
+      setBulk(null); setPicked(new Set()); setAllMatching(false);
+      qc.invalidateQueries({ queryKey: ['scanned-products'] });
+    } catch (e: any) { toast.error(e?.response?.data?.error || 'Nothing was changed. Try again.'); } finally { setBulkBusy(false); }
+  }
+
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => scannedProductApi.delete(id),
@@ -203,7 +224,6 @@ export default function ScannedProducts() {
 
   function handleDelete(item: ScannedProduct) { setConfirmItem(item); }
 
-  if (isError) return <Page><ErrorState message="Failed to load scanned products." onRetry={refetch} /></Page>;
 
   return (
     <Page>
@@ -379,7 +399,7 @@ export default function ScannedProducts() {
       {/* Header */}
       <PageHeader
         title="Scanned products"
-        description={<>Chain-wide barcode catalog (name, category, brand): products staff scanned, and every item in the stores' PDI lists{!isLoading && ` · ${products.length}${products.length === 200 ? '+' : ''} shown, most scanned first; search to find the rest`}</>}
+        description="Chain-wide barcode catalog (name, category, brand): products staff scanned, and every item in the stores' PDI lists." 
         actions={
           <>
             <div style={{ position: 'relative', width: 260 }}>
@@ -399,98 +419,124 @@ export default function ScannedProducts() {
         }
       />
 
+      {/* Filters (2026-11-11) */}
+      <div style={s.filterBar}>
+        <select aria-label="Where it came from" style={s.filterSelect} value={source} onChange={(e) => setSource(e.target.value)}>
+          <option value="">Every source</option>
+          {Object.entries(SOURCE_META).map(([k, v]) => <option key={k} value={k}>{v.label}{data?.sources?.[k] != null ? ` (${data.sources[k].toLocaleString()})` : ''}</option>)}
+        </select>
+        <select aria-label="Category" style={s.filterSelect} value={category} onChange={(e) => setCategory(e.target.value)}>
+          <option value="">Every category</option>
+          {(data?.categories ?? []).map((c) => <option key={c.name} value={c.name}>{c.name === '__none__' ? 'No category' : c.name} ({c.items.toLocaleString()})</option>)}
+        </select>
+        <select aria-label="Scanned" style={s.filterSelect} value={scanned} onChange={(e) => setScanned(e.target.value)}>
+          <option value="">Scanned or not</option>
+          <option value="yes">Scanned by staff</option>
+          <option value="never">Never scanned</option>
+        </select>
+        <select aria-label="Sort" style={s.filterSelect} value={sort} onChange={(e) => setSort(e.target.value)}>
+          <option value="scans">Sort: most scanned</option>
+          <option value="newest">Sort: newest</option>
+          <option value="name">Sort: name</option>
+        </select>
+      </div>
+
       {/* Content */}
-      {isLoading ? (
-        <TableSkeleton columns={7} />
+      {isError ? (
+        <ErrorState message="Failed to load scanned products." onRetry={refetch} />
+      ) : isLoading && !data ? (
+        <TableSkeleton columns={8} />
       ) : products.length === 0 ? (
         <div style={s.emptyBox}>
           <div style={s.emptyIcon}><Glyph e="📦" size={28} color="#5a6472" /></div>
-          <div style={s.emptyTitle}>{search ? 'No matching products' : 'No scanned products yet'}</div>
+          <div style={s.emptyTitle}>{search || source || category || scanned ? 'No matching products' : 'No scanned products yet'}</div>
           <div style={s.emptySub}>
-            {search ? 'Try a different search term' : 'Products appear here as managers scan barcodes while building order lists on mobile'}
+            {search || source || category || scanned ? 'Try a different search or fewer filters' : 'Products appear here as managers scan barcodes, and from the stores\' PDI lists'}
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {grouped.map(([cat, catItems]) => {
-            const isExpanded = expandedCats.has(cat);
-            const visibleItems = isExpanded ? catItems : catItems.slice(0, CATEGORY_PREVIEW_COUNT);
-            const hiddenCount = catItems.length - visibleItems.length;
-            return (
-              <div key={cat} style={s.tableWrap}>
-                <div style={s.catHeader}>
-                  <span style={s.catName}>{cat}</span>
-                  <span style={s.catBadge}>{catItems.length}</span>
-                </div>
-                <Table style={s.table}>
-                  <TableHeader>
-                    <TableRow>
-                      {['Barcode', 'Name', 'Brand', 'Source', 'Scans', 'Last scanned', ''].map(h => (
-                        <TableHead key={h} style={s.th}>{h}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visibleItems.map((p, i) => {
-                      const meta = SOURCE_META[p.source] || { label: p.source, bg: '#f1f3f6', color: '#4b5563' };
-                      return (
-                        <TableRow key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
-                          <TableCell style={{ ...s.td, fontFamily: 'monospace', fontSize: 13 }}>{p.barcode}</TableCell>
-                          <TableCell style={s.td}><span style={s.itemName}>{p.name}</span></TableCell>
-                          <TableCell style={s.td}>{p.brand || <span style={{ color: TEXT_MUTED }}>None</span>}</TableCell>
-                          <TableCell style={s.td}>
-                            <span style={{ ...s.sourceBadge, background: meta.bg, color: meta.color }}>{meta.label}</span>
-                          </TableCell>
-                          <TableCell style={s.td}>{p.scanCount.toLocaleString()}</TableCell>
-                          <TableCell style={s.td}>{p.scanCount === 0 ? <span style={{ color: TEXT_MUTED }}>Never scanned</span> : new Date(p.lastScannedAt).toLocaleDateString()}</TableCell>
-                          <TableCell style={s.td}>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button style={s.editBtn} onClick={() => openEditModal(p)}>Edit</button>
-                              <button
-                                style={s.deleteBtn}
-                                onClick={() => handleDelete(p)}
-                                disabled={deletingId === p.id}
-                              >
-                                {deletingId === p.id ? '…' : 'Delete'}
-                              </button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-                {(hiddenCount > 0 || (isExpanded && catItems.length > CATEGORY_PREVIEW_COUNT)) && (
-                  <button style={s.showMoreBtn} onClick={() => toggleExpanded(cat)}>
-                    {hiddenCount > 0 ? `Show all ${catItems.length} in ${cat}` : 'Show fewer'}
-                  </button>
-                )}
-              </div>
-            );
-          })}
+        <div style={s.tableWrap}>
+          <div style={s.pickBar} aria-live="polite">
+            <span style={{ marginRight: 'auto' }}>
+              {pickedCount ? <b>{pickedCount.toLocaleString()} picked</b> : `${total.toLocaleString()} ${total === 1 ? 'product' : 'products'}`}{isFetching ? ' (updating...)' : ''}
+              {pageAll && !allMatching && total > products.length && (
+                <> · <button type="button" style={s.linkBtn} onClick={() => setAllMatching(true)}>Pick all {total.toLocaleString()} that match</button></>
+              )}
+            </span>
+            {pickedCount > 0 && (
+              <>
+                <Button size="sm" onClick={() => setBulk('category')} disabled={bulkBusy}>Set category</Button>
+                <Button size="sm" onClick={() => setBulk('delete')} disabled={bulkBusy}>Remove</Button>
+                <Button size="sm" onClick={() => { setPicked(new Set()); setAllMatching(false); }}>Clear</Button>
+              </>
+            )}
+          </div>
+          <Table style={s.table}>
+            <TableHeader>
+              <TableRow>
+                <TableHead style={{ ...s.th, width: 36 }}><input type="checkbox" aria-label={pageAll ? 'Unpick every product on this page' : 'Pick every product on this page'} checked={pageAll} onChange={togglePage} /></TableHead>
+                {['Name', 'Category', 'Barcode', 'Source', 'Scans', 'Last scanned', ''].map(h => (
+                  <TableHead key={h} style={s.th}>{h}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {products.map((p, i) => {
+                const meta = SOURCE_META[p.source] || { label: p.source, bg: '#f1f3f6', color: '#4b5563' };
+                return (
+                  <TableRow key={p.id} data-testid="scanned-row" style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
+                    <TableCell style={s.td}><input type="checkbox" aria-label={`Pick ${p.name}`} checked={allMatching || picked.has(p.id)} onChange={() => togglePick(p.id)} /></TableCell>
+                    <TableCell style={{ ...s.td, whiteSpace: 'normal' }}><span style={s.itemName}>{p.name}</span>{p.brand ? <span style={{ display: 'block', fontSize: 12, color: TEXT_MUTED }}>{p.brand}</span> : null}</TableCell>
+                    <TableCell style={s.td}>{p.category || <span style={{ color: TEXT_MUTED }}>None</span>}</TableCell>
+                    <TableCell style={{ ...s.td, fontFamily: 'monospace', fontSize: 13 }}>{p.barcode}</TableCell>
+                    <TableCell style={s.td}>
+                      <span style={{ ...s.sourceBadge, background: meta.bg, color: meta.color }}>{meta.label}</span>
+                    </TableCell>
+                    <TableCell style={s.td}>{p.scanCount.toLocaleString()}</TableCell>
+                    <TableCell style={s.td}>{p.scanCount === 0 ? <span style={{ color: TEXT_MUTED }}>Never scanned</span> : new Date(p.lastScannedAt).toLocaleDateString()}</TableCell>
+                    <TableCell style={s.td}>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button style={s.editBtn} onClick={() => openEditModal(p)} aria-label={`Edit ${p.name}`}>Edit</button>
+                        <button style={s.deleteBtn} onClick={() => handleDelete(p)} disabled={deletingId === p.id} aria-label={`Delete ${p.name}`}>
+                          {deletingId === p.id ? '…' : 'Delete'}
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <DataTablePagination page={data?.page ?? 1} totalPages={data?.pages ?? 1} onPrevious={() => setPage((p) => Math.max(1, p - 1))} onNext={() => setPage((p) => p + 1)} />
         </div>
       )}
+      <ConfirmModal
+        open={bulk === 'category'}
+        title={`Set the category of ${pickedCount.toLocaleString()} ${pickedCount === 1 ? 'product' : 'products'}`}
+        message="The category the order list, stock requests and Labels use for these products. Leave it empty for none."
+        withInput inputLabel="Category" inputPlaceholder="e.g. Candy"
+        confirmLabel="Set it" busy={bulkBusy}
+        onConfirm={(v) => void runBulk(v)} onCancel={() => setBulk(null)}
+      />
+      <ConfirmModal
+        open={bulk === 'delete'}
+        title={`Remove ${pickedCount.toLocaleString()} ${pickedCount === 1 ? 'product' : 'products'}?`}
+        message="The next scan of one of them asks whoever scans it to name it again (a PDI item comes back with the next PDI upload). Shelf labels are not touched."
+        confirmLabel="Remove" danger busy={bulkBusy}
+        onConfirm={() => void runBulk()} onCancel={() => setBulk(null)}
+      />
     </Page>
   );
 }
 
 const s: Record<string, CSSProperties> = {
+  filterBar: { display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 },
+  filterSelect: { ...INPUT, width: 'auto', flex: '1 1 170px', minWidth: 0, maxWidth: '100%' },
+  pickBar: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px', borderBottom: '1px solid #e4e7ec', fontSize: 13, color: TEXT_MUTED },
+  linkBtn: { background: 'none', border: 'none', padding: 0, font: 'inherit', color: PRIMARY, fontWeight: 700, cursor: 'pointer' },
   tableWrap: {
     background: '#fff', borderRadius: 12, overflowX: 'auto',
     boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec',
-  },
-  catHeader: {
-    display: 'flex', alignItems: 'center', gap: 10,
-    padding: '12px 16px', borderBottom: '1px solid #e4e7ec',
-  },
-  catName: { fontSize: 14, fontWeight: 700, color: PRIMARY, textTransform: 'uppercase', letterSpacing: 0.4 },
-  catBadge: {
-    fontSize: 12, fontWeight: 700, color: PRIMARY, background: '#1D355718',
-    borderRadius: 10, padding: '2px 9px',
-  },
-  showMoreBtn: {
-    width: '100%', padding: '11px 16px', background: '#f7f8fa', border: 'none',
-    borderTop: '1px solid #e4e7ec', color: PRIMARY, fontSize: 13, fontWeight: 700, cursor: 'pointer',
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
