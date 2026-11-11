@@ -139,6 +139,7 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   HOT_FOOD_MENU_TIME_UPDATED:     { label: 'Hot food menu by time changed', color: '#c2410c', bg: '#c2410c18', icon: '🕒' },
   HOT_FOOD_MENU_TIME_DELETED:     { label: 'Hot food menu by time removed', color: '#a51b28', bg: '#CC293618', icon: '🕒' },
   HOT_FOOD_MENU_TIME_ITEMS:       { label: 'Hot food menu by time items', color: '#c2410c', bg: '#c2410c18', icon: '🕒' },
+  HOT_FOOD_RAN_OUT:               { label: 'Hot food ran out / back in stock', color: '#a51b28', bg: '#CC293618', icon: '🚫' },
   HOT_FOOD_COMBO_UPDATE:          { label: 'Hot food combo changed', color: '#c2410c', bg: '#c2410c18', icon: '🍱' },
   HOT_FOOD_COMBO_DELETE:          { label: 'Hot food combo removed', color: '#a51b28', bg: '#CC293618', icon: '🍱' },
   HOT_FOOD_MENU_GRID:             { label: 'Hot food menus changed', color: '#c2410c', bg: '#c2410c18', icon: '🍗' },
@@ -442,7 +443,7 @@ export default function ActivityLog() {
           </optgroup>
           <optgroup label="── Hot food ──">
             {['HOT_FOOD_ITEM_CREATED', 'HOT_FOOD_ITEM_UPDATED', 'HOT_FOOD_ITEM_DELETED', 'HOT_FOOD_ITEM_STORE_ADDED', 'HOT_FOOD_ITEM_STORE_REMOVED',
-              'HOT_FOOD_MENU_TIME_CREATED', 'HOT_FOOD_MENU_TIME_UPDATED', 'HOT_FOOD_MENU_TIME_DELETED', 'HOT_FOOD_MENU_TIME_ITEMS'].map(k => (
+              'HOT_FOOD_MENU_TIME_CREATED', 'HOT_FOOD_MENU_TIME_UPDATED', 'HOT_FOOD_MENU_TIME_DELETED', 'HOT_FOOD_MENU_TIME_ITEMS', 'HOT_FOOD_RAN_OUT'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

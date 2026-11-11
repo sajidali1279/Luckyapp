@@ -68,9 +68,10 @@ export async function combosAt(storeId: string, now: Date = new Date(), withoutD
       include: { catalogItem: { select: { id: true, name: true, imageUrl: true, estimatedMinutes: true, daypartIds: true } } },
       orderBy: [{ isFeatured: 'desc' }, { price: 'asc' }],
     }),
-    prisma.hotFoodCatalogStore.findMany({ where: { storeId, isAvailable: true }, select: { catalogItemId: true } }),
+    prisma.hotFoodCatalogStore.findMany({ where: { storeId, isAvailable: true }, select: { catalogItemId: true, soldOutUntil: true } }),
   ]);
-  const items = new Set(onHere.map((r) => r.catalogItemId));
+  // Not when the store ran out of the item for that day (2026-11-10)
+  const items = new Set(onHere.filter((r) => !r.soldOutUntil || r.soldOutUntil.getTime() < now.getTime()).map((r) => r.catalogItemId));
   return (combos as ComboRow[]).filter((c) => items.has(c.catalogItem.id) && (c.storeIds.length === 0 || c.storeIds.includes(storeId)) && comboOpenAt(c, now) && (withoutDrink || c.drinks.length > 0));
 }
 

@@ -194,6 +194,8 @@ import {
   getCatalogItemStores as getHotFoodCatalogItemStores,
   assignCatalogItemToStore as assignHotFoodCatalogItemToStore,
   removeCatalogItemFromStore as removeHotFoodCatalogItemFromStore,
+  ranOutOfItem as ranOutOfHotFoodItem,
+  backInStock as hotFoodBackInStock,
 } from '../controllers/hotFood.controller';
 import { getMenuGrid, applyMenuGrid } from '../controllers/hotFoodMenuGrid.controller';
 import {
@@ -800,6 +802,8 @@ router.get('/hot-food/orders/store/:storeId',               authenticate, requir
 // Employee availability management (all items + catalog availability toggle)
 router.get('/hot-food/store/:storeId/all-items',                                  authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStoreAllItems);
 router.patch('/hot-food/store/:storeId/catalog/:catalogItemId/availability',      authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, updateCatalogStoreAvailability);
+router.post('/hot-food/store/:storeId/ran-out',        authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, ranOutOfHotFoodItem);   // declines the waiting orders with it, off for today
+router.post('/hot-food/store/:storeId/back-in-stock',  authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, hotFoodBackInStock);
 // Menu + orders, customer / mobile
 router.get('/hot-food/store/:storeId/menu', authenticate, requireRole(Role.CUSTOMER), getStoreMenu);
 router.post('/hot-food/orders',             authenticate, requireRole(Role.CUSTOMER), placeOrder);

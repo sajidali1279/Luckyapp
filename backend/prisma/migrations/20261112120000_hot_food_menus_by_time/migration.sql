@@ -9,6 +9,9 @@ ADD COLUMN     "startToldAt" TIMESTAMP(3);
 -- AlterTable
 ALTER TABLE "hot_food_catalog_items" ADD COLUMN     "daypartIds" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
+-- AlterTable: "Ran out" at a store, until the end of the store day
+ALTER TABLE "hot_food_catalog_stores" ADD COLUMN     "soldOutUntil" TIMESTAMP(3);
+
 -- CreateTable
 CREATE TABLE "hot_food_dayparts" (
     "id" TEXT NOT NULL,

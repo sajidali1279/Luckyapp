@@ -1823,6 +1823,8 @@ model HotFoodCatalogStore {
   storeId       String
   isAvailable   Boolean  @default(true)
   assignedAt    DateTime @default(now())
+  // Ran out today (2026-11-10): staff tapped "Ran out"; not orderable at this store until then (the end of the store day), back by itself
+  soldOutUntil  DateTime?
 
   catalogItem HotFoodCatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
   store       Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)

@@ -22,6 +22,7 @@ import {
   leadMinutes, pickupSlots, pickupProblem, startTime, pickupWords, pickupWordsEs, StoreDaypart,
 } from '../utils/hotFoodMenus';
 import { loadDayparts } from './hotFoodMenus.controller';
+import { storeDateKey, endOfStoreDate } from '../utils/storeTime';
 
 /** An order placed ahead that should be started within this many minutes is treated as one to start now (2026-11-10) */
 const START_NOW_MINUTES = 5;
@@ -432,13 +433,15 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   const catalogAssignments = await prisma.hotFoodCatalogStore.findMany({
     where: { storeId, isAvailable: true },
     select: {
+      soldOutUntil: true,
       catalogItem: {
         select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true, daypartIds: true },
       },
     },
   });
-  // An item whose only menus are left out at this store is not served here at all
-  const catalogItems = catalogAssignments.map(a => a.catalogItem).filter((c) => itemMenus(c.daypartIds, here)?.length !== 0);
+  // An item whose only menus are left out at this store is not served here at all. One the store ran out of today: "Sold out today".
+  const catalogItems = catalogAssignments.filter((a) => itemMenus(a.catalogItem.daypartIds, here)?.length !== 0)
+    .map((a) => ({ ...a.catalogItem, soldOut: !!a.soldOutUntil && a.soldOutUntil.getTime() > now.getTime() }));
 
   const catalogNames = new Set(catalogItems.map(c => c.name.toLowerCase()));
   const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
@@ -446,9 +449,10 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   const listed = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name)).map((i) => {
     const ids = (i as { daypartIds?: string[] }).daypartIds ?? [];
     const menus = itemMenus(ids, here);
-    const now_ = servedNow(ids, here, now);
-    const next = now_ ? null : nextServed(ids, here, now);
-    return { ...i, daypartIds: menus ? menus.map((d) => d.id) : [], servedNow: now_, nextServedAt: next ? next.toISOString() : null };
+    const soldOut = (i as { soldOut?: boolean }).soldOut === true;
+    const now_ = !soldOut && servedNow(ids, here, now);
+    const next = now_ || soldOut ? null : nextServed(ids, here, now);
+    return { ...i, soldOut, daypartIds: menus ? menus.map((d) => d.id) : [], servedNow: now_, nextServedAt: next ? next.toISOString() : null };
   });
   const all = knowsMenus ? listed : listed.filter((i) => i.servedNow);
   const menus = here.filter((d) => !d.off && listed.some((i) => i.daypartIds.includes(d.id))).map((d) => {
@@ -489,6 +493,7 @@ export async function getStoreAllItems(req: AuthRequest, res: Response) {
     where: { storeId },
     select: {
       isAvailable: true,
+      soldOutUntil: true,
       catalogItem: {
         select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true },
       },
@@ -499,9 +504,11 @@ export async function getStoreAllItems(req: AuthRequest, res: Response) {
   const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
 
   const legacyItems = dedupedMenu.map(m => ({ ...m, source: 'menu' as const }));
+  const nowAll = Date.now();
   const catalogItems = catalogAssignments.map(a => ({
     ...a.catalogItem,
     isAvailable: a.isAvailable,
+    soldOut: !!a.soldOutUntil && a.soldOutUntil.getTime() > nowAll,
     source: 'catalog' as const,
   }));
 
@@ -538,6 +545,57 @@ export async function updateCatalogStoreAvailability(req: AuthRequest, res: Resp
   });
 
   res.json({ success: true, data: updated });
+}
+
+/**
+ * POST /hot-food/store/:storeId/ran-out { catalogItemId } (staff of the store, 2026-11-10): the store ran out of an item. Every order at
+ * the store still waiting to be accepted that has it (on its own or in a combo) is declined, the customer told "we ran out of Corn Dog"
+ * (points back), and the item cannot be ordered at this store until the end of the store day. Orders placed ahead for another day stay.
+ * Orders already accepted are left alone (they are being made).
+ */
+export async function ranOutOfItem(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const catalogItemId = req.body?.catalogItemId;
+  if (typeof catalogItemId !== 'string' || !catalogItemId) { res.status(400).json({ success: false, error: 'Choose the item.' }); return; }
+  const row = await prisma.hotFoodCatalogStore.findUnique({ where: { catalogItemId_storeId: { catalogItemId, storeId } }, include: { catalogItem: { select: { name: true } }, store: { select: { name: true } } } });
+  if (!row) { res.status(404).json({ success: false, error: 'That item is not on this store\'s menu.' }); return; }
+  const now = new Date();
+  const until = endOfStoreDate(storeDateKey(now));
+  await prisma.hotFoodCatalogStore.update({ where: { catalogItemId_storeId: { catalogItemId, storeId } }, data: { soldOutUntil: until } });
+  const name = row.catalogItem.name;
+  const combos = await prisma.hotFoodCombo.findMany({ where: { catalogItemId }, select: { id: true } });
+  const waiting = await prisma.hotFoodOrder.findMany({
+    where: { storeId, status: 'PENDING', OR: [{ startAt: null }, { startAt: { lte: until } }],
+      items: { some: { OR: [{ catalogItemId }, ...(combos.length ? [{ comboId: { in: combos.map((c) => c.id) } }] : [])] } } },
+    select: { id: true, orderNumber: true, customerId: true, customer: { select: { language: true } } },
+    orderBy: { createdAt: 'asc' },
+  });
+  let declined = 0;
+  for (const o of waiting) {
+    const es = o.customer?.language === 'es';
+    const reason = es ? `se nos acabó ${name}` : `we ran out of ${name}`;
+    const done = await cancelOrder(o.id, 'PENDING', { cancelledBy: 'STORE', cancelReason: reason, cancelledAt: now }, true, now)
+      .catch((e) => { console.error('[hot-food-ran-out] not declined:', o.id, e?.message ?? e); return null; });
+    if (!done) continue;   // accepted or cancelled a moment ago
+    declined++;
+    const m = hotFoodWords.declined(es, o.orderNumber, row.store.name, reason, done.returned ? pts(done.returned) : 0);
+    sendPushToUser(o.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
+  }
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_RAN_OUT', entity: 'hot_food_item', entityId: catalogItemId, storeId,
+    details: { name, summary: `Ran out of ${name} at ${row.store.name}: off until the end of the day; ${declined} waiting order${declined === 1 ? '' : 's'} declined and the customers told` } });
+  res.json({ success: true, data: { declined, soldOutUntil: until.toISOString() } });
+}
+
+/** POST /hot-food/store/:storeId/back-in-stock { catalogItemId } (staff of the store): the item can be ordered again today */
+export async function backInStock(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const catalogItemId = req.body?.catalogItemId;
+  if (typeof catalogItemId !== 'string' || !catalogItemId) { res.status(400).json({ success: false, error: 'Choose the item.' }); return; }
+  const r = await prisma.hotFoodCatalogStore.updateMany({ where: { catalogItemId, storeId }, data: { soldOutUntil: null } });
+  if (!r.count) { res.status(404).json({ success: false, error: 'That item is not on this store\'s menu.' }); return; }
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_RAN_OUT', entity: 'hot_food_item', entityId: catalogItemId, storeId,
+    details: { summary: 'Back in stock: can be ordered again today' } });
+  res.json({ success: true, data: { soldOutUntil: null } });
 }
 
 // ─── Orders (customer / mobile) ───────────────────────────────────────────────
@@ -628,7 +686,14 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       where: { storeId, catalogItemId: { in: unmatchedIds }, isAvailable: true },   // not one the store has switched off
       include: { catalogItem: true },
     });
-    for (const row of catalogRows) catalogMap.set(row.catalogItemId, row.catalogItem);
+    for (const row of catalogRows) {
+      // The store ran out of it today: not for now, nor for a pickup before it is back (2026-11-10)
+      if (row.soldOutUntil && row.soldOutUntil.getTime() > now.getTime() && (!pickupAt || pickupAt.getTime() <= row.soldOutUntil.getTime())) {
+        res.status(400).json({ success: false, code: 'SOLD_OUT', error: `Sorry, ${store.name} has run out of ${row.catalogItem.name} for today. Take it out of your order${feature('hotFoodOrderAhead') ? ' or order it for tomorrow' : ''}.` });
+        return;
+      }
+      catalogMap.set(row.catalogItemId, row.catalogItem);
+    }
   }
 
   const orderLines: { menuItemId?: string; catalogItemId?: string; comboId?: string; drink?: string; name: string; price: number; quantity: number }[] = [];
