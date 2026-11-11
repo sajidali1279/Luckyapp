@@ -109,6 +109,22 @@ export default function Labels() {
   const [catalogSort, setCatalogSort] = useState<'name' | 'changed'>('changed');   // last changed first, as it always was
   // Only items that still need a price, for typing prices down the list
   const [onlyNoPrice, setOnlyNoPrice] = useState(false);
+  // every label with no price gets one from PDI at once (2026-11-11: there was only "Set price", one by one)
+  const [askFill, setAskFill] = useState(false);
+  const [filling, setFilling] = useState(false);
+  async function fillPricesFromPdi() {
+    setFilling(true);
+    try {
+      const r = (await pdiInvoicesApi.fillLabelPrices()).data.data as { filled: number; notInPdi: number; changedMeanwhile: number; noPriceLeft: number; storeCopiesOnRegister: number };
+      if (r.filled) toast.success(`${r.filled.toLocaleString()} labels now have a price from PDI. They are on each store's print list.${r.storeCopiesOnRegister ? ` ${r.storeCopiesOnRegister.toLocaleString()} store copies use their own store's register price.` : ''}`);
+      if (r.noPriceLeft) toast(`${r.noPriceLeft.toLocaleString()} still have no price${r.notInPdi ? ` (${r.notInPdi.toLocaleString()} are not in any store's PDI list, or have no barcode)` : ''}: type those in the Price box.`, { duration: 8000 });
+      if (!r.filled && !r.noPriceLeft) toast('Every label already has a price.');
+      setAskFill(false);
+      qc.invalidateQueries({ queryKey: ['labels'] });
+      qc.invalidateQueries({ queryKey: ['store-labels'] });
+      qc.invalidateQueries({ queryKey: ['labels-health-summary'] });
+    } catch (e: any) { toast.error(failureMessage(e, 'The prices could not be filled. Try again.')); } finally { setFilling(false); }
+  }
   const quickPriceRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const [catalogPage, setCatalogPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -758,6 +774,13 @@ export default function Labels() {
   return (
     <Page>
       <ConfirmModal
+        open={askFill}
+        title={`Fill ${noPriceCount.toLocaleString()} ${noPriceCount === 1 ? 'price' : 'prices'} from PDI?`}
+        message="Every label with no price gets the price most stores' registers charge (from the stores' PDI lists). Then each store's copy goes on that store's own register price, and the labels go on each store's print list. A label PDI does not have keeps no price, to type in yourself."
+        confirmLabel="Fill them" busy={filling}
+        onConfirm={() => void fillPricesFromPdi()} onCancel={() => setAskFill(false)}
+      />
+      <ConfirmModal
         open={!!confirmDelete}
         title="Remove this item from every store?"
         message={deleteMessage}
@@ -1115,6 +1138,12 @@ export default function Labels() {
                     title="Show only items that still need a price"
                   >
                     No price ({noPriceCount})
+                  </button>
+                )}
+                {isHQ && noPriceCount > 0 && (
+                  <button type="button" style={{ ...s.noPriceChip, ...s.noPriceChipActive }} onClick={() => setAskFill(true)} disabled={filling}
+                    title="Every label with no price gets the price most stores' registers charge (PDI lists)">
+                    {filling ? 'Filling...' : `Fill ${noPriceCount.toLocaleString()} ${noPriceCount === 1 ? 'price' : 'prices'} from PDI`}
                   </button>
                 )}
                 {(availableCategories.length > 0 || hasUncategorized) && (

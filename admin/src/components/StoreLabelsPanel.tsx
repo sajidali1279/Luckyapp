@@ -2,7 +2,7 @@ import { useEffect, useState, CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { labelsApi, storesApi } from '../services/api';
+import { labelsApi, storesApi, pdiInvoicesApi } from '../services/api';
 import ConfirmModal from './ConfirmModal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './ui/table';
 import TableSkeleton from './TableSkeleton';
@@ -88,6 +88,10 @@ export default function StoreLabelsPanel() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [sortBy, setSortBy] = useState<'changed' | 'name' | 'newest'>('changed');   // last changed first, as it always was
   const [page, setPage] = useState(1);
+  // every label with no price at this store onto the store's register price at once, and a price typed right in the row (2026-11-11)
+  const [askRegister, setAskRegister] = useState(false);
+  const [registerBusy, setRegisterBusy] = useState(false);
+  const [quickBusy, setQuickBusy] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [editingPrice, setEditingPrice] = useState<StoreLabel | null>(null);
@@ -138,6 +142,29 @@ export default function StoreLabelsPanel() {
   const shownPage = Math.min(page, pages);
   const pageItems = filteredItems.slice((shownPage - 1) * PAGE, shownPage * PAGE);
   useEffect(() => { setPage(1); }, [storeId, search, categoryFilter, statusFilter, sortBy]);
+
+  const noPriceItems = items.filter((i) => i.status === 'needs_price' && i.storeLabelId);
+  async function useRegisterForNoPrice() {
+    setRegisterBusy(true);
+    try {
+      const r = (await pdiInvoicesApi.applyLabelPrices(storeId, noPriceItems.map((i) => i.id), false)).data.data as { updated: number; noPrice: number; onSale: number; conflicts: number };
+      if (r.updated) toast.success(`${r.updated.toLocaleString()} ${r.updated === 1 ? 'label has' : 'labels have'} the register price now. They are on this store's print list.`);
+      if (r.noPrice) toast(`${r.noPrice.toLocaleString()} are not in this store's PDI list: type their price in the row.`, { duration: 8000 });
+      if (!r.updated && !r.noPrice) toast('Nothing changed.');
+      setAskRegister(false);
+      refreshLabelViews();
+    } catch (e: any) { toast.error(failureMessage(e, 'The prices could not be set. Try again.')); } finally { setRegisterBusy(false); }
+  }
+  async function saveQuickPrice(item: StoreLabel, typed: string) {
+    const price = canonicalPrice(typed);
+    if (!price) { toast.error(priceProblem(typed) ?? 'Type a price like 2.99.'); return; }
+    setQuickBusy(item.storeLabelId!);
+    try {
+      await labelsApi.updateStoreLabel(item.storeLabelId!, price, null);
+      toast.success(`${item.productName}: $${price}. It is on the print list.`);
+      refreshLabelViews();
+    } catch (e: any) { toast.error(failureMessage(e, 'Could not save the price.')); } finally { setQuickBusy(null); }
+  }
 
   const availableCategories = Array.from(
     new Set(items.map((i) => i.category).filter((c): c is string => !!c))
@@ -506,8 +533,20 @@ export default function StoreLabelsPanel() {
               {f.label} ({statusCounts[f.value].toLocaleString()})
             </Chip>
           ))}
+          {noPriceItems.length > 0 && (
+            <button type="button" style={s.printerBtn} onClick={() => setAskRegister(true)} disabled={registerBusy}>
+              {registerBusy ? 'Setting...' : `Use register price for ${noPriceItems.length.toLocaleString()} with no price`}
+            </button>
+          )}
         </div>
       )}
+      <ConfirmModal
+        open={askRegister}
+        title={`Register price for ${noPriceItems.length.toLocaleString()} ${noPriceItems.length === 1 ? 'label' : 'labels'}?`}
+        message="Every label with no price at this store gets the price its register charges (this store's PDI list), and goes on the store's print list. A label not in the PDI list keeps no price: type it in its row."
+        confirmLabel="Set the prices" busy={registerBusy}
+        onConfirm={() => void useRegisterForNoPrice()} onCancel={() => setAskRegister(false)}
+      />
 
       <div style={s.layout}>
       <div style={s.main}>
@@ -585,6 +624,15 @@ export default function StoreLabelsPanel() {
                           </span>
                         )}
                       </>
+                    ) : item.storeLabelId ? (
+                      // type the price right here and press Enter (2026-11-11)
+                      <input
+                        style={{ width: 84, padding: '5px 8px', border: '1.5px solid #f1dcaf', borderRadius: 8, fontSize: 13, background: '#fffaf0' }}
+                        placeholder="No price" inputMode="decimal" maxLength={8} aria-label={`Price for ${item.productName}`}
+                        disabled={quickBusy === item.storeLabelId}
+                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}   // Enter leaves the box, and leaving it saves (once)
+                        onBlur={(e) => { const v = e.target.value.trim(); if (v) void saveQuickPrice(item, v); }}
+                      />
                     ) : (
                       <span style={s.noPriceBadge}>No price set</span>
                     )}

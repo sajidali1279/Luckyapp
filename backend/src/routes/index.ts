@@ -89,7 +89,7 @@ import {
   listPdiVendors, createPdiVendor, updatePdiVendor, deletePdiVendor,
 } from '../controllers/pdiInvoice.controller';
 import { MAX_PHOTOS as PDI_MAX_PHOTOS } from '../utils/pdiRead';
-import { listPdiItemLists, importPdiItems, searchPdiItems, labelPriceCheck, registerPrice, applyRegisterPrices, barcodeInfo, rewardSearch, dealCheck } from '../controllers/pdiItems.controller';
+import { listPdiItemLists, importPdiItems, searchPdiItems, labelPriceCheck, registerPrice, applyRegisterPrices, barcodeInfo, rewardSearch, dealCheck, fillLabelPrices } from '../controllers/pdiItems.controller';
 import { listItems, getItem, listChanges, labelCandidates, makeLabels, margins, dealIdeasList, rewardCosts, setRewardQuery, hotFoodCheck, setHotFoodQuery, useHotFoodRegisterPrice } from '../controllers/items.controller';
 import { previewWinBack, sendWinBack, listWinBacks } from '../controllers/winBack.controller';
 import { getMyReferrals, checkReferralCode, claimReferral, listReferrals, updateReferralSettings } from '../controllers/referral.controller';
@@ -352,6 +352,7 @@ router.get('/pdi-items/lists', authenticate, requireRole(Role.STORE_MANAGER), li
 router.post('/pdi-items/import', authenticate, requireRole(Role.SUPER_ADMIN), upload.single('file'), importPdiItems);
 router.get('/pdi-items/search', authenticate, requireRole(Role.STORE_MANAGER), searchPdiItems);
 router.get('/pdi-items/label-prices', authenticate, requireRole(Role.STORE_MANAGER), labelPriceCheck);
+router.post('/pdi-items/label-prices/fill', authenticate, requireRole(Role.SUPER_ADMIN), fillLabelPrices);   // HQ: labels with no price get theirs from PDI (2026-11-11)
 router.post('/pdi-items/label-prices/apply', authenticate, requireRole(Role.STORE_MANAGER), applyRegisterPrices);   // labels at a store onto the register price
 router.get('/pdi-items/price', authenticate, requireRole(Role.EMPLOYEE), registerPrice);
 router.get('/pdi-items/barcode', authenticate, requireRole(Role.STORE_MANAGER), barcodeInfo);

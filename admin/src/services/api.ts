@@ -876,6 +876,8 @@ export const pdiInvoicesApi = {
   // labels at a store onto the register price from its PDI list (2026-11-08); addMissing also adds the ones not on the store's list
   applyLabelPrices: (storeId: string, labelIds: string[], addMissing: boolean) =>
     api.post('/pdi-items/label-prices/apply', { storeId, labelIds, addMissing }, { timeout: 180_000 }),
+  // HQ (2026-11-11): every label with no price (or those given) gets its chain price from PDI, then each store's copy its register price
+  fillLabelPrices: (labelIds?: string[]) => api.post('/pdi-items/label-prices/fill', labelIds ? { labelIds } : {}, { timeout: 300_000 }),
 };
 export interface PdiVendorInput {
   name: string; pdiCode: string; sellsBy: 'CASE' | 'EACH'; itemDigits: 'FIRST6' | 'LAST6' | 'NONE'; itemLength?: number | null; readerNotes?: string;

@@ -18,6 +18,7 @@ import { dealPriceOf, dealVerdict } from '../utils/dealPrice';
 import { forgetCatalog, catalogOrNull, kindAt } from '../utils/itemCatalog';
 import { diffLists, looksLikeAnotherStore, isStandIn, type ChangeCounts } from '../utils/pdiPriceHistory';
 import { addPdiToScanned } from '../utils/scannedFromPdi';
+import { syncRewardPoints, auditRewardSync, type RewardPointChange } from '../utils/rewardPoints';
 import { sendPushToUsers } from '../utils/push';
 import { labelsUrlManager } from '../utils/notificationRoutes';
 
@@ -353,6 +354,59 @@ export async function applyRegisterPrices(req: AuthRequest, res: Response) {
   const addMissing = body.addMissing === true;
 
   const out = await putLabelsOnRegister(store, ids, addMissing, { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role }, 'BUTTON');
+  res.json({ success: true, data: out });
+}
+
+/** POST /pdi-items/label-prices/fill (HQ) {labelIds?}: every shelf label with no price (or those given) gets its chain price from the PDI
+ *  lists, the price most stores' registers charge (a tie: the lower), then each store's copy goes on that store's own register price (as
+ *  after an upload), so a changed one is on that store's print list. Rewards that follow a label's price follow it. A label PDI does not
+ *  have is left for a person to price (counted). 2026-11-11: the owner had many labels with no price and only one-by-one "Set price". */
+export async function fillLabelPrices(req: AuthRequest, res: Response) {
+  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) { res.status(403).json({ success: false, error: 'Only HQ sets the chain price of labels.' }); return; }
+  const body = (req.body ?? {}) as { labelIds?: unknown };
+  const ids = Array.isArray(body.labelIds) ? [...new Set(body.labelIds.filter((x): x is string => typeof x === 'string' && x.length > 0 && x.length <= 64))].slice(0, APPLY_MAX) : null;
+  const labels = await prisma.label.findMany({
+    where: { priceText: null, barcode: { not: null }, ...(ids ? { id: { in: ids } } : {}) },
+    select: { id: true, productName: true, barcode: true },
+    take: APPLY_MAX,
+  });
+  const keys = [...new Set(labels.map((l) => pdiKey(l.barcode!)))];
+  const rows = keys.length ? await prisma.pdiItem.findMany({ where: { upcKey: { in: keys } }, select: { upcKey: true, storeId: true, priceCents: true } }) : [];
+  const byKey = new Map<string, number[]>();
+  for (const r of rows) if (r.priceCents && r.priceCents > 0 && r.priceCents < 100_000) byKey.set(r.upcKey, [...(byKey.get(r.upcKey) ?? []), r.priceCents]);
+  const mostCharged = (cents: number[]) => {
+    const m = new Map<number, number>(); for (const c of cents) m.set(c, (m.get(c) ?? 0) + 1);
+    return [...m].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? null;
+  };
+  const out = { filled: 0, notInPdi: 0, changedMeanwhile: 0, noPriceLeft: 0, storeCopiesOnRegister: 0 };
+  const filledIds: string[] = [];
+  let rewardChanges: RewardPointChange[] = [];
+  for (const l of labels) {
+    const cents = mostCharged(byKey.get(pdiKey(l.barcode!)) ?? []);
+    const price = cents ? canonicalPrice((cents / 100).toFixed(2)) : null;
+    if (!price) { out.notInPdi++; continue; }
+    const done = await prisma.$transaction(async (tx) => {
+      const { count } = await tx.label.updateMany({ where: { id: l.id, priceText: null }, data: { priceText: price } });
+      if (!count) return null;
+      return syncRewardPoints(tx, [l.id]);
+    });
+    if (!done) { out.changedMeanwhile++; continue; }
+    out.filled++; filledIds.push(l.id); rewardChanges = rewardChanges.concat(done);
+  }
+  out.noPriceLeft = await prisma.label.count({ where: { priceText: null } });
+  const actor = { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role };
+  // each store's copy on that store's own register price (stores with a PDI list that carry these labels)
+  if (filledIds.length) {
+    const copies = await prisma.storeLabel.findMany({ where: { labelId: { in: filledIds } }, select: { storeId: true }, distinct: ['storeId'] });
+    const stores = await prisma.store.findMany({ where: { id: { in: copies.map((c) => c.storeId) } }, select: { id: true, name: true } });
+    for (const st of stores) {
+      try { out.storeCopiesOnRegister += (await putLabelsOnRegister(st, filledIds, false, actor, 'BUTTON')).updated; }
+      catch (e) { console.error('[pdi] fill: store copies on the register price failed at', st.name, (e as Error).message); }
+    }
+    audit({ ...actor, action: 'LABEL_PRICES_FROM_PDI', entity: 'Label', entityId: 'fill',
+      details: { summary: `Gave ${out.filled} labels with no price their chain price from PDI (the price most stores' registers charge); ${out.storeCopiesOnRegister} store copies then went on their store's own register price.`, ...out } });
+    auditRewardSync(req.user!, rewardChanges, 'labels priced from PDI');
+  }
   res.json({ success: true, data: out });
 }
 
