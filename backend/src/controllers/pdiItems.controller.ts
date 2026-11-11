@@ -357,6 +357,36 @@ export async function applyRegisterPrices(req: AuthRequest, res: Response) {
   res.json({ success: true, data: out });
 }
 
+/** POST /pdi-items/label-prices/add-everywhere (HQ) (2026-11-11): every catalog label goes on every store's list that sells it (the store's
+ *  PDI list has it with a price), at that store's register price, as new to print. Each store had 700 to 1,079 labels "not added", one
+ *  "Set price" at a time. Stores on a stand-in list are left out (its prices are its state's, not the store's), and so is an item the
+ *  store's list does not have. */
+export async function addLabelsEverywhere(req: AuthRequest, res: Response) {
+  if (!hasMinRole(req.user!.role, Role.SUPER_ADMIN)) { res.status(403).json({ success: false, error: 'Only HQ adds labels to every store.' }); return; }
+  const [stores, lastImports, labels] = await Promise.all([
+    prisma.store.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+    prisma.pdiItemImport.findMany({ orderBy: { createdAt: 'desc' }, distinct: ['storeId'], select: { storeId: true, fileName: true } }),
+    prisma.label.findMany({ where: { barcode: { not: null } }, select: { id: true, storeLabels: { select: { storeId: true } } } }),
+  ]);
+  const actor = { actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role };
+  const perStore: { store: string; added: number }[] = [];
+  const skipped: { store: string; why: 'stand-in' | 'no list' }[] = [];
+  for (const st of stores.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))) {
+    const imp = lastImports.find((i) => i.storeId === st.id);
+    if (!imp) { skipped.push({ store: st.name, why: 'no list' }); continue; }
+    if (isStandIn(imp.fileName)) { skipped.push({ store: st.name, why: 'stand-in' }); continue; }
+    const missing = labels.filter((l) => !l.storeLabels.some((s) => s.storeId === st.id)).map((l) => l.id);
+    if (!missing.length) { perStore.push({ store: st.name, added: 0 }); continue; }
+    let added = 0;
+    for (let i = 0; i < missing.length; i += APPLY_MAX) added += (await putLabelsOnRegister(st, missing.slice(i, i + APPLY_MAX), true, actor, 'BUTTON', true)).added;
+    perStore.push({ store: st.name, added });
+  }
+  const total = perStore.reduce((n, p) => n + p.added, 0);
+  if (total) audit({ ...actor, action: 'LABEL_PRICES_FROM_PDI', entity: 'Label', entityId: 'add-everywhere',
+    details: { summary: `Added ${total.toLocaleString()} labels to the stores that sell them, at each store's register price: ${perStore.filter((p) => p.added).map((p) => `${p.store} ${p.added}`).join(', ')}${skipped.length ? `; left out: ${skipped.map((s) => `${s.store} (${s.why})`).join(', ')}` : ''}.`, perStore, skipped } });
+  res.json({ success: true, data: { total, perStore, skipped } });
+}
+
 /** POST /pdi-items/label-prices/fill (HQ) {labelIds?}: every shelf label with no price (or those given) gets its chain price from the PDI
  *  lists, the price most stores' registers charge (a tie: the lower), then each store's copy goes on that store's own register price (as
  *  after an upload), so a changed one is on that store's print list. Rewards that follow a label's price follow it. A label PDI does not
@@ -417,6 +447,7 @@ export async function fillLabelPrices(req: AuthRequest, res: Response) {
 export async function putLabelsOnRegister(
   store: { id: string; name: string }, ids: string[] | 'ON_LIST', addMissing: boolean,
   actor: { actorId: string; actorName?: string; actorRole: Role }, why: 'BUTTON' | 'UPLOAD',
+  oneLogLine = false,   // a bulk run across stores writes its own summary instead of a line per label (2026-11-11)
 ) {
   const labels = await prisma.label.findMany({
     where: ids === 'ON_LIST' ? { barcode: { not: null }, storeLabels: { some: { storeId: store.id } } } : { id: { in: ids }, barcode: { not: null } },
@@ -439,7 +470,7 @@ export async function putLabelsOnRegister(
       try { await prisma.storeLabel.create({ data: { labelId: l.id, storeId: store.id, priceText: next, overrideExpiresAt: null } }); }
       catch (e: any) { if (e?.code !== 'P2002') throw e; out.conflicts++; continue; }
       out.added++;
-      audit({
+      if (!oneLogLine) audit({
         ...actor, action: 'STORE_LABEL_PRICE', entity: 'label', entityId: l.id, storeId: store.id, storeName: store.name,
         details: { summary: `Added "${l.productName}" to ${store.name} at the register price $${register} from PDI (the label said $${l.priceText ?? 'nothing'}).`,
           productName: l.productName, priceBefore: null, priceAfter: register, endsAt: null, source: 'PDI_REGISTER_PRICE' },
@@ -457,7 +488,7 @@ export async function putLabelsOnRegister(
         priceBefore: outcome.plan.before.price, priceAfter: outcome.plan.after.price, endsAt: null, source: 'PDI_REGISTER_PRICE' },
     });
   }
-  if (out.updated + out.added > 0) {
+  if (out.updated + out.added > 0 && !oneLogLine) {
     audit({
       ...actor, action: 'LABEL_PRICES_FROM_PDI', entity: 'Store', entityId: store.id, storeId: store.id, storeName: store.name,
       details: { summary: `${why === 'UPLOAD' ? 'After the PDI list upload, put' : 'Put'} ${out.updated + out.added} label prices at ${store.name} on the register price from PDI (${out.updated} changed, ${out.added} added).`, ...out },

@@ -831,6 +831,7 @@ export const itemsApi = {
   hotFoodCheck: () => api.get('/items/hot-food-check'),
   setHotFoodQuery: (id: string, pdiQuery: string | null) => api.patch(`/items/hot-food-check/${encodeURIComponent(id)}`, { pdiQuery }),
   useHotFoodRegisterPrice: (id: string) => api.post(`/items/hot-food-check/${encodeURIComponent(id)}/use-register`, {}),
+  useHotFoodRegisterPriceAll: () => api.post('/items/hot-food-check/use-register-all', {}, { timeout: 120_000 }),
 };
 
 export const pdiInvoicesApi = {
@@ -878,6 +879,8 @@ export const pdiInvoicesApi = {
     api.post('/pdi-items/label-prices/apply', { storeId, labelIds, addMissing }, { timeout: 180_000 }),
   // HQ (2026-11-11): every label with no price (or those given) gets its chain price from PDI, then each store's copy its register price
   fillLabelPrices: (labelIds?: string[]) => api.post('/pdi-items/label-prices/fill', labelIds ? { labelIds } : {}, { timeout: 300_000 }),
+  // HQ: every catalog label on every store that sells it, at that store's register price (stand-in stores left out)
+  addLabelsEverywhere: () => api.post('/pdi-items/label-prices/add-everywhere', {}, { timeout: 900_000 }),
 };
 export interface PdiVendorInput {
   name: string; pdiCode: string; sellsBy: 'CASE' | 'EACH'; itemDigits: 'FIRST6' | 'LAST6' | 'NONE'; itemLength?: number | null; readerNotes?: string;

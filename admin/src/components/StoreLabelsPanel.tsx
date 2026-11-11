@@ -90,6 +90,7 @@ export default function StoreLabelsPanel() {
   const [page, setPage] = useState(1);
   // every label with no price at this store onto the store's register price at once, and a price typed right in the row (2026-11-11)
   const [askRegister, setAskRegister] = useState(false);
+  const [askAddAll, setAskAddAll] = useState(false);
   const [registerBusy, setRegisterBusy] = useState(false);
   const [quickBusy, setQuickBusy] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -144,6 +145,22 @@ export default function StoreLabelsPanel() {
   useEffect(() => { setPage(1); }, [storeId, search, categoryFilter, statusFilter, sortBy]);
 
   const noPriceItems = items.filter((i) => i.status === 'needs_price' && i.storeLabelId);
+  const notAddedItems = items.filter((i) => i.status === 'not_added');
+  async function addAllNotAdded() {
+    setRegisterBusy(true);
+    try {
+      let added = 0, notInPdi = 0;
+      for (let i = 0; i < notAddedItems.length; i += 3000) {
+        const r = (await pdiInvoicesApi.applyLabelPrices(storeId, notAddedItems.slice(i, i + 3000).map((x) => x.id), true)).data.data as { added: number; noPrice: number };
+        added += r.added; notInPdi += r.noPrice;
+      }
+      if (added) toast.success(`${added.toLocaleString()} labels added to this store at its register price. They are on its print list.`);
+      if (notInPdi) toast(`${notInPdi.toLocaleString()} are not in this store's PDI list and were not added.`, { duration: 8000 });
+      if (!added && !notInPdi) toast('Nothing to add.');
+      setAskAddAll(false);
+      refreshLabelViews();
+    } catch (e: any) { toast.error(failureMessage(e, 'The labels could not be added. Try again.')); } finally { setRegisterBusy(false); }
+  }
   async function useRegisterForNoPrice() {
     setRegisterBusy(true);
     try {
@@ -533,6 +550,11 @@ export default function StoreLabelsPanel() {
               {f.label} ({statusCounts[f.value].toLocaleString()})
             </Chip>
           ))}
+          {notAddedItems.length > 0 && (
+            <button type="button" style={s.printerBtn} onClick={() => setAskAddAll(true)} disabled={registerBusy}>
+              {registerBusy ? 'Working...' : `Add ${notAddedItems.length.toLocaleString()} not added, at the register price`}
+            </button>
+          )}
           {noPriceItems.length > 0 && (
             <button type="button" style={s.printerBtn} onClick={() => setAskRegister(true)} disabled={registerBusy}>
               {registerBusy ? 'Setting...' : `Use register price for ${noPriceItems.length.toLocaleString()} with no price`}
@@ -540,6 +562,13 @@ export default function StoreLabelsPanel() {
           )}
         </div>
       )}
+      <ConfirmModal
+        open={askAddAll}
+        title={`Add ${notAddedItems.length.toLocaleString()} labels to this store?`}
+        message="Every catalog label not on this store's list goes on it at the store's register price (its PDI list), as new on its print list. Items its PDI list does not have are not added."
+        confirmLabel="Add them" busy={registerBusy}
+        onConfirm={() => void addAllNotAdded()} onCancel={() => setAskAddAll(false)}
+      />
       <ConfirmModal
         open={askRegister}
         title={`Register price for ${noPriceItems.length.toLocaleString()} ${noPriceItems.length === 1 ? 'label' : 'labels'}?`}

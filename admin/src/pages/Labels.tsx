@@ -111,6 +111,22 @@ export default function Labels() {
   const [onlyNoPrice, setOnlyNoPrice] = useState(false);
   // every label with no price gets one from PDI at once (2026-11-11: there was only "Set price", one by one)
   const [askFill, setAskFill] = useState(false);
+  const [askEverywhere, setAskEverywhere] = useState(false);
+  const [addingEverywhere, setAddingEverywhere] = useState(false);
+  async function addEverywhere() {
+    setAddingEverywhere(true);
+    try {
+      const r = (await pdiInvoicesApi.addLabelsEverywhere()).data.data as { total: number; perStore: { store: string; added: number }[]; skipped: { store: string; why: string }[] };
+      const short = (n: string) => n.replace(/^Lucky Stop\s*/i, '');
+      if (r.total) toast.success(`${r.total.toLocaleString()} labels added at each store's register price: ${r.perStore.filter((p) => p.added).map((p) => `${short(p.store)} ${p.added}`).join(', ')}. They are on each store's print list.`, { duration: 10000 });
+      else toast('Every store already has the labels its PDI list sells.');
+      if (r.skipped.length) toast(`Left out: ${r.skipped.map((x) => `${short(x.store)} (${x.why === 'stand-in' ? 'stand-in list' : 'no PDI list'})`).join(', ')}. Add theirs on By store once their own PDI file is uploaded.`, { duration: 10000 });
+      setAskEverywhere(false);
+      qc.invalidateQueries({ queryKey: ['store-labels'] });
+      qc.invalidateQueries({ queryKey: ['labels-coverage'] });
+      qc.invalidateQueries({ queryKey: ['labels-health-summary'] });
+    } catch (e: any) { toast.error(failureMessage(e, 'The labels could not be added. Try again.')); } finally { setAddingEverywhere(false); }
+  }
   const [filling, setFilling] = useState(false);
   async function fillPricesFromPdi() {
     setFilling(true);
@@ -774,6 +790,13 @@ export default function Labels() {
   return (
     <Page>
       <ConfirmModal
+        open={askEverywhere}
+        title="Add the labels to every store that sells them?"
+        message="Each store gets every catalog label its own PDI list sells, at that store's register price, as new on its print list (stores have 700 to 1,000 labels not added). Items a store's list does not have are not added. Stores on a stand-in list are left out. It can take a few minutes."
+        confirmLabel="Add them" busy={addingEverywhere}
+        onConfirm={() => void addEverywhere()} onCancel={() => setAskEverywhere(false)}
+      />
+      <ConfirmModal
         open={askFill}
         title={`Fill ${noPriceCount.toLocaleString()} ${noPriceCount === 1 ? 'price' : 'prices'} from PDI?`}
         message="Every label with no price gets the price most stores' registers charge (from the stores' PDI lists). Then each store's copy goes on that store's own register price, and the labels go on each store's print list. A label PDI does not have keeps no price, to type in yourself."
@@ -1138,6 +1161,12 @@ export default function Labels() {
                     title="Show only items that still need a price"
                   >
                     No price ({noPriceCount})
+                  </button>
+                )}
+                {isHQ && labels.length > 0 && (
+                  <button type="button" style={s.noPriceChip} onClick={() => setAskEverywhere(true)} disabled={addingEverywhere}
+                    title="Every label goes on every store whose PDI list sells it, at that store's register price">
+                    {addingEverywhere ? 'Adding to the stores...' : 'Add labels to every store'}
                   </button>
                 )}
                 {isHQ && noPriceCount > 0 && (

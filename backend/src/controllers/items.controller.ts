@@ -367,6 +367,28 @@ const oneRegisterPrice = (rows: { pdiCents: number | null; matches: number }[], 
   return prices.size === 1 && only !== appCents && only < 100_000 ? only : null;
 };
 
+/** POST /items/hot-food-check/use-register-all (HQ, 2026-11-11): every menu item whose stores' registers agree on one price that is not the
+ *  app's gets it, in one go (the same rule as one item's button). */
+export async function useHotFoodRegisterPriceAll(req: AuthRequest, res: Response) {
+  if (!isHq(req)) { res.status(403).json({ success: false, error: 'Only HQ changes the hot food menu.' }); return; }
+  const cat = await getCatalog();
+  const hasHotFood = new Set<string>();
+  for (const p of cat.products) for (const x of p.prices) if (x.kind === 'HOT_FOOD') hasHotFood.add(x.storeId);
+  const names = new Map(cat.stores.map((s) => [s.id, s.name]));
+  const items = await prisma.hotFoodCatalogItem.findMany({ select: { id: true, name: true, price: true, pdiQuery: true, stores: { where: { isAvailable: true }, select: { storeId: true } } } });
+  const changed: string[] = [];
+  for (const it of items) {
+    const cents = oneRegisterPrice(hotFoodRows(cat, it, null, hasHotFood, names), Math.round(it.price * 100));
+    if (cents == null) continue;
+    const { count } = await prisma.hotFoodCatalogItem.updateMany({ where: { id: it.id, price: it.price }, data: { price: cents / 100 } });
+    if (!count) continue;
+    changed.push(`${it.name} $${it.price.toFixed(2)} to $${(cents / 100).toFixed(2)}`);
+  }
+  if (changed.length) audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATED', entity: 'hot_food_item', entityId: 'register-all',
+    details: { name: `${changed.length} items`, summary: `Hot food app prices set to the stores' register price (PDI): ${changed.join('; ')}` } });
+  res.json({ success: true, data: { changed: changed.length } });
+}
+
 /** POST /items/hot-food-check/:id/use-register (HQ): the menu item's app price becomes the price every store's register agrees on. */
 export async function useHotFoodRegisterPrice(req: AuthRequest, res: Response) {
   if (!isHq(req)) { res.status(403).json({ success: false, error: 'Only HQ changes the hot food menu.' }); return; }

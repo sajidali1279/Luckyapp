@@ -382,6 +382,17 @@ export function HotFoodCheck() {
   const hq = useQuery({ queryKey: ['hot-food-check'], queryFn: () => itemsApi.hotFoodCheck().then((r) => r.data.data as { canEdit: boolean; items: HotFoodRow[] }) });
   const [editing, setEditing] = useState<HotFoodRow | null>(null);
   const [repricing, setRepricing] = useState<HotFoodRow | null>(null);
+  const [askAll, setAskAll] = useState(false);
+  async function useRegisterAll() {
+    setBusy(true);
+    try {
+      const r = (await itemsApi.useHotFoodRegisterPriceAll()).data.data as { changed: number };
+      toast.success(`${r.changed} hot food ${r.changed === 1 ? 'price is' : 'prices are'} now the register's in the app.`);
+      setAskAll(false);
+      qc.invalidateQueries({ queryKey: ['hot-food-check'] });
+      qc.invalidateQueries({ queryKey: ['hot-food-catalog'] });
+    } catch (e: any) { toast.error(e?.response?.data?.error ?? 'Not changed. Try again.'); } finally { setBusy(false); }
+  }
   const [busy, setBusy] = useState(false);
   async function useRegister() {
     if (!repricing) return;
@@ -407,6 +418,9 @@ export function HotFoodCheck() {
       <div style={{ ...s.filters, alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: C.text, marginRight: 'auto' }}><Flame size={18} aria-hidden />Hot food menu against the register</div>
         {hq.data && <Badge tone={off ? 'danger' : 'success'}>{off ? `${off} price${off === 1 ? '' : 's'} differ` : 'All match'}</Badge>}
+        {hq.data?.canEdit && items.filter((x) => x.registerCents != null).length > 1 && (
+          <Button size="sm" onClick={() => setAskAll(true)} disabled={busy}>Use register prices for all {items.filter((x) => x.registerCents != null).length}</Button>
+        )}
       </div>
       <div style={{ ...s.count, whiteSpace: 'normal' }}>
         Each hot food item in the app next to the item its words find in the store's PDI hot food department. A different price means the app
@@ -440,6 +454,11 @@ export function HotFoodCheck() {
             </tbody>
           </table>
         </div>
+      )}
+      {askAll && (
+        <ConfirmModal open headingLevel="h2" title={`Register prices for ${items.filter((x) => x.registerCents != null).length} hot food items?`} busy={busy}
+          message={<>Each item whose stores' registers agree on one price gets that price in the app, for every store that has it on the menu: {items.filter((x) => x.registerCents != null).map((x) => `${x.name} ${usd(x.appCents)} to ${usd(x.registerCents)}`).join('; ')}.</>}
+          confirmLabel="Use them" onConfirm={() => void useRegisterAll()} onCancel={() => setAskAll(false)} />
       )}
       {repricing && (
         <ConfirmModal open headingLevel="h2" title={`${repricing.name}: ${usd(repricing.registerCents)} in the app?`} busy={busy}
