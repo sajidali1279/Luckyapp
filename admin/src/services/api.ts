@@ -648,6 +648,18 @@ export const settingsApi = {
   pointsExpiryPreview: (days: number) => api.get('/settings/points-expiry/preview', { params: { days } }),
 };
 
+// Hot food menus by time (HQ, 2026-11-10): Breakfast and the like, a store's own times, the items in each
+export type DaypartInput = { name: string; nameEs?: string | null; fromTime: string; toTime: string; days: number[]; lastCallMinutes: number; isActive: boolean };
+export const hotFoodMenusApi = {
+  list: () => api.get('/hot-food/dayparts'),
+  create: (data: DaypartInput) => api.post('/hot-food/dayparts', data),
+  update: (id: string, data: Partial<DaypartInput>) => api.patch(`/hot-food/dayparts/${encodeURIComponent(id)}`, data),
+  remove: (id: string) => api.delete(`/hot-food/dayparts/${encodeURIComponent(id)}`),
+  setStore: (id: string, storeId: string, data: { mode: 'chain' | 'own' | 'off'; fromTime?: string; toTime?: string; days?: number[] }) =>
+    api.put(`/hot-food/dayparts/${encodeURIComponent(id)}/stores/${encodeURIComponent(storeId)}`, data),
+  setItems: (id: string, itemIds: string[]) => api.put(`/hot-food/dayparts/${encodeURIComponent(id)}/items`, { itemIds }),
+};
+
 // Store menus grid (2026-10-20): which stores carry which item and what is in stock, read and changed for many at once
 export const hotFoodGridApi = {
   get: () => api.get('/hot-food/menu-grid'),

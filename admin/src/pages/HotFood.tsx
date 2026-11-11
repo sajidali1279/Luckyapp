@@ -14,6 +14,7 @@ import HotFoodHoursModal, { hotFoodNowText, HotFoodNow } from '../components/Hot
 import HotFoodImportModal from '../components/HotFoodImportModal';
 import HotFoodCombosPanel from '../components/HotFoodCombosPanel';
 import HotFoodMenuGrid from '../components/HotFoodMenuGrid';
+import HotFoodDaypartsPanel from '../components/HotFoodDaypartsPanel';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
@@ -22,7 +23,7 @@ import Glyph from '../components/Glyph';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MainView   = 'orders' | 'catalog' | 'menus' | 'combos' | 'availability';
+type MainView   = 'orders' | 'catalog' | 'menus' | 'times' | 'combos' | 'availability';
 type OrderTab   = 'PENDING' | 'ACCEPTED' | 'READY' | 'ALL';
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -33,6 +34,19 @@ interface FoodOrder  {
   customer: { name: string; phone: string };
   items: OrderItem[]; note?: string; status: OrderStatus; createdAt: string;
   paidWithPoints?: boolean;   // paid in full with the customer's points in the app
+  pickupAt?: string | null;   // ordered ahead (2026-11-10): the pickup time the customer chose
+  startAt?: string | null;    // and when the kitchen should start it
+}
+
+/** "6:30 AM", "6:30 AM tomorrow" or "6:30 AM Tue, Nov 12", store time */
+function pickupText(iso: string) {
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' });
+  const key = (x: Date) => x.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const today = key(new Date()), tomorrow = key(new Date(Date.now() + 86_400_000));
+  if (key(d) === today) return time;
+  if (key(d) === tomorrow) return `${time} tomorrow`;
+  return `${time} ${d.toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric' })}`;
 }
 interface CatalogItem {
   id: string; name: string; description?: string;
@@ -102,6 +116,11 @@ function OrderCard({ order, onUpdate, updatingId }: {
         </div>
       </div>
 
+      {order.pickupAt && order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
+        <div style={{ padding: '6px 10px', borderRadius: 8, background: '#eef2f7', border: '1px solid #c9d6e4', color: '#1f4f78', fontSize: 13, fontWeight: 700 }}>
+          Pickup {pickupText(order.pickupAt)}{order.startAt && new Date(order.startAt).getTime() > Date.now() ? ` · start at ${pickupText(order.startAt)}` : ''}
+        </div>
+      )}
       <div>
         <div style={oc.custName}>{order.customer.name}</div>
         <div style={oc.custPhone}>{order.customer.phone}</div>
@@ -565,7 +584,7 @@ export default function HotFood() {
   const { data: catalogData, isLoading: catalogLoading, isError: catalogError, refetch: refetchCatalog } = useQuery({
     queryKey: ['hot-food-catalog'],
     queryFn: hotFoodCatalogApi.getAll,
-    enabled: view === 'catalog' || view === 'combos',   // the combos pick their item from the catalog
+    enabled: view === 'catalog' || view === 'combos' || view === 'times',   // the combos and the menus by time pick items from the catalog
     staleTime: 2 * 60_000,
   });
   const catalogItems: CatalogItem[] = catalogData?.data?.data ?? [];
@@ -606,6 +625,8 @@ export default function HotFood() {
           ? `${catalogItems.length} item${catalogItems.length !== 1 ? 's' : ''} in catalog`
           : view === 'combos'
           ? 'Hot food with a drink, one price; featured ones lead the app menu'
+          : view === 'times'
+          ? 'Breakfast and other parts of the day: what the app serves when'
           : `${stores.filter(s => s.hotFoodEnabled).length} of ${stores.length} stores taking orders`}
         actions={view === 'orders' ? (
           <Button icon={<RefreshCw style={isRefetching ? { animation: 'spin 1s linear infinite' } : {}} />} onClick={() => refetch()}>Refresh</Button>
@@ -625,6 +646,7 @@ export default function HotFood() {
           { value: 'orders', label: 'Orders', count: pendingCount > 0 ? pendingCount : undefined },
           { value: 'catalog', label: 'Catalog' },
           { value: 'menus', label: 'Store menus' },
+          { value: 'times', label: 'Menus by time' },
           { value: 'combos', label: 'Combos' },
           { value: 'availability', label: 'Stores and hours' },
         ]}
@@ -771,6 +793,8 @@ export default function HotFood() {
 
       {/* ── Availability view ───────────────────────────────────────────── */}
       {view === 'menus' && <HotFoodMenuGrid />}
+
+      {view === 'times' && <HotFoodDaypartsPanel catalog={catalogItems} stores={stores} />}
 
       {view === 'combos' && <HotFoodCombosPanel catalog={catalogItems} stores={stores} />}
 
