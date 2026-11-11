@@ -104,6 +104,9 @@ export default function Labels() {
   const [showCatSugg, setShowCatSugg] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  // more ways to narrow a catalog that grew with the PDI labels (2026-11-11), and an order
+  const [showFilter, setShowFilter] = useState<'' | 'deal' | 'no_deal' | 'no_barcode'>('');
+  const [catalogSort, setCatalogSort] = useState<'name' | 'changed'>('changed');   // last changed first, as it always was
   // Only items that still need a price, for typing prices down the list
   const [onlyNoPrice, setOnlyNoPrice] = useState(false);
   const quickPriceRefs = useRef<Map<string, HTMLInputElement>>(new Map());
@@ -252,6 +255,9 @@ export default function Labels() {
       if (!matchesName && !matchesBarcode) return false;
     }
     if (onlyNoPrice && l.priceText != null) return false;
+    if (showFilter === 'deal' && !l.dealText) return false;
+    if (showFilter === 'no_deal' && l.dealText) return false;
+    if (showFilter === 'no_barcode' && l.barcode) return false;
     if (categoryFilter === UNCATEGORIZED) {
       if (l.category) return false;
     } else if (categoryFilter && l.category !== categoryFilter) {
@@ -266,12 +272,13 @@ export default function Labels() {
   const hasUncategorized = labels.some(l => !l.category);
   const noPriceCount = labels.filter(l => l.priceText == null).length;
 
+  if (catalogSort === 'name') filteredLabels.sort((a, b) => a.productName.localeCompare(b.productName));   // else the server's order: last changed first
   const catalogTotalPages = Math.max(1, Math.ceil(filteredLabels.length / CATALOG_PAGE_SIZE));
   const pagedLabels = filteredLabels.slice((catalogPage - 1) * CATALOG_PAGE_SIZE, catalogPage * CATALOG_PAGE_SIZE);
 
   useEffect(() => {
     setCatalogPage(1);
-  }, [search, categoryFilter, onlyNoPrice]);
+  }, [search, categoryFilter, onlyNoPrice, showFilter, catalogSort]);
 
   const selectableFilteredLabels = filteredLabels.filter(l => l.priceText != null);
   const allFilteredSelected = selectableFilteredLabels.length > 0 && selectableFilteredLabels.every(l => selectedIds.has(l.id));
@@ -383,7 +390,7 @@ export default function Labels() {
       const r = await qc.fetchQuery({ queryKey: ['labels-coverage'], queryFn: labelsApi.getCoverage, staleTime: 30_000 });
       coverage = (r?.data?.data as CsvCoverage) ?? null;
     } catch { coverage = null; }
-    const filtered = !!search.trim() || !!categoryFilter || onlyNoPrice;
+    const filtered = !!search.trim() || !!categoryFilter || onlyNoPrice || !!showFilter;
     downloadCsv(`lucky-stop-labels${filtered ? '-filtered' : ''}-${new Date().toLocaleDateString('en-CA')}.csv`, labelsCsv(filteredLabels, TEMPLATE_LABELS, coverage));
     setExporting(false);
     const notes = [
@@ -1119,6 +1126,16 @@ export default function Labels() {
                     {hasUncategorized && <option value={UNCATEGORIZED}>Uncategorized</option>}
                   </select>
                 )}
+                <select style={s.filterSelect} aria-label="Show" value={showFilter} onChange={e => setShowFilter(e.target.value as typeof showFilter)}>
+                  <option value="">Every label</option>
+                  <option value="deal">With a deal</option>
+                  <option value="no_deal">Without a deal</option>
+                  <option value="no_barcode">No barcode</option>
+                </select>
+                <select style={s.filterSelect} aria-label="Sort" value={catalogSort} onChange={e => setCatalogSort(e.target.value as typeof catalogSort)}>
+                  <option value="changed">Sort: last changed</option>
+                  <option value="name">Sort: name</option>
+                </select>
               </div>
             )}
 

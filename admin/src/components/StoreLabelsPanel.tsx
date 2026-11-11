@@ -1,4 +1,4 @@
-import { useState, CSSProperties } from 'react';
+import { useEffect, useState, CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -17,6 +17,21 @@ import { LabelPrintStatus, STATUS_LABEL, STATUS_COLOR, STATUS_BG, daysSince, for
 import Glyph from '../components/Glyph';
 import LabelPrinterModal from './LabelPrinterModal';
 import { useAuthStore } from '../store/authStore';
+import { Chip } from './kit';
+import DataTablePagination from './DataTablePagination';
+
+// Print-status filters (2026-11-11): "To print" is new and price changed together, what a store prints next
+type StatusFilter = '' | 'to_print' | LabelPrintStatus;
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: '', label: 'All' },
+  { value: 'to_print', label: 'To print' },
+  { value: 'new', label: 'New' },
+  { value: 'needs_reprint', label: 'Price changed' },
+  { value: 'needs_price', label: 'No price' },
+  { value: 'printed', label: 'Printed' },
+  { value: 'not_added', label: 'Not at this store' },
+];
+const PAGE = 50;
 
 interface StoreLabel {
   id: string;
@@ -69,6 +84,10 @@ export default function StoreLabelsPanel() {
   const [printerOpen, setPrinterOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  // A store's list grew to thousands with the PDI labels (2026-11-11): what to show by print status, an order, and pages of 50
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [sortBy, setSortBy] = useState<'changed' | 'name' | 'newest'>('changed');   // last changed first, as it always was
+  const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [editingPrice, setEditingPrice] = useState<StoreLabel | null>(null);
@@ -94,7 +113,11 @@ export default function StoreLabelsPanel() {
   });
   const items: StoreLabel[] = data?.data?.data || [];
 
+  const inStatus = (item: StoreLabel, f: StatusFilter) =>
+    f === '' ? true : f === 'to_print' ? item.status === 'new' || item.status === 'needs_reprint' : item.status === f;
+  const statusCounts = Object.fromEntries(STATUS_FILTERS.map((f) => [f.value, items.filter((i) => inStatus(i, f.value)).length])) as Record<StatusFilter, number>;
   const filteredItems = items.filter((item) => {
+    if (!inStatus(item, statusFilter)) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       const matchesName = item.productName.toLowerCase().includes(q);
@@ -108,6 +131,13 @@ export default function StoreLabelsPanel() {
     }
     return true;
   });
+
+  if (sortBy === 'newest') filteredItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  else if (sortBy === 'name') filteredItems.sort((a, b) => a.productName.localeCompare(b.productName));   // else the server's order
+  const pages = Math.max(1, Math.ceil(filteredItems.length / PAGE));
+  const shownPage = Math.min(page, pages);
+  const pageItems = filteredItems.slice((shownPage - 1) * PAGE, shownPage * PAGE);
+  useEffect(() => { setPage(1); }, [storeId, search, categoryFilter, statusFilter, sortBy]);
 
   const availableCategories = Array.from(
     new Set(items.map((i) => i.category).filter((c): c is string => !!c))
@@ -224,23 +254,25 @@ export default function StoreLabelsPanel() {
 
   // "Not added" rows have no storeLabelId and no checkbox at all — select-all
   // only ever targets the rows that are actually selectable.
-  const selectableFilteredItems = filteredItems.filter((i): i is StoreLabel & { storeLabelId: string } => !!i.storeLabelId && i.status !== 'needs_price');
+  const selectable = (list: StoreLabel[]) => list.filter((i): i is StoreLabel & { storeLabelId: string } => !!i.storeLabelId && i.status !== 'needs_price');
+  const selectableFilteredItems = selectable(filteredItems);
+  const selectablePageItems = selectable(pageItems);
   const allFilteredSelected = selectableFilteredItems.length > 0 && selectableFilteredItems.every(i => selectedIds.has(i.storeLabelId));
+  const allPageSelected = selectablePageItems.length > 0 && selectablePageItems.every(i => selectedIds.has(i.storeLabelId));
 
-  function toggleSelectAll() {
+  function pickAll(list: (StoreLabel & { storeLabelId: string })[], on: boolean) {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (allFilteredSelected) selectableFilteredItems.forEach(i => next.delete(i.storeLabelId));
-      else selectableFilteredItems.forEach(i => next.add(i.storeLabelId));
+      if (on) list.forEach(i => next.add(i.storeLabelId)); else list.forEach(i => next.delete(i.storeLabelId));
       return next;
     });
     setQuantities(prev => {
       const next = { ...prev };
-      if (allFilteredSelected) selectableFilteredItems.forEach(i => { delete next[i.storeLabelId]; });
-      else selectableFilteredItems.forEach(i => { if (!(i.storeLabelId in next)) next[i.storeLabelId] = 1; });
+      if (on) list.forEach(i => { if (!(i.storeLabelId in next)) next[i.storeLabelId] = 1; }); else list.forEach(i => { delete next[i.storeLabelId]; });
       return next;
     });
   }
+  function toggleSelectAll() { pickAll(selectablePageItems, !allPageSelected); }
 
   function removeFromSelection(storeLabelId: string) {
     setPrintPrices(prev => { const next = { ...prev }; delete next[storeLabelId]; return next; });
@@ -428,7 +460,7 @@ export default function StoreLabelsPanel() {
       )}
 
       <div style={s.pickerRow}>
-        <select style={s.storeSelect} aria-label="Choose a store" value={storeId} onChange={e => { setStoreId(e.target.value); setSelectedIds(new Set()); setQuantities({}); setSearch(''); setCategoryFilter(''); }}>
+        <select style={s.storeSelect} aria-label="Choose a store" value={storeId} onChange={e => { setStoreId(e.target.value); setSelectedIds(new Set()); setQuantities({}); setSearch(''); setCategoryFilter(''); setStatusFilter(''); }}>
           <option value="">Choose a store…</option>
           {stores.map((st: any) => (
             <option key={st.id} value={st.id}>{st.name}</option>
@@ -459,9 +491,23 @@ export default function StoreLabelsPanel() {
                 {hasUncategorized && <option value={UNCATEGORIZED}>Uncategorized</option>}
               </select>
             )}
+            <select style={s.filterSelect} aria-label="Sort" value={sortBy} onChange={e => setSortBy(e.target.value as 'changed' | 'name' | 'newest')}>
+              <option value="changed">Sort: last changed</option>
+              <option value="name">Sort: name</option>
+              <option value="newest">Sort: newest at this store</option>
+            </select>
           </>
         )}
       </div>
+      {storeId && items.length > 0 && (
+        <div role="group" aria-label="Show by print status" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '0 0 12px' }}>
+          {STATUS_FILTERS.map((f) => (
+            <Chip key={f.value || 'all'} selected={statusFilter === f.value} aria-pressed={statusFilter === f.value} onClick={() => setStatusFilter(f.value)}>
+              {f.label} ({statusCounts[f.value].toLocaleString()})
+            </Chip>
+          ))}
+        </div>
+      )}
 
       <div style={s.layout}>
       <div style={s.main}>
@@ -487,12 +533,25 @@ export default function StoreLabelsPanel() {
         </div>
       ) : (
         <div style={s.tableWrap}>
+          {(selectableFilteredItems.length > selectablePageItems.length || selectedIds.size > 0) && (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '10px 14px', borderBottom: '1px solid #e4e7ec', fontSize: 13, color: TEXT_MUTED }} aria-live="polite">
+              <span>{selectedIds.size ? `${selectedIds.size.toLocaleString()} picked` : `${filteredItems.length.toLocaleString()} labels`}</span>
+              {allPageSelected && !allFilteredSelected && (
+                <button type="button" style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: PRIMARY, fontWeight: 700, cursor: 'pointer' }}
+                  onClick={() => pickAll(selectableFilteredItems, true)}>Select all {selectableFilteredItems.length.toLocaleString()} that match</button>
+              )}
+              {selectedIds.size > 0 && (
+                <button type="button" style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', color: PRIMARY, fontWeight: 700, cursor: 'pointer' }}
+                  onClick={() => { setSelectedIds(new Set()); setQuantities({}); }}>Clear</button>
+              )}
+            </div>
+          )}
           <Table style={s.table}>
             <TableHeader>
               <TableRow>
                 <TableHead style={s.th}>
                   <span className="sr-only">Select</span>
-                  <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} aria-label={allFilteredSelected ? 'Deselect all labels' : 'Select all labels'} />
+                  <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll} aria-label={allPageSelected ? 'Deselect every label on this page' : 'Select every label on this page'} />
                 </TableHead>
                 {['Product', 'Price', 'Status', 'Actions'].map(h => (
                   <TableHead key={h} style={s.th}>{h}</TableHead>
@@ -500,7 +559,7 @@ export default function StoreLabelsPanel() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredItems.map((item, i) => (
+              {pageItems.map((item, i) => (
                 <TableRow key={item.id} style={{ background: i % 2 === 0 ? '#fff' : '#f7f8fa' }}>
                   <TableCell style={s.td}>
                     {item.storeLabelId && item.status !== 'needs_price' && (
@@ -563,6 +622,7 @@ export default function StoreLabelsPanel() {
               ))}
             </TableBody>
           </Table>
+          {pages > 1 && <DataTablePagination page={shownPage} totalPages={pages} onPrevious={() => setPage(Math.max(1, shownPage - 1))} onNext={() => setPage(Math.min(pages, shownPage + 1))} />}
         </div>
       )}
       </div>
