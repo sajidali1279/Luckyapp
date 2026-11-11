@@ -196,6 +196,8 @@ import {
   removeCatalogItemFromStore as removeHotFoodCatalogItemFromStore,
   ranOutOfItem as ranOutOfHotFoodItem,
   backInStock as hotFoodBackInStock,
+  getCategoryOrder as getHotFoodCategoryOrder,
+  setCategoryOrder as setHotFoodCategoryOrder,
 } from '../controllers/hotFood.controller';
 import { getMenuGrid, applyMenuGrid } from '../controllers/hotFoodMenuGrid.controller';
 import {
@@ -811,6 +813,8 @@ router.post('/hot-food/orders',             authenticate, requireRole(Role.CUSTO
 // Store menus grid (2026-10-20): which stores carry which item, and what is in stock today, set for many at once
 router.get('/hot-food/menu-grid',                      authenticate, requireRole(Role.SUPER_ADMIN),   getMenuGrid);
 router.post('/hot-food/menu-grid',                     authenticate, requireRole(Role.SUPER_ADMIN),   applyMenuGrid);
+router.get('/hot-food/category-order',                  authenticate, requireRole(Role.SUPER_ADMIN),   getHotFoodCategoryOrder);   // the app's menu sections in order
+router.put('/hot-food/category-order',                  authenticate, requireRole(Role.SUPER_ADMIN),   setHotFoodCategoryOrder);
 router.get('/hot-food/catalog',                         authenticate, requireRole(Role.SUPER_ADMIN),   getHotFoodCatalog);
 router.post('/hot-food/catalog',                        authenticate, requireRole(Role.SUPER_ADMIN),   upload.single('image'), createHotFoodCatalogItem);
 router.patch('/hot-food/catalog/:id',                   authenticate, requireRole(Role.SUPER_ADMIN),   updateHotFoodCatalogItem);

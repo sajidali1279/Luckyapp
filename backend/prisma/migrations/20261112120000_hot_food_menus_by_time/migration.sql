@@ -7,7 +7,8 @@ ADD COLUMN     "startAt" TIMESTAMP(3),
 ADD COLUMN     "startToldAt" TIMESTAMP(3);
 
 -- AlterTable
-ALTER TABLE "hot_food_catalog_items" ADD COLUMN     "daypartIds" TEXT[] DEFAULT ARRAY[]::TEXT[];
+ALTER TABLE "hot_food_catalog_items" ADD COLUMN     "daypartIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
+ADD COLUMN     "isFeatured" BOOLEAN NOT NULL DEFAULT false;
 
 -- AlterTable: "Ran out" at a store, until the end of the store day
 ALTER TABLE "hot_food_catalog_stores" ADD COLUMN     "soldOutUntil" TIMESTAMP(3);

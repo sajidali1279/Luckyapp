@@ -73,8 +73,10 @@ export default function HotFoodMenuGrid() {
   }));
   const copyMenu = () => {
     if (!copyFrom || !copyTo || copyFrom === copyTo) return;
-    change((d) => items.forEach((i) => { const f = eff(i.id, copyFrom); want(d, i.id, copyTo, { carried: f.carried, available: f.carried ? f.available : true }); }));
-    toast.success(`Copied. Check ${stores.find((s) => s.id === copyTo)?.name}, then save.`);
+    // "All other stores" (2026-11-10): the same menu at every other store taking hot food orders
+    const targets = copyTo === '*' ? stores.filter((s) => s.id !== copyFrom && s.hotFoodEnabled).map((s) => s.id) : [copyTo];
+    change((d) => targets.forEach((to) => items.forEach((i) => { const f = eff(i.id, copyFrom); want(d, i.id, to, { carried: f.carried, available: f.carried ? f.available : true }); })));
+    toast.success(copyTo === '*' ? `Copied to ${targets.length} stores. Check them, then save.` : `Copied. Check ${stores.find((s) => s.id === copyTo)?.name}, then save.`);
   };
 
   const save = useMutation({
@@ -137,7 +139,7 @@ export default function HotFoodMenuGrid() {
           </select>
           <span style={{ fontSize: FONT.small, color: C.muted }}>to</span>
           <select aria-label="Copy to" value={copyTo} onChange={(e) => setCopyTo(e.target.value)} style={{ ...INPUT, width: 'auto' }}>
-            <option value="">To…</option>{stores.filter((s) => s.id !== copyFrom).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            <option value="">To…</option>{copyFrom && <option value="*">All other stores taking orders</option>}{stores.filter((s) => s.id !== copyFrom).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <Button size="sm" onClick={copyMenu} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>Copy menu</Button>
         </div>

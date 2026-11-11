@@ -15,6 +15,7 @@ import HotFoodImportModal from '../components/HotFoodImportModal';
 import HotFoodCombosPanel from '../components/HotFoodCombosPanel';
 import HotFoodMenuGrid from '../components/HotFoodMenuGrid';
 import HotFoodDaypartsPanel from '../components/HotFoodDaypartsPanel';
+import HotFoodCategoryOrder, { useCategoryOrder } from '../components/HotFoodCategoryOrder';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
@@ -51,6 +52,7 @@ function pickupText(iso: string) {
 interface CatalogItem {
   id: string; name: string; description?: string;
   price: number; imageUrl?: string; estimatedMinutes?: number; storeCount: number; category?: string | null;
+  isFeatured?: boolean;   // first in its section of the app's menu, and in its "Popular" strip (2026-11-10)
 }
 
 // The suggested categories, in the order the app's menu shows them (backend utils/hotFoodCategories.ts); HQ can type its own
@@ -590,14 +592,33 @@ export default function HotFood() {
   const catalogItems: CatalogItem[] = catalogData?.data?.data ?? [];
 
   const [catFilter, setCatFilter] = useState('');
+  // 2026-11-10: items with no photo yet, or the featured ones; and HQ's order of the app menu's sections
+  const [showOnly, setShowOnly] = useState<'' | 'nophoto' | 'featured'>('');
+  const [showCatOrder, setShowCatOrder] = useState(false);
+  const catOrder = useCategoryOrder();
   const catalogCategories = useMemo(() => {
     const set = new Set(catalogItems.map((i) => i.category).filter(Boolean) as string[]);
-    return [...HOT_FOOD_CATEGORIES.filter((c) => set.has(c)), ...[...set].filter((c) => !HOT_FOOD_CATEGORIES.includes(c)).sort()];
-  }, [catalogItems]);
+    const mine = catOrder.order.filter((c) => set.has(c));
+    return [...mine, ...HOT_FOOD_CATEGORIES.filter((c) => set.has(c) && !mine.includes(c)), ...[...set].filter((c) => !mine.includes(c) && !HOT_FOOD_CATEGORIES.includes(c)).sort()];
+  }, [catalogItems, catOrder.order]);
   const filteredCatalog = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return catalogItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!catFilter || (catFilter === '-' ? !i.category : i.category === catFilter)));
-  }, [catalogItems, search, catFilter]);
+    return catalogItems.filter(i => (!q || i.name.toLowerCase().includes(q)) && (!catFilter || (catFilter === '-' ? !i.category : i.category === catFilter))
+      && (showOnly === '' || (showOnly === 'nophoto' ? !i.imageUrl : !!i.isFeatured)));
+  }, [catalogItems, search, catFilter, showOnly]);
+  const [featuring, setFeaturing] = useState<string | null>(null);
+  async function toggleFeatured(item: CatalogItem) {
+    setFeaturing(item.id);
+    try {
+      await hotFoodCatalogApi.update(item.id, { isFeatured: !item.isFeatured });
+      toast.success(item.isFeatured ? `${item.name} is no longer featured` : `${item.name} is featured: first in its section and in "Popular" in the app`);
+      qc.invalidateQueries({ queryKey: ['hot-food-catalog'] });
+    } catch (e) {
+      toast.error(serverMessage(e, 'Could not change it.'));
+    } finally {
+      setFeaturing(null);
+    }
+  }
 
   const pendingCount = orderCounts.PENDING;
 
@@ -632,6 +653,7 @@ export default function HotFood() {
           <Button icon={<RefreshCw style={isRefetching ? { animation: 'spin 1s linear infinite' } : {}} />} onClick={() => refetch()}>Refresh</Button>
         ) : view === 'catalog' ? (
           <>
+            <Button onClick={() => setShowCatOrder(true)}>Category order</Button>
             <Button icon={<Upload />} onClick={() => setShowImport(true)}>Import items</Button>
             <Button variant="primary" icon={<Plus />} onClick={() => { setEditItem(null); setShowAddEdit(true); }}>Add item</Button>
           </>
@@ -731,6 +753,13 @@ export default function HotFood() {
                   {label}{v !== '' && ` (${v === '-' ? catalogItems.filter((i) => !i.category).length : catalogItems.filter((i) => i.category === v).length})`}
                 </button>
               ))}
+              <span style={{ width: 1, background: '#d5dae1', margin: '0 4px' }} aria-hidden />
+              {([['nophoto', 'No photo yet', catalogItems.filter((i) => !i.imageUrl).length], ['featured', 'Featured', catalogItems.filter((i) => i.isFeatured).length]] as const).map(([v, label, n]) => (
+                <button key={v} type="button" aria-pressed={showOnly === v} onClick={() => setShowOnly(showOnly === v ? '' : v)}
+                  style={{ padding: '5px 12px', borderRadius: 999, border: `1px solid ${showOnly === v ? '#a51b28' : '#d5dae1'}`, background: showOnly === v ? '#a51b28' : '#fff', color: showOnly === v ? '#fff' : '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  {label} ({n})
+                </button>
+              ))}
             </div>
           )}
 
@@ -742,7 +771,7 @@ export default function HotFood() {
             <div style={pg.empty}>
               <Flame size={36} color="#e4e7ec" />
               <p style={{ color: TEXT_MUTED, marginTop: 8 }}>
-                {search.trim() ? 'No items match your search' : 'No items yet. Add one to get started.'}
+                {search.trim() || catFilter || showOnly ? (showOnly === 'nophoto' && !search.trim() && !catFilter ? 'Every item has a photo.' : 'No items match.') : 'No items yet. Add one to get started.'}
               </p>
             </div>
           ) : (
@@ -761,6 +790,14 @@ export default function HotFood() {
                     onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.transform = 'none'}
                     title="Click to manage store assignment"
                   >
+                    <button type="button" aria-pressed={!!item.isFeatured} disabled={featuring === item.id}
+                      aria-label={item.isFeatured ? `${item.name} is featured. Click to stop featuring it` : `Feature ${item.name}`}
+                      title={item.isFeatured ? 'Featured: first in its section and in "Popular" in the app' : 'Feature it'}
+                      onClick={(e) => { e.stopPropagation(); void toggleFeatured(item); }} onKeyDown={(e) => e.stopPropagation()}
+                      style={{ position: 'absolute', top: 8, right: 8, zIndex: 1, border: 'none', borderRadius: 999, padding: '4px 9px', cursor: 'pointer', fontSize: 12, fontWeight: 800,
+                        background: item.isFeatured ? '#a51b28' : 'rgba(255,255,255,0.92)', color: item.isFeatured ? '#fff' : '#1d3557', boxShadow: '0 1px 3px rgba(0,0,0,0.18)' }}>
+                      {item.isFeatured ? '★ Featured' : '☆ Feature'}
+                    </button>
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.name} style={pg.tileImg} />
                     ) : (
@@ -795,6 +832,7 @@ export default function HotFood() {
       {view === 'menus' && <HotFoodMenuGrid />}
 
       {view === 'times' && <HotFoodDaypartsPanel catalog={catalogItems} stores={stores} />}
+      {showCatOrder && <HotFoodCategoryOrder onClose={() => setShowCatOrder(false)} />}
 
       {view === 'combos' && <HotFoodCombosPanel catalog={catalogItems} stores={stores} />}
 
@@ -939,7 +977,7 @@ const pg: Record<string, React.CSSProperties> = {
   availToggleOff: { background: '#fdf2f2', borderColor: '#f3cdd1', color: '#a51b28' },
 
   tileGrid:     { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 },
-  tile:         { background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', overflow: 'hidden', cursor: 'pointer', transition: 'transform 150ms, box-shadow 150ms', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
+  tile:         { position: 'relative', background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', overflow: 'hidden', cursor: 'pointer', transition: 'transform 150ms, box-shadow 150ms', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)' },
   tileImg:      { width: '100%', aspectRatio: '1', objectFit: 'cover' },
   tileBody:     { padding: '10px 12px' },
   tileName:     { fontSize: 14, fontWeight: 700, color: '#111827', marginBottom: 6, lineHeight: '1.3', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' },

@@ -8,6 +8,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { audit } from '../utils/audit';
 import { orderCategories } from '../utils/hotFoodCategories';
+import { loadCategoryOrder } from './hotFood.controller';
 
 export const MAX_GRID_CHANGES = 3000;
 
@@ -20,7 +21,7 @@ export async function getMenuGrid(_req: AuthRequest, res: Response) {
   ]);
   const cells: Record<string, Record<string, boolean>> = {};
   for (const l of links) (cells[l.catalogItemId] ??= {})[l.storeId] = l.isAvailable;
-  res.json({ success: true, data: { items, stores, cells, categories: orderCategories(items.map((i) => i.category)) } });
+  res.json({ success: true, data: { items, stores, cells, categories: orderCategories(items.map((i) => i.category), await loadCategoryOrder()) } });
 }
 
 const changeSchema = z.object({

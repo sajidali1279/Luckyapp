@@ -1738,6 +1738,8 @@ model HotFoodCatalogItem {
   pdiQuery         String?                     // the words that find it in the stores' PDI hot food (2026-11-11); null = from the name
   // The menus by time it is served in (2026-11-10, HotFoodDaypart ids: Breakfast...). Empty = whenever hot food is open (all day).
   daypartIds       String[] @default([])
+  // Featured by HQ (2026-11-10): first in its section of the app's menu, and in the "Popular" strip at the top
+  isFeatured       Boolean  @default(false)
   imageUrl         String?
   estimatedMinutes Int?
   createdAt        DateTime @default(now())

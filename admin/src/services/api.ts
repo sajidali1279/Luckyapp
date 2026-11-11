@@ -670,8 +670,11 @@ export const hotFoodCatalogApi = {
   getAll: () => api.get('/hot-food/catalog'),
   create: (formData: FormData) =>
     api.post('/hot-food/catalog', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-  update: (id: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null; category: string | null }>) =>
+  update: (id: string, data: Partial<{ name: string; description: string | null; price: number; estimatedMinutes: number | null; category: string | null; isFeatured: boolean }>) =>
     api.patch(`/hot-food/catalog/${id}`, data),
+  // The order of the app menu's sections (2026-11-10); [] = the suggested order
+  getCategoryOrder: () => api.get('/hot-food/category-order'),
+  setCategoryOrder: (order: string[]) => api.put('/hot-food/category-order', { order }),
   updateImage: (id: string, formData: FormData) =>
     api.patch(`/hot-food/catalog/${id}/image`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   delete: (id: string) => api.delete(`/hot-food/catalog/${id}`),

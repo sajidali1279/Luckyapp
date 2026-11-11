@@ -14,7 +14,13 @@ import { audit } from '../utils/audit';
 import { tellStoreAboutOrder } from '../utils/hotFoodRouting';
 import { placeOrderHeld, cancelOrder, recordPointsPickup, pts } from '../utils/hotFoodPoints';
 import { combosAt, comboLineName, DRINKS } from '../utils/hotFoodCombos';
-import { cleanCategory, orderCategories } from '../utils/hotFoodCategories';
+import { cleanCategory, orderCategories, cleanCategoryOrder, CATEGORY_ORDER_KEY } from '../utils/hotFoodCategories';
+
+/** HQ's own category order (empty: the suggested order) */
+export async function loadCategoryOrder(): Promise<string[]> {
+  const row = await prisma.appConfig.findUnique({ where: { key: CATEGORY_ORDER_KEY } });
+  try { return cleanCategoryOrder(row ? JSON.parse(row.value) : []); } catch { return []; }
+}
 import { rule, feature } from '../utils/appSettings';
 import { hotFoodOpenAt } from '../utils/hotFoodHours';
 import {
@@ -435,7 +441,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     select: {
       soldOutUntil: true,
       catalogItem: {
-        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true, daypartIds: true },
+        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true, daypartIds: true, isFeatured: true },
       },
     },
   });
@@ -446,7 +452,9 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   const catalogNames = new Set(catalogItems.map(c => c.name.toLowerCase()));
   const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
 
-  const listed = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name)).map((i) => {
+  // Featured items first (2026-11-10: first in their section in any app; the new app also shows them in a "Popular" strip), then A to Z
+  const featured = (i: unknown) => (i as { isFeatured?: boolean }).isFeatured === true;
+  const listed = [...dedupedMenu, ...catalogItems].sort((a, b) => Number(featured(b)) - Number(featured(a)) || a.name.localeCompare(b.name)).map((i) => {
     const ids = (i as { daypartIds?: string[] }).daypartIds ?? [];
     const menus = itemMenus(ids, here);
     const soldOut = (i as { soldOut?: boolean }).soldOut === true;
@@ -475,7 +483,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     item: { id: c.catalogItem.id, name: c.catalogItem.name, imageUrl: c.catalogItem.imageUrl }, estimatedMinutes: c.catalogItem.estimatedMinutes,
   }));
   // The menu's sections, in order (utils/hotFoodCategories.ts); an item with none is under "More" in the app
-  const categories = orderCategories(all.map((i) => (i as { category?: string | null }).category ?? null));
+  const categories = orderCategories(all.map((i) => (i as { category?: string | null }).category ?? null), await loadCategoryOrder());
   res.json({ success: true, data: all, hours, combos, categories, menus, orderAhead, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
 }
 
@@ -966,6 +974,10 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
   const data: any = checked.data;
   if (req.body.category !== undefined) data.category = cleanCategory(req.body.category);
+  if (req.body.isFeatured !== undefined) {
+    if (typeof req.body.isFeatured !== 'boolean') { res.status(400).json({ success: false, error: 'isFeatured must be true or false.' }); return; }
+    data.isFeatured = req.body.isFeatured;
+  }
 
   const item = await prisma.hotFoodCatalogItem.update({
     where: { id },
@@ -976,6 +988,23 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   for (const k of Object.keys(data)) { const was = (existing as any)[k], now = (item as any)[k]; if (was !== now) changes[k] = { was, now }; }
   if (Object.keys(changes).length) audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_ITEM_UPDATED', entity: 'hot_food_item', entityId: id, details: { name: item.name, changes } });
   res.json({ success: true, data: { ...item, storeCount: item._count.stores } });
+}
+
+/** GET /hot-food/category-order (HQ): the order the app's menu sections show in, and every category in use */
+export async function getCategoryOrder(_req: AuthRequest, res: Response) {
+  const [order, items] = await Promise.all([loadCategoryOrder(), prisma.hotFoodCatalogItem.findMany({ select: { category: true } })]);
+  const inUse = items.map((i) => i.category);
+  res.json({ success: true, data: { order: orderCategories(inUse, order), custom: order.length > 0 } });
+}
+
+/** PUT /hot-food/category-order { order: string[] } (HQ): the sections in this order; [] goes back to the suggested order */
+export async function setCategoryOrder(req: AuthRequest, res: Response) {
+  if (!Array.isArray(req.body?.order) || req.body.order.length > 60) { res.status(400).json({ success: false, error: 'Send the categories in order.' }); return; }
+  const order = cleanCategoryOrder(req.body.order);
+  await prisma.appConfig.upsert({ where: { key: CATEGORY_ORDER_KEY }, create: { key: CATEGORY_ORDER_KEY, value: JSON.stringify(order) }, update: { value: JSON.stringify(order) } });
+  audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_CATEGORY_ORDER', entity: 'app_config', entityId: CATEGORY_ORDER_KEY,
+    details: { summary: order.length ? `Hot food menu sections: ${order.join(', ')}` : 'Hot food menu sections back to the suggested order' } });
+  res.json({ success: true, data: { order } });
 }
 
 // PATCH /hot-food/catalog/:id/image
