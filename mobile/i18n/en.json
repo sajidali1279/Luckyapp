@@ -186,7 +186,8 @@
     "inviteFriends": "Invite friends",
     "badges": "Badges",
     "gasAlerts": "Gas price alerts",
-    "myProgress": "My progress"
+    "myProgress": "My progress",
+    "priceCheck": "Price Check"
   },
   "navGroup": {
     "main": "Main",
@@ -2499,7 +2500,8 @@
     "categoryPlaceholder": "e.g. Dairy, Frozen Foods…",
     "useCategoryA11y": "Use category {{category}}",
     "addToCatalog": "Add to Catalog",
-    "addToCatalogA11y": "Add product to catalog"
+    "addToCatalogA11y": "Add product to catalog",
+    "noStore": "You are not assigned to a store yet, so there are no prices to check. Ask your manager."
   },
   "customerHome": {
     "cannotCall": "This device cannot make calls.",

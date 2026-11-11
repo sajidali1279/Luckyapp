@@ -9,7 +9,7 @@ import ShiftCheckIn from '../../components/ShiftCheckIn';
 import {
   HomeIcon, BellIcon, PackageIcon, ClipboardIcon, UserIcon,
   TagIcon, ImageIcon, MessageCircleIcon, ListIcon, TrophyIcon, BookOpenIcon,
-  HeadphonesIcon, CalendarIcon, AlertTriangleIcon, PrinterIcon,
+  HeadphonesIcon, CalendarIcon, AlertTriangleIcon, PrinterIcon, DollarSignIcon,
 } from '../../components/Icons';
 
 export default function ManagerLayout() {
@@ -87,6 +87,7 @@ export default function ManagerLayout() {
         { route: '/(manager)/order-list', icon: (p) => <PackageIcon {...p} />,   label: t('nav.orderList') },
         { route: '/(manager)/catalog',    icon: (p) => <ListIcon {...p} />,      label: t('nav.storeCatalog') },
         { route: '/(manager)/labels',     icon: (p) => <PrinterIcon {...p} />,   label: t('nav.labels') },
+        { route: '/(manager)/price-check', icon: (p) => <DollarSignIcon {...p} />, label: t('nav.priceCheck') },
         { route: '/(manager)/requests',   icon: (p) => <ClipboardIcon {...p} />, label: t('nav.itemRequests'), badge: empReqPending + productReqPending + storeReqPending },
         { route: '/(manager)/disputes',   icon: (p) => <AlertTriangleIcon {...p} />, label: t('nav.disputes'), badge: disputesPending },
       ],
@@ -135,6 +136,7 @@ export default function ManagerLayout() {
         <Tabs.Screen name="schedule" />
         <Tabs.Screen name="catalog" />
         <Tabs.Screen name="labels" />
+        <Tabs.Screen name="price-check" />
         <Tabs.Screen name="leaderboard" />
         <Tabs.Screen name="guide" />
       </Tabs>

@@ -186,7 +186,8 @@
     "inviteFriends": "Invita amigos",
     "badges": "Insignias",
     "gasAlerts": "Alertas de gasolina",
-    "myProgress": "Mi progreso"
+    "myProgress": "Mi progreso",
+    "priceCheck": "Verificar Precio"
   },
   "navGroup": {
     "main": "Principal",
@@ -2499,7 +2500,8 @@
     "categoryPlaceholder": "p. ej. Lácteos, Congelados…",
     "useCategoryA11y": "Usar la categoría {{category}}",
     "addToCatalog": "Agregar al Catálogo",
-    "addToCatalogA11y": "Agregar producto al catálogo"
+    "addToCatalogA11y": "Agregar producto al catálogo",
+    "noStore": "Aún no tienes una tienda asignada, así que no hay precios que verificar. Pregunta a tu gerente."
   },
   "customerHome": {
     "cannotCall": "Este dispositivo no puede hacer llamadas.",
