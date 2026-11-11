@@ -118,6 +118,7 @@ import {
 import { getMyStaffToday, staffCheckIn, getStaffAttendance } from '../controllers/staffCheckIn.controller';
 import { getScanAccess, scanReceipt, getMyScans, getScanSettings, putScanSettings, getRecentScans } from '../controllers/receiptScan.controller';
 import { listCombos, createCombo, updateCombo, deleteCombo } from '../controllers/hotFoodCombo.controller';
+import { listDayparts, createDaypart, updateDaypart, deleteDaypart, setDaypartStore, setDaypartItems } from '../controllers/hotFoodMenus.controller';
 import { getActiveFlash, listFlash, createFlash, endFlash } from '../controllers/engagementFlash.controller';
 import { getFriendsBoard, joinFriendsBoard, leaveFriendsBoard } from '../controllers/engagementFriends.controller';
 import { getGame, postPlay } from '../controllers/engagementGames.controller';
@@ -850,6 +851,13 @@ router.get('/points/expiry/customer/:userId', authenticate, requireRole(Role.SUP
 router.post('/points/expiry/undo/:userId', authenticate, requireRole(Role.SUPER_ADMIN), undoCustomerExpiry);
 router.get('/settings/history',         authenticate, requireRole(Role.SUPER_ADMIN),   getSettingsHistory);
 router.get('/settings/app',             authenticate,                                   getAppSettings);
+// Menus by time (2026-11-10): Breakfast and the like, a store's own times, which items are in each (HQ)
+router.get('/hot-food/dayparts',                        authenticate, requireRole(Role.SUPER_ADMIN),   listDayparts);
+router.post('/hot-food/dayparts',                       authenticate, requireRole(Role.SUPER_ADMIN),   createDaypart);
+router.patch('/hot-food/dayparts/:id',                  authenticate, requireRole(Role.SUPER_ADMIN),   updateDaypart);
+router.delete('/hot-food/dayparts/:id',                 authenticate, requireRole(Role.SUPER_ADMIN),   deleteDaypart);
+router.put('/hot-food/dayparts/:id/stores/:storeId',    authenticate, requireRole(Role.SUPER_ADMIN),   setDaypartStore);
+router.put('/hot-food/dayparts/:id/items',              authenticate, requireRole(Role.SUPER_ADMIN),   setDaypartItems);
 router.get('/hot-food/combos',          authenticate, requireRole(Role.SUPER_ADMIN),   listCombos);
 router.post('/hot-food/combos',         authenticate, requireRole(Role.SUPER_ADMIN),   createCombo);
 router.patch('/hot-food/combos/:id',    authenticate, requireRole(Role.SUPER_ADMIN),   updateCombo);

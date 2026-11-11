@@ -16,6 +16,20 @@ import { placeOrderHeld, cancelOrder, recordPointsPickup, pts } from '../utils/h
 import { combosAt, comboLineName, DRINKS } from '../utils/hotFoodCombos';
 import { cleanCategory, orderCategories } from '../utils/hotFoodCategories';
 import { rule, feature } from '../utils/appSettings';
+import { hotFoodOpenAt } from '../utils/hotFoodHours';
+import {
+  daypartsAt, itemMenus, servedNow, servedAt, nextServed, daypartOpenAt, daypartTakingOrders, minutesLeft, nextStart, hoursText,
+  leadMinutes, pickupSlots, pickupProblem, startTime, pickupWords, pickupWordsEs, StoreDaypart,
+} from '../utils/hotFoodMenus';
+import { loadDayparts } from './hotFoodMenus.controller';
+
+/** An order placed ahead that should be started within this many minutes is treated as one to start now (2026-11-10) */
+const START_NOW_MINUTES = 5;
+
+/** "for Breakfast (5:00 AM to 10:30 AM)" / "for Breakfast or Lunch (...)" : when an item is served */
+function servedWords(menus: StoreDaypart[]): string {
+  return 'for ' + menus.map((d) => `${d.name} (${hoursText(d)})`).join(' or ');
+}
 
 /** Open hot food orders (pending, being made, ready) one customer can have at once, across stores (2026-10-11) */
 export const MAX_OPEN_ORDERS = 3;   // the default; Settings > Hot food (rule hotFoodMaxOpenOrders)
@@ -357,7 +371,10 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
   // in the language they use the app in (utils/hotFoodWords.ts); tapping any of them opens their orders
   const es = order.customer?.language === 'es';
   const tell = (m: { title: string; body: string }) => sendPushToUser(order.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
-  if (next === 'ACCEPTED') tell(hotFoodWords.accepted(es, order.orderNumber, order.store.name, updateData.estimatedMinutes));
+  const now = new Date();
+  if (next === 'ACCEPTED') tell(order.pickupAt && order.startAt && order.startAt > now
+    ? hotFoodWords.acceptedAhead(es, order.orderNumber, order.store.name, es ? pickupWordsEs(order.pickupAt, now) : pickupWords(order.pickupAt, now))
+    : hotFoodWords.accepted(es, order.orderNumber, order.store.name, updateData.estimatedMinutes));
   if (next === 'CANCELLED') tell(hotFoodWords.declined(es, order.orderNumber, order.store.name, updateData.cancelReason, returned ? pts(returned) : 0));
   if (next === 'READY') tell(hotFoodWords.ready(es, order.orderNumber, order.store, order.paidWithPoints, order.totalAmount));
 
@@ -367,11 +384,14 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
 // POST /hot-food/orders/:id/cancel (the customer), only while it is still waiting: once the store has accepted it, it is being made
 export async function customerCancelOrder(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const order = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { id: true, customerId: true, status: true, orderNumber: true, storeId: true } });
+  const order = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { id: true, customerId: true, status: true, orderNumber: true, storeId: true, startAt: true } });
   if (!order || order.customerId !== req.user!.id) { res.status(404).json({ success: false, error: 'Order not found' }); return; }
   if (order.status === 'CANCELLED') { res.json({ success: true, changed: false }); return; }
-  // Paid with points: they go back in the same transaction that cancels it
-  const cancelled = await cancelOrder(id, 'PENDING', { cancelledBy: 'CUSTOMER', cancelReason: 'Cancelled by you', cancelledAt: new Date() }, true);
+  // Paid with points: they go back in the same transaction that cancels it. Placed ahead and accepted: until it is time to start it.
+  const now = new Date();
+  const why = { cancelledBy: 'CUSTOMER', cancelReason: 'Cancelled by you', cancelledAt: now };
+  const cancelled = await cancelOrder(id, 'PENDING', why, true, now)
+    ?? (order.status === 'ACCEPTED' && order.startAt && order.startAt > now ? await cancelOrder(id, 'ACCEPTED', why, true, now, { startAt: { gt: now } }) : null);
   if (!cancelled) {
     res.status(409).json({ success: false, error: 'The store has already started your order, so it cannot be cancelled in the app. Ask at the counter.' });
     return;
@@ -393,8 +413,14 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     res.json({ success: true, data: [], hotFoodEnabled: false });
     return;
   }
-  // Outside the hours the menu can still be looked at; placing an order is refused (placeOrder)
-  const hours = hotFoodState(await schedulesFor(storeId));
+  // Outside the hours the menu can still be looked at; placing an order for now is refused (placeOrder)
+  const now = new Date();
+  const schedules = await schedulesFor(storeId);
+  const hours = hotFoodState(schedules, now);
+  // Menus by time (2026-11-10, utils/hotFoodMenus.ts). An app that knows them asks with ?menus=1 and gets every item with when it is
+  // served; an older app gets only what can be ordered now (it would otherwise offer breakfast at 3 PM and be refused).
+  const here = daypartsAt(await loadDayparts(), storeId);
+  const knowsMenus = req.query?.menus === '1';
 
   const menuItems = await prisma.hotFoodMenuItem.findMany({
     where: { isAvailable: true, OR: [{ storeId }, { storeId: null }] },
@@ -407,25 +433,46 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     where: { storeId, isAvailable: true },
     select: {
       catalogItem: {
-        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true },
+        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true, daypartIds: true },
       },
     },
   });
-  const catalogItems = catalogAssignments.map(a => a.catalogItem);
+  // An item whose only menus are left out at this store is not served here at all
+  const catalogItems = catalogAssignments.map(a => a.catalogItem).filter((c) => itemMenus(c.daypartIds, here)?.length !== 0);
 
   const catalogNames = new Set(catalogItems.map(c => c.name.toLowerCase()));
   const dedupedMenu = menuItems.filter(m => !catalogNames.has(m.name.toLowerCase()));
 
-  const all = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name));
-  // Combos on at this store now, featured first (utils/hotFoodCombos.ts). Deals with no drink only for an app that knows them (?deals=1).
-  const combos = (await combosAt(storeId, new Date(), req.query?.deals === '1')).map((c) => ({
+  const listed = [...dedupedMenu, ...catalogItems].sort((a, b) => a.name.localeCompare(b.name)).map((i) => {
+    const ids = (i as { daypartIds?: string[] }).daypartIds ?? [];
+    const menus = itemMenus(ids, here);
+    const now_ = servedNow(ids, here, now);
+    const next = now_ ? null : nextServed(ids, here, now);
+    return { ...i, daypartIds: menus ? menus.map((d) => d.id) : [], servedNow: now_, nextServedAt: next ? next.toISOString() : null };
+  });
+  const all = knowsMenus ? listed : listed.filter((i) => i.servedNow);
+  const menus = here.filter((d) => !d.off && listed.some((i) => i.daypartIds.includes(d.id))).map((d) => {
+    const next = daypartOpenAt(d, now) ? null : nextStart(d, now);
+    return {
+      id: d.id, name: d.name, nameEs: d.nameEs, fromTime: d.fromTime, toTime: d.toTime, days: d.days, lastCallMinutes: d.lastCallMinutes,
+      open: daypartOpenAt(d, now), takingOrders: daypartTakingOrders(d, now), minutesLeft: minutesLeft(d, now), nextStartAt: next ? next.toISOString() : null,
+    };
+  });
+  // Ordering ahead (feature hotFoodOrderAhead): the pickup times, each with the menus on then; the app keeps the ones that suit the cart
+  const aheadDays = rule('hotFoodOrderAheadDays');
+  const orderAhead = feature('hotFoodOrderAhead')
+    ? { on: true, days: aheadDays, slots: pickupSlots(now, aheadDays, (at) => hotFoodOpenAt(schedules, at), here.filter((d) => !d.off)) }
+    : { on: false };
+  // Combos on at this store now, featured first (utils/hotFoodCombos.ts), whose item is served now. Deals with no drink only for an app
+  // that knows them (?deals=1).
+  const combos = (await combosAt(storeId, now, req.query?.deals === '1')).filter((c) => servedNow(c.catalogItem.daypartIds, here, now)).map((c) => ({
     id: c.id, name: c.name, nameEs: c.nameEs, description: c.description, price: c.price, regularPrice: c.regularPrice,
     itemQuantity: c.itemQuantity, drinks: c.drinks, isFeatured: c.isFeatured, fromTime: c.fromTime, toTime: c.toTime, days: c.days,
     item: { id: c.catalogItem.id, name: c.catalogItem.name, imageUrl: c.catalogItem.imageUrl }, estimatedMinutes: c.catalogItem.estimatedMinutes,
   }));
   // The menu's sections, in order (utils/hotFoodCategories.ts); an item with none is under "More" in the app
   const categories = orderCategories(all.map((i) => (i as { category?: string | null }).category ?? null));
-  res.json({ success: true, data: all, hours, combos, categories, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
+  res.json({ success: true, data: all, hours, combos, categories, menus, orderAhead, payWithPoints: feature('hotFoodPayWithPoints'), limits: { maxPerItem: rule('hotFoodMaxPerItem') } });
 }
 
 // GET /hot-food/store/:storeId/all-items, all items with availability (employee management view)
@@ -548,8 +595,17 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     res.status(403).json({ success: false, error: 'Hot food ordering is not available at this location' });
     return;
   }
-  const hours = hotFoodState(await schedulesFor(storeId));
-  if (!hours.open) {
+  // Ordered ahead (2026-11-10): a pickup time; checked below once the items are known (their cook time and menus)
+  const now = new Date();
+  let pickupAt: Date | null = null;
+  if (req.body?.pickupAt != null && req.body.pickupAt !== '') {
+    if (!feature('hotFoodOrderAhead')) { res.status(403).json({ success: false, code: 'ORDER_AHEAD_OFF', error: 'Ordering ahead is switched off right now. Order for now, or try again later.' }); return; }
+    pickupAt = new Date(typeof req.body.pickupAt === 'string' ? req.body.pickupAt : NaN);
+    if (!Number.isFinite(pickupAt.getTime())) { res.status(400).json({ success: false, code: 'PICKUP_TIME', error: 'Choose a pickup time.' }); return; }
+  }
+  const schedules = await schedulesFor(storeId);
+  const hours = hotFoodState(schedules, now);
+  if (!hours.open && !pickupAt) {
     const why = hours.holiday ? ` today (${hours.holiday})` : ' right now';
     res.status(403).json({ success: false, code: 'HOT_FOOD_CLOSED', error: `Hot food at ${store.name} is closed${why}.${opensSentence(hours)}`, hours });
     return;
@@ -577,8 +633,19 @@ export async function placeOrder(req: AuthRequest, res: Response) {
 
   const orderLines: { menuItemId?: string; catalogItemId?: string; comboId?: string; drink?: string; name: string; price: number; quantity: number }[] = [];
   // Combos: on at this store now (the item on, the store chosen, within hours), with a drink the combo allows (none for a deal with no drink)
+  // The menus by time: an order for now takes what is served now (before last call); ahead, what is served at the pickup time
+  const dayparts = daypartsAt(await loadDayparts(), storeId);
+  const servedThen = (ids: string[] | null | undefined) => (pickupAt ? servedAt(ids, dayparts, pickupAt) : servedNow(ids, dayparts, now));
+  const notServed = (name: string, ids: string[] | null | undefined) => {
+    const menus = itemMenus(ids, dayparts) ?? [];
+    const words = menus.length ? servedWords(menus) : 'at other times';
+    return pickupAt
+      ? `${name} is served ${words}, not at the pickup time you chose. Choose another time or take it out of your order.`
+      : `${name} is served ${words}, and orders for now stop ${menus[0]?.lastCallMinutes ?? 0} minutes before it ends. Order it ahead or take it out of your order.`;
+  };
+  const cookMinutes: (number | null)[] = [];
   if (comboKeys.length > 0) {
-    const here = new Map((await combosAt(storeId, new Date(), true)).map((c) => [c.id, c]));
+    const here = new Map((await combosAt(storeId, pickupAt ?? now, true)).map((c) => [c.id, c]));
     for (const key of comboKeys) {
       const [, comboId, drink] = key.split(':');
       const combo = here.get(comboId);
@@ -590,6 +657,11 @@ export async function placeOrder(req: AuthRequest, res: Response) {
         res.status(400).json({ success: false, code: 'COMBO_UNAVAILABLE', error: 'A combo in your order is not available right now. Refresh the menu and try again.' });
         return;
       }
+      if (!servedThen(combo.catalogItem.daypartIds)) {
+        res.status(400).json({ success: false, code: 'NOT_SERVED_THEN', error: notServed(combo.name, combo.catalogItem.daypartIds) });
+        return;
+      }
+      cookMinutes.push(combo.catalogItem.estimatedMinutes);
       orderLines.push({ comboId, drink: drink || undefined, name: comboLineName(combo.name, drink || null, combo.itemQuantity, combo.catalogItem.name), price: combo.price, quantity: qtyById.get(key)! });
     }
   }
@@ -602,6 +674,11 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       res.status(400).json({ success: false, error: 'One of the items is not available right now. Refresh the menu and try again.' });
       return;
     }
+    if (catalogItem && !servedThen(catalogItem.daypartIds)) {
+      res.status(400).json({ success: false, code: 'NOT_SERVED_THEN', error: notServed(catalogItem.name, catalogItem.daypartIds) });
+      return;
+    }
+    cookMinutes.push(resolved.estimatedMinutes ?? null);
     orderLines.push({
       ...(menuItem ? { menuItemId: menuItem.id } : { catalogItemId: catalogItem.id }),
       name: resolved.name,
@@ -609,6 +686,16 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       quantity: qty,
     });
   }
+
+  // Ahead: the pickup time suits the kitchen (not sooner than the longest cook time), the days allowed and hot food's hours
+  let startAt: Date | null = null;
+  if (pickupAt) {
+    const lead = leadMinutes(cookMinutes);
+    const wrong = pickupProblem(pickupAt, now, rule('hotFoodOrderAheadDays'), lead, (at) => hotFoodOpenAt(schedules, at));
+    if (wrong) { res.status(400).json({ success: false, ...wrong }); return; }
+    startAt = startTime(pickupAt, lead, now);
+  }
+  const startsNow = !startAt || startAt.getTime() <= now.getTime() + START_NOW_MINUTES * 60_000;
 
   const totalAmount = Math.round(orderLines.reduce((s, l) => s + l.price * l.quantity, 0) * 100) / 100;
   // The total the customer saw: a price changed since the menu loaded is told, never charged silently (in money or points)
@@ -648,6 +735,8 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     totalAmount,
     items: { create: orderLines },
     ...(payWithPoints ? { paidWithPoints: true, pointsAmount: totalAmount } : {}),
+    // Placed ahead: when to start it; one that should start within START_NOW_MINUTES is started now (no reminder to start)
+    ...(pickupAt && startAt ? { pickupAt, startAt, ...(startsNow ? { startToldAt: now } : {}) } : {}),
   };
   const include = { store: { select: { id: true, name: true } }, items: true };
   // Checked while the customer's row is held, in the transaction that places the order, so two taps at the same moment cannot both
@@ -657,7 +746,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   const check = async (tx: any): Promise<{ open: number } | { duplicate: any } | null> => {
     const open = await tx.hotFoodOrder.count({ where: { customerId, status: { in: ['PENDING', 'ACCEPTED', 'READY'] } } });
     const recent = await tx.hotFoodOrder.findFirst({
-      where: { customerId, storeId, status: { not: 'CANCELLED' }, totalAmount, paidWithPoints: payWithPoints, createdAt: { gte: new Date(Date.now() - 60_000) } },
+      where: { customerId, storeId, status: { not: 'CANCELLED' }, totalAmount, paidWithPoints: payWithPoints, pickupAt, createdAt: { gte: new Date(Date.now() - 60_000) } },
       include, orderBy: { createdAt: 'desc' },
     });
     if (recent && sameLines(recent.items) === sameLines(orderLines)) return { duplicate: recent };
@@ -680,7 +769,12 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   // The people working at the store now (from the schedule), else everyone assigned there (utils/hotFoodRouting.ts). Managers hear only
   // when nobody accepts it in a few minutes.
   const itemSummary = (payWithPoints ? 'Paid with points. ' : '') + orderLines.map(l => `${l.quantity}× ${l.name}`).join(', ');
-  tellStoreAboutOrder({ id: order.id, storeId }, `🔥 New Order #${order.orderNumber}`, itemSummary).catch(() => {});
+  if (pickupAt && startAt && !startsNow) {
+    tellStoreAboutOrder({ id: order.id, storeId }, `🗓 Order #${order.orderNumber} for ${pickupWords(pickupAt, now)}`,
+      `${itemSummary}. Accept it now; you will be told when to start it (${pickupWords(startAt, now)}).`).catch(() => {});
+  } else {
+    tellStoreAboutOrder({ id: order.id, storeId }, `🔥 New Order #${order.orderNumber}`, (pickupAt ? `Pickup at ${pickupWords(pickupAt, now)}. ` : '') + itemSummary).catch(() => {});
+  }
 
   res.status(201).json({ success: true, data: order, ...(pointsBalance != null ? { pointsBalance } : {}) });
 }
@@ -693,7 +787,7 @@ export async function getMyOrders(req: AuthRequest, res: Response) {
     select: {
       id: true, orderNumber: true, status: true, totalAmount: true,
       note: true, estimatedMinutes: true, cancelledBy: true, cancelReason: true,
-      paidWithPoints: true, pointsAmount: true, pointsReturnedAt: true,
+      paidWithPoints: true, pointsAmount: true, pointsReturnedAt: true, pickupAt: true, startAt: true,
       createdAt: true, updatedAt: true,
       store: { select: { id: true, name: true, address: true, city: true, state: true, latitude: true, longitude: true } },
       items: { select: { name: true, quantity: true, price: true } },
@@ -709,7 +803,8 @@ export async function getMyOrders(req: AuthRequest, res: Response) {
 // GET /hot-food/orders/store/:storeId, for manager/employee mobile
 export async function getStoreOrders(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
-  const orders = await prisma.hotFoodOrder.findMany({
+  const knowsAhead = req.query?.ahead === '1';
+  const orders: any[] = await prisma.hotFoodOrder.findMany({
     where: { storeId },
     include: {
       store: { select: { id: true, name: true } },
@@ -719,7 +814,9 @@ export async function getStoreOrders(req: AuthRequest, res: Response) {
     orderBy: { createdAt: 'desc' },
     take: 200,
   });
-  res.json({ success: true, data: orders });
+  const now = new Date();
+  res.json({ success: true, data: knowsAhead ? orders : orders.map((o) => (o.pickupAt && o.startAt && o.startAt > now && o.status !== 'CANCELLED' && o.status !== 'COMPLETED'
+    ? { ...o, note: `PICKUP AT ${pickupWords(o.pickupAt, now).toUpperCase()}. Start it at ${pickupWords(o.startAt, now)}.${o.note ? ' ' + o.note : ''}` } : o)) });
 }
 
 // GET /hot-food/orders/store/:storeId/pending-count, badge count for mobile nav

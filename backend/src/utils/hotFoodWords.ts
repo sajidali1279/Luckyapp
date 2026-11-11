@@ -19,6 +19,15 @@ export const hotFoodWords = {
     ? { title: `Pedido #${n} aceptado`, body: `${store} lo está preparando${mins ? (mins === 1 ? ', listo en 1 minuto' : `, listo en unos ${mins} minutos`) : ''}.` }
     : { title: `Order #${n} accepted`, body: `${store} is making it${mins ? `, ready in about ${mins} minute${mins === 1 ? '' : 's'}` : ''}.` },
 
+  // Ordered ahead (2026-11-10): `when` is "6:30 AM tomorrow" (utils/hotFoodMenus.ts pickupWords / pickupWordsEs)
+  acceptedAhead: (es: boolean, n: string, store: string, when: string): Msg => es
+    ? { title: `Pedido #${n} aceptado`, body: `${store} lo tendrá listo para ${when}.` }
+    : { title: `Order #${n} accepted`, body: `${store} will have it ready for ${when}.` },
+
+  timedOutAhead: (es: boolean, n: string, store: string, returnedPts: number): Msg => es
+    ? { title: `El pedido #${n} se canceló`, body: `${store} no lo aceptó a tiempo, así que se canceló. ${returnedPts ? back(true, returnedPts) : 'No se te cobró nada.'} Puedes volver a pedir.` }
+    : { title: `Order #${n} was cancelled`, body: `${store} did not accept it in time, so it was cancelled. ${returnedPts ? back(false, returnedPts) : 'You were not charged.'} You can order again.` },
+
   declined: (es: boolean, n: string, store: string, reason: string | null | undefined, returnedPts: number): Msg => es
     ? { title: `No se pudo preparar el pedido #${n}`, body: `${store} no pudo preparar tu pedido${reason ? `: ${ended(reason)}` : '.'} ${returnedPts ? back(true, returnedPts) : 'No se te cobró nada.'}` }
     : { title: `Order #${n} was declined`, body: `${store} could not make your order${reason ? `: ${ended(reason)}` : '.'} ${returnedPts ? back(false, returnedPts) : 'You were not charged.'}` },

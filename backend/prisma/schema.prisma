@@ -405,6 +405,7 @@ model Store {
   storeHours            StoreHours[]
   storeHolidays         StoreHoliday[]
   hotFoodHours          HotFoodHours[]
+  hotFoodDaypartStores  HotFoodDaypartStore[]
 
   @@map("stores")
 }
@@ -1691,6 +1692,11 @@ model HotFoodOrder {
   pointsReturnedAt DateTime?                            // when the points went back (declined, cancelled, not accepted)
   readyAt          DateTime?                            // when it was marked ready (the pickup reminder counts from here)
   readyRemindedAt  DateTime?                            // when the customer was reminded it is waiting, once (utils/hotFoodAutoCancel.ts)
+  // Ordered ahead (2026-11-10, utils/hotFoodMenus.ts): the pickup time the customer chose (null = as soon as possible), when the kitchen
+  // should start it (pickup minus the longest cook time; the waiting and cancel clocks count from here), and when the store was told to start
+  pickupAt         DateTime?
+  startAt          DateTime?
+  startToldAt      DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -1700,6 +1706,7 @@ model HotFoodOrder {
 
   @@index([storeId, status])
   @@index([customerId])
+  @@index([status, startAt])
   @@map("hot_food_orders")
 }
 
@@ -1729,6 +1736,8 @@ model HotFoodCatalogItem {
   category         String?                     // Chicken, Wings, Sides, Family Meals... (utils/hotFoodCategories.ts); the app's menu is grouped by it
   price            Float
   pdiQuery         String?                     // the words that find it in the stores' PDI hot food (2026-11-11); null = from the name
+  // The menus by time it is served in (2026-11-10, HotFoodDaypart ids: Breakfast...). Empty = whenever hot food is open (all day).
+  daypartIds       String[] @default([])
   imageUrl         String?
   estimatedMinutes Int?
   createdAt        DateTime @default(now())
@@ -1738,6 +1747,45 @@ model HotFoodCatalogItem {
   combos HotFoodCombo[]
 
   @@map("hot_food_catalog_items")
+}
+
+// A menu by time of day (2026-11-10, utils/hotFoodMenus.ts): "Breakfast" 05:00 to 10:30, every day or some days, store time. HQ sets
+// it, and can give a store its own times or leave it out at a store (HotFoodDaypartStore). An item in one or more menus is ordered for
+// now only inside one of them, and up to lastCallMinutes before it ends; ordered ahead, its pickup time must be inside one of them.
+model HotFoodDaypart {
+  id              String   @id @default(uuid())
+  name            String
+  nameEs          String?
+  fromTime        String                      // "HH:MM" store time; a toTime earlier than fromTime runs past midnight
+  toTime          String
+  days            Int[]    @default([])       // 0 = Sunday .. 6 = Saturday; empty = every day
+  lastCallMinutes Int      @default(15)       // ordering for now stops this long before it ends
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  stores HotFoodDaypartStore[]
+
+  @@map("hot_food_dayparts")
+}
+
+// A store's own times for a menu by time (set by HQ), or the menu left out at that store (isOff)
+model HotFoodDaypartStore {
+  id        String   @id @default(uuid())
+  daypartId String
+  storeId   String
+  fromTime  String?
+  toTime    String?
+  days      Int[]    @default([])
+  isOff     Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+
+  daypart HotFoodDaypart @relation(fields: [daypartId], references: [id], onDelete: Cascade)
+  store   Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([daypartId, storeId])
+  @@map("hot_food_daypart_stores")
 }
 
 // A hot food combo (2026-10-12): one catalog item with a drink the customer chooses, for one price, set by HQ. Featured ones lead the

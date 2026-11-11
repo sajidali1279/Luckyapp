@@ -53,9 +53,9 @@ export async function returnOrderPoints(orderId: string, now: Date = new Date())
  * order was marked cancelled first and the points went back in a second step, so a failure in between left it cancelled with the points
  * kept and nothing tried again. Null when the order had already moved on (nothing changed).
  */
-export async function cancelOrder(orderId: string, from: string, data: Record<string, unknown>, refund: boolean, now: Date = new Date()): Promise<{ returned: number } | null> {
+export async function cancelOrder(orderId: string, from: string, data: Record<string, unknown>, refund: boolean, now: Date = new Date(), also: Record<string, unknown> = {}): Promise<{ returned: number } | null> {
   return prisma.$transaction(async (tx) => {
-    const moved = await tx.hotFoodOrder.updateMany({ where: { id: orderId, status: from as any }, data: { ...data, status: 'CANCELLED' } });
+    const moved = await tx.hotFoodOrder.updateMany({ where: { ...also, id: orderId, status: from as any }, data: { ...data, status: 'CANCELLED' } });
     if (moved.count === 0) return null;
     return { returned: refund ? await returnPointsIn(tx, orderId, now) : 0 };
   });

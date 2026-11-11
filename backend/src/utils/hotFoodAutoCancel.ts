@@ -8,6 +8,31 @@ import { escalateWaitingHotFoodOrders, ESCALATE_MINUTES, tellStoreAboutOrder } f
 import { cancelOrder, recordPointsPickup, pts } from './hotFoodPoints';
 import { rule, feature } from './appSettings';
 import { hotFoodWords } from './hotFoodWords';
+import { pickupWords } from './hotFoodMenus';
+
+/** Waiting since before `cutoff`: an order for now from when it was placed, an order placed ahead from when it should be started */
+export const waitingSince = (cutoff: Date) => ({ OR: [{ startAt: null, createdAt: { lt: cutoff } }, { startAt: { lt: cutoff } }] });
+
+/**
+ * Orders placed ahead whose start time has come (2026-11-10): whoever is on shift is told to start it, with the pickup time, once each.
+ * Returns how many.
+ */
+export async function tellStoresToStart(now: Date = new Date()): Promise<number> {
+  const due = await prisma.hotFoodOrder.findMany({
+    where: { status: { in: ['PENDING', 'ACCEPTED'] }, startToldAt: null, startAt: { lte: now }, pickupAt: { not: null } },
+    select: { id: true, storeId: true, orderNumber: true, status: true, pickupAt: true, items: { select: { name: true, quantity: true } } },
+  });
+  let done = 0;
+  for (const o of due) {
+    const claimed = await prisma.hotFoodOrder.updateMany({ where: { id: o.id, startToldAt: null }, data: { startToldAt: now } });
+    if (claimed.count === 0) continue;
+    done++;
+    const what = o.items.map((l) => `${l.quantity}× ${l.name}`).join(', ');
+    tellStoreAboutOrder(o, `⏰ Start order #${o.orderNumber} now`,
+      `Pickup at ${pickupWords(o.pickupAt!, now)}: ${what}.${o.status === 'PENDING' ? ' Nobody has accepted it yet: accept it first.' : ''}`, now).catch(() => {});
+  }
+  return done;
+}
 
 export const AUTO_CANCEL_MINUTES = 20;   // the default; HQ sets it in Settings > Hot food (rule hotFoodAutoCancelMinutes)
 /** A ready order not picked up after this long: the customer is reminded, once (2026-10-12) */
@@ -68,8 +93,8 @@ export async function cancelStaleHotFoodOrders(now: Date = new Date()): Promise<
   const minutes = rule('hotFoodAutoCancelMinutes');
   const cutoff = new Date(now.getTime() - minutes * 60_000);
   const stale = await prisma.hotFoodOrder.findMany({
-    where: { status: 'PENDING', createdAt: { lt: cutoff } },
-    select: { id: true, customerId: true, orderNumber: true, store: { select: { name: true } }, customer: { select: { language: true } } },
+    where: { status: 'PENDING', ...waitingSince(cutoff) },
+    select: { id: true, customerId: true, orderNumber: true, pickupAt: true, store: { select: { name: true } }, customer: { select: { language: true } } },
   });
   let done = 0;
   for (const o of stale) {
@@ -79,7 +104,9 @@ export async function cancelStaleHotFoodOrders(now: Date = new Date()): Promise<
     if (!cancelled) continue;   // accepted or cancelled a moment ago (or failed: tried again next run)
     done++;
     const returned = cancelled.returned;
-    const m = hotFoodWords.timedOut(o.customer?.language === 'es', o.orderNumber, o.store.name, minutes, returned ? pts(returned) : 0);
+    const m = o.pickupAt
+      ? hotFoodWords.timedOutAhead(o.customer?.language === 'es', o.orderNumber, o.store.name, returned ? pts(returned) : 0)
+      : hotFoodWords.timedOut(o.customer?.language === 'es', o.orderNumber, o.store.name, minutes, returned ? pts(returned) : 0);
     sendPushToUser(o.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
   }
   return done;
@@ -94,6 +121,7 @@ export function startHotFoodAutoCancelCron() {
   // An order waiting ESCALATE_MINUTES: its store's managers and everyone assigned there are told, once (checked every minute)
   cron.schedule('* * * * *', () => {
     escalateWaitingHotFoodOrders().catch((e) => console.error('[hot-food-escalate] run failed:', e?.message ?? e));
+    tellStoresToStart().catch((e) => console.error('[hot-food-start] run failed:', e?.message ?? e));
     remindReadyHotFoodOrders().catch((e) => console.error('[hot-food-ready-reminder] run failed:', e?.message ?? e));
   }, { timezone: 'UTC' });
   console.log(`[hot-food-escalate] Orders waiting ${ESCALATE_MINUTES} minutes are escalated to the store's managers`);

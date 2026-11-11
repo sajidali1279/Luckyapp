@@ -20,6 +20,8 @@ export const RULES = {
   hotFoodReadyCloseMinutes: { group: 'hotFood', label: 'Close a ready order nobody picks up after', unit: 'minutes', def: 120, min: 30, max: 720, int: true, help: 'From when it was marked ready. The customer and the store are told. Must be more than the reminder.' },
   hotFoodMaxOpenOrders: { group: 'hotFood', label: 'Open orders one customer can have', unit: 'orders', def: 3, min: 1, max: 20, int: true, help: 'Waiting, being made or ready, at any store.' },
   hotFoodMaxPerItem: { group: 'hotFood', label: 'Most of one item in an order', unit: 'items', def: 20, min: 1, max: 99, int: true, help: 'The app stops at this number too.' },
+  // 2026-11-10: ordering ahead (feature hotFoodOrderAhead)
+  hotFoodOrderAheadDays: { group: 'hotFood', label: 'Customers can order hot food ahead for up to', unit: 'days', def: 1, min: 0, max: 7, int: true, help: '0: later today only; 1: today and tomorrow. Pickup times are inside hot food hours and the item\'s menu times (Hot food > Menus by time).' },
   reviewHighAmount: { group: 'review', section: 'Amounts', label: 'Hold a sale (not gas) over', unit: '$', def: 500, min: 50, max: 5000, int: false, help: 'A manager or HQ approves it before the points are added.' },
   reviewLargePurchase: { group: 'review', section: 'Amounts', label: 'Only HQ can approve a sale over', unit: '$', def: 800, min: 100, max: 10000, int: false, help: 'Store managers cannot approve these.' },
   reviewMaxSale: { group: 'review', section: 'Amounts', label: 'Largest sale a cashier can enter', unit: '$', def: 2000, min: 100, max: 20000, int: false, help: 'Above this the sale is refused at the register.' },
@@ -72,6 +74,8 @@ export const FEATURES = {
   hotFoodOrdering: { label: 'Hot food ordering', help: 'Off: the app shows no hot food and the server takes no orders. Orders already placed carry on.' },
   hotFoodPayWithPoints: { label: 'Pay for hot food with points', help: 'Off: orders are paid at the counter only.' },
   hotFoodCombos: { label: 'Hot food combos', help: 'Off: no combo deals in the app; the combos are kept.' },
+  // 2026-11-10: off until the app that offers pickup times is out (an older app orders for now only, as before)
+  hotFoodOrderAhead: { label: 'Order hot food ahead', help: 'Customers choose a pickup time, like breakfast for tomorrow at 6:30. The store is told at once and again when it is time to start cooking. Off: orders are for now only; orders already placed ahead carry on.', def: false },
   challenges: { label: 'Challenges', help: 'Off: customers do not see challenges and no challenge rewards are paid.' },
   hotFoodNoShowPointsBack: { label: 'Points back for a hot food order not picked up', help: 'An order paid with points that nobody picks up is closed; on: its points go back to the customer; off: the store keeps them (the food was made).' },
   // 2026-10-27: off until the reading has been checked on real invoices and the owner has seen what it costs

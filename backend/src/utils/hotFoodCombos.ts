@@ -55,7 +55,7 @@ export function comboLineName(comboName: string, drink: string | null, itemQuant
 type ComboRow = {
   id: string; name: string; nameEs: string | null; description: string | null; itemQuantity: number; drinks: string[]; price: number; regularPrice: number | null;
   storeIds: string[]; fromTime: string | null; toTime: string | null; days: number[]; isFeatured: boolean; isActive: boolean;
-  catalogItem: { id: string; name: string; imageUrl: string | null; estimatedMinutes: number | null };
+  catalogItem: { id: string; name: string; imageUrl: string | null; estimatedMinutes: number | null; daypartIds: string[] };
 };
 
 /** The combos a customer can order at this store right now: active, the store's item on, the store chosen (or all), within hours.
@@ -65,7 +65,7 @@ export async function combosAt(storeId: string, now: Date = new Date(), withoutD
   const [combos, onHere] = await Promise.all([
     prisma.hotFoodCombo.findMany({
       where: { isActive: true },
-      include: { catalogItem: { select: { id: true, name: true, imageUrl: true, estimatedMinutes: true } } },
+      include: { catalogItem: { select: { id: true, name: true, imageUrl: true, estimatedMinutes: true, daypartIds: true } } },
       orderBy: [{ isFeatured: 'desc' }, { price: 'asc' }],
     }),
     prisma.hotFoodCatalogStore.findMany({ where: { storeId, isAvailable: true }, select: { catalogItemId: true } }),

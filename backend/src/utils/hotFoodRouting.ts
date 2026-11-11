@@ -43,16 +43,17 @@ export async function tellStoreAboutOrder(order: { id: string; storeId: string }
 export async function escalateWaitingHotFoodOrders(now: Date = new Date()): Promise<number> {
   const escalate = rule('hotFoodEscalateMinutes');
   const cutoff = new Date(now.getTime() - escalate * 60_000);
+  // An order placed ahead waits from when it should be started (2026-11-10), not from when it was placed
   const waiting = await prisma.hotFoodOrder.findMany({
-    where: { status: 'PENDING', escalatedAt: null, createdAt: { lt: cutoff } },
-    select: { id: true, storeId: true, orderNumber: true, createdAt: true, store: { select: { name: true } } },
+    where: { status: 'PENDING', escalatedAt: null, OR: [{ startAt: null, createdAt: { lt: cutoff } }, { startAt: { lt: cutoff } }] },
+    select: { id: true, storeId: true, orderNumber: true, createdAt: true, startAt: true, store: { select: { name: true } } },
   });
   let done = 0;
   for (const o of waiting) {
     const claimed = await prisma.hotFoodOrder.updateMany({ where: { id: o.id, status: 'PENDING', escalatedAt: null }, data: { escalatedAt: now } });
     if (claimed.count === 0) continue;   // accepted, cancelled or escalated a moment ago
     done++;
-    const waited = Math.max(escalate, Math.round((now.getTime() - o.createdAt.getTime()) / 60_000));
+    const waited = Math.max(escalate, Math.round((now.getTime() - (o.startAt ?? o.createdAt).getTime()) / 60_000));
     await sendPushToStoreEmployees(o.storeId, `⏰ Order #${o.orderNumber} is waiting`,
       `A customer's hot food order at ${o.store.name} has waited ${waited} minutes. Accept it or decline it.`, 'HOT_FOOD_ORDER', hotFoodOrderUrl(o.id, o.storeId));
     await sendPushToStoreManagers(o.storeId, `⏰ Order #${o.orderNumber} at ${o.store.name} is waiting`,
