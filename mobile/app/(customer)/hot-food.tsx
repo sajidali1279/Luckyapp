@@ -50,6 +50,7 @@ interface MenuItem extends Timed {
   price: number;
   estimatedMinutes?: number;
   imageUrl?: string;
+  isFeatured?: boolean;   // HQ's pick (2026-11-10): in the "Popular" row at the top
 }
 
 interface CartItem extends MenuItem { qty: number; comboId?: string; drink?: string }   // a combo line: its drink too ('' for a deal with no drink)
@@ -804,6 +805,8 @@ export default function CustomerHotFoodScreen() {
     return menuItems.filter((m) => (count.get(m.name) ?? 0) >= 2 && m.servedNow !== false).sort((a, b) => (count.get(b.name) ?? 0) - (count.get(a.name) ?? 0)).slice(0, 4);
   })();
   const pastOrders = orders.filter(o => o.status === 'COMPLETED' || o.status === 'CANCELLED');
+  // "Popular" (2026-11-10): HQ's featured items that can be ordered now, at most 8
+  const popular: MenuItem[] = closed ? [] : menuItems.filter((m) => m.isFeatured && m.servedNow !== false).slice(0, 8);
 
   // Cart helpers
   const cartTotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -1004,6 +1007,23 @@ export default function CustomerHotFoodScreen() {
                         </ScrollView>
                       </View>
                     )}
+                    {!search.trim() && popular.length > 0 && (
+                      <View style={s.usual}>
+                        <Text style={s.usualTitle}>{t('customerHotFood.popular')}</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                          {popular.map((m) => (
+                            <TouchableOpacity key={m.id} style={[s.usualChip, s.popularChip]} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={t('customerHotFood.addToCartA11y', { name: m.name })}
+                              onPress={() => { addToCart(m); Toast.show({ type: 'success', text1: t('customerHotFood.addedFromHome', { name: m.name }) }); }}>
+                              {m.imageUrl ? <Image source={{ uri: sized(m.imageUrl, 120) }} style={s.popularImg} /> : <View style={[s.popularImg, s.popularImgEmpty]}><FlameIcon size={16} color={COLORS.primary} /></View>}
+                              <View style={{ flexShrink: 1 }}>
+                                <Text style={s.usualName} numberOfLines={2}>{m.name}</Text>
+                                <Text style={s.usualPrice}>+ ${m.price.toFixed(2)}</Text>
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
                     {!search.trim() && menuTab && (
                       <MenuTimeTabs menus={menuTimes} hasAllDay={hasAllDay} value={menuTab} onChange={setMenuTab} />
                     )}
@@ -1178,6 +1198,9 @@ const s = StyleSheet.create({
   usualChip: { backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: '#E2E8F0', maxWidth: 190 },
   usualName: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   usualPrice: { fontSize: 12, fontWeight: '700', color: COLORS.primary, marginTop: 2 },
+  popularChip: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 8, maxWidth: 220 },
+  popularImg: { width: 44, height: 44, borderRadius: 10 },
+  popularImgEmpty: { backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center' },
   root: { flex: 1, backgroundColor: COLORS.background },
 
   // Header

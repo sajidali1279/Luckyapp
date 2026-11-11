@@ -737,7 +737,8 @@
     "errTooSoon": "That pickup time is too soon. Choose a later time.",
     "errClosedThen": "Hot food is closed at that time. Choose another time.",
     "errTooFar": "That pickup time is too far ahead.",
-    "errAheadOff": "Ordering ahead is switched off right now."
+    "errAheadOff": "Ordering ahead is switched off right now.",
+    "popular": "Popular"
   },
   "customerLeaderboard": {
     "nameYou": " (You)",

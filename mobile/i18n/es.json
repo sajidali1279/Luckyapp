@@ -737,7 +737,8 @@
     "errTooSoon": "Esa hora de recogida es muy pronto. Elige una hora más tarde.",
     "errClosedThen": "La comida caliente está cerrada a esa hora. Elige otra hora.",
     "errTooFar": "Esa hora de recogida es demasiado adelante.",
-    "errAheadOff": "Pedir por adelantado está apagado ahora."
+    "errAheadOff": "Pedir por adelantado está apagado ahora.",
+    "popular": "Lo más pedido"
   },
   "customerLeaderboard": {
     "pointsValue": "{{points}} pts",
