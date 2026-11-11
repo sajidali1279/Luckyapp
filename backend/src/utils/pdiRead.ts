@@ -61,8 +61,9 @@ const FIELDS = `What to give:
   - per: the unit the quantity counts when the invoice prints one per line (a U/M or unit column: CS, EA, CTN, BX), as printed; "" when not.
   - units: the number of single units, only when the invoice prints it as its own column besides the quantity (for example "Cases 2
     Units 24"); otherwise "".
-  - price: the price of one of what the quantity counts, after any discount (the net price), as printed.
-  - amount: the line's total as printed.
+  - price: the price of one of what the quantity counts, after any discount (the net price), exactly as printed, with every decimal
+    (6.4459 stays 6.4459, never rounded) and a minus sign when one is printed.
+  - amount: the line's total as printed, with a minus sign when one is printed.
   - isReturn: true for a return, credit or pick-up line (its quantity as printed, positive). On a credit memo (the whole invoice is a credit),
     every line is a return.
   - handwritten: anything written by hand on this line (a crossed-out quantity with a new one, "1 short", a changed price), copied as
@@ -71,6 +72,7 @@ const FIELDS = `What to give:
 - groups: one entry per such header, in order, with its printed subtotal (cases, units, amount).
 - summary: the total cases and the total units printed for the whole invoice, if printed.
 - handwritten: anything written by hand on the invoice outside the lines (a changed total, "received short", a signature note), as written; "".
+- Container or crate counts with no price and no total (CONTAINERS: "MILK CASE 0") are not item lines: leave them out.
 - charges: amounts added to the invoice that are not item lines (a deposit, a fuel surcharge, a delivery fee, a tax), each with its name and
   amount as printed. Not a discount already taken off a line's net price.`;
 

@@ -178,21 +178,23 @@ function review(row: Row, conv: Conversion, pdi: PdiCheck | null) {
   const inPdi = conv.lines.map((c) => (pdi && /^\d{11}$/.test(c.line.upc) ? pdi.byCode.get(c.line.upc) ?? pdi.byKey.get(upcKeyOf(c.line.upc)) ?? null : null));
   conv.lines.forEach((c, i) => {
     if (pdi && !c.skipped && /^\d{11}$/.test(c.line.upc) && !inPdi[i]) {
-      c.problems.push({ field: 'upc', message: `PDI has no item with UPC ${c.line.upc} at this store. Check the UPC against the product (a misread digit is the usual reason), or add the item in PDI before importing the file.` });
+      c.problems.push({ field: 'upc', confirm: true, message: `PDI has no item with UPC ${c.line.upc} at this store. Check the UPC against the product (a misread digit is the usual reason), or add the item in PDI before importing the file.` });
     }
   });
   const checked = new Set(row.checked);
   const blocking = new Set(headerProblems(conv.header).map((p) => p.field));
+  // 2026-11-11: only what needs a person's word (confirm) is ticked; a note is shown and never stops the file
   const mark = (key: string, p: Problem, fileable: boolean) => {
-    const canCheck = fileable && !p.blocking;
-    return { ...p, key, canCheck, checked: canCheck && checked.has(key) };
+    const note = !p.blocking && !p.confirm;
+    const canCheck = fileable && !p.blocking && !note;
+    return { ...p, key, note, canCheck, checked: canCheck && checked.has(key) };
   };
   const lines = conv.lines.map((c, i) => {
     const fileable = lineProblems(c.line).length === 0;
-    return { line: c.line, unitsFrom: c.unitsFrom, upcFrom: c.upcFrom ?? null, skipped: !!c.skipped, pdi: inPdi[i], problems: c.problems.map((p) => mark(`${i}|${p.field}|${p.message}`, p, fileable)) };
+    return { line: c.line, unitsFrom: c.unitsFrom, upcFrom: c.upcFrom ?? null, skipped: !!c.skipped, ignored: !!c.ignored, pdi: inPdi[i], problems: c.problems.map((p) => mark(`${i}|${p.field}|${p.message}`, p, fileable)) };
   });
   const problems = conv.problems.map((p) => mark(`-|${p.field}|${p.message}`, p, !blocking.has(p.field) && lines.length > 0));
-  const open = [...problems, ...lines.flatMap((l) => l.problems)].filter((p) => !p.checked).length;
+  const open = [...problems, ...lines.flatMap((l) => l.problems)].filter((p) => !p.checked && !p.note).length;
   return {
     header: conv.header, lines, problems, open, pdiList: pdi ? { items: pdi.items, importedAt: pdi.importedAt } : null,
     canDownload: open === 0 && lines.length > 0 && blocking.size === 0,

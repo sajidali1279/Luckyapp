@@ -19,7 +19,8 @@ import { dollars, STATUS, SELLS_BY, VendorForm, useVendors } from './PdiInvoices
 // remembered for the product; a problem that is right as printed is accepted after a look. The file downloads once nothing is left open.
 // The vendor is read off the invoice (2026-10-28): one seen for the first time is chosen or added here, once.
 
-interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean; blocking?: boolean }
+// note (2026-11-11): shown for information, never a stop; only blocking ones (correct) and confirm ones (tick) hold the file
+interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean; blocking?: boolean; confirm?: boolean; note?: boolean }
 interface FileLine { upc: string; description: string; itemNumber: string | null; priceCents: number; unitsPerCase: number; quantity: number }
 // pdi: the item as the store's PDI list has it (2026-11-06), null when the store has no list or PDI does not have this UPC
 interface ReviewLine { line: FileLine; unitsFrom: string | null; upcFrom?: 'memory' | null; skipped?: boolean; pdi?: { name: string; costCents: number | null; priceCents: number | null } | null; problems: Problem[] }
@@ -75,7 +76,7 @@ export default function PdiInvoice() {
 
   const shown = paper ?? inv?.paper ?? null;
   const review = inv?.review ?? null;
-  const openLines = useMemo(() => (review ? review.lines.map((l, i) => (l.problems.some((p) => !p.checked) ? i : -1)).filter((i) => i >= 0) : []), [review]);
+  const openLines = useMemo(() => (review ? review.lines.map((l, i) => (l.problems.some((p) => !p.checked && !p.note) ? i : -1)).filter((i) => i >= 0) : []), [review]);
   useEffect(() => { if (review && openLines.length === 0) setOnlyOpen(false); }, [review, openLines.length]);
 
   const save = async (body: Parameters<typeof pdiInvoicesApi.update>[1], what: string) => {
@@ -187,7 +188,7 @@ export default function PdiInvoice() {
           {review && toTick.length > 0 && (
             <Button icon={<CheckCircle2 />} onClick={tickAll} disabled={!!paper || !!busy}
               title={paper ? 'Save your corrections first' : 'Every note below that only needs a look'}>
-              {busy === 'all' ? 'Marking...' : `Looked at all ${toTick.length} note${toTick.length === 1 ? '' : 's'}`}
+              {busy === 'all' ? 'Marking...' : `Looked at all ${toTick.length}`}
             </Button>
           )}
           {review && (
@@ -265,7 +266,7 @@ export default function PdiInvoice() {
                 </div>
                 {review.problems.length > 0 && (
                   <ul style={s.problemList}>
-                    {review.problems.map((p) => <ProblemItem key={p.key} p={p} busy={busy === p.key} onAccept={accept} />)}
+                    {[...review.problems].sort((a, b) => Number(!!a.note) - Number(!!b.note)).map((p) => <ProblemItem key={p.key} p={p} busy={busy === p.key} onAccept={accept} />)}
                   </ul>
                 )}
               </Card>
@@ -314,8 +315,8 @@ export default function PdiInvoice() {
                         <tr><td colSpan={cols} style={s.allClear}><CheckCircle2 size={16} /> Nothing left to look at. Untick the box above to see every line.</td></tr>
                       )}
                       {rows.map(({ l, p, i }) => {
-                        const open = l.problems.some((x) => !x.checked);
-                        const bad = (f: string) => l.problems.some((x) => x.field === f && !x.checked);
+                        const open = l.problems.some((x) => !x.checked && !x.note);
+                        const bad = (f: string) => l.problems.some((x) => x.field === f && !x.checked && !x.note);
                         const cell = (f: string) => ({ ...s.input, ...(bad(f) ? s.inputBad : {}) });
                         const stuck = l.problems.filter((x) => x.blocking);   // what must be corrected (a note on such a line cannot be ticked either)
                         return (
@@ -561,9 +562,9 @@ function VendorBar({ inv, hq, onChanged }: { inv: Invoice; hq: boolean; onChange
 
 function ProblemItem({ p, busy, onAccept, hint }: { p: Problem; busy: boolean; onAccept: (p: Problem, on: boolean) => void; hint?: string }) {
   return (
-    <li style={{ ...s.problem, ...(p.checked ? s.problemDone : {}) }}>
+    <li style={{ ...s.problem, ...(p.checked || p.note ? s.problemDone : {}) }}>
       <span style={{ flex: '1 1 260px', minWidth: 0 }}>{p.message}</span>
-      {hint ? <span style={s.mustFix}>{hint}</span> : p.canCheck ? (
+      {hint ? <span style={s.mustFix}>{hint}</span> : p.note ? <span style={s.noteTag}>Note</span> : p.canCheck ? (
         <label style={s.acceptLabel}><input type="checkbox" checked={p.checked} disabled={busy} onChange={(e) => onAccept(p, e.target.checked)} /> Looked at: it is right</label>
       ) : <span style={s.mustFix}>Correct this to continue</span>}
     </li>
@@ -614,6 +615,7 @@ const s: Record<string, React.CSSProperties> = {
   problem: { display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '4px 12px', fontSize: FONT.small, color: C.warning, lineHeight: 1.35 },
   problemDone: { color: TEXT_MUTED, textDecoration: 'line-through' },
   acceptLabel: { display: 'flex', alignItems: 'center', gap: 6, fontSize: FONT.caption, color: C.text2, fontWeight: 600, cursor: 'pointer', textDecoration: 'none' },
+  noteTag: { fontSize: FONT.caption, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.4, whiteSpace: 'nowrap' },
   mustFix: { fontSize: FONT.caption, color: C.danger, fontWeight: 600 },
   usage: { fontSize: FONT.caption, color: TEXT_MUTED, marginTop: 10 },
   bigPhotoBox: { maxHeight: '70vh', overflow: 'auto', borderRadius: RADIUS.md, border: `1px solid ${C.border}` },

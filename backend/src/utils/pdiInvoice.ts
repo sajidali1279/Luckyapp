@@ -38,8 +38,10 @@ export interface PdiLine {
 
 export type ProblemField =
   'supplier' | 'invoice' | 'date' | 'total' | 'lines' | 'group' | 'upc' | 'description' | 'item' | 'price' | 'units' | 'quantity' | 'amount' | 'handwriting';
-/** Something a person should look at, and which part of the line or invoice it is about. Blocking: it must be corrected, not accepted. */
-export interface Problem { field: ProblemField; message: string; blocking?: boolean }
+/** Something a person should look at, and which part of the line or invoice it is about. Blocking: it must be corrected, not accepted.
+ *  Confirm: it needs a person's tick before the file is made (2026-11-11: the total does not add up, handwriting, a strange date, an item PDI
+ *  does not have). Anything else is a note: shown, never a stop (the owner: "I can't keep having that many confirmation issues"). */
+export interface Problem { field: ProblemField; message: string; blocking?: boolean; confirm?: boolean }
 
 /** A value that cannot go in the file as it is. The message says which and why, in words for the review screen. */
 export class PdiFileError extends Error {}
@@ -256,7 +258,18 @@ export interface PaperLine {
 export type UnitsFrom = 'each' | 'paper' | 'learned' | 'confirmed' | 'cost' | 'guess' | 'unknown';
 // upcFrom 'memory': the paper printed no UPC and the vendor's item code was matched to the UPC used on an earlier file (2026-11-03)
 // skipped: a line a person left out of the file; it has nothing to look at and the file goes without it
-export interface ConvertedLine { line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null; upcFrom?: 'memory'; skipped?: true }
+export interface ConvertedLine {
+  line: PdiLine; problems: Problem[]; unitsFrom: UnitsFrom | null; upcFrom?: 'memory'; skipped?: true;
+  amountCents?: number | null;   // the line's printed total, signed (a return below zero), to check the invoice total by (2026-11-11)
+  partCent?: true;               // its price was printed with part of a cent and the file has it rounded
+  ignored?: true;                // not a delivery: a count line with nothing on it (Hiland's milk crates, "0"), left out without a word
+}
+
+/** A line that is not a delivery (2026-11-11, Hiland Dairy prints its milk crates under CONTAINERS with a 0): no quantity, price or total. */
+export function isEmptyCountLine(p: PaperLine): boolean {
+  const zero = (v: unknown) => v === null || v === undefined || (typeof v === 'string' && /^[\s$0.,-]*$/.test(v)) || v === 0;
+  return zero(p.quantity) && zero(p.price) && zero(p.amount);
+}
 
 /** Cents from money as printed: "1.9500" -> 195, "$1,234.5" -> 123450, ".85" -> 85, "$ 1.95" -> 195; "(1.95)", "$(1.95)", "- 1.95",
  *  "1.95-" and "1.95 CR" -> -195. Null when it is not money as printed, or has part of a cent (none seen on these invoices). */
@@ -287,6 +300,18 @@ export function printedCents(v: string | number | null | undefined): number | nu
 /** True for money printed with part of a cent ("1.1875"): read, but the file holds whole cents. */
 const partCent = (v: unknown) => typeof v === 'string' && /\.\d{2}\d*[1-9]/.test(v) && printedCents(v.replace(/(\.\d{2})\d+/, '$1')) !== null;
 
+/** Money with part of a cent (Hiland Dairy prices "6.4459"), in hundredths of a cent, signed; null when it is not such money. */
+function partCentValue(v: unknown): number | null {
+  if (!partCent(v)) return null;
+  const s = String(v).trim();
+  const m = /(\d+)\.(\d+)/.exec(s);
+  if (!m) return null;
+  const whole = printedCents(s.replace(/(\.\d{2})\d+/, '$1'));
+  if (whole === null) return null;
+  const frac = Number((m[2].slice(2) + '00').slice(0, 2));   // the two digits after the cents: 6.4459 -> 59
+  return whole * 100 + (whole < 0 ? -frac : frac);
+}
+
 const SEPARATORS = /[\s.\p{Pd}]/gu;   // spaces, dots and dashes between the digits of a printed number
 const SEPARATOR = /[\s.\p{Pd}]/u;
 
@@ -302,6 +327,8 @@ export function upcEtoA(numberSystem: string, six: string): string {
 }
 
 const TEN_DIGITS = 'has 10 digits';
+const NO_CHECK_DIGIT = 'has no check digit';
+const isElevenNote = (p: Problem) => p.field === 'upc' && !p.blocking && p.message.includes(NO_CHECK_DIGIT);
 const isTenDigitNote = (p: Problem) => p.field === 'upc' && !p.blocking && p.message.includes(`${TEN_DIGITS} (no 0 in front`);
 
 export function fileUpc(printed: string | null | undefined, manufacturer?: string | number | null): { upc: string | null; problems: Problem[] } {
@@ -331,7 +358,7 @@ export function fileUpc(printed: string | null | undefined, manufacturer?: strin
   }
   if (d.length === 11) {
     const shifted = gs1CheckDigit('0' + d.slice(0, 10)) === Number(d[10]) ? ' It may also be a whole UPC missing its first 0.' : '';
-    return no(`The UPC ${printed} has no check digit (it was cut off or unreadable), so a misread digit cannot be caught: compare it with the paper.${shifted}`, d);
+    return no(`The UPC ${printed} ${NO_CHECK_DIGIT} (it was cut off or unreadable), so a misread digit cannot be caught: compare it with the paper.${shifted}`, d);
   }
   // a vendor that prints the manufacturer and item numbers only (Blue Bell: 71899 03735), without the 0 in front or the check digit:
   // the file's 11 digits are a 0 and those 10, the same way a Frito-Lay code is completed
@@ -507,12 +534,17 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   }
   problems.push(...u.problems);
   const description = typeof p.description === 'string' ? p.description : '';
-  const price = printedCents(p.price);
-  if (price === null) {
-    say('price', partCent(p.price) ? `The price ${p.price} has part of a cent, which the file cannot hold: type it in whole cents.`
-      : `The price "${p.price ?? ''}" could not be read: type it in.`, true);
-  } else if (price < 0) say('price', 'The price is below zero: mark a return as a return and keep the printed price.', true);
-  const qty = typeof p.quantity === 'number' && Number.isSafeInteger(p.quantity) && p.quantity > 0 ? p.quantity : null;
+  // A price with part of a cent (Hiland Dairy 6.4459) is rounded to whole cents for the file (2026-11-11; it stopped every line before).
+  // A minus sign on the price, the total or the quantity is a return (Hiland prints -6.3643, -12.73, -2): the file takes the price as a
+  // plain price and the quantity below zero, with no question (it stopped every return line before).
+  const fine = partCentValue(p.price);
+  const signedPrice = printedCents(p.price) ?? (fine !== null ? Math.round(fine / 100) : null);
+  const signedAmount = printedCents(p.amount);
+  const rawQty = typeof p.quantity === 'number' && Number.isSafeInteger(p.quantity) && p.quantity !== 0 ? p.quantity : null;
+  const isReturn = !!p.isReturn || (signedPrice !== null && signedPrice < 0) || (signedAmount !== null && signedAmount < 0) || (rawQty !== null && rawQty < 0);
+  const price = signedPrice === null ? null : Math.abs(signedPrice);
+  if (price === null) say('price', `The price "${p.price ?? ''}" could not be read: type it in.`, true);
+  const qty = rawQty === null ? null : Math.abs(rawQty);
   if (qty === null) say('quantity', `The quantity "${p.quantity ?? ''}" should be a whole number above 0.`, true);
 
   // the vendor's item number, in the file's 6 places. PDI does not need it (Deep Water left it blank for PepsiCo), so one that is not
@@ -564,23 +596,29 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
     }
   }
 
-  const amount = printedCents(p.amount);
+  const amount = signedAmount === null ? null : Math.abs(signedAmount);
   if (amount === null) say('amount', `The line total "${p.amount ?? ''}" could not be read, so the line cannot be checked: compare it with the paper.`);
-  else if (amount < 0 && !p.isReturn) say('amount', 'The line total is below zero: is this a return?');
-  else if (price !== null && price >= 0 && qty !== null && Math.abs(amount) !== price * qty) {
-    say('amount', `${qty} at ${money(price)} is ${money(price * qty)}, but the line says ${String(p.amount).trim()}.`);
+  else if (price !== null && qty !== null) {
+    // with part of a cent, the exact printed price times the quantity, to the cent
+    const exact = fine !== null ? Math.round((Math.abs(fine) * qty) / 100) : price * qty;
+    if (Math.abs(amount - exact) > (fine !== null ? 1 : 0)) {
+      say('amount', `${qty} at ${fine !== null ? String(p.price).trim().replace('-', '') : money(price)} is ${money(exact)}, but the line says ${String(p.amount).trim().replace('-', '')}.`);
+    }
   }
   // A driver's handwriting (a crossed-out quantity, "1 short") is what was really delivered, but the reader copies only the print: a
   // person looks and corrects the cells (2026-11-03; a short delivery otherwise passed every check with the printed numbers)
   const hand = typeof p.handwritten === 'string' ? p.handwritten.trim() : '';
   if (hand) say('handwriting', `Handwriting on this line: "${hand.slice(0, 120)}". The file uses the values in the cells: if it changes the quantity or price, correct them.`);
   const line: PdiLine = {
-    upc: u.upc ?? '', description, itemNumber: item, priceCents: price !== null && price >= 0 ? price : 0, unitsPerCase: units,
-    quantity: qty === null ? 0 : p.isReturn ? -qty : qty,
+    upc: u.upc ?? '', description, itemNumber: item, priceCents: price ?? 0, unitsPerCase: units,
+    quantity: qty === null ? 0 : isReturn ? -qty : qty,
   };
   // what the file itself would refuse, where it is not already said
   for (const lp of lineProblems(line)) if (!problems.some((x) => x.field === lp.field)) problems.push(lp);
-  return { line, problems, unitsFrom, ...(memoryUpc ? { upcFrom: 'memory' as const } : {}) };
+  // handwriting may change what was delivered: a person ticks it
+  for (const x of problems) if (x.field === 'handwriting') x.confirm = true;
+  return { line, problems, unitsFrom, ...(memoryUpc ? { upcFrom: 'memory' as const } : {}),
+    amountCents: amount === null ? null : isReturn ? -amount : amount, ...(fine !== null ? { partCent: true as const } : {}) };
 }
 
 /** What the paper prints besides its lines, to check them against: subtotals per package group (in order), the whole invoice's counts, and
@@ -603,10 +641,13 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   const rules = vendor ?? UNKNOWN_VENDOR;
   const lines: ConvertedLine[] = paper.lines.map((p) => {
     const c = convertPaperLine(rules, p, ctx);
+    if (isEmptyCountLine(p)) return { ...c, problems: [], skipped: true as const, ignored: true as const };
     return p.skip ? { ...c, problems: [], skipped: true } : c;
   });
   const problems: Problem[] = [];
   const say = (field: ProblemField, message: string, blocking = false) => problems.push({ field, message, ...(blocking ? { blocking } : {}) });
+  /** One that needs a person's tick (the few that matter, 2026-11-11) */
+  const sayConfirm = (field: ProblemField, message: string) => problems.push({ field, message, confirm: true });
   if (!vendor) say('supplier', 'Which vendor is this invoice from? Choose it, or add it as a new vendor.', true);
   else if (!vendor.code) say('supplier', `Set ${vendor.name}'s code in PDI to make the file.`, true);
   const printedNumber = typeof paper.invoiceNumber === 'string' ? paper.invoiceNumber.trim() : '';
@@ -634,12 +675,12 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   };
   for (const hp of headerProblems(header)) if (!problems.some((x) => x.field === hp.field)) problems.push(hp);
   if (ctx.today && !problems.some((x) => x.field === 'date') && (header.date > addStoreDays(ctx.today, 7) || header.date < addStoreDays(ctx.today, -400))) {
-    say('date', `The invoice date ${header.date} is far from today: is the date read right?`);
+    sayConfirm('date', `The invoice date ${header.date} is far from today: is the date read right?`);
   }
-  if (!lines.length) say('lines', 'No item lines were found.', true);
+  if (!lines.length || lines.every((c) => c.ignored)) say('lines', 'No item lines were found.', true);
   else if (lines.every((c) => c.skipped)) say('lines', 'Every line is left out of the file: put at least one back.', true);
   // lines left out (a product with no UPC to be had, 2026-11-03): the file keeps the printed total, as it does when charges are printed
-  const left = lines.filter((c) => c.skipped);
+  const left = lines.filter((c) => c.skipped && !c.ignored);
   if (left.length && left.length < lines.length) {
     say('lines', `${count(left.length, 'line is', 'lines are')} left out of the file (${money(linesTotalCents(left.map((c) => c.line)))}): add ${left.length === 1 ? 'it' : 'them'} in PDI by hand. The file keeps the invoice total.`);
   }
@@ -649,10 +690,18 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
     for (const c of tens) c.problems = c.problems.filter((x) => !isTenDigitNote(x));
     say('upc', `${tens.length} UPCs are printed as 10 digits (the maker's number and the product's, with no 0 in front and no check digit), so the file puts a 0 in front of each. Compare one or two with the paper.`);
   }
+  // UPCs printed as their 11 digits without the check digit (Hiland Dairy prints them all so): one note, not one on every line (2026-11-11)
+  const elevens = lines.filter((c) => c.problems.some(isElevenNote));
+  if (elevens.length > 1) {
+    for (const c of elevens) c.problems = c.problems.filter((x) => !isElevenNote(x));
+    say('upc', `${elevens.length} UPCs are printed as 11 digits, without the check digit. The file uses them as printed, so compare one or two with the paper.`);
+  }
+  const rounded = lines.filter((c) => c.partCent && !c.skipped).length;
+  if (rounded) say('price', `${count(rounded, 'price is', 'prices are')} printed with part of a cent (like 6.4459): the file has ${rounded === 1 ? 'it' : 'them'} to the nearest cent.`);
   const handNote = typeof paper.handwritten === 'string' ? paper.handwritten.trim() : '';
-  if (handNote) say('handwriting', `Handwriting on the invoice: "${handNote.slice(0, 160)}". If it changes the total or what was delivered, correct the invoice to match.`);
+  if (handNote) sayConfirm('handwriting', `Handwriting on the invoice: "${handNote.slice(0, 160)}". If it changes the total or what was delivered, correct the invoice to match.`);
   const fileLines = lines.map((c) => c.line);
-  const unreadable = fileLines.filter((l) => l.quantity === 0 || l.unitsPerCase === 0).length;
+  const unreadable = lines.filter((c) => !c.ignored && (c.line.quantity === 0 || c.line.unitsPerCase === 0)).length;
   const unknownUnits = lines.filter((c) => c.unitsFrom === 'unknown' && !c.skipped).length;
   if (unknownUnits) {
     say('units', `Units per case is not known yet for ${count(unknownUnits, 'line', 'lines')}, so the file says 1 for ${unknownUnits === 1 ? 'it' : 'them'}. Type the real number on a line if PDI should have it: it is remembered for the next invoice.`);
@@ -671,11 +720,17 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   if (totalCents !== null && sum === totalCents && chargeCents) {
     say('total', `The lines alone come to the total, yet charges were read besides them (${chargeList}): is a charge read that is not on the invoice, or is it inside a line?`);
   }
-  if (totalCents !== null && sum !== totalCents) {
-    if (chargeCents && sum + chargeCents === totalCents) {
+  // the lines' printed totals, when every line has one (prices with part of a cent make the file's sum a few cents off the paper's)
+  const counted = lines.filter((c) => !c.ignored);
+  const printedSum = counted.every((c) => typeof c.amountCents === 'number') ? counted.reduce((n, c) => n + (c.amountCents as number), 0) : null;
+  const adds = (n: number | null) => n !== null && (n === totalCents || (chargeCents !== 0 && n + chargeCents === totalCents));
+  if (totalCents !== null && sum !== totalCents && !(left.length === 0 && printedSum === totalCents)) {
+    if (chargeCents && (sum + chargeCents === totalCents || (left.length === 0 && printedSum !== null && printedSum + chargeCents === totalCents))) {
       say('total', `The total includes charges besides the lines (${chargeList}). The file carries the lines and the printed total: check how PDI should get these charges.`);
+    } else if (left.length && adds(printedSum)) {
+      // the lines left out are what is missing: already said above
     } else {
-      say('total', `The lines come to ${money(sum)}${chargeCents ? ` (and the charges ${money(chargeCents)})` : ''}, but the invoice total is ${money(totalCents)}.`);
+      sayConfirm('total', `The lines come to ${money(printedSum ?? sum)}${chargeCents ? ` (and the charges ${money(chargeCents)})` : ''}, but the invoice total is ${money(totalCents)}.`);
     }
   }
 
@@ -685,6 +740,7 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   if (paper.groups?.length) {
     const runs: { name: string | null; start: number; end: number }[] = [];
     paper.lines.forEach((p, i) => {
+      if (lines[i]?.ignored) return;   // a crate count line is no line to check
       const name = typeof p.group === 'string' && p.group.trim() ? p.group.trim() : null;
       const last = runs[runs.length - 1];
       if (last && last.name === name) last.end = i + 1; else runs.push({ name, start: i, end: i + 1 });
@@ -704,11 +760,13 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
       const run = fileLines.slice(runs[k].start, runs[k].end);
       const cases = run.reduce((n, l) => n + l.quantity, 0);
       const units = run.reduce((n, l) => n + l.quantity * l.unitsPerCase, 0);
-      const cents = linesTotalCents(run);
+      const printedRun = lines.slice(runs[k].start, runs[k].end);
+      const cents = printedRun.every((c) => typeof c.amountCents === 'number') ? printedRun.reduce((n, c) => n + (c.amountCents as number), 0) : linesTotalCents(run);
       const amount = g.amount === undefined ? null : printedCents(g.amount);
       if (g.amount !== undefined && amount === null) say('group', `${g.name}: the subtotal "${g.amount}" could not be read.`);
       const off: string[] = [];
-      if (g.cases !== undefined && cases !== g.cases) off.push(`${count(cases, 'case', 'cases')} where the subtotal says ${g.cases}`);
+      // a Cases column printed as 0 on every line (Hiland Dairy counts single items in Units): nothing to check it against
+      if (g.cases !== undefined && g.cases !== 0 && cases !== g.cases) off.push(`${count(cases, 'case', 'cases')} where the subtotal says ${g.cases}`);
       if (unitsKnown && g.units !== undefined && units !== g.units) off.push(`${count(units, 'unit', 'units')} where it says ${g.units}`);
       if (amount !== null && cents !== amount) off.push(`${money(cents)} where it says ${money(amount)}`);
       if (off.length) say('group', `${g.name}: the lines come to ${off.join(', and ')}.`);
@@ -721,8 +779,8 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
   const salesCases = sales.reduce((n, l) => n + l.quantity, 0);
   const salesUnits = sales.reduce((n, l) => n + l.quantity * l.unitsPerCase, 0);
   const why = unreadable ? `: ${count(unreadable, 'line', 'lines')} could not be read in full` : ': is a line missing or read twice?';
-  if (paper.summary?.cases !== undefined && salesCases !== paper.summary.cases) say('lines', `The lines hold ${count(salesCases, 'case', 'cases')}, but the invoice says ${paper.summary.cases}${why}`);
-  if (unitsKnown && paper.summary?.units !== undefined && salesUnits !== paper.summary.units) say('lines', `The lines hold ${count(salesUnits, 'unit', 'units')}, but the invoice says ${paper.summary.units}${why}`);
+  if (paper.summary?.cases !== undefined && paper.summary.cases !== 0 && salesCases !== paper.summary.cases) sayConfirm('lines', `The lines hold ${count(salesCases, 'case', 'cases')}, but the invoice says ${paper.summary.cases}${why}`);
+  if (unitsKnown && paper.summary?.units !== undefined && salesUnits !== paper.summary.units) sayConfirm('lines', `The lines hold ${count(salesUnits, 'unit', 'units')}, but the invoice says ${paper.summary.units}${why}`);
   if (unitsKnown && lines.some((c) => c.unitsFrom === 'paper') && !paper.groups?.length && paper.summary?.units === undefined) {
     say('lines', 'The units per case could not be checked: no subtotals or total units were read. Compare a few lines with the paper.');
   }
