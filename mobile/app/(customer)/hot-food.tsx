@@ -38,10 +38,11 @@ import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../compon
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import OrderSteps from '../../components/OrderSteps';
 import { usePoll } from '../../hooks/usePoll';
+import { MenuTimeTabs, LastCallStrip, PickupChooser, PickupLine, slotsForCart, storeDay, useTimeWords, ALL_DAY, type MenuTime, type OrderAhead, type Timed } from '../../components/HotFoodTimes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface MenuItem {
+interface MenuItem extends Timed {
   id: string;
   name: string;
   category?: string | null;   // the menu's section (HQ sets it in admin Hot Food > Catalog)
@@ -73,6 +74,9 @@ interface FoodOrder {
   paidWithPoints?: boolean;
   pointsAmount?: number | null;
   pointsReturnedAt?: string | null;
+  /** Ordered ahead (2026-11-10): the pickup time chosen, and when the kitchen starts it (it can be cancelled until then) */
+  pickupAt?: string | null;
+  startAt?: string | null;
 }
 
 const toPts = (dollars: number) => Math.round(dollars * 100);
@@ -120,8 +124,9 @@ function hoursLine(t: (k: string, o?: any) => string, h: HotFoodHours): string {
 
 // ─── Menu Item Card ───────────────────────────────────────────────────────────
 
-function MenuCard({ item, qty, onAdd, onRemove, closed = false }: {
+function MenuCard({ item, qty, onAdd, onRemove, closed = false, laterOnly = false, note = null, closedLabel }: {
   item: MenuItem; qty: number; onAdd: () => void; onRemove: () => void; closed?: boolean;
+  /** not served now, but it can be ordered for later (2026-11-10) */ laterOnly?: boolean; note?: string | null; closedLabel?: string;
 }) {
   const { t } = useTranslation();
   const [imgErr, setImgErr] = useState(false);
@@ -155,6 +160,7 @@ function MenuCard({ item, qty, onAdd, onRemove, closed = false }: {
             </View>
           ) : null}
         </View>
+        {note ? <Text style={[mc.note, item.soldOut && { color: '#B91C1C' }]}>{note}</Text> : null}
       </View>
       <View style={mc.controls}>
         {qty > 0 ? (
@@ -190,10 +196,10 @@ function MenuCard({ item, qty, onAdd, onRemove, closed = false }: {
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityState={{ disabled: closed }}
-            accessibilityLabel={closed ? t('customerHotFood.closedAddA11y', { name: item.name }) : t('customerHotFood.addToCartA11y', { name: item.name })}
+            accessibilityLabel={closed ? t('customerHotFood.closedAddA11y', { name: item.name }) : laterOnly ? t('customerHotFood.laterAddA11y', { name: item.name }) : t('customerHotFood.addToCartA11y', { name: item.name })}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={[mc.addBtnText, closed && mc.btnClosedText]}>{closed ? t('customerHotFood.closedBtn') : t('customerHotFood.addBtn')}</Text>
+            <Text style={[mc.addBtnText, closed && mc.btnClosedText]}>{closed ? closedLabel ?? t('customerHotFood.closedBtn') : laterOnly ? t('customerHotFood.laterBtn') : t('customerHotFood.addBtn')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -268,6 +274,7 @@ function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrde
       </View>
 
       {order.status !== 'CANCELLED' && order.status !== 'COMPLETED' && <OrderSteps status={order.status} />}
+      {order.pickupAt && (order.status === 'PENDING' || order.status === 'ACCEPTED' || order.status === 'READY') ? <PickupLine at={order.pickupAt} /> : null}
       <Text style={oc.detail}>{t(cfg.detailKey)}</Text>
       {order.paidWithPoints && order.pointsAmount ? (
         <Text style={oc.points}>
@@ -284,7 +291,7 @@ function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrde
             : order.cancelReason ? t('customerHotFood.declinedReason', { reason: order.cancelReason }) : t('customerHotFood.declinedNoReason')}
         </Text>
       )}
-      {order.status === 'PENDING' && onCancel && (
+      {(order.status === 'PENDING' || (order.status === 'ACCEPTED' && !!order.startAt && new Date(order.startAt).getTime() > Date.now())) && onCancel && (
         <TouchableOpacity
           style={[oc.cancelBtn, cancelling && { opacity: 0.5 }]}
           onPress={() => onCancel(order)}
@@ -359,15 +366,31 @@ function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrde
 
 // ─── Cart Sheet ───────────────────────────────────────────────────────────────
 
-function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllowed = true }: {
+function CartSheet({ cart, store, closedText: closedNow, onClose, onOrderPlaced, pointsAllowed = true, orderAhead, asapAllowed = true }: {
   cart: CartItem[];
   store: PickupStore;
   closedText: string | null;
   pointsAllowed?: boolean;
   onClose: () => void;
   onOrderPlaced: () => void;
+  /** Ordering ahead (2026-11-10): the pickup times; asapAllowed false when the store is closed or an item is not served now */
+  orderAhead?: OrderAhead;
+  asapAllowed?: boolean;
 }) {
   const { t } = useTranslation();
+  const timeWords = useTimeWords();
+  const ahead = !!orderAhead?.on;
+  const today = orderAhead?.today ?? storeDay(new Date());
+  const [later, setLater] = useState(ahead && !asapAllowed);
+  const [pickupAt, setPickupAt] = useState<string | null>(null);
+  const slots = ahead ? slotsForCart(orderAhead?.slots ?? [], cart, today) : [];
+  // Later: the first time that suits the cart, and again when the chosen one stops suiting it (the menu was read again)
+  useEffect(() => {
+    if (later && slots.length && (!pickupAt || !slots.some((x) => x.at === pickupAt))) setPickupAt(slots[0].at);
+  }, [later, pickupAt, slots.map((x) => x.at).join()]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // Closed now (or an item not served now): ordering for later is the way, when it is on
+  const closedText = later ? null : closedNow ?? (!asapAllowed ? t(ahead ? 'customerHotFood.pickupAsapOff' : 'customerHotFood.notServedNowCart') : null);
+  const needTime = later && !pickupAt;
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const qc = useQueryClient();
   const [note, setNote] = useState('');
@@ -394,6 +417,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(payWithPoints ? { payWithPoints: true } : {}),
       expectedTotal: Math.round(total * 100) / 100,
+      ...(later && pickupAt ? { pickupAt } : {}),
     }),
     onSuccess: (res: any) => {
       if (typeof res?.data?.pointsBalance === 'number') updateBalance(res.data.pointsBalance);
@@ -416,6 +440,13 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
       }
       if (d?.code === 'TOO_MANY_OPEN_ORDERS') {
         Toast.show({ type: 'error', text1: t('customerHotFood.tooManyOpenTitle'), text2: t('customerHotFood.tooManyOpenSub') });
+        return;
+      }
+      // Menus by time and ordering ahead (2026-11-10): said in the app's language; the menu is read again
+      const timeCodes: Record<string, string> = { SOLD_OUT: 'errSoldOut', NOT_SERVED_THEN: 'errNotServed', PICKUP_TOO_SOON: 'errTooSoon', PICKUP_CLOSED: 'errClosedThen', PICKUP_TOO_FAR: 'errTooFar', ORDER_AHEAD_OFF: 'errAheadOff', PICKUP_TIME: 'errTooSoon' };
+      if (d?.code && timeCodes[d.code]) {
+        qc.invalidateQueries({ queryKey: ['customer-hot-food-menu'] });
+        Toast.show({ type: 'error', text1: t(`customerHotFood.${timeCodes[d.code]}`), text2: d.error });
         return;
       }
       if (d?.code === 'HOT_FOOD_CLOSED') {
@@ -499,6 +530,10 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
               />
             </View>
 
+            {ahead && (
+              <PickupChooser later={later} setLater={setLater} asapAllowed={asapAllowed} slots={slots} today={today} value={pickupAt} onChange={setPickupAt} />
+            )}
+
             <View style={cs.infoBox}>
               <Text style={cs.infoText}>
                 {payWithPoints ? t('customerHotFood.paidWithPointsInfo') : t('customerHotFood.payAtCounterInfo')}
@@ -509,7 +544,7 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
           <View style={cs.footer}>
             {closedText ? <Text style={cs.closedNote} accessibilityRole="alert">{closedText}</Text> : null}
             <TouchableOpacity
-              style={[cs.placeBtn, (placeMutation.isPending || !!closedText) && { opacity: 0.5 }]}
+              style={[cs.placeBtn, (placeMutation.isPending || !!closedText || needTime) && { opacity: 0.5 }]}
               onPress={() => {
                 if (store.distance != null && store.distance > FAR_MILES) {
                   Alert.alert(t('customerHotFood.farTitle'), t('customerHotFood.farBody', { store: store.name, distance: milesText(store.distance) }), [
@@ -520,15 +555,15 @@ function CartSheet({ cart, store, closedText, onClose, onOrderPlaced, pointsAllo
                 }
                 placeOnce();
               }}
-              disabled={placeMutation.isPending || !!closedText}
+              disabled={placeMutation.isPending || !!closedText || needTime}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityState={{ disabled: placeMutation.isPending || !!closedText }}
+              accessibilityState={{ disabled: placeMutation.isPending || !!closedText || needTime }}
               accessibilityLabel={closedText ? t('customerHotFood.orderingClosedBtn') : placeMutation.isPending ? t('customerHotFood.placingOrderA11y') : t('customerHotFood.placeOrderAtA11y', { total: fmtPrice(total), store: store.name, address: addressLine(store) })}
             >
               {placeMutation.isPending
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={cs.placeBtnText} numberOfLines={2}>{closedText ? t('customerHotFood.orderingClosedBtn') : payWithPoints ? t('customerHotFood.placeOrderPointsBtn', { points: needPts, store: store.name }) : t('customerHotFood.placeOrderAtBtn', { total: fmtPrice(total), store: store.name })}</Text>}
+                : <Text style={cs.placeBtnText} numberOfLines={2}>{closedText ? t('customerHotFood.orderingClosedBtn') : later && pickupAt ? t('customerHotFood.placeOrderForBtn', { when: timeWords.when(pickupAt, today), total: payWithPoints ? `${needPts} pts` : fmtPrice(total) }) : payWithPoints ? t('customerHotFood.placeOrderPointsBtn', { points: needPts, store: store.name }) : t('customerHotFood.placeOrderAtBtn', { total: fmtPrice(total), store: store.name })}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -668,17 +703,27 @@ export default function CustomerHotFoodScreen() {
   const pointsAllowed = menuData?.data?.payWithPoints !== false;   // HQ can switch paying with points off
   const combos: Combo[] = Array.isArray(menuData?.data?.combos) ? menuData.data.combos : [];
   const comboWords = useComboWords();
+  // Menus by time (2026-11-10): Breakfast, All day... the tab serving now first; none set up = the whole menu as before
+  const menuTimes: MenuTime[] = Array.isArray(menuData?.data?.menus) ? menuData.data.menus : [];
+  const orderAhead: OrderAhead = menuData?.data?.orderAhead ?? { on: false };
+  const timeWords = useTimeWords();
+  const hasAllDay = menuTimes.length > 0 && menuItems.some((m) => !m.daypartIds?.length);
+  const [menuTabPicked, setMenuTab] = useState<string | null>(null);
+  const tabIds = [...menuTimes.map((m) => m.id), ...(hasAllDay ? [ALL_DAY] : [])];
+  const menuTab = menuTabPicked && tabIds.includes(menuTabPicked) ? menuTabPicked
+    : menuTimes.find((m) => m.takingOrders)?.id ?? menuTimes.find((m) => m.open)?.id ?? (hasAllDay ? ALL_DAY : menuTimes[0]?.id ?? null);
+  const tabItems = !menuTab ? menuItems : menuItems.filter((m) => (menuTab === ALL_DAY ? !m.daypartIds?.length : !!m.daypartIds?.includes(menuTab)));
   const [search, setSearch] = useState('');
   // The menu in sections (2026-10-13): the server's category order, then "More" for items with none; while searching, a plain list
   const categoryOrder: string[] = Array.isArray(menuData?.data?.categories) ? menuData.data.categories : [];
   const listRef = useRef<FlatList<any>>(null);
   const shownItems = search.trim()
     ? menuItems.filter((m) => `${m.name} ${m.description ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()))
-    : menuItems;
+    : tabItems;
   const sectionsShown: string[] = (() => {
-    const has = new Set(menuItems.map((m) => m.category).filter(Boolean) as string[]);
+    const has = new Set(tabItems.map((m) => m.category).filter(Boolean) as string[]);
     const ordered = [...categoryOrder.filter((c) => has.has(c)), ...[...has].filter((c) => !categoryOrder.includes(c))];
-    return menuItems.some((m) => !m.category) && ordered.length > 0 ? [...ordered, ''] : ordered;   // '' is "More", the items with none
+    return tabItems.some((m) => !m.category) && ordered.length > 0 ? [...ordered, ''] : ordered;   // '' is "More", the items with none
   })();
   const menuRows: any[] = search.trim() || sectionsShown.length === 0
     ? shownItems.map((item) => ({ kind: 'item', item }))
@@ -707,6 +752,14 @@ export default function CustomerHotFoodScreen() {
   }, [menuData]);
   const hours: HotFoodHours | undefined = menuData?.data?.hours;
   const closed = !!hours && !hours.open;
+  /** What one item's card can do now: add, add for later (ordering ahead), or nothing; and the line about when it is served */
+  const itemState = (m: MenuItem) => {
+    const now = !closed && m.servedNow !== false;
+    const note = m.soldOut ? t('customerHotFood.soldOutToday')
+      : m.servedNow === false ? (m.nextServedAt ? t('customerHotFood.servedFrom', { when: timeWords.when(m.nextServedAt, orderAhead.today) }) : t('customerHotFood.notServedNow'))
+      : null;
+    return { now, later: !now && orderAhead.on, note, closedLabel: closed ? undefined : t('customerHotFood.notNowBtn') };
+  };
 
   // My orders (every 15 seconds while that tab is open and this screen is shown)
   const ordersPoll = usePoll(15_000);
@@ -748,7 +801,7 @@ export default function CustomerHotFoodScreen() {
     if (!engFlags?.reorder) return [];
     const count = new Map<string, number>();
     for (const o of orders) if (o.status === 'COMPLETED') for (const it of o.items) count.set(it.name, (count.get(it.name) ?? 0) + it.quantity);
-    return menuItems.filter((m) => (count.get(m.name) ?? 0) >= 2).sort((a, b) => (count.get(b.name) ?? 0) - (count.get(a.name) ?? 0)).slice(0, 4);
+    return menuItems.filter((m) => (count.get(m.name) ?? 0) >= 2 && m.servedNow !== false).sort((a, b) => (count.get(b.name) ?? 0) - (count.get(a.name) ?? 0)).slice(0, 4);
   })();
   const pastOrders = orders.filter(o => o.status === 'COMPLETED' || o.status === 'CANCELLED');
 
@@ -828,6 +881,12 @@ export default function CustomerHotFoodScreen() {
   }
 
   const hasActive = activeOrders.length > 0;
+  // The cart with what the menu says now about each item (served now, its menus, sold out): it can change while the cart waits
+  const menuById = new Map(menuItems.map((m) => [m.id, m]));
+  const cartNow: CartItem[] = cart.map((c) => {
+    const m = menuById.get(c.id);
+    return m ? { ...c, servedNow: m.servedNow, daypartIds: m.daypartIds, soldOut: m.soldOut, nextServedAt: m.nextServedAt } : c;
+  });
 
   return (
     <View style={s.root}>
@@ -945,6 +1004,10 @@ export default function CustomerHotFoodScreen() {
                         </ScrollView>
                       </View>
                     )}
+                    {!search.trim() && menuTab && (
+                      <MenuTimeTabs menus={menuTimes} hasAllDay={hasAllDay} value={menuTab} onChange={setMenuTab} />
+                    )}
+                    {!search.trim() && <LastCallStrip menu={menuTimes.find((m) => m.id === menuTab)} ahead={orderAhead.on} />}
                     {!search.trim() && (
                       <ComboStrip
                         combos={combos} closed={closed} countOf={comboCount} onAdd={addCombo}
@@ -996,7 +1059,10 @@ export default function CustomerHotFoodScreen() {
                     qty={getQty(row.item.id)}
                     onAdd={() => addToCart(row.item)}
                     onRemove={() => removeFromCart(row.item)}
-                    closed={closed}
+                    closed={!itemState(row.item).now && !itemState(row.item).later}
+                    laterOnly={itemState(row.item).later}
+                    note={itemState(row.item).note}
+                    closedLabel={itemState(row.item).closedLabel}
                   />
                 )}
                 ListFooterComponent={<View style={{ height: cartCount > 0 ? 110 : 32 }} />}
@@ -1080,12 +1146,14 @@ export default function CustomerHotFoodScreen() {
       {/* Cart sheet */}
       {showCart && cart.length > 0 && store && (
         <CartSheet
-          cart={cart}
+          cart={cartNow}
           closedText={closed && hours ? hoursLine(t, hours) : null}
           store={store!}
           onClose={() => setShowCart(false)}
           onOrderPlaced={handleOrderPlaced}
           pointsAllowed={pointsAllowed}
+          orderAhead={orderAhead}
+          asapAllowed={!closed && cartNow.every((i) => i.servedNow !== false && !i.soldOut)}
         />
       )}
 
@@ -1229,6 +1297,7 @@ const mc = StyleSheet.create({
   info: { flex: 1 },
   name: { fontSize: 15, fontWeight: '800', color: COLORS.text, marginBottom: 3 },
   desc: { fontSize: 12, color: COLORS.textMuted, lineHeight: 16, marginBottom: 6 },
+  note: { fontSize: 12, fontWeight: '700', color: '#C2410C', marginTop: 4 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   price: { fontSize: 15, fontWeight: '900', color: COLORS.primary },
   waitPill: {

@@ -465,7 +465,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
   // Ordering ahead (feature hotFoodOrderAhead): the pickup times, each with the menus on then; the app keeps the ones that suit the cart
   const aheadDays = rule('hotFoodOrderAheadDays');
   const orderAhead = feature('hotFoodOrderAhead')
-    ? { on: true, days: aheadDays, slots: pickupSlots(now, aheadDays, (at) => hotFoodOpenAt(schedules, at), here.filter((d) => !d.off)) }
+    ? { on: true, days: aheadDays, today: storeDateKey(now), slots: pickupSlots(now, aheadDays, (at) => hotFoodOpenAt(schedules, at), here.filter((d) => !d.off)) }
     : { on: false };
   // Combos on at this store now, featured first (utils/hotFoodCombos.ts), whose item is served now. Deals with no drink only for an app
   // that knows them (?deals=1).

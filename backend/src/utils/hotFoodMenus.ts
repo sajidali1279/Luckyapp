@@ -124,15 +124,15 @@ export function lastPickupDay(now: Date, days: number): Date {
  * today, when hot food is open, each with the menus on then (so the app keeps the times that suit what is in the cart). The app also
  * drops the ones sooner than the cart's own lead.
  */
-export function pickupSlots(now: Date, days: number, hotFoodOpenAt: (at: Date) => boolean, here: StoreDaypart[]): { at: string; menus: string[] }[] {
+export function pickupSlots(now: Date, days: number, hotFoodOpenAt: (at: Date) => boolean, here: StoreDaypart[]): { at: string; day: string; menus: string[] }[] {
   const step = SLOT_MINUTES * 60_000;
   const first = Math.ceil((now.getTime() + MIN_LEAD_MINUTES * 60_000) / step) * step;
   const last = lastPickupDay(now, days).getTime();
-  const out: { at: string; menus: string[] }[] = [];
+  const out: { at: string; day: string; menus: string[] }[] = [];
   for (let t = first; t <= last && out.length < 800; t += step) {
     const at = new Date(t);
     if (!hotFoodOpenAt(at)) continue;
-    out.push({ at: at.toISOString(), menus: here.filter((d) => daypartOpenAt(d, at)).map((d) => d.id) });
+    out.push({ at: at.toISOString(), day: storeDateKey(at), menus: here.filter((d) => daypartOpenAt(d, at)).map((d) => d.id) });
   }
   return out;
 }

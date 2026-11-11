@@ -550,15 +550,20 @@ export const receiptScanApi = {
 
 export const hotFoodApi = {
   // deals=1: this app knows deals with no drink ("2 corn dogs for $3.50", 2026-10-16); older apps are not sent them
-  getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`, { params: { deals: 1 } }),
+  // menus=1 (2026-11-10): every item with when it is served (menus by time) and the pickup times for ordering ahead
+  getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`, { params: { deals: 1, menus: 1 } }),
   // Employee management view, legacy + catalog items merged with availability + source
   getStoreAllItems: (storeId: string) => api.get(`/hot-food/store/${storeId}/all-items`),
-  placeOrder:     (data: { storeId: string; items: ({ menuItemId: string; quantity: number } | { comboId: string; drink?: string; quantity: number })[]; note?: string; payWithPoints?: boolean; expectedTotal?: number }) =>
+  placeOrder:     (data: { storeId: string; items: ({ menuItemId: string; quantity: number } | { comboId: string; drink?: string; quantity: number })[]; note?: string; payWithPoints?: boolean; expectedTotal?: number; pickupAt?: string }) =>
     api.post('/hot-food/orders', data),
   getMyOrders:    () => api.get('/hot-food/orders/mine'),
   // Where a customer can pick up: every store taking hot food, with address, location and open now (2026-10-11)
   getPickupStores: () => api.get('/hot-food/pickup-stores'),
-  getStoreOrders: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}`),
+  // ahead=1 (2026-11-10): orders placed ahead come with their pickup and start times (an older app gets them in the note)
+  getStoreOrders: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}`, { params: { ahead: 1 } }),
+  // Ran out of an item today (2026-11-10): the waiting orders with it are declined, the customers told, and it is off until tomorrow
+  ranOut:         (storeId: string, catalogItemId: string) => api.post(`/hot-food/store/${storeId}/ran-out`, { catalogItemId }),
+  backInStock:    (storeId: string, catalogItemId: string) => api.post(`/hot-food/store/${storeId}/back-in-stock`, { catalogItemId }),
   updateStatus:   (orderId: string, status: string, estimatedMinutes?: number, reason?: string) =>
     api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }), ...(reason ? { reason } : {}) }),
   // The customer, while the store has not started it

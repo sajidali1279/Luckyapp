@@ -38,13 +38,17 @@ import { showActionSheet } from '../../utils/actionSheet';
 import { sized } from '../../utils/imageUrl';
 import FocusStatusBar from '../../components/FocusStatusBar';
 import { usePoll } from '../../hooks/usePoll';
+import { useTimeWords } from '../../components/HotFoodTimes';
+
+/** An order placed ahead whose kitchen start is more than 5 minutes away: in "Later" (2026-11-10) */
+const isLater = (o: { startAt?: string | null; status: string }) => (o.status === 'PENDING' || o.status === 'ACCEPTED') && !!o.startAt && new Date(o.startAt).getTime() > Date.now() + 5 * 60_000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 type TabKey = 'PENDING' | 'ACCEPTED' | 'READY' | 'ALL' | 'MENU';
 
-interface OrderItem { menuItemId: string; name: string; quantity: number; price: number }
+interface OrderItem { menuItemId: string; catalogItemId?: string | null; comboId?: string | null; name: string; quantity: number; price: number }
 interface FoodOrder {
   id: string;
   orderNumber: string;
@@ -54,6 +58,8 @@ interface FoodOrder {
   status: OrderStatus;
   createdAt: string;
   paidWithPoints?: boolean;   // the customer paid the whole order with points in the app
+  pickupAt?: string | null;   // ordered ahead (2026-11-10): the pickup time, and when to start it
+  startAt?: string | null;
 }
 interface MenuItem {
   id: string;
@@ -66,6 +72,7 @@ interface MenuItem {
   imageUrl?: string;
   source: 'menu' | 'catalog';
   storeId?: string | null;   // a store item; none = on every store's menu (only HQ changes it)
+  soldOut?: boolean;         // ran out today (2026-11-10): back by itself tomorrow
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
@@ -402,9 +409,10 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 // ─── Order card ───────────────────────────────────────────────────────────────
 
 function OrderCard({
-  order, onUpdateStatus, updating,
-}: { order: FoodOrder; onUpdateStatus: (id: string, status: OrderStatus, reason?: string) => void; updating: boolean }) {
+  order, onUpdateStatus, updating, onRanOut,
+}: { order: FoodOrder; onUpdateStatus: (id: string, status: OrderStatus, reason?: string) => void; updating: boolean; onRanOut?: (catalogItemId: string, name: string) => void }) {
   const { t } = useTranslation();
+  const tw = useTimeWords();
   const cfg      = STATUS_CONFIG[order.status];
   const total    = order.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const ageColor = ['PENDING', 'ACCEPTED'].includes(order.status) ? orderAgeColor(order.createdAt) : '#94A3B8';
@@ -447,6 +455,15 @@ function OrderCard({
         </View>
       </View>
 
+      {order.pickupAt && (order.status === 'PENDING' || order.status === 'ACCEPTED' || order.status === 'READY') ? (
+        <View style={s.pickupBadge} accessibilityRole="text">
+          <ClockIcon size={12} color="#1D4ED8" strokeWidth={2.2} />
+          <Text style={s.pickupBadgeText}>
+            {t('employeeHotFood.pickupBadge', { when: tw.when(order.pickupAt) })}
+            {order.startAt && new Date(order.startAt).getTime() > Date.now() ? `  ·  ${t('employeeHotFood.pickupStartAt', { time: tw.time(order.startAt) })}` : ''}
+          </Text>
+        </View>
+      ) : null}
       <Text style={s.customerName}>{order.customer.name}</Text>
       <Text style={s.customerPhone}>{order.customer.phone}</Text>
 
@@ -462,6 +479,12 @@ function OrderCard({
           <View key={idx} style={s.itemRow}>
             <Text style={s.itemQty}>{item.quantity}×</Text>
             <Text style={s.itemName}>{item.name}</Text>
+            {order.status === 'PENDING' && onRanOut && item.catalogItemId ? (
+              <TouchableOpacity style={s.ranOutChip} onPress={() => onRanOut(item.catalogItemId!, item.name)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                accessibilityRole="button" accessibilityLabel={t('employeeHotFood.ranOutA11y', { name: item.name })}>
+                <Text style={s.ranOutChipText}>{t('employeeHotFood.ranOutChip')}</Text>
+              </TouchableOpacity>
+            ) : null}
             <Text style={s.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
           </View>
         ))}
@@ -548,8 +571,8 @@ function OrderCard({
 // ─── Menu item card ───────────────────────────────────────────────────────────
 
 function MenuItemCard({
-  item, onToggle, onEdit, updating,
-}: { item: MenuItem; onToggle: (item: MenuItem) => void; onEdit: (item: MenuItem) => void; updating: boolean }) {
+  item, onToggle, onEdit, updating, onRanOut, onBackInStock,
+}: { item: MenuItem; onToggle: (item: MenuItem) => void; onEdit: (item: MenuItem) => void; updating: boolean; onRanOut?: (item: MenuItem) => void; onBackInStock?: (item: MenuItem) => void }) {
   const { t } = useTranslation();
   const [imgErr, setImgErr] = useState(false);
 
@@ -572,6 +595,21 @@ function MenuItemCard({
           )}
         </View>
         {item.category ? <Text style={s.menuItemCat}>{item.category}</Text> : null}
+        {item.source === 'catalog' && item.isAvailable && (item.soldOut ? (
+          <View style={s.soldOutRow}>
+            <Text style={s.soldOutToday}>{t('employeeHotFood.soldOutToday')}</Text>
+            {onBackInStock && (
+              <TouchableOpacity onPress={() => onBackInStock(item)} disabled={updating} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} accessibilityRole="button">
+                <Text style={s.backInStock}>{t('employeeHotFood.backInStock')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : onRanOut ? (
+          <TouchableOpacity style={[s.ranOutChip, { alignSelf: 'flex-start', marginTop: 4 }]} onPress={() => onRanOut(item)} disabled={updating}
+            accessibilityRole="button" accessibilityLabel={t('employeeHotFood.ranOutA11y', { name: item.name })}>
+            <Text style={s.ranOutChipText}>{t('employeeHotFood.ranOutTodayBtn')}</Text>
+          </TouchableOpacity>
+        ) : null)}
         <View style={s.menuItemMeta}>
           <Text style={s.menuItemPrice}>${Number(item.price).toFixed(2)}</Text>
           {item.estimatedMinutes ? (
@@ -662,7 +700,7 @@ export default function HotFoodOrders() {
   // Orders
   const { data: ordersData, isLoading: ordersLoading, isError: ordersError, isRefetching, refetch } = useQuery({
     queryKey: ['hot-food-orders', storeId],
-    queryFn: () => hotFoodApi.getStoreOrders(storeId!),
+    queryFn: () => hotFoodApi.getStoreOrders(storeId!),   // with the pickup times of orders placed ahead
     enabled: !!storeId,
     refetchInterval: usePoll(10_000),
   });
@@ -710,8 +748,52 @@ export default function HotFoodOrders() {
 
   const filteredOrders = useMemo(() => {
     if (activeTab === 'ALL' || activeTab === 'MENU') return allOrders;
-    return allOrders.filter(o => o.status === activeTab);
+    const list = allOrders.filter(o => o.status === activeTab);
+    // Waiting: the ones to make now first, then "Later" (placed ahead), soonest start first (2026-11-10)
+    if (activeTab !== 'PENDING') return list;
+    const later = list.filter(isLater).sort((a, b) => new Date(a.startAt!).getTime() - new Date(b.startAt!).getTime());
+    return [...list.filter((o) => !isLater(o)), ...later];
   }, [allOrders, activeTab]);
+  const firstLater = activeTab === 'PENDING' ? filteredOrders.findIndex(isLater) : -1;
+
+  /** Ran out of an item (2026-11-10): the waiting orders with it are declined and the customers told; it is off until tomorrow */
+  function askRanOut(catalogItemId: string, name: string) {
+    const waiting = allOrders.filter((o) => o.status === 'PENDING' && !isLater(o) && o.items.some((l) => l.catalogItemId === catalogItemId)).length;
+    Alert.alert(
+      t('employeeHotFood.ranOutTitle', { name }),
+      waiting ? t('employeeHotFood.ranOutBody', { count: waiting, name }) : t('employeeHotFood.ranOutBodyNone'),
+      [
+        { text: t('employeeHotFood.cancel'), style: 'cancel' },
+        { text: t('employeeHotFood.ranOutConfirm'), style: 'destructive', onPress: async () => {
+          setUpdatingId(catalogItemId);
+          try {
+            const r = await hotFoodApi.ranOut(storeId!, catalogItemId);
+            const declined = Number(r?.data?.data?.declined) || 0;
+            Toast.show({ type: 'success', text1: t('employeeHotFood.ranOutDone', { name }), text2: declined ? t('employeeHotFood.ranOutDeclined', { count: declined }) : undefined });
+          } catch (e: any) {
+            Alert.alert(t('employeeHotFood.errorTitle'), e?.response?.data?.error || t('employeeHotFood.updateAvailabilityFailed'));
+          } finally {
+            setUpdatingId(null);
+            queryClient.invalidateQueries({ queryKey: ['hot-food-orders'] });
+            queryClient.invalidateQueries({ queryKey: ['hot-food-all-items'] });
+            queryClient.invalidateQueries({ queryKey: ['hot-food-pending-count'] });
+          }
+        } },
+      ],
+    );
+  }
+  async function backInStock(item: MenuItem) {
+    setUpdatingId(item.id);
+    try {
+      await hotFoodApi.backInStock(storeId!, item.id);
+      Toast.show({ type: 'success', text1: t('employeeHotFood.backInStockDone', { name: item.name }) });
+    } catch (e: any) {
+      Alert.alert(t('employeeHotFood.errorTitle'), e?.response?.data?.error || t('employeeHotFood.updateAvailabilityFailed'));
+    } finally {
+      setUpdatingId(null);
+      queryClient.invalidateQueries({ queryKey: ['hot-food-all-items'] });
+    }
+  }
 
   async function doUpdateStatus(orderId: string, status: OrderStatus, estimatedMinutes?: number, reason?: string) {
     setUpdatingId(orderId);
@@ -730,6 +812,8 @@ export default function HotFoodOrders() {
 
   function handleUpdateStatus(orderId: string, status: OrderStatus, reason?: string) {
     if (updatingId) return;
+    const order = allOrders.find((o) => o.id === orderId);
+    if (status === 'ACCEPTED' && order && isLater(order)) { doUpdateStatus(orderId, status); return; }
     if (status === 'ACCEPTED') {
       showActionSheet(
         t('employeeHotFood.acceptOrderTitle'),
@@ -891,6 +975,8 @@ export default function HotFoodOrders() {
                 onToggle={handleToggleItem}
                 onEdit={setEditingItem}
                 updating={updatingId === item.id}
+                onRanOut={(it) => askRanOut(it.id, it.name)}
+                onBackInStock={backInStock}
               />
             )}
             ListEmptyComponent={
@@ -911,14 +997,20 @@ export default function HotFoodOrders() {
             refreshControl={
               <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />
             }
-            renderItem={({ item }) => (
-              <PulseHighlight active={item.id === highlightedId}>
-                <OrderCard
-                  order={item}
-                  onUpdateStatus={handleUpdateStatus}
-                  updating={updatingId === item.id}
-                />
-              </PulseHighlight>
+            renderItem={({ item, index }) => (
+              <>
+                {index === firstLater && (
+                  <Text style={s.laterHeader} accessibilityRole="header">{t('employeeHotFood.laterSection')}</Text>
+                )}
+                <PulseHighlight active={item.id === highlightedId}>
+                  <OrderCard
+                    order={item}
+                    onUpdateStatus={handleUpdateStatus}
+                    updating={updatingId === item.id}
+                    onRanOut={askRanOut}
+                  />
+                </PulseHighlight>
+              </>
             )}
             ListEmptyComponent={
               <View style={s.empty}>
@@ -964,6 +1056,15 @@ export default function HotFoodOrders() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
+  // 2026-11-10: orders placed ahead, and "Ran out"
+  pickupBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginBottom: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
+  pickupBadgeText: { fontSize: 13, fontWeight: '800', color: '#1D4ED8' },
+  laterHeader: { fontSize: 13, fontWeight: '800', color: '#1D4ED8', marginTop: 8, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  ranOutChip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', marginHorizontal: 6 },
+  ranOutChipText: { fontSize: 11, fontWeight: '800', color: '#B91C1C' },
+  soldOutRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
+  soldOutToday: { fontSize: 12, fontWeight: '800', color: '#B91C1C' },
+  backInStock: { fontSize: 12, fontWeight: '800', color: '#15803D', textDecorationLine: 'underline' },
   pinnedBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFBEB', borderBottomWidth: 1, borderBottomColor: '#FDE68A', paddingHorizontal: 16, paddingVertical: 10 },
   pinnedText: { flex: 1, fontSize: 13, fontWeight: '700', color: '#92400E' },
   pinnedBtn: { fontSize: 13, fontWeight: '800', color: COLORS.primary },
