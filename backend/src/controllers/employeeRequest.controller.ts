@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
+import { latestCheckIns } from '../utils/staffCheckIn';
+import { storeDateKey } from '../utils/storeTime';
 import { AuthRequest } from '../types';
 import { OrderItemPriority, OrderItemSource, RejectionReason, EmployeeRequestType, Role } from '@prisma/client';
 import { generateListName } from './orderList.controller';
@@ -48,6 +50,7 @@ export async function getEmployeeSuggestions(req: AuthRequest, res: Response) {
 // ─── POST /employee-requests ──────────────────────────────────────────────────
 
 const submitSchema = z.object({
+  storeId:     z.string().min(1).max(64).optional(),   // the store the request is for (2026-11-11); an older app sends none
   note:        z.string().max(300).optional(),
   requestType: z.enum(['LOW_STOCK', 'CUSTOMER_REQUEST']).default('LOW_STOCK'),
   lines: z.array(z.object({
@@ -58,15 +61,37 @@ const submitSchema = z.object({
   })).min(1).max(30),
 });
 
+/**
+ * Which store a stock request is for (2026-11-11). It took the person's first assigned store, so everyone assigned to several stores had
+ * every request filed under that one (3 requests sent from Lucky Stop #9 went to the Truck Stop). Now: the store the app sends, when it is
+ * one of theirs; an older app sends none, so the store they checked in at today; one store, that one; else the first, as before.
+ */
+export async function requestStoreFor(userId: string, sent: string | undefined, now: Date = new Date()): Promise<{ storeId: string } | { error: string; status: number }> {
+  const roles = await prisma.userStoreRole.findMany({ where: { userId }, select: { storeId: true }, orderBy: { storeId: 'asc' } });
+  const mine = roles.map((r) => r.storeId);
+  if (sent) {
+    if (mine.includes(sent)) return { storeId: sent };
+    const u = await prisma.user.findUnique({ where: { id: userId }, select: { allStoresAccess: true } });
+    if (u?.allStoresAccess && (await prisma.store.count({ where: { id: sent } }))) return { storeId: sent };
+    return { error: 'You can only send requests for a store you work at.', status: 403 };
+  }
+  if (mine.length === 0) return { error: 'Not assigned to a store', status: 403 };
+  if (mine.length === 1) return { storeId: mine[0] };
+  const checkedIn = (await latestCheckIns([userId], storeDateKey(now))).get(userId)?.storeId;
+  if (checkedIn && mine.includes(checkedIn)) return { storeId: checkedIn };
+  const first = await prisma.userStoreRole.findFirst({ where: { userId } });
+  return { storeId: first!.storeId };
+}
+
 export async function submitRequest(req: AuthRequest, res: Response) {
   const user = req.user!;
-  const storeRole = await prisma.userStoreRole.findFirst({ where: { userId: user.id } });
-  if (!storeRole) { res.status(403).json({ success: false, error: 'Not assigned to a store' }); return; }
   const parsed = submitSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ success: false, error: parsed.error.errors[0].message }); return; }
+  const where = await requestStoreFor(user.id, parsed.data.storeId);
+  if ('error' in where) { res.status(where.status).json({ success: false, error: where.error }); return; }
   const request = await prisma.employeeItemRequest.create({
     data: {
-      storeId: storeRole.storeId, submittedById: user.id, note: parsed.data.note,
+      storeId: where.storeId, submittedById: user.id, note: parsed.data.note,
       requestType: parsed.data.requestType as EmployeeRequestType,
       lines: { create: parsed.data.lines.map((l: any) => ({ name: l.name.trim(), quantity: l.quantity?.trim(), category: l.category?.trim(), notes: l.notes?.trim() })) },
     },
@@ -75,13 +100,13 @@ export async function submitRequest(req: AuthRequest, res: Response) {
 
   // Notify store managers
   const assignments = await prisma.userStoreRole.findMany({
-    where: { storeId: storeRole.storeId },
+    where: { storeId: where.storeId },
     select: { userId: true, user: { select: { role: true } } },
   });
   const managerIds = assignments.filter(a => a.user.role === Role.STORE_MANAGER).map(a => a.userId);
   const itemCount = parsed.data.lines.length;
   managerIds.forEach(id =>
-    sendPushToUser(id, '📦 New Stock Request', `${user.name || 'An employee'} requested ${itemCount} item${itemCount !== 1 ? 's' : ''} for restocking`, 'STOCK_REQUEST', stockRequestUrlManager(request.id))
+    sendPushToUser(id, '📦 New Stock Request', `${user.name || 'An employee'} requested ${itemCount} item${itemCount !== 1 ? 's' : ''} for restocking at ${request.store.name}`, 'STOCK_REQUEST', stockRequestUrlManager(request.id))
   );
 
   res.status(201).json({ success: true, data: request });

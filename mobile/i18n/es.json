@@ -1280,7 +1280,9 @@
     "tabNew": "+ Nueva solicitud",
     "tabNewA11y": "Pestaña Nueva solicitud",
     "tabMine": "Mis solicitudes",
-    "tabMineA11y": "Pestaña Mis solicitudes"
+    "tabMineA11y": "Pestaña Mis solicitudes",
+    "forStore": "Pedido para",
+    "forStoreA11y": "Enviar el pedido para {{store}}"
   },
   "managerBanners": {
     "bannerCount_one": "{{count}} banner",

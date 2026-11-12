@@ -476,7 +476,7 @@ export const employeeRequestApi = {
   getSuggestions: (q: string) => api.get(`/employee-requests/suggestions?q=${encodeURIComponent(q)}&pdi=1`),   // pdi=1: PDI items too (2026-11-08)
   getPendingCount: () => api.get('/employee-requests/pending-count'),
   getPendingByStore: () => api.get('/employee-requests/pending-by-store'),   // { [storeId]: count }
-  submit: (data: { note?: string; requestType?: 'LOW_STOCK' | 'CUSTOMER_REQUEST'; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
+  submit: (data: { storeId?: string; note?: string; requestType?: 'LOW_STOCK' | 'CUSTOMER_REQUEST'; lines: { name: string; quantity?: string; category?: string; notes?: string }[] }) =>
     api.post('/employee-requests', data),
   mine: () => api.get('/employee-requests/mine'),
   forStore: (storeId: string, status?: string) =>

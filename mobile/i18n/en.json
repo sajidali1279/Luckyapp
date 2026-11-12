@@ -1280,7 +1280,9 @@
     "tabNew": "+ New Request",
     "tabNewA11y": "New Request tab",
     "tabMine": "My Requests",
-    "tabMineA11y": "My Requests tab"
+    "tabMineA11y": "My Requests tab",
+    "forStore": "Request for",
+    "forStoreA11y": "Send the request for {{store}}"
   },
   "managerBanners": {
     "uploadSuccess": "Banner uploaded!",

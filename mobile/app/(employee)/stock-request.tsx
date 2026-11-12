@@ -13,7 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
-import { employeeRequestApi, orderCategoriesApi } from '../../services/api';
+import { employeeRequestApi, orderCategoriesApi, storesApi } from '../../services/api';
+import { useCurrentStoreId } from '../../utils/geo';
+import StoreChips from '../../components/StoreChips';
 import { useAuthStore } from '../../store/authStore';
 import { COLORS } from '../../constants';
 import {
@@ -86,7 +88,7 @@ function makeKey() { return `${Date.now()}-${Math.random()}`; }
 
 // ─── New Request Form ─────────────────────────────────────────────────────────
 
-function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onSubmitted: () => void }) {
+function NewRequestForm({ categories, onSubmitted, storeId }: { categories: string[]; onSubmitted: () => void; storeId?: string }) {
   const { t } = useTranslation();
   const [requestType, setRequestType] = useState<RequestType>('LOW_STOCK');
   const [search,      setSearch]      = useState('');
@@ -167,7 +169,7 @@ function NewRequestForm({ categories, onSubmitted }: { categories: string[]; onS
         notes:    c.notes.trim() || undefined,
       }));
       autoSubmitNewCats(cart.map(c => c.category));
-      return employeeRequestApi.submit({ requestType, note: note.trim() || undefined, lines });
+      return employeeRequestApi.submit({ ...(storeId ? { storeId } : {}), requestType, note: note.trim() || undefined, lines });
     },
     onSuccess: () => {
       Toast.show({ type: 'success', text1: t('employeeStockRequest.requestSubmitted'), text2: t('employeeStockRequest.requestSubmittedSub') });
@@ -557,6 +559,15 @@ export default function StockRequestScreen() {
   });
   const categories: string[] = catData?.data?.data || [];
 
+  // Which store the request is for (2026-11-11): the one the phone is at among their stores (GPS), which they can change. It went to their
+  // first assigned store before, whatever store they were in.
+  const { data: storesData } = useQuery({ queryKey: ['gas-prices'], queryFn: () => storesApi.getGasPrices(), staleTime: 60_000 });
+  const allStores: any[] = storesData?.data?.data || [];
+  const nearId = useCurrentStoreId(allStores, user?.storeIds);
+  const [pickedStore, setPickedStore] = useState<string | null>(null);
+  const myStores = allStores.filter((st: any) => user?.storeIds?.includes(st.id)).map((st: any) => ({ id: st.id as string, name: st.name as string }));
+  const storeId = pickedStore && user?.storeIds?.includes(pickedStore) ? pickedStore : nearId;
+
   if (!user?.storeIds?.[0]) {
     return (
       <SafeAreaView style={s.container}>
@@ -605,10 +616,19 @@ export default function StockRequestScreen() {
       </View>
 
       {activeTab === 'new' ? (
+        <>
+          {myStores.length > 1 && (
+            <View style={{ paddingTop: 10 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.textMuted, paddingHorizontal: 16 }}>{t('employeeStockRequest.forStore')}</Text>
+              <StoreChips stores={myStores} selectedId={storeId} onSelect={setPickedStore} a11yLabel={(name) => t('employeeStockRequest.forStoreA11y', { store: name })} />
+            </View>
+          )}
         <NewRequestForm
+          storeId={storeId}
           categories={categories}
           onSubmitted={() => { qc.invalidateQueries({ queryKey: ['my-item-requests'] }); setActiveTab('mine'); }}
         />
+        </>
       ) : (
         <MyRequests highlightId={highlightId} />
       )}
