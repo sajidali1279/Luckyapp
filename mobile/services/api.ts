@@ -406,6 +406,8 @@ export const orderListApi = {
   getActive:      (storeId: string) => api.get(`/order-lists/store/${storeId}/active`),
   getHistory:     (storeId: string, page = 1) => api.get(`/order-lists/store/${storeId}/history?page=${page}`),
   getById:        (listId: string) => api.get(`/order-lists/${listId}`),
+  // each item's barcode for the printout (2026-11-11): { [itemId]: { barcode, from } }, instead of every scanned product
+  barcodes:       (listId: string) => api.get(`/order-lists/${encodeURIComponent(listId)}/barcodes`),
   openList:       (storeId: string) => api.post(`/order-lists/store/${storeId}`, {}),
   closeList:      (listId: string, notes?: string) => api.patch(`/order-lists/${listId}/close`, { notes }),
   addItem:        (listId: string, data: { name: string; quantity?: string; category?: string; notes?: string; priority?: string }) =>

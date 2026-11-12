@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
+import { fullUpc } from '../utils/pdiInvoice';
 import { STORE_TIMEZONE, storeDayStart } from '../utils/storeTime';
 import { AuthRequest } from '../types';
 import { Role, OrderListItemStatus, OrderItemPriority, OrderItemSource } from '@prisma/client';
@@ -361,6 +362,45 @@ export async function printList(req: AuthRequest, res: Response) {
     include: { printedBy: { select: { id: true, name: true } }, items: true },
   });
   res.json({ success: true, data: job });
+}
+
+/** Lower case, single spaces: how an order list item's name is matched to a product's */
+const nameKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+/**
+ * The barcode of each item on a list, by its name (2026-11-11, for the printed list with barcodes): the store's PDI item list first (the
+ * register's own code, the check digit added back), then Scanned products, then Labels. Each item's name is matched whole, ignoring case
+ * and extra spaces. Was done in the app by downloading every scanned product (about 18,000 since the PDI lists) on each print.
+ */
+export async function listBarcodes(listId: string): Promise<{ storeId: string; map: Record<string, { barcode: string; from: 'PDI' | 'SCANNED' | 'LABEL' }> } | null> {
+  const list = await prisma.orderList.findUnique({ where: { id: listId }, select: { storeId: true, items: { where: { status: { not: 'REMOVED' } }, select: { id: true, name: true } } } });
+  if (!list) return null;
+  const wanted = new Map<string, string[]>();   // name key -> item ids
+  for (const it of list.items) { const k = nameKey(it.name); if (k) wanted.set(k, [...(wanted.get(k) ?? []), it.id]); }
+  const map: Record<string, { barcode: string; from: 'PDI' | 'SCANNED' | 'LABEL' }> = {};
+  const give = (name: string, barcode: string, from: 'PDI' | 'SCANNED' | 'LABEL') => {
+    const ids = wanted.get(nameKey(name));
+    if (!ids || !barcode) return;
+    for (const id of ids) if (!map[id]) map[id] = { barcode, from };
+  };
+  const names = [...wanted.keys()].slice(0, 500);
+  if (!names.length) return { storeId: list.storeId, map };
+  const nameOr = (field: string) => ({ OR: names.map((n) => ({ [field]: { equals: n, mode: 'insensitive' as const } })) });
+  const pdi = await prisma.pdiItem.findMany({ where: { storeId: list.storeId, ...nameOr('name') }, select: { name: true, code: true }, orderBy: { code: 'asc' } });
+  for (const p of pdi) if (/^\d{11}$/.test(p.code)) give(p.name, fullUpc(p.code), 'PDI');
+  const scanned = await prisma.scannedProduct.findMany({ where: nameOr('name'), select: { name: true, barcode: true }, orderBy: { scanCount: 'desc' } });
+  for (const s of scanned) give(s.name, s.barcode, 'SCANNED');
+  const labels = await prisma.label.findMany({ where: { barcode: { not: null }, ...nameOr('productName') }, select: { productName: true, barcode: true } });
+  for (const l of labels) give(l.productName, l.barcode!, 'LABEL');
+  return { storeId: list.storeId, map };
+}
+
+/** GET /order-lists/:listId/barcodes: { [itemId]: { barcode, from } } for the items that have one */
+export async function getListBarcodes(req: AuthRequest, res: Response) {
+  const found = await listBarcodes(req.params.listId);
+  if (!found) { res.status(404).json({ success: false, error: 'List not found' }); return; }
+  if (!(await hasStoreAccess(req.user!.id, req.user!.role, found.storeId))) { res.status(403).json({ success: false, error: 'No access to this store' }); return; }
+  res.json({ success: true, data: found.map });
 }
 
 // ─── GET /order-lists/:listId/print-history ──────────────────────────────────

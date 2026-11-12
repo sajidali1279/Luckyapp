@@ -57,7 +57,7 @@ import { getMyChatStores, getChatPeople, getMessages, sendMessage, clearChat, ge
 import { submitRequest, getMyRequests, getStoreRequestsList, getPendingCount, getPendingCountByStore, acknowledgeRequest } from '../controllers/storeRequest.controller';
 import { submitProductRequest, getMyProductRequests, getStoreProductRequests, respondToProductRequest, getPendingProductRequestCount, getPendingProductRequestCountByStore, checkProductAtStore } from '../controllers/productRequest.controller';
 import {
-  getActiveList, getListHistory, getListById, openList, closeList,
+  getActiveList, getListHistory, getListById, getListBarcodes, openList, closeList,
   addItem, updateItem, removeItem, updateItemStatus, reorderItems,
   printList, getPrintHistory, restoreItems, getItemSuggestions, adminGetAllLists, getQuickAddItems,
 } from '../controllers/orderList.controller';
@@ -709,6 +709,7 @@ router.get('/order-lists/store/:storeId/quick-add',             authenticate, re
 router.get('/order-lists/store/:storeId/active',                authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getActiveList);         // Current OPEN list with items
 router.get('/order-lists/store/:storeId/history',               authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getListHistory);         // Closed lists (paginated)
 router.get('/order-lists/store/:storeId/print-history/:listId', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getPrintHistory);        // Print jobs for a list
+router.get('/order-lists/:listId/barcodes',                     authenticate, requireRole(Role.STORE_MANAGER), getListBarcodes);   // each item's barcode, for the printed list
 router.get('/order-lists/:listId',                              authenticate, requireRole(Role.STORE_MANAGER), getListById);                                // Single list detail
 router.post('/order-lists/store/:storeId',                      authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, openList);               // Open a new list for store
 router.post('/order-lists/store/:storeId/restore-items',        authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, restoreItems);            // Add undelivered items to active list

@@ -1573,8 +1573,12 @@ export default function ManagerOrderListScreen() {
     if (!activeList || items.length === 0 || isPrinting) return;
     setIsPrinting(true);
     try {
-      const catRes = await scannedProductApi.list();
-      const catalog = catRes?.data?.data || [];
+      // Each item's barcode from the server (its store's PDI list, scanned products, labels), 2026-11-11: it downloaded every scanned
+      // product (about 18,000 since the PDI lists) on each print. A server from before that answers 404: the old way.
+      const all = [...urgentItems, ...neededItems, ...orderedItems, ...receivedItems];
+      const catalog = await orderListApi.barcodes(activeList.id)
+        .then((r) => { const m = r?.data?.data ?? {}; return all.filter((it) => m[it.id]?.barcode).map((it) => ({ barcode: m[it.id].barcode as string, name: it.name })); })
+        .catch(async () => (await scannedProductApi.list())?.data?.data || []);
       await printOrderList({
         listName: activeList.name,
         storeName: selectedStore?.name || 'Store',

@@ -7,6 +7,7 @@ import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
+import OrderListPrint from '../components/OrderListPrint';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { Page, PageHeader, Tabs } from '../components/kit';
 
@@ -80,71 +81,6 @@ const CAT_STATUS_CFG = {
   APPROVED: { label: 'Approved', bg: '#edf7f0', text: '#1a7f45', border: '#c8e6d2' },
   REJECTED: { label: 'Rejected', bg: '#fdf2f2', text: '#c42130', border: '#f3cdd1' },
 };
-
-// ─── Print helper ─────────────────────────────────────────────────────────────
-
-function printList(list: OrderList) {
-  const visibleItems = list.items?.filter(i => i.status !== 'REMOVED') || [];
-  const grouped = new Map<string, OrderListItem[]>();
-  for (const item of visibleItems) {
-    const key = item.category || 'Uncategorized';
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(item);
-  }
-  const pending  = visibleItems.filter(i => i.status === 'PENDING').length;
-  const ordered  = visibleItems.filter(i => i.status === 'ORDERED').length;
-  const received = visibleItems.filter(i => i.status === 'RECEIVED').length;
-
-  const rows = Array.from(grouped.entries()).map(([cat, items]) => `
-    <tr style="background:#f7f8fa"><td colspan="4" style="padding:10px 12px;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:#5a6472;border-bottom:1px solid #e4e7ec">${cat}</td></tr>
-    ${items.map(item => `
-      <tr>
-        <td style="padding:10px 12px;font-weight:600;color:#111827">${item.name}</td>
-        <td style="padding:10px 12px;color:#5a6472">${item.quantity || ''}</td>
-        <td style="padding:10px 12px;color:#5a6472">${item.notes || ''}</td>
-        <td style="padding:10px 12px"><span style="padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;background:${ITEM_STATUS_CFG[item.status].bg};color:${ITEM_STATUS_CFG[item.status].text}">${ITEM_STATUS_CFG[item.status].label}</span></td>
-      </tr>
-    `).join('')}
-  `).join('');
-
-  const html = `<!DOCTYPE html><html><head><title>${list.name}</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #111827; padding: 32px; }
-    h1 { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
-    .meta { font-size: 14px; color: #5a6472; margin-bottom: 8px; }
-    .stats { display: flex; gap: 20px; font-size: 14px; font-weight: 600; margin-bottom: 24px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { padding: 10px 12px; text-align: left; font-size: 13px; font-weight: 700; color: #5a6472; text-transform: uppercase; letter-spacing: .05em; border-bottom: 2px solid #e4e7ec; }
-    td { border-bottom: 1px solid #f1f3f6; font-size: 14px; vertical-align: middle; }
-    @media print { body { padding: 16px; } }
-  </style></head><body>
-  <h1>${list.name}</h1>
-  <div class="meta">${list.store.name} &nbsp;·&nbsp; ${new Date(list.openedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · by ${list.openedBy.name}</div>
-  <div class="stats">
-    <span style="color:#8a5300">${pending} needed</span>
-    ${ordered  > 0 ? `<span style="color:#1a7f45">${ordered} ordered</span>` : ''}
-    ${received > 0 ? `<span style="color:#4f6d8f">${received} received</span>` : ''}
-    <span style="color:#5a6472">${visibleItems.length} total</span>
-  </div>
-  <table>
-    <thead><tr><th>Item</th><th>Quantity</th><th>Notes</th><th>Status</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table>
-  <div style="margin-top:32px;font-size:12px;color:#d5dae1">Printed ${new Date().toLocaleString()}</div>
-  </body></html>`;
-
-  const win = window.open('', '_blank');
-  if (!win) {
-    toast.error('Popups are blocked. Allow popups for this site to print, or use "Share as PDF" from the mobile app instead.');
-    return;
-  }
-  win.document.write(html);
-  win.document.close();
-  win.focus();
-  win.print();
-}
-
-// ─── Quick Add Panel (right column) ──────────────────────────────────────────
 
 function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, canEdit }: {
   list: OrderList;
@@ -517,6 +453,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
   const [editingQtyId, setEditingQtyId] = useState<string | null>(null);
   const [editingQty,   setEditingQty]   = useState('');
   const [confirmCloseList, setConfirmCloseList] = useState(false);
+  const [printing, setPrinting] = useState(false);   // the print options (barcodes, tick boxes), 2026-11-11
   const [confirmRemoveItemId, setConfirmRemoveItemId] = useState<string | null>(null);
   const [editingInstructions, setEditingInstructions] = useState(false);
   const [instructionsDraft,   setInstructionsDraft]   = useState('');
@@ -652,7 +589,8 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button style={s.printBtn} onClick={() => printList(list)}>Print</button>
+          <button style={s.printBtn} onClick={() => setPrinting(true)}>Print</button>
+          {printing && <OrderListPrint list={list as any} onClose={() => setPrinting(false)} />}
           {canClose && isOpen && (
             <button style={s.closeListBtn}
               onClick={() => setConfirmCloseList(true)}

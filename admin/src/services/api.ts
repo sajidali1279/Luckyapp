@@ -552,6 +552,8 @@ export const orderListApi = {
   reorderItems:     (listId: string, items: { id: string; sortOrder: number }[]) =>
     api.patch(`/order-lists/${listId}/reorder`, { items }),
   printList:        (listId: string, notes?: string) => api.post(`/order-lists/${listId}/print`, { notes }),
+  // each item's barcode for the printed list (2026-11-11): { [itemId]: { barcode, from } }
+  barcodes:         (listId: string) => api.get(`/order-lists/${encodeURIComponent(listId)}/barcodes`),
   getPrintHistory:  (storeId: string, listId: string) => api.get(`/order-lists/store/${storeId}/print-history/${listId}`),
   restoreItems:     (storeId: string, closedListId: string, itemIds: string[]) =>
     api.post(`/order-lists/store/${storeId}/restore-items`, { closedListId, itemIds }),
