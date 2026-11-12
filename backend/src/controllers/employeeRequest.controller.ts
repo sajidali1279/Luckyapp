@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { latestCheckIns } from '../utils/staffCheckIn';
+import { canUseStore } from '../utils/storeAccess';
 import { storeDateKey } from '../utils/storeTime';
 import { AuthRequest } from '../types';
 import { OrderItemPriority, OrderItemSource, RejectionReason, EmployeeRequestType, Role } from '@prisma/client';
@@ -261,6 +262,8 @@ export async function reviewRequest(req: AuthRequest, res: Response) {
   if (!request) { res.status(404).json({ success: false, error: 'Request not found' }); return; }
 
   const user = req.user!;
+  // Only a manager of that store (or HQ, or a manager over all stores) reviews it (2026-11-11: any manager could, for any store)
+  if (!(await canUseStore(user.id, user.role, request.storeId))) { res.status(403).json({ success: false, error: 'That request is for a store you do not manage.' }); return; }
 
   // Resolve the target list, use provided listId, or auto-find/create the store's OPEN list
   let targetListId = parsed.data.listId;

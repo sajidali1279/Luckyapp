@@ -172,7 +172,8 @@ function getInitial(name: string) {
 export default function StoreRequests() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
-  const isReadOnly = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
+  // HQ acts on requests too (2026-11-11, the owner: "I cannot see what they are and act on them, only managers can"); it was watch-only
+  const isReadOnly = false;
   const isStoreManager = user?.role === 'STORE_MANAGER';
 
   const [searchParams] = useSearchParams();
@@ -667,6 +668,15 @@ export default function StoreRequests() {
                               <span style={s.submitterText}><strong>{req.submittedBy?.name}</strong>{'  ·  '}{formatTime(req.createdAt)}</span>
                             </div>
                             {req.note && <div style={s.notesBox}>"{req.note}"</div>}
+                            {/* what was asked for, on the card itself (2026-11-11: HQ saw only "3 items") */}
+                            <ul style={{ margin: '8px 0 0', padding: 0, listStyle: 'none', display: 'flex', flexWrap: 'wrap', gap: 6 }} aria-label="Items asked for">
+                              {req.lines.slice(0, 8).map((l) => (
+                                <li key={l.id} style={{ fontSize: 13, padding: '3px 9px', borderRadius: 999, background: l.status === 'REJECTED' ? '#fdf2f2' : l.status === 'ACCEPTED' ? '#edf7f0' : '#f4f6fa', color: '#1d3557', border: '1px solid #e4e7ec', textDecoration: l.status === 'REJECTED' ? 'line-through' : undefined }}>
+                                  {l.name}{l.quantity ? ` × ${l.quantity}` : ''}
+                                </li>
+                              ))}
+                              {req.lines.length > 8 && <li style={{ fontSize: 13, color: '#5a6472', padding: '3px 4px' }}>and {req.lines.length - 8} more</li>}
+                            </ul>
                             {isDone ? (
                               <div style={s.ackBox}>
                                 <span style={s.ackIcon}><Glyph e="✅" size={16} color="#17663a" /></span>
