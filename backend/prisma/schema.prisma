@@ -1717,6 +1717,7 @@ model HotFoodOrderItem {
   catalogItemId String? // set when ordered from catalog item (no FK — name/price are snapshotted)
   comboId       String? // set when ordered as a combo (no FK, the name with the drink and the price are snapshotted)
   drink         String? // the drink the customer chose for a combo (utils/hotFoodCombos.ts DRINKS)
+  options       Json?   // the size and add-ons chosen (2026-11-14): { size, addOns: [names] }; the name says them too
   name          String  // snapshot at order time
   price         Float   // snapshot at order time
   quantity      Int     @default(1)
@@ -1740,6 +1741,8 @@ model HotFoodCatalogItem {
   daypartIds       String[] @default([])
   // Featured by HQ (2026-11-10): first in its section of the app's menu, and in the "Popular" strip at the top
   isFeatured       Boolean  @default(false)
+  // Sizes and add-ons (2026-11-14, utils/hotFoodOptions.ts): { sizes: [{id,name,price}], addOns: [{id,name,prices:{sizeId:price},active}], maxAddOns }
+  options          Json?
   imageUrl         String?
   estimatedMinutes Int?
   createdAt        DateTime @default(now())

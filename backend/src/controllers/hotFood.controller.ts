@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { Role } from '@prisma/client';
+import { Role, Prisma } from '@prisma/client';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { hasMinRole } from '../middleware/auth';
@@ -28,6 +28,7 @@ import {
   leadMinutes, pickupSlots, pickupProblem, startTime, pickupWords, pickupWordsEs, StoreDaypart,
 } from '../utils/hotFoodMenus';
 import { loadDayparts } from './hotFoodMenus.controller';
+import { cleanOptions, optionsOf, priceChoice, choiceKey, parseChoiceKey } from '../utils/hotFoodOptions';
 import { storeDateKey, endOfStoreDate } from '../utils/storeTime';
 
 /** An order placed ahead that should be started within this many minutes is treated as one to start now (2026-11-10) */
@@ -441,7 +442,7 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     select: {
       soldOutUntil: true,
       catalogItem: {
-        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true, daypartIds: true, isFeatured: true },
+        select: { id: true, name: true, description: true, price: true, estimatedMinutes: true, imageUrl: true, category: true, daypartIds: true, isFeatured: true, options: true },
       },
     },
   });
@@ -462,7 +463,15 @@ export async function getStoreMenu(req: AuthRequest, res: Response) {
     const next = now_ || soldOut ? null : nextServed(ids, here, now);
     return { ...i, soldOut, daypartIds: menus ? menus.map((d) => d.id) : [], servedNow: now_, nextServedAt: next ? next.toISOString() : null };
   });
-  const all = knowsMenus ? listed : listed.filter((i) => i.servedNow);
+  // Sizes and add-ons (2026-11-14): an app that knows them asks with ?options=1; an older one does not get an item that needs a size
+  const knowsOptions = req.query?.options === '1';
+  const shown = listed.map((i) => {
+    const o = optionsOf((i as { options?: unknown }).options);
+    const { options: _raw, ...rest } = i as typeof i & { options?: unknown };
+    void _raw;
+    return { ...rest, ...(o && knowsOptions ? { options: { ...o, addOns: o.addOns.filter((a) => a.active) } } : {}), needsChoice: !!o?.sizes.length };
+  }).filter((i) => knowsOptions || !i.needsChoice);
+  const all = knowsMenus ? shown : shown.filter((i) => i.servedNow);
   const menus = here.filter((d) => !d.off && listed.some((i) => i.daypartIds.includes(d.id))).map((d) => {
     const next = daypartOpenAt(d, now) ? null : nextStart(d, now);
     return {
@@ -639,7 +648,17 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       res.status(400).json({ success: false, error: 'Choose the drink for the combo.' });
       return;
     }
-    const itemId = isCombo ? `combo:${line.comboId}:${drink}` : line?.menuItemId;
+    // Sizes and add-ons (2026-11-14): the same item with other choices is its own line
+    const hasChoice = !isCombo && ((typeof line?.sizeId === 'string' && line.sizeId) || (Array.isArray(line?.addOnIds) && line.addOnIds.length));
+    if (hasChoice && Array.isArray(line.addOnIds) && (line.addOnIds.length > 40 || line.addOnIds.some((x: unknown) => typeof x !== 'string' || !/^[a-z0-9-]{1,40}$/.test(x)))) {
+      res.status(400).json({ success: false, error: 'An add-on in the order is not right. Refresh the menu and try again.' });
+      return;
+    }
+    if (hasChoice && line.sizeId != null && (typeof line.sizeId !== 'string' || !/^[a-z0-9-]{1,40}$/.test(line.sizeId))) {
+      res.status(400).json({ success: false, error: 'A size in the order is not right. Refresh the menu and try again.' });
+      return;
+    }
+    const itemId = isCombo ? `combo:${line.comboId}:${drink}` : hasChoice && typeof line?.menuItemId === 'string' ? choiceKey(line.menuItemId, line.sizeId, line.addOnIds) : line?.menuItemId;
     const qty = Number(line?.quantity ?? 1);
     if (typeof itemId !== 'string' || !itemId) {
       res.status(400).json({ success: false, error: 'Each item needs its menu id.' });
@@ -650,7 +669,8 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       return;
     }
     qtyById.set(itemId, (qtyById.get(itemId) ?? 0) + qty);
-    if (qtyById.get(itemId)! > rule('hotFoodMaxPerItem')) {
+    const sameItem = [...qtyById].filter(([k]) => (parseChoiceKey(k)?.itemId ?? k) === (parseChoiceKey(itemId)?.itemId ?? itemId)).reduce((n, [, q]) => n + q, 0);
+    if (sameItem > rule('hotFoodMaxPerItem')) {
       res.status(400).json({ success: false, error: `You can order up to ${rule('hotFoodMaxPerItem')} of one item at a time.` });
       return;
     }
@@ -679,7 +699,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
 
   // Validate + price each item: the legacy menu table, then the catalog table (combos below)
   const comboKeys = [...qtyById.keys()].filter((k) => k.startsWith('combo:'));
-  const itemIds: string[] = [...qtyById.keys()].filter((k) => !k.startsWith('combo:'));
+  const itemIds: string[] = [...new Set([...qtyById.keys()].filter((k) => !k.startsWith('combo:')).map((k) => parseChoiceKey(k)?.itemId ?? k))];
 
   const menuItemRows = await prisma.hotFoodMenuItem.findMany({
     where: { id: { in: itemIds }, isAvailable: true, OR: [{ storeId }, { storeId: null }] },
@@ -704,7 +724,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     }
   }
 
-  const orderLines: { menuItemId?: string; catalogItemId?: string; comboId?: string; drink?: string; name: string; price: number; quantity: number }[] = [];
+  const orderLines: { menuItemId?: string; catalogItemId?: string; comboId?: string; drink?: string; name: string; price: number; quantity: number; options?: any; key?: string }[] = [];
   // Combos: on at this store now (the item on, the store chosen, within hours), with a drink the combo allows (none for a deal with no drink)
   // The menus by time: an order for now takes what is served now (before last call); ahead, what is served at the pickup time
   const dayparts = daypartsAt(await loadDayparts(), storeId);
@@ -738,9 +758,11 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       orderLines.push({ comboId, drink: drink || undefined, name: comboLineName(combo.name, drink || null, combo.itemQuantity, combo.catalogItem.name), price: combo.price, quantity: qtyById.get(key)! });
     }
   }
-  for (const [itemId, qty] of qtyById) {
-    if (itemId.startsWith('combo:')) continue;
-    const menuItem   = menuMap.get(itemId);
+  for (const [lineKey, qty] of qtyById) {
+    if (lineKey.startsWith('combo:')) continue;
+    const choice = parseChoiceKey(lineKey);
+    const itemId = choice?.itemId ?? lineKey;
+    const menuItem   = choice ? undefined : menuMap.get(itemId);
     const catalogItem = catalogMap.get(itemId);
     const resolved   = menuItem || catalogItem;
     if (!resolved) {
@@ -751,12 +773,17 @@ export async function placeOrder(req: AuthRequest, res: Response) {
       res.status(400).json({ success: false, code: 'NOT_SERVED_THEN', error: notServed(catalogItem.name, catalogItem.daypartIds) });
       return;
     }
+    // the size and add-ons chosen, priced (an item with sizes needs one: an older app cannot order it, the menu does not show it there)
+    const priced = catalogItem ? priceChoice(catalogItem, choice?.sizeId, choice?.addOnIds) : { unit: resolved.price, label: resolved.name, chosen: { size: null, addOns: [] as string[] } };
+    if ('error' in priced) { res.status(400).json({ success: false, code: 'CHOICE', error: priced.error }); return; }
     cookMinutes.push(resolved.estimatedMinutes ?? null);
     orderLines.push({
       ...(menuItem ? { menuItemId: menuItem.id } : { catalogItemId: catalogItem.id }),
-      name: resolved.name,
-      price: resolved.price,
+      name: priced.label,
+      price: priced.unit,
       quantity: qty,
+      ...(priced.chosen.size || priced.chosen.addOns.length ? { options: priced.chosen } : {}),
+      key: lineKey,
     });
   }
 
@@ -775,7 +802,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   const expected = Number(req.body?.expectedTotal);
   if (req.body?.expectedTotal != null && Number.isFinite(expected) && Math.abs(expected - totalAmount) > 0.005) {
     res.status(409).json({ success: false, code: 'PRICES_CHANGED', total: totalAmount,
-      prices: orderLines.map((l) => ({ id: l.comboId ? `combo:${l.comboId}:${l.drink ?? ''}` : l.menuItemId ?? l.catalogItemId, price: l.price })),
+      prices: orderLines.map((l) => ({ id: l.comboId ? `combo:${l.comboId}:${l.drink ?? ''}` : l.key ?? l.menuItemId ?? l.catalogItemId, price: l.price })),
       error: `A price changed since you opened the menu. The order is now $${totalAmount.toFixed(2)}. Check it and order again.` });
     return;
   }
@@ -806,7 +833,7 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     customerId,
     note: note?.trim() || null,
     totalAmount,
-    items: { create: orderLines },
+    items: { create: orderLines.map(({ key: _key, ...l }) => l) },   // the line key is for the price check only
     ...(payWithPoints ? { paidWithPoints: true, pointsAmount: totalAmount } : {}),
     // Placed ahead: when to start it; one that should start within START_NOW_MINUTES is started now (no reminder to start)
     ...(pickupAt && startAt ? { pickupAt, startAt, ...(startsNow ? { startToldAt: now } : {}) } : {}),
@@ -974,6 +1001,11 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
   const data: any = checked.data;
   if (req.body.category !== undefined) data.category = cleanCategory(req.body.category);
+  if (req.body.options !== undefined) {
+    const o = cleanOptions(req.body.options);
+    if ('error' in o) { res.status(400).json({ success: false, error: o.error }); return; }
+    data.options = o.data ?? Prisma.DbNull;
+  }
   if (req.body.isFeatured !== undefined) {
     if (typeof req.body.isFeatured !== 'boolean') { res.status(400).json({ success: false, error: 'isFeatured must be true or false.' }); return; }
     data.isFeatured = req.body.isFeatured;
