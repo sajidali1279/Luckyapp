@@ -186,12 +186,9 @@ export default function App() {
                     was previously missing, letting a Store Manager reach the page directly by
                     URL and see fully-enabled buttons that would 403 on click. */}
                 <Route path="/careers" element={<Careers />} />
-                {/* Order List admin view is a cross-store browsing/reporting tool backed by a
-                    SuperAdmin-only endpoint (/order-lists/admin/all) - a Store Manager's real
-                    order-list workflow (scan, quick-add, open/close their own store) already
-                    lives on mobile; this page was never meant to serve that role. */}
-                <Route path="/order-list" element={<OrderList />} />
               </Route>
+              {/* Order list (2026-11-15): HQ for every store, a store manager for their own stores (the server keeps each to its stores) */}
+              <Route path="/order-list" element={<OrderList />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/documents" element={<Documents />} />
               {/* Invoices to PDI: HQ for any store, a manager for their own stores (the server keeps each to its stores). It sat inside the

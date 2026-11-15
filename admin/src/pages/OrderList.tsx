@@ -69,8 +69,9 @@ const PRIORITY_CFG = {
   LOW:    { label: 'Low',    bg: '#edf7f0', text: '#1a7f45' },
 };
 
+// The same words as the printout and the Requests page (2026-11-15): To order, Ordered, Received; only Urgent is tagged; Staff request
 const ITEM_STATUS_CFG = {
-  PENDING:  { label: 'Needed',   bg: '#fdf6e8', text: '#8a5300', border: '#f1dcaf' },
+  PENDING:  { label: 'To order',   bg: '#fdf6e8', text: '#8a5300', border: '#f1dcaf' },
   ORDERED:  { label: 'Ordered',  bg: '#edf7f0', text: '#1a7f45', border: '#c8e6d2' },
   RECEIVED: { label: 'Received', bg: '#eef2f7', text: '#4f6d8f', border: '#C4B5FD' },
   REMOVED:  { label: 'Removed',  bg: '#f1f3f6', text: '#5a6472', border: '#e4e7ec' },
@@ -82,12 +83,14 @@ const CAT_STATUS_CFG = {
   REJECTED: { label: 'Rejected', bg: '#fdf2f2', text: '#c42130', border: '#f3cdd1' },
 };
 
-function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, canEdit }: {
+function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, canEdit, part }: {
   list: OrderList;
   onItemAdded: () => void;
   pendingRequests: EmpRequest[];
   onRequestReviewed: () => void;
   canEdit: boolean;
+  /** add: the add box and quick add (left); requests: the staff requests waiting (above the items, only when there are some) */
+  part: 'add' | 'requests';
 }) {
   const qc = useQueryClient();
   const [name, setName]           = useState('');
@@ -116,7 +119,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
     queryKey: ['quick-items', list.store.id],
     queryFn: () => orderListApi.getQuickItems(list.store.id),
     staleTime: 5 * 60_000,
-    enabled: canEdit,
+    enabled: canEdit && part === 'add',
   });
   const quickItems: QuickItem[] = (quickData as any)?.data?.data || [];
   const filteredQuickItems = quickSearch.trim()
@@ -171,12 +174,14 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
   }
 
   const pending = pendingRequests.filter(r => r.status === 'PENDING');
+  if (part === 'requests' && (pending.length === 0 || !canEdit)) return null;
+  if (part === 'add' && !canEdit) return null;
 
   return (
     <div style={p.panel}>
 
       {/* ── Inline Add Bar ──────────────────────────────────── */}
-      {canEdit && (
+      {part === 'add' && (
         <div style={p.section}>
           <div style={p.sectionLabel}>+ Add item</div>
           <div style={{ position: 'relative' }}>
@@ -227,7 +232,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       )}
 
       {/* ── Quick Pad ───────────────────────────────────────── */}
-      {canEdit && quickItems.length > 0 && (
+      {part === 'add' && quickItems.length > 0 && (
         <div style={p.section}>
           <div style={p.sectionLabel}>Quick add</div>
           {quickItems.length > 6 && (
@@ -261,7 +266,7 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
         </div>
       )}
 
-      {canEdit && quickItems.length === 0 && (
+      {part === 'add' && quickItems.length === 0 && (
         <div style={p.section}>
           <div style={p.sectionLabel}>Quick add</div>
           <div style={{ fontSize: 13, color: TEXT_MUTED, padding: '12px 0' }}>
@@ -271,10 +276,10 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
       )}
 
       {/* ── Pending Employee Requests ────────────────────────── */}
-      {pending.length > 0 && (
+      {part === 'requests' && (
         <div style={p.section}>
           <div style={p.sectionLabel}>
-            Employee requests
+            Staff requests waiting
             <span style={p.badge}>{pending.length}</span>
           </div>
           {pending.map(req => {
@@ -351,13 +356,21 @@ function QuickAddPanel({ list, onItemAdded, pendingRequests, onRequestReviewed, 
         </div>
       )}
 
-      {!canEdit && pending.length === 0 && (
-        <div style={{ padding: '20px 16px', color: TEXT_MUTED, fontSize: 13, textAlign: 'center' }}>
-          {list.status === 'CLOSED' ? 'This list is closed.' : 'No pending requests.'}
-        </div>
-      )}
     </div>
   );
+}
+
+/** A phone-width screen (under 800px): one column, the items full width (2026-11-15). */
+function useNarrow(): boolean {
+  const q = '(max-width: 800px)';
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
+  useEffect(() => {
+    const m = window.matchMedia(q);
+    const on = () => setNarrow(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return narrow;
 }
 
 // ─── Restore Items Panel (closed list → current open list) ──────────────────
@@ -450,6 +463,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
   list: OrderList; canEdit: boolean; canClose: boolean; onBack: () => void; onListChanged: () => void;
 }) {
   const qc = useQueryClient();
+  const narrow = useNarrow();
   const [editingQtyId, setEditingQtyId] = useState<string | null>(null);
   const [editingQty,   setEditingQty]   = useState('');
   const [confirmCloseList, setConfirmCloseList] = useState(false);
@@ -530,12 +544,6 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
   const ordered  = visibleItems.filter(i => i.status === 'ORDERED').length;
   const received = visibleItems.filter(i => i.status === 'RECEIVED').length;
 
-  function nextStatus(status: string): string | null {
-    if (status === 'PENDING')  return 'ORDERED';
-    if (status === 'ORDERED')  return 'RECEIVED';
-    return null;
-  }
-
   function saveQty(item: OrderListItem) {
     const val = editingQty.trim();
     if (val !== (item.quantity || '')) {
@@ -570,19 +578,19 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
       <div style={s.breadcrumb}>
         <button style={s.breadcrumbBtn} onClick={onBack}>← All lists</button>
         <span style={s.breadcrumbSep}>/</span>
-        <span style={s.breadcrumbCur}>{list.name}</span>
+        <span style={s.breadcrumbCur}>{list.store.name}</span>
       </div>
 
-      {/* Header */}
-      <div style={s.listDetailHeader}>
+      {/* Header: the store, then when it was opened (the list's name repeated both before 2026-11-15) */}
+      <div style={{ ...s.listDetailHeader, ...(narrow ? { flexDirection: 'column' as const } : {}) }}>
         <div>
-          <div style={s.listDetailTitle}>{list.name}</div>
+          <div style={s.listDetailTitle}>{list.store.name}</div>
           <div style={s.listDetailMeta}>
-            {list.store.name} · opened {new Date(list.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} by {list.openedBy.name}
-            {list.status === 'CLOSED' && list.closedAt && ` · Closed ${new Date(list.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+            {isOpen ? 'Open' : 'Closed'} · opened {new Date(list.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} by {list.openedBy.name}
+            {list.status === 'CLOSED' && list.closedAt && ` · closed ${new Date(list.closedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
           </div>
           <div style={s.listDetailStats}>
-            <span style={{ color: '#8a5300', fontWeight: 600 }}>{pending} needed</span>
+            <span style={{ color: '#8a5300', fontWeight: 600 }}>{pending} to order</span>
             {ordered  > 0 && <span style={{ color: '#1a7f45', fontWeight: 600 }}>{ordered} ordered</span>}
             {received > 0 && <span style={{ color: '#4f6d8f', fontWeight: 600 }}>{received} received</span>}
             <span style={{ color: TEXT_MUTED }}>{visibleItems.length} total</span>
@@ -637,27 +645,38 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
         )}
       </div>
 
-      {/* Two-column body */}
-      <div style={s.detailBody}>
+      {/* Two columns on a wide screen (adding on the left); one on a phone, the items full width */}
+      <div style={{ ...s.detailBody, ...(narrow || !canEdit ? { gridTemplateColumns: '1fr' } : {}) }}>
 
-        {/* Left: Restore Items (closed lists, DevAdmin only) + Quick Add Panel */}
-        <div style={s.addCol}>
-          {list.status === 'CLOSED' && canEdit && (
-            <div style={{ marginBottom: 16 }}>
-              <RestoreItemsPanel list={list} />
+        {/* Left: Restore items (a closed list) or adding items (an open list) */}
+        {canEdit && (
+          <div style={narrow ? {} : s.addCol}>
+            {list.status === 'CLOSED' && <RestoreItemsPanel list={list} />}
+            <QuickAddPanel
+              part="add"
+              list={list}
+              onItemAdded={onListChanged}
+              pendingRequests={pendingRequests}
+              onRequestReviewed={() => { refetchReqs(); onListChanged(); }}
+              canEdit={isOpen}
+            />
+          </div>
+        )}
+
+        {/* Right: staff requests waiting (only when there are some), then the items */}
+        <div style={s.itemsCol}>
+          {isOpen && (
+            <div style={{ marginBottom: pendingRequests.some((r) => r.status === 'PENDING') && canEdit ? 16 : 0 }}>
+              <QuickAddPanel
+                part="requests"
+                list={list}
+                onItemAdded={onListChanged}
+                pendingRequests={pendingRequests}
+                onRequestReviewed={() => { refetchReqs(); onListChanged(); }}
+                canEdit={canEdit}
+              />
             </div>
           )}
-          <QuickAddPanel
-            list={list}
-            onItemAdded={onListChanged}
-            pendingRequests={pendingRequests}
-            onRequestReviewed={() => { refetchReqs(); onListChanged(); }}
-            canEdit={canEdit && isOpen}
-          />
-        </div>
-
-        {/* Right: item list */}
-        <div style={s.itemsCol}>
           {grouped.length === 0 ? (
             <div style={s.empty}>
               No items yet.{canEdit && isOpen ? ' Use the panel on the left to add items.' : ''}
@@ -670,35 +689,25 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                   {catItems.map(item => {
                     const pc = PRIORITY_CFG[item.priority];
                     const sc = ITEM_STATUS_CFG[item.status];
-                    const canAdvance = canEdit && isOpen && !!nextStatus(item.status);
+                    const acts = canEdit && isOpen;
+                    const busy = statusMutation.isPending && statusMutation.variables?.id === item.id;
                     const isEditingQty = editingQtyId === item.id;
                     return (
                       <div key={item.id} style={s.itemRow}>
                         <div style={s.itemRowMain}>
-                          {/* Status chip: click to advance */}
-                          <button
-                            style={{
-                              ...s.statusChip,
-                              background: sc.bg, color: sc.text,
-                              border: `1px solid ${sc.border || 'transparent'}`,
-                              cursor: canAdvance ? 'pointer' : 'default',
-                            }}
-                            onClick={() => {
-                              if (!canAdvance) return;
-                              const next = nextStatus(item.status);
-                              if (next) statusMutation.mutate({ id: item.id, status: next });
-                            }}
-                            title={canAdvance ? `Click → mark ${nextStatus(item.status)?.toLowerCase()}` : undefined}
-                          >
+                          {/* Where it is: To order, Ordered, Received */}
+                          <span style={{ ...s.statusChip, background: sc.bg, color: sc.text, border: `1px solid ${sc.border || 'transparent'}` }}>
                             {sc.label}
-                          </button>
+                          </span>
 
                           {/* Item name */}
                           <span style={s.itemRowName}>{item.name}</span>
 
-                          {/* Priority pill */}
-                          <span style={{ ...s.priorityPill, background: pc.bg, color: pc.text }}>{pc.label}</span>
+                          {/* Only Urgent is tagged (a "Normal" tag sat on almost every item) */}
+                          {item.priority === 'URGENT' && <span style={{ ...s.priorityPill, background: pc.bg, color: pc.text }}>{pc.label}</span>}
 
+                          {/* The quantity and the buttons stay together (their own line on a phone) */}
+                          <span style={s.itemActions}>
                           {/* Qty: click to edit inline */}
                           {isEditingQty ? (
                             <input
@@ -727,6 +736,14 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                             </span>
                           )}
 
+                          {/* One tap, like the app: Ordered, then Received */}
+                          {acts && item.status === 'PENDING' && (
+                            <button style={s.stepBtn} disabled={busy} onClick={() => statusMutation.mutate({ id: item.id, status: 'ORDERED' })} aria-label={`Mark ${item.name} ordered`}>Ordered</button>
+                          )}
+                          {acts && (item.status === 'PENDING' || item.status === 'ORDERED') && (
+                            <button style={{ ...s.stepBtn, ...(item.status === 'ORDERED' ? s.stepBtnMain : {}) }} disabled={busy} onClick={() => statusMutation.mutate({ id: item.id, status: 'RECEIVED' })} aria-label={`Mark ${item.name} received`}>Received</button>
+                          )}
+
                           {/* Remove */}
                           {canEdit && isOpen && (
                             <button style={s.removeBtn}
@@ -735,6 +752,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                               ✕
                             </button>
                           )}
+                          </span>
                         </div>
 
                         {/* Sub-row: notes + source */}
@@ -742,7 +760,7 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
                           <div style={s.itemRowSub}>
                             {item.notes && <span>{item.notes}</span>}
                             {item.source === 'EMPLOYEE_REQUEST' && (
-                              <span style={s.sourceBadge}>Employee request</span>
+                              <span style={s.sourceBadge}>Staff request</span>
                             )}
                           </div>
                         )}
@@ -769,12 +787,6 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
 
   const qc = useQueryClient();
 
-  const { data: storesData } = useQuery({
-    queryKey: ['stores-all'],
-    queryFn: storesApi.getAll,
-  });
-  const stores: Store[] = storesData?.data?.data || [];
-
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-order-lists', filterStoreId, filterStatus],
     queryFn: () => orderListApi.adminGetAll({
@@ -784,6 +796,8 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
     refetchInterval: 30000,
   });
   const lists: OrderList[] = data?.data?.data?.lists || [];
+  // the stores this person can use (HQ: all; a manager: their own), sent with the lists (2026-11-15)
+  const stores: Store[] = data?.data?.data?.stores || [];
 
   const { data: fullListData, isLoading: fullListLoading, isError: fullListError, refetch: refetchFull } = useQuery({
     queryKey: ['admin-order-list-detail', selectedList?.id],
@@ -870,9 +884,8 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
             style={{ ...s.openListBtn, ...(!filterStoreId || openMutation.isPending ? s.openListBtnDim : {}) }}
             onClick={() => filterStoreId && openMutation.mutate(filterStoreId)}
             disabled={!filterStoreId || openMutation.isPending}
-            title={!filterStoreId ? 'Select a store above first' : undefined}
           >
-            {openMutation.isPending ? 'Opening…' : '+ Open list'}
+            {openMutation.isPending ? 'Opening…' : !filterStoreId ? 'Choose a store first' : '+ Open list'}
           </button>
         )}
       </div>
@@ -889,6 +902,7 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
             const isOpen    = list.status === 'OPEN';
             const itemCount = list._count?.items ?? list.items?.length ?? 0;
             const pending   = list.items?.filter(i => i.status === 'PENDING').length ?? 0;
+            const ordered   = list.items?.filter(i => i.status === 'ORDERED').length ?? 0;
             const received  = list.items?.filter(i => i.status === 'RECEIVED').length ?? 0;
             return (
               <div key={list.id} style={{ ...s.listCard, background: isOpen ? '#fff' : '#f7f8fa' }}
@@ -904,12 +918,14 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
                     {new Date(list.openedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
                 </div>
-                <div style={s.listCardName}>{list.name}</div>
-                <div style={s.listCardStore}>{list.store?.name}</div>
+                {/* The store big; the date is on the line above (the list's own name repeated the two) */}
+                <div style={s.listCardName}>{list.store?.name}</div>
                 <div style={s.listCardStats}>
-                  <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
-                  {pending   > 0 && <span style={{ color: '#8a5300' }}>{pending} needed</span>}
-                  {received  > 0 && <span style={{ color: '#4f6d8f' }}>{received} received</span>}
+                  {itemCount === 0 ? <span style={{ color: TEXT_MUTED }}>No items yet</span> : <>
+                    <span style={{ color: '#8a5300' }}>{pending} to order</span>
+                    <span style={{ color: '#1a7f45' }}>{ordered} ordered</span>
+                    <span style={{ color: '#4f6d8f' }}>{received} received</span>
+                  </>}
                 </div>
               </div>
             );
@@ -1105,9 +1121,9 @@ export default function OrderListPage() {
   const [tab, setTab] = useState<'lists' | 'categories'>('lists');
 
   const isDevAdmin     = user?.role === 'DEV_ADMIN';
-  const isSuperAdmin   = user?.role === 'SUPER_ADMIN';
-  const canEdit        = isDevAdmin;
-  const canClose       = isDevAdmin || isSuperAdmin;
+  // HQ and store managers act on lists here too (2026-11-15; only the developer could before); the server keeps a manager to their stores
+  const canEdit        = user?.role === 'DEV_ADMIN' || user?.role === 'SUPER_ADMIN' || user?.role === 'STORE_MANAGER';
+  const canClose       = canEdit;
 
   // Same source of truth as the sidebar's own "Order list" badge, shown
   // here too so the Categories tab isn't a blank guess when that badge
@@ -1123,18 +1139,21 @@ export default function OrderListPage() {
     <Page>
       <PageHeader
         title="Order list"
-        description={isDevAdmin ? 'Manage all store order lists and categories.' : 'Review and close store order lists across all locations.'}
+        description={user?.role === 'STORE_MANAGER' ? "Your store's order list: add items, mark them ordered and received, and print." : "Each store's order list: add items, mark them ordered and received, and print."}
       />
-      <Tabs
-        asButtons
-        ariaLabel="Order list view"
-        value={tab}
-        onChange={setTab}
-        tabs={[
-          { value: 'lists', label: 'Order lists' },
-          ...(isDevAdmin ? [{ value: 'categories' as const, label: 'Categories', count: categoriesPendingCount > 0 ? categoriesPendingCount : undefined }] : []),
-        ]}
-      />
+      {/* Tabs only when there is a second one to switch to */}
+      {isDevAdmin && (
+        <Tabs
+          asButtons
+          ariaLabel="Order list view"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { value: 'lists', label: 'Order lists' },
+            { value: 'categories' as const, label: 'Categories', count: categoriesPendingCount > 0 ? categoriesPendingCount : undefined },
+          ]}
+        />
+      )}
 
       <div style={s.tabContent}>
         {tab === 'lists'      && <OrderListsTab canEdit={canEdit} canClose={canClose} />}
@@ -1214,7 +1233,10 @@ const s: Record<string, React.CSSProperties> = {
   qtyChip:    { padding: '3px 10px', borderRadius: 6, fontSize: 13, background: '#f7f8fa', border: '1px solid #e4e7ec', whiteSpace: 'nowrap' as const, flexShrink: 0 },
   qtyEditInput: { width: 90, padding: '3px 8px', borderRadius: 6, border: '1.5px solid #3c6e8f', fontSize: 13, outline: 'none' },
   priorityPill: { padding: '3px 10px', borderRadius: 20, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' as const, flexShrink: 0 },
-  removeBtn:    { background: 'none', border: 'none', color: '#d5dae1', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4, marginLeft: 'auto' },
+  itemActions:  { display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexWrap: 'nowrap' as const },
+  stepBtn:      { padding: '5px 12px', borderRadius: 8, border: '1.5px solid #d3dcea', background: '#fff', color: '#1D3557', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' as const, flexShrink: 0 },
+  stepBtnMain:  { background: '#1D3557', borderColor: '#1D3557', color: '#fff' },
+  removeBtn:    { background: 'none', border: 'none', color: '#d5dae1', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4 },
   sourceBadge:  { fontSize: 12, color: '#1a7f45', background: '#edf7f0', padding: '2px 6px', borderRadius: 4, fontWeight: 500 },
 
   // Category table

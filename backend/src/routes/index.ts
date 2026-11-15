@@ -704,7 +704,7 @@ router.patch('/product-requests/:id/respond', authenticate, requireRole(Role.STO
 
 // ─── Order Lists (Procurement Ticketing) ─────────────────────────────────────
 router.get('/order-lists/suggestions',                          authenticate, requireRole(Role.STORE_MANAGER), getItemSuggestions);                    // Item name autocomplete, all stores combined, no store filter needed
-router.get('/order-lists/admin/all',                            authenticate, requireRole(Role.SUPER_ADMIN),   adminGetAllLists);                          // All lists across stores
+router.get('/order-lists/admin/all',                            authenticate, requireRole(Role.STORE_MANAGER), adminGetAllLists);                          // All lists across stores (HQ); a manager's own stores (2026-11-15)
 router.get('/order-lists/store/:storeId/quick-add',             authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getQuickAddItems);       // Top 16 items for Quick Pad
 router.get('/order-lists/store/:storeId/active',                authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getActiveList);         // Current OPEN list with items
 router.get('/order-lists/store/:storeId/history',               authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getListHistory);         // Closed lists (paginated)

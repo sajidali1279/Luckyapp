@@ -6,6 +6,7 @@ import { STORE_TIMEZONE, storeDayStart } from '../utils/storeTime';
 import { AuthRequest } from '../types';
 import { Role, OrderListItemStatus, OrderItemPriority, OrderItemSource } from '@prisma/client';
 import { hasMinRole } from '../middleware/auth';
+import { usableStoreIds } from '../utils/storeAccess';
 import { pdiNameSuggestions, type NameSuggestion } from '../utils/pdiNames';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -454,7 +455,12 @@ export async function adminGetAllLists(req: AuthRequest, res: Response) {
   const { storeId, status, page: pageStr } = req.query;
   const page = Number(pageStr) || 1;
   const where: Record<string, unknown> = {};
+  // The website's Order list page (2026-11-15): HQ sees every store, a store manager only the stores they can use
+  const hq = hasMinRole(req.user!.role, Role.SUPER_ADMIN);
+  const usable = await usableStoreIds(req.user!.id, req.user!.role);
+  if (storeId && typeof storeId === 'string' && !hq && !usable.includes(storeId)) { res.status(403).json({ success: false, error: 'No access to this store' }); return; }
   if (storeId) where.storeId = storeId;
+  else if (!hq) where.storeId = { in: usable };
   if (status === 'OPEN' || status === 'CLOSED') where.status = status;
 
   const [lists, total] = await Promise.all([
@@ -472,5 +478,6 @@ export async function adminGetAllLists(req: AuthRequest, res: Response) {
     }),
     prisma.orderList.count({ where }),
   ]);
-  res.json({ success: true, data: { lists, total, page, pages: Math.ceil(total / 20) } });
+  const stores = await prisma.store.findMany({ where: { id: { in: usable } }, select: { id: true, name: true }, orderBy: { name: 'asc' } });
+  res.json({ success: true, data: { lists, total, page, pages: Math.ceil(total / 20), stores } });
 }

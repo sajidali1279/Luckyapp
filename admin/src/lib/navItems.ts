@@ -40,7 +40,7 @@ export const NAV_ITEMS: NavEntry[] = [
   { to: '/customers', label: 'Customers', icon: UserCircle, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'], badgeKey: 'disputesPendingCount' },
   { to: '/grant-redeem', label: 'Grant & Redeem', icon: ScanLine, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'] },
   { to: '/store-requests', label: 'Requests', icon: ClipboardList, group: 'People', badgeKey: 'requestsPendingCount' },
-  { to: '/order-list', label: 'Order list', icon: ShoppingCart, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN'], badgeKey: 'categoriesPendingCount' },
+  { to: '/order-list', label: 'Order list', icon: ShoppingCart, group: 'People', roles: ['DEV_ADMIN', 'SUPER_ADMIN', 'STORE_MANAGER'], badgeKey: 'categoriesPendingCount' },
   { to: '/scanned-products', label: 'Scanned products', icon: Barcode, group: 'People' },
   { to: '/items', label: 'Items', icon: Boxes, group: 'People' },
   { to: '/labels', label: 'Labels', icon: Printer, group: 'People' },
