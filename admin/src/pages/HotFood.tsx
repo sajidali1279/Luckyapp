@@ -16,6 +16,7 @@ import HotFoodCombosPanel from '../components/HotFoodCombosPanel';
 import HotFoodMenuGrid from '../components/HotFoodMenuGrid';
 import HotFoodDaypartsPanel from '../components/HotFoodDaypartsPanel';
 import HotFoodCategoryOrder, { useCategoryOrder } from '../components/HotFoodCategoryOrder';
+import HotFoodOptionsEditor, { optState, optPayload, optProblem, type OptState } from '../components/HotFoodOptionsEditor';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
@@ -53,6 +54,7 @@ interface CatalogItem {
   id: string; name: string; description?: string;
   price: number; imageUrl?: string; estimatedMinutes?: number; storeCount: number; category?: string | null;
   isFeatured?: boolean;   // first in its section of the app's menu, and in its "Popular" strip (2026-11-10)
+  options?: unknown;      // sizes and add-ons (2026-11-14, components/HotFoodOptionsEditor.tsx)
 }
 
 // The suggested categories, in the order the app's menu shows them (backend utils/hotFoodCategories.ts); HQ can type its own
@@ -221,6 +223,7 @@ function AddEditModal({ item, onClose, onSaved }: {
   const [imgFile, setImgFile] = useState<File | null>(null);
   const [imgPreview, setImgPreview] = useState<string | null>(item?.imageUrl ?? null);
   const [saving,  setSaving]  = useState(false);
+  const [opt, setOpt] = useState<OptState>(() => optState(item?.options));   // sizes and add-ons
   const fileRef = useRef<HTMLInputElement>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -234,7 +237,11 @@ function AddEditModal({ item, onClose, onSaved }: {
     const trimmedName = name.trim();
     if (!trimmedName) { toast.error('Name is required'); return; }
     const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) { toast.error('Enter a valid price'); return; }
+    const hasSizes = opt.on && opt.sizes.length > 0;   // the size carries the price: the item itself may be $0
+    if (isNaN(parsedPrice) || parsedPrice < 0 || (parsedPrice === 0 && !hasSizes)) { toast.error('Enter a valid price'); return; }
+    const optError = optProblem(opt);
+    if (optError) { toast.error(optError); return; }
+    const options = optPayload(opt);
 
     setSaving(true);
     try {
@@ -243,7 +250,7 @@ function AddEditModal({ item, onClose, onSaved }: {
       const estimatedMinutes = estMins ? parseInt(estMins, 10) : null;
 
       if (item) {
-        await hotFoodCatalogApi.update(item.id, { name: finalName, description, price: parsedPrice, estimatedMinutes, category: category.trim() || null });
+        await hotFoodCatalogApi.update(item.id, { name: finalName, description, price: parsedPrice, estimatedMinutes, category: category.trim() || null, options });
         if (imgFile) {
           const fd = new FormData();
           fd.append('image', imgFile);
@@ -258,6 +265,7 @@ function AddEditModal({ item, onClose, onSaved }: {
         if (estimatedMinutes) fd.append('estimatedMinutes', String(estimatedMinutes));
         if (category.trim()) fd.append('category', category.trim());
         if (imgFile) fd.append('image', imgFile);
+        if (options) fd.append('options', JSON.stringify(options));
         await hotFoodCatalogApi.create(fd);
         toast.success('Item added to catalog');
       }
@@ -271,7 +279,7 @@ function AddEditModal({ item, onClose, onSaved }: {
   }
 
   return (
-    <Modal title={item ? 'Edit item' : 'New item'} onClose={onClose} busy={saving} maxWidth={440}>
+    <Modal title={item ? 'Edit item' : 'New item'} onClose={onClose} busy={saving} maxWidth={opt.on ? 720 : 440}>
       <div style={md.form}>
         {/* Image picker */}
         <div
@@ -319,6 +327,8 @@ function AddEditModal({ item, onClose, onSaved }: {
               onChange={e => setEstMins(e.target.value)} placeholder="10" />
           </Field>
         </div>
+
+        <HotFoodOptionsEditor value={opt} onChange={setOpt} basePrice={parseFloat(price) || 0} />
 
         <div style={md.footer}>
           <Button onClick={onClose} disabled={saving}>Cancel</Button>

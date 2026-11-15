@@ -968,7 +968,13 @@ export async function getCatalog(_req: AuthRequest, res: Response) {
 
 // POST /hot-food/catalog
 export async function createCatalogItem(req: AuthRequest, res: Response) {
-  const checked = itemFields(req.body, { creating: true, priceMin: 0.01 });
+  // Sizes and add-ons (2026-11-14) come as JSON text in the form; an item with sizes may cost $0 itself (the size carries the price)
+  let opts: ReturnType<typeof cleanOptions> = { data: null };
+  if (typeof req.body.options === 'string' && req.body.options.trim()) {
+    try { opts = cleanOptions(JSON.parse(req.body.options)); } catch { opts = { error: 'The sizes and add-ons could not be read.' }; }
+  }
+  if ('error' in opts) { res.status(400).json({ success: false, error: opts.error }); return; }
+  const checked = itemFields(req.body, { creating: true, priceMin: opts.data?.sizes.length ? 0 : 0.01 });
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
 
   let imageUrl: string | undefined;
@@ -984,6 +990,7 @@ export async function createCatalogItem(req: AuthRequest, res: Response) {
       estimatedMinutes: checked.data.estimatedMinutes ?? null,
       category: cleanCategory(req.body.category),
       imageUrl: imageUrl ?? null,
+      ...(opts.data ? { options: opts.data as unknown as Prisma.InputJsonValue } : {}),
     },
     include: { _count: { select: { stores: true } } },
   });
@@ -997,7 +1004,9 @@ export async function updateCatalogItem(req: AuthRequest, res: Response) {
   const existing = await prisma.hotFoodCatalogItem.findUnique({ where: { id } });
   if (!existing) { res.status(404).json({ success: false, error: 'Item not found' }); return; }
 
-  const checked = itemFields(req.body, { creating: false, priceMin: 0.01 });
+  const sentOptions = req.body.options !== undefined ? cleanOptions(req.body.options) : null;
+  const sizesAfter = sentOptions ? ('data' in sentOptions ? sentOptions.data?.sizes.length ?? 0 : 0) : optionsOf(existing.options)?.sizes.length ?? 0;
+  const checked = itemFields(req.body, { creating: false, priceMin: sizesAfter ? 0 : 0.01 });
   if ('error' in checked) { res.status(400).json({ success: false, error: checked.error }); return; }
   const data: any = checked.data;
   if (req.body.category !== undefined) data.category = cleanCategory(req.body.category);
