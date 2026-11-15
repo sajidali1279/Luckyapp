@@ -292,37 +292,43 @@ export async function reviewRequest(req: AuthRequest, res: Response) {
   const max  = await prisma.orderListItem.aggregate({ where: { listId: targetListId }, _max: { sortOrder: true } });
   let sortOrder = (max._max.sortOrder ?? 0) + 1;
 
-  const updates = await prisma.$transaction(async (tx) => {
-    const results: { lineId: string; action: string; listItemId?: string }[] = [];
-    for (const line of parsed.data.lines) {
-      const src = request.lines.find(l => l.id === line.id);
-      if (!src || src.status !== 'PENDING') continue;
-
-      if (line.action === 'ACCEPT') {
-        const listItem = await tx.orderListItem.create({
-          data: {
-            listId: targetListId, name: src.name, quantity: src.quantity,
-            category: src.category, notes: src.notes, priority: OrderItemPriority.NORMAL,
-            source: OrderItemSource.EMPLOYEE_REQUEST, requestLineId: src.id,
-            addedById: user.id, sortOrder: sortOrder++,
-          },
-        });
-        await tx.employeeRequestLine.update({ where: { id: src.id }, data: { status: 'ACCEPTED', reviewedAt: now } });
-        results.push({ lineId: src.id, action: 'ACCEPTED', listItemId: listItem.id });
-      } else {
-        await tx.employeeRequestLine.update({
-          where: { id: src.id },
-          data: { status: 'REJECTED', rejectionReason: line.rejectionReason ?? 'OTHER', rejectionNote: line.rejectionNote ?? null, reviewedAt: now },
-        });
-        results.push({ lineId: src.id, action: 'REJECTED' });
-      }
+  // One batch, not a step-by-step transaction (2026-11-14): with a 22-item request the steps took longer than the database's 5-second
+  // limit for an open transaction and every attempt failed (error 500). The batch runs all of it at once, all or nothing.
+  const ops: any[] = [];
+  const plan: { lineId: string; action: 'ACCEPTED' | 'REJECTED'; at: number | null }[] = [];
+  for (const line of parsed.data.lines) {
+    const src = request.lines.find(l => l.id === line.id);
+    if (!src || src.status !== 'PENDING' || plan.some((p) => p.lineId === src.id)) continue;
+    if (line.action === 'ACCEPT') {
+      plan.push({ lineId: src.id, action: 'ACCEPTED', at: ops.length });
+      ops.push(prisma.orderListItem.create({
+        data: {
+          listId: targetListId, name: src.name, quantity: src.quantity,
+          category: src.category, notes: src.notes, priority: OrderItemPriority.NORMAL,
+          source: OrderItemSource.EMPLOYEE_REQUEST, requestLineId: src.id,
+          addedById: user.id, sortOrder: sortOrder++,
+        },
+        select: { id: true },
+      }));
+      ops.push(prisma.employeeRequestLine.updateMany({ where: { id: src.id, status: 'PENDING' }, data: { status: 'ACCEPTED', reviewedAt: now } }));
+    } else {
+      plan.push({ lineId: src.id, action: 'REJECTED', at: null });
+      ops.push(prisma.employeeRequestLine.updateMany({
+        where: { id: src.id, status: 'PENDING' },
+        data: { status: 'REJECTED', rejectionReason: line.rejectionReason ?? 'OTHER', rejectionNote: line.rejectionNote ?? null, reviewedAt: now },
+      }));
     }
-    await tx.employeeItemRequest.update({
-      where: { id: requestId },
-      data: { status: 'REVIEWED', reviewedById: user.id, reviewedAt: now },
-    });
-    return results;
-  });
+  }
+  ops.push(prisma.employeeItemRequest.update({ where: { id: requestId }, data: { status: 'REVIEWED', reviewedById: user.id, reviewedAt: now } }));
+  let done: any[];
+  try {
+    done = await prisma.$transaction(ops);
+  } catch (e: any) {
+    // two people reviewing at once: an item can go on a list only once (requestLineId is unique)
+    if (e?.code === 'P2002') { res.status(409).json({ success: false, error: 'Someone else just reviewed this request. Reload to see it.' }); return; }
+    throw e;
+  }
+  const updates = plan.map((p) => ({ lineId: p.lineId, action: p.action, ...(p.at !== null ? { listItemId: done[p.at].id as string } : {}) }));
 
   const acceptedCount = updates.filter(r => r.action === 'ACCEPTED').length;
   const total = updates.length;

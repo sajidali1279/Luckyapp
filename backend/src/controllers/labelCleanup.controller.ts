@@ -122,7 +122,7 @@ export async function mergeLabels(req: AuthRequest, res: Response) {
       await tx.label.delete({ where: { id: other.id } });   // its remaining store copies (stores that had both) go with it
     }
     rewardChanges = await syncRewardPoints(tx, [keep.id]);
-  });
+  }, { maxWait: 10_000, timeout: 60_000 });
   auditRewardSync(req.user!, rewardChanges, `items merged into ${keep.productName}`);
 
   audit({
@@ -446,7 +446,7 @@ export async function setDealsBulk(req: AuthRequest, res: Response) {
       reprint += (await tx.storeLabel.updateMany({ where: { labelId: l.id }, data: { printedAt: null } })).count;   // the deal is printed on the label
       changed += 1;
     }
-  });
+  }, { maxWait: 10_000, timeout: 60_000 });
   const missing = wanted.size - found.length;
   const changedLabels = found.filter((l) => (l.dealText ?? '').trim() !== wanted.get(l.id));
   const learned = await recordDealEdits(changedLabels.map((l) => ({

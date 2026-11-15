@@ -660,7 +660,7 @@ export async function markPeriodPaid(req: AuthRequest, res: Response) {
       n += c.count;
     }
     return n;
-  });
+  }, { maxWait: 10_000, timeout: 60_000 });
   audit({
     actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role,
     action: 'BILLING_MARK_PERIOD_PAID', entity: 'billing', entityId: period,

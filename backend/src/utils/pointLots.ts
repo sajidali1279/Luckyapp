@@ -272,7 +272,7 @@ export async function undoExpiry(userId: string, actor: { id: string; name?: str
     }
     if (sum > 0) await tx.user.update({ where: { id: userId }, data: { pointsBalance: { increment: sum } } });
     return sum;
-  });
+  }, { maxWait: 10_000, timeout: 60_000 });
   if (total > 0) {
     audit({ actorId: actor.id, actorName: actor.name ?? null, actorRole: actor.role, action: 'POINTS_EXPIRY_UNDONE', entity: 'user', entityId: userId, details: { points: pts(total), dollars: total } });
   }
