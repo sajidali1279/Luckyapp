@@ -27,6 +27,7 @@ import { startHotFoodAutoCancelCron } from './utils/hotFoodAutoCancel';
 import { startMorningSummaryCron } from './utils/morning-summary';
 import { startWeeklySummaryCron } from './utils/weekly-summary';
 import { startPendingExpiryCron } from './utils/pending-expiry-cron';
+import { startRegisterReceiptCron } from './utils/registerReceipts';
 import { startPriceReminderCron } from './utils/price-reminder-cron';
 import { clientKey } from './utils/rateLimitKey';
 import { startSettingsRefresh } from './utils/appSettings';
@@ -163,6 +164,7 @@ app.listen(PORT, () => {
   startMorningSummaryCron();
   startWeeklySummaryCron();
   startPendingExpiryCron();
+  startRegisterReceiptCron();   // cashier receipt photos read for their TRAN# (utils/registerReceipts.ts)
   startPriceReminderCron();
 });
 

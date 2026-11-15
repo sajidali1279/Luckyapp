@@ -16,6 +16,7 @@ import { gallonsFit } from '../utils/storeRules';
 import { noteBudgetUse } from '../utils/offerBudget';
 import { storeDateKey, storeDayStart, storeDaysBetween, startOfStoreDate } from '../utils/storeTime';
 import { rule } from '../utils/appSettings';
+import { readWaitingNear } from '../utils/registerReceipts';
 import { sameReceipt, cleanRead, factsOf, receiptIdentity, receiptMoment, sequenceProblems, type SequencePoint } from '../utils/receiptScan';
 import { checkScanCard, cardBrandOf } from '../utils/receiptCards';
 import { approveAndCredit } from '../utils/saleDecision';
@@ -33,7 +34,67 @@ export const MAX_SCANS_PER_DAY = 3;          // per customer, per store day (hel
 export const MAX_TRIES_PER_DAY = 8;          // counting the ones the reader could not read, so failures cannot run up the AI bill
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // the AI's limit for one image; the app sends a smaller one
 export const MAX_RECEIPT_DAYS = 3;           // a receipt from today or up to this many days back
-export const MAX_RECEIPT_TOTAL = 2000;       // like the cashier's hard limit
+export const MAX_RECEIPT_TOTAL = 2000;
+
+/**
+ * Whether a cashier already gave points for this receipt (2026-11-15). The cashier's photos of that store and time still waiting in the
+ * background queue are read first (a scan seconds after the sale), then: the same TRAN#, or the same receipt by its other numbers
+ * (utils/receiptScan.ts sameReceipt). A sale that was rejected or cancelled does not count: its receipt earned nothing.
+ */
+async function usedAtRegister(storeId: string, receiptKey: string, here: ReturnType<typeof factsOf>, read: any, receiptAt: Date, dayStart: Date): Promise<boolean> {
+  const dayEnd = new Date(dayStart.getTime() + 30 * 3600_000);
+  const from = read?.time ? new Date(receiptAt.getTime() - 2 * 60_000) : dayStart;
+  const to = read?.time ? new Date(receiptAt.getTime() + 75 * 60_000) : dayEnd;   // the photo is taken just after the sale (an add-on receipt up to an hour later)
+  await readWaitingNear(storeId, from, to).catch(() => {});
+  const rows = await prisma.registerReceipt.findMany({
+    where: { storeId, status: 'READ', OR: [{ receiptKey }, { receiptAt: { gte: dayStart, lt: dayEnd } }] },
+    select: { transactionId: true, customerId: true, receiptKey: true, read: true, total: true },
+  });
+  const hits = rows.filter((r) => r.receiptKey === receiptKey || sameReceipt(here, factsOf(r.customerId, r.read, r.total)));
+  if (!hits.length) return false;
+  const live = await prisma.pointsTransaction.count({
+    where: { id: { in: hits.map((h) => h.transactionId) }, status: { notIn: [TransactionStatus.REJECTED, TransactionStatus.CANCELLED] } },
+  });
+  return live > 0;
+}
+
+
+/**
+ * Whether another customer already earned points at the register for this receipt's purchase (2026-11-15). A cashier's sale (granted by
+ * staff, not a scan) at the same store whose amount is the receipt's total, subtotal or total less tax: SAME when it was entered within
+ * 10 minutes before to 30 after the receipt's time; MAYBE when only roughly the same amount and time (or the receipt shows no time).
+ */
+async function otherCustomersRegisterSale(storeId: string, customerId: string, read: any, receiptAt: Date, total: number): Promise<'SAME' | 'MAYBE' | null> {
+  const timed = !!read?.time;
+  const dayStart = startOfStoreDate(read.date);
+  const from = timed ? new Date(receiptAt.getTime() - 30 * 60_000) : dayStart;
+  const to = timed ? new Date(receiptAt.getTime() + 90 * 60_000) : new Date(dayStart.getTime() + 30 * 3600_000);
+  const rows = await prisma.pointsTransaction.findMany({
+    where: { storeId, customerId: { not: customerId }, createdAt: { gte: from, lte: to }, status: { notIn: [TransactionStatus.REJECTED, TransactionStatus.CANCELLED] },
+      challengeId: null, referralId: null, purchaseAmount: { gt: 0 } },
+    select: { id: true, saleId: true, customerId: true, grantedById: true, purchaseAmount: true, createdAt: true },
+  });
+  const sales = new Map<string, { sum: number; at: number }>();
+  for (const r of rows) {
+    if (r.grantedById === r.customerId) continue;   // a receipt scan of their own, not the register
+    const k = r.saleId ?? r.id;
+    const s = sales.get(k) ?? { sum: 0, at: r.createdAt.getTime() };
+    s.sum += r.purchaseAmount; s.at = Math.min(s.at, r.createdAt.getTime());
+    sales.set(k, s);
+  }
+  const amounts = [total, read?.subtotal, read?.total != null && read?.tax != null ? read.total - read.tax : null].filter((n): n is number => typeof n === 'number' && n > 0);
+  let maybe = false;
+  for (const s of sales.values()) {
+    const exact = amounts.some((a) => Math.abs(a - s.sum) <= 0.05);
+    const close = amounts.some((a) => Math.abs(a - s.sum) <= Math.max(1, a * 0.08));
+    const minutes = (s.at - receiptAt.getTime()) / 60_000;
+    const near = timed && minutes >= -10 && minutes <= 30;
+    if (exact && near) return 'SAME';
+    if (exact || (close && (near || !timed))) maybe = true;
+  }
+  return maybe ? 'MAYBE' : null;
+}
+       // like the cashier's hard limit
 const READ_MODEL = 'claude-sonnet-5';
 
 /** GET /receipt-scan/access: whether this person can scan receipts (the app shows the scanner only then). */
@@ -159,6 +220,11 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   if (sameDay.some((s) => sameReceipt(here, factsOf(s.customerId, s.read, s.total)))) {
     return refuseScan('This receipt has already been scanned.', { storeId: store.id, receiptAt, total });
   }
+  // A receipt the cashier already gave points for (2026-11-15, the owner): the cashier's photo of it was read in the background
+  // (utils/registerReceipts.ts) for its TRAN#, so a friend or spouse handed the paper receipt gets nothing for it
+  if (await usedAtRegister(store.id, receiptKey, here, read, receiptAt, dayStart)) {
+    return refuseScan('This purchase already earned points at the register.', { storeId: store.id, receiptAt, total, flags: ['AT_REGISTER_RECEIPT'] });
+  }
   // The numbers that only go up (TRAN#, Stan, Invoice #) against the store's other real receipts of that week: a made-up or edited
   // receipt rarely fits. One number out of place may be a misread (held for a manager); two or more is refused.
   const seqProblems = await storeSequenceProblems(store.id, read, receiptAt);
@@ -179,6 +245,14 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
       select: { id: true },
     });
     return refuseScan('This purchase already earned points at the register.', { storeId: store.id, receiptAt, total, flags: sameSale ? ['AT_REGISTER', 'AT_REGISTER_CARD'] : ['AT_REGISTER'] });
+  }
+
+  // Another customer's register sale for this very purchase (2026-11-15, the owner): a cashier granted points for it and the paper
+  // receipt was handed to someone else (a friend, a spouse) to scan. Same store, close in time, the same amount: refused. Close but not
+  // certain: held for a manager with both receipts to compare, never credited at once.
+  const otherSale = await otherCustomersRegisterSale(store.id, customer.id, read, receiptAt, total);
+  if (otherSale === 'SAME') {
+    return refuseScan('This purchase already earned points at the register.', { storeId: store.id, receiptAt, total, flags: ['AT_REGISTER_OTHER'] });
   }
 
   // The cards this customer's receipts were paid with (utils/receiptCards.ts): how often each is seen, on which accounts, cash
@@ -210,6 +284,7 @@ export async function scanReceipt(req: AuthRequest, res: Response) {
   if (read.concerns.length) flags.push('READER_CONCERNS');
   if (!read.time) flags.push('NO_TIME');
   if (seqProblems.length) flags.push('SEQUENCE_ODD');
+  if (otherSale === 'MAYBE') flags.push('AT_REGISTER_OTHER_MAYBE');
   flags.push(...cardCheck.flags);
   const itemsSum = read.items.reduce((n, it) => n + it.amount, 0);
   const expected = read.subtotal ?? (read.total != null && read.tax != null ? read.total - read.tax : null);

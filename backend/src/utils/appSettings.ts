@@ -79,6 +79,8 @@ export const FEATURES = {
   challenges: { label: 'Challenges', help: 'Off: customers do not see challenges and no challenge rewards are paid.' },
   hotFoodNoShowPointsBack: { label: 'Points back for a hot food order not picked up', help: 'An order paid with points that nobody picks up is closed; on: its points go back to the customer; off: the store keeps them (the food was made).' },
   // 2026-10-27: off until the reading has been checked on real invoices and the owner has seen what it costs
+  // 2026-11-15: a receipt the cashier already gave points for cannot earn again in the app (a friend or spouse scanning it)
+  registerReceiptReading: { label: 'Read cashier receipts in the background', help: 'The cashier\'s receipt photo is read a minute after the sale for its transaction number, so nobody can scan that receipt in the app for points again. The cashier is never slowed down. Off: photos are not read (customer scans still check the amount and time of register sales).' },
   pdiInvoices: { label: 'Invoices to PDI', help: 'Photos of a vendor invoice read into the file PDI imports (the Invoices to PDI page). Off: the page reads nothing; invoices already done can still be opened and downloaded.', def: false },
 } as const;
 export type FeatureKey = keyof typeof FEATURES;

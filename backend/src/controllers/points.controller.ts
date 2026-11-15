@@ -37,6 +37,7 @@ import { excludeDeletedCustomers } from '../utils/accountDeletion';
 import { useLots, voidSaleLots, expiredPartOfSale, expirySummary, lotsMatch, undoExpiry } from '../utils/pointLots';
 import { UNFINISHED, SHOWN, AWAITING_DECISION, NOT_A_SALE, cancelUnfinished } from '../utils/unfinishedSales';
 import { canUseStore, usableStoreIds } from '../utils/storeAccess';
+import { queueRegisterReceipt } from '../utils/registerReceipts';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
 const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
@@ -388,6 +389,12 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
   });
 
   const wasFlagged = transaction.status === TransactionStatus.FLAGGED && !hqEntry;
+  // The photo is read in the background for its TRAN# (utils/registerReceipts.ts): this receipt then cannot earn again in the app.
+  // Never awaited on the cashier's path beyond one insert, and it never fails the sale.
+  const queuePhoto = () => {
+    if (!uploadResult.secure_url || !receiptHash || !transaction.storeId) return;
+    queueRegisterReceipt({ transactionId, storeId: transaction.storeId, customerId: transaction.customerId, imageUrl: uploadResult.secure_url, imageHash: receiptHash });
+  };
 
   if (wasFlagged) {
     // Flagged: save receipt but hold points, manager must review
@@ -408,6 +415,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
       }
       return;
     }
+    queuePhoto();
     const updatedTransaction = await prisma.pointsTransaction.findUniqueOrThrow({ where: { id: transactionId } });
     await alertHeldSale(updatedTransaction, employee).catch((e) => console.error('[points] held-sale alert failed:', e?.message ?? e));
     if (transaction.addOn) tellAddOn(transaction, employee, true).catch(() => {});
@@ -435,6 +443,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
     return;
   }
+  queuePhoto();
   const updatedTransaction = settled.sale;
   const updatedCustomer = settled.customer;
   await updateCustomerTierIfNeeded(transaction.customerId, updatedCustomer.periodPoints, updatedCustomer.tier);

@@ -1050,6 +1050,32 @@ model ReceiptScan {
   @@map("receipt_scans")
 }
 
+// A cashier's receipt photo, read in the background for its identity (2026-11-15, utils/registerReceipts.ts): the paper receipt of a
+// sale that earned at the register cannot earn again when someone else scans it in the app.
+model RegisterReceipt {
+  id            String    @id @default(uuid())
+  transactionId String                            // the sale line the photo was taken for (the lines of one sale share one photo)
+  storeId       String
+  customerId    String
+  imageUrl      String
+  imageHash     String    @unique
+  status        String    @default("PENDING")     // PENDING | READ | NO_NUMBER | FAILED
+  tries         Int       @default(0)
+  error         String?
+  receiptKey    String?                           // store and TRAN#, as a customer scan's (utils/receiptScan.ts receiptIdentity)
+  receiptAt     DateTime?
+  total         Float?
+  read          Json?
+  createdAt     DateTime  @default(now())
+  readAt        DateTime?
+
+  @@index([receiptKey])
+  @@index([status, createdAt])
+  @@index([storeId, createdAt])
+  @@index([storeId, receiptAt])
+  @@map("register_receipts")
+}
+
 // ─── Store Chat ───────────────────────────────────────────────────────────────
 
 model ChatMessage {
