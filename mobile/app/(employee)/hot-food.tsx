@@ -39,6 +39,7 @@ import { sized } from '../../utils/imageUrl';
 import FocusStatusBar from '../../components/FocusStatusBar';
 import { usePoll } from '../../hooks/usePoll';
 import { useTimeWords } from '../../components/HotFoodTimes';
+import KitchenView, { AcceptTimeSheet, confirmDecline, tagOf } from '../../components/KitchenView';
 
 /** An order placed ahead whose kitchen start is more than 5 minutes away: in "Later" (2026-11-10) */
 const isLater = (o: { startAt?: string | null; status: string }) => (o.status === 'PENDING' || o.status === 'ACCEPTED') && !!o.startAt && new Date(o.startAt).getTime() > Date.now() + 5 * 60_000;
@@ -60,6 +61,11 @@ interface FoodOrder {
   paidWithPoints?: boolean;   // the customer paid the whole order with points in the app
   pickupAt?: string | null;   // ordered ahead (2026-11-10): the pickup time, and when to start it
   startAt?: string | null;
+  ticket?: number | null;     // the store's number of the day, said at the counter (2026-11-15)
+  readyBy?: string | null;    // when it should be ready (accepted with minutes, moved by "+5 min")
+  readyAt?: string | null;
+  hereAt?: string | null;     // the customer said they are here, at pump herePump (0 = inside)
+  herePump?: number | null;
 }
 interface MenuItem {
   id: string;
@@ -409,8 +415,8 @@ function ItemSheet({ visible, storeId, item, categories, onClose, onSaved }: Ite
 // ─── Order card ───────────────────────────────────────────────────────────────
 
 function OrderCard({
-  order, onUpdateStatus, updating, onRanOut,
-}: { order: FoodOrder; onUpdateStatus: (id: string, status: OrderStatus, reason?: string) => void; updating: boolean; onRanOut?: (catalogItemId: string, name: string) => void }) {
+  order, onUpdateStatus, updating, onRanOut, onMoreTime,
+}: { order: FoodOrder; onUpdateStatus: (id: string, status: OrderStatus, reason?: string) => void; updating: boolean; onRanOut?: (catalogItemId: string, name: string) => void; onMoreTime?: (order: FoodOrder) => void }) {
   const { t } = useTranslation();
   const tw = useTimeWords();
   const cfg      = STATUS_CONFIG[order.status];
@@ -444,7 +450,7 @@ function OrderCard({
     <View style={s.card}>
       <View style={s.cardHeader}>
         <View style={s.cardHeaderLeft}>
-          <Text style={s.orderNum}>#{order.orderNumber}</Text>
+          <Text style={[s.orderNum, order.ticket ? s.orderTicket : null]}>#{tagOf(order)}</Text>
           <View style={s.timePill}>
             <ClockIcon size={11} color={ageColor} strokeWidth={2} />
             <Text style={[s.timeText, { color: ageColor }]}>{timeAgo(order.createdAt, t)}</Text>
@@ -462,6 +468,11 @@ function OrderCard({
             {t('employeeHotFood.pickupBadge', { when: tw.when(order.pickupAt) })}
             {order.startAt && new Date(order.startAt).getTime() > Date.now() ? `  ·  ${t('employeeHotFood.pickupStartAt', { time: tw.time(order.startAt) })}` : ''}
           </Text>
+        </View>
+      ) : null}
+      {order.hereAt && order.herePump != null && (order.status === 'ACCEPTED' || order.status === 'READY') ? (
+        <View style={s.hereBadge} accessibilityRole="text">
+          <Text style={s.hereBadgeText}>{order.herePump ? t('employeeHotFood.kitchenAtPump', { pump: order.herePump }) : t('employeeHotFood.kitchenInside')}</Text>
         </View>
       ) : null}
       <Text style={s.customerName}>{order.customer.name}</Text>
@@ -536,6 +547,12 @@ function OrderCard({
               ? <ActivityIndicator color="#fff" size="small" />
               : <Text style={s.actionBtnText}>{t('employeeHotFood.markReadyBtn')}</Text>}
           </TouchableOpacity>
+          {onMoreTime ? (
+            <TouchableOpacity style={[s.moreTimeBtn, updating && s.actionBtnDisabled]} onPress={() => onMoreTime(order)} disabled={updating} accessibilityRole="button"
+              accessibilityLabel={t('employeeHotFood.plus5A11y', { n: tagOf(order) })}>
+              <Text style={s.moreTimeText}>{t('employeeHotFood.plus5')}</Text>
+            </TouchableOpacity>
+          ) : null}
           {declineButton}
         </View>
       )}
@@ -682,6 +699,8 @@ export default function HotFoodOrders() {
   const [updatingId,   setUpdatingId]   = useState<string | null>(null);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [editingItem,  setEditingItem]  = useState<MenuItem | null>(null);
+  const [kitchen,      setKitchen]      = useState(false);              // the kitchen screen (2026-11-15)
+  const [acceptFor,    setAcceptFor]    = useState<FoodOrder | null>(null);   // the "ready in" picker for this order
   const queryClient = useQueryClient();
 
   // Switch to the requested tab when arriving from a notification tap
@@ -815,20 +834,25 @@ export default function HotFoodOrders() {
     const order = allOrders.find((o) => o.id === orderId);
     if (status === 'ACCEPTED' && order && isLater(order)) { doUpdateStatus(orderId, status); return; }
     if (status === 'ACCEPTED') {
-      showActionSheet(
-        t('employeeHotFood.acceptOrderTitle'),
-        t('employeeHotFood.acceptOrderBody'),
-        [
-          { text: t('employeeHotFood.minutes5'),  onPress: () => doUpdateStatus(orderId, status, 5)  },
-          { text: t('employeeHotFood.minutes10'), onPress: () => doUpdateStatus(orderId, status, 10) },
-          { text: t('employeeHotFood.minutes15'), onPress: () => doUpdateStatus(orderId, status, 15) },
-          { text: t('employeeHotFood.minutes20'), onPress: () => doUpdateStatus(orderId, status, 20) },
-          { text: t('employeeHotFood.skip'),   onPress: () => doUpdateStatus(orderId, status)     },
-          { text: t('employeeHotFood.cancel'), style: 'cancel' },
-        ],
-      );
+      // 5 to 45 minutes, all six shown (an Android alert showed only three), 2026-11-15
+      if (order) setAcceptFor(order); else doUpdateStatus(orderId, status);
     } else {
       doUpdateStatus(orderId, status, undefined, reason);
+    }
+  }
+
+  /** Kitchen "+5 min": the customer is told the new time */
+  async function moreTime(order: FoodOrder) {
+    if (updatingId) return;
+    setUpdatingId(order.id);
+    try {
+      await hotFoodApi.moreTime(order.id, 5);
+      Toast.show({ type: 'success', text1: t('employeeHotFood.plus5Done', { n: tagOf(order) }) });
+    } catch (e: any) {
+      Alert.alert(t('employeeHotFood.errorTitle'), e?.response?.data?.error || t('employeeHotFood.updateStatusFailed'));
+    } finally {
+      setUpdatingId(null);
+      queryClient.invalidateQueries({ queryKey: ['hot-food-orders'] });
     }
   }
 
@@ -891,6 +915,12 @@ export default function HotFoodOrders() {
           </View>
         </View>
 
+        {/* The kitchen screen (2026-11-15): orders in columns for a phone standing on the counter */}
+        {activeTab !== 'MENU' && (
+          <TouchableOpacity style={s.kitchenBtn} onPress={() => setKitchen(true)} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t('employeeHotFood.kitchenOpenA11y')}>
+            <Text style={s.kitchenBtnText}>{t('employeeHotFood.kitchenBtn')}</Text>
+          </TouchableOpacity>
+        )}
         {/* Add item button - only visible on MENU tab */}
         {activeTab === 'MENU' && (
           <TouchableOpacity
@@ -1008,6 +1038,7 @@ export default function HotFoodOrders() {
                     onUpdateStatus={handleUpdateStatus}
                     updating={updatingId === item.id}
                     onRanOut={askRanOut}
+                    onMoreTime={moreTime}
                   />
                 </PulseHighlight>
               </>
@@ -1047,6 +1078,26 @@ export default function HotFoodOrders() {
           categories={categoryList}
           onClose={() => setEditingItem(null)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {kitchen && (
+        <KitchenView
+          orders={allOrders as any}
+          storeName={storeNameOf(storeId)}
+          updatingId={updatingId}
+          onClose={() => setKitchen(false)}
+          onAccept={(o) => handleUpdateStatus(o.id, 'ACCEPTED')}
+          onStatus={(o, st) => handleUpdateStatus(o.id, st as OrderStatus)}
+          onDecline={(o) => confirmDecline(t, o, (reason) => handleUpdateStatus(o.id, 'CANCELLED', reason))}
+          onMoreTime={(o) => moreTime(o as any)}
+        />
+      )}
+      {acceptFor && (
+        <AcceptTimeSheet
+          number={tagOf(acceptFor)}
+          onClose={() => setAcceptFor(null)}
+          onPick={(m) => { const id = acceptFor.id; setAcceptFor(null); doUpdateStatus(id, 'ACCEPTED', m); }}
         />
       )}
     </SafeAreaView>
@@ -1115,6 +1166,13 @@ const s = StyleSheet.create({
   cardHeader:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   cardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   orderNum:       { fontSize: 15, fontWeight: '800', color: '#0F172A' },
+  orderTicket:    { fontSize: 22, fontWeight: '900', color: '#1D3557' },
+  hereBadge:      { alignSelf: 'flex-start', backgroundColor: '#DCFCE7', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, marginBottom: 8 },
+  hereBadgeText:  { color: '#166534', fontWeight: '900', fontSize: 14 },
+  moreTimeBtn:    { paddingHorizontal: 12, minHeight: 44, borderRadius: 12, borderWidth: 1.5, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
+  moreTimeText:   { fontSize: 14, fontWeight: '800', color: '#334155' },
+  kitchenBtn:     { backgroundColor: '#1D3557', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  kitchenBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
   timePill:       { flexDirection: 'row', alignItems: 'center', gap: 3 },
   timeText:       { fontSize: 12, color: '#94A3B8' },
   statusPill:     { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },

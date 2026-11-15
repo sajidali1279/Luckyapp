@@ -571,6 +571,10 @@ export const hotFoodApi = {
     api.patch(`/hot-food/orders/${orderId}`, { status, ...(estimatedMinutes != null && { estimatedMinutes }), ...(reason ? { reason } : {}) }),
   // The customer, while the store has not started it
   cancelMyOrder:  (orderId: string) => api.post(`/hot-food/orders/${orderId}/cancel`),
+  /** Kitchen "+5 min" (2026-11-15): the order's ready time moves on and the customer is told */
+  moreTime:       (orderId: string, minutes = 5) => api.post(`/hot-food/orders/${orderId}/more-time`, { minutes }),
+  /** The customer: "I'm here", at a pump (1 to 40) or inside (0) (2026-11-15) */
+  imHere:         (orderId: string, pump: number) => api.post(`/hot-food/orders/${orderId}/here`, { pump }),
   getPendingCount: (storeId: string) => api.get(`/hot-food/orders/store/${storeId}/pending-count`),
   getMyStoresPendingCount: () => api.get('/hot-food/orders/my-stores/pending-count'),
   // Toggle legacy menu item availability

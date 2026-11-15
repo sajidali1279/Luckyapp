@@ -37,6 +37,7 @@ import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } fro
 import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../components/HotFoodCombos';
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import OrderSteps from '../../components/OrderSteps';
+import HotFoodHereSheet from '../../components/HotFoodHereSheet';
 import { usePoll } from '../../hooks/usePoll';
 import HotFoodChoiceSheet, { priceChosen, choiceKey, type ChoiceOptions, type Chosen } from '../../components/HotFoodChoiceSheet';
 import { MenuTimeTabs, LastCallStrip, PickupChooser, PickupLine, slotsForCart, storeDay, useTimeWords, ALL_DAY, type MenuTime, type OrderAhead, type Timed } from '../../components/HotFoodTimes';
@@ -82,7 +83,14 @@ interface FoodOrder {
   /** Ordered ahead (2026-11-10): the pickup time chosen, and when the kitchen starts it (it can be cancelled until then) */
   pickupAt?: string | null;
   startAt?: string | null;
+  /** The kitchen screen (2026-11-15): the store's number of the day, when it should be ready, and where the customer said they are */
+  ticket?: number | null;
+  readyBy?: string | null;
+  hereAt?: string | null;
+  herePump?: number | null;
 }
+/** The number said at the counter: the store's number of the day, else the long order number (older orders) */
+const tagOf = (o: { ticket?: number | null; orderNumber: string }) => (o.ticket ? String(o.ticket) : o.orderNumber);
 
 const toPts = (dollars: number) => Math.round(dollars * 100);
 let MAX_PER_ITEM = 20;   // the most of one item: HQ sets it (Settings > Hot food), the menu says it; 20 until it loads
@@ -141,13 +149,13 @@ function MenuCard({ item, qty, onAdd, onRemove, closed = false, laterOnly = fals
       <View style={mc.left}>
         {item.imageUrl && !imgErr ? (
           <Image
-            source={{ uri: sized(item.imageUrl, 200) }}
+            source={{ uri: sized(item.imageUrl, 300) }}
             style={mc.itemImage}
             onError={() => setImgErr(true)}
           />
         ) : (
           <View style={mc.iconRing}>
-            <FlameIcon size={22} color={COLORS.primary} />
+            <FlameIcon size={30} color={COLORS.primary} />
           </View>
         )}
       </View>
@@ -217,9 +225,8 @@ function MenuCard({ item, qty, onAdd, onRemove, closed = false, laterOnly = fals
 function useEtaCountdown(order: FoodOrder): string | null {
   const { t } = useTranslation();
   const getRemaining = () => {
-    if (order.status !== 'ACCEPTED' || !order.estimatedMinutes) return null;
-    const acceptedAt = new Date(order.updatedAt).getTime();
-    const eta = acceptedAt + order.estimatedMinutes * 60_000;
+    if (order.status !== 'ACCEPTED' || (!order.estimatedMinutes && !order.readyBy)) return null;
+    const eta = order.readyBy ? new Date(order.readyBy).getTime() : new Date(order.updatedAt).getTime() + order.estimatedMinutes! * 60_000;
     const remaining = Math.ceil((eta - Date.now()) / 60_000);
     return remaining > 0 ? t('customerHotFood.minLeft', { count: remaining }) : t('customerHotFood.almostReady');
   };
@@ -228,7 +235,7 @@ function useEtaCountdown(order: FoodOrder): string | null {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    if (order.status !== 'ACCEPTED' || !order.estimatedMinutes) {
+    if (order.status !== 'ACCEPTED' || (!order.estimatedMinutes && !order.readyBy)) {
       setLabel(null);
       return;
     }
@@ -236,15 +243,20 @@ function useEtaCountdown(order: FoodOrder): string | null {
     timerRef.current = setInterval(() => setLabel(getRemaining()), 30_000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order.status, order.estimatedMinutes, order.updatedAt]);
+  }, [order.status, order.estimatedMinutes, order.updatedAt, order.readyBy]);
 
   return label;
 }
 
 // ─── Order Card ───────────────────────────────────────────────────────────────
 
-function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrder; onCancel?: (order: FoodOrder) => void; cancelling?: boolean; onReorder?: (order: FoodOrder) => void }) {
-  const { t } = useTranslation();
+function OrderCard({ order, onCancel, cancelling, onReorder, onHere }: { order: FoodOrder; onCancel?: (order: FoodOrder) => void; cancelling?: boolean; onReorder?: (order: FoodOrder) => void; onHere?: (order: FoodOrder) => void }) {
+  const { t, i18n } = useTranslation();
+  const past = order.status === 'COMPLETED' || order.status === 'CANCELLED';
+  const itemCount = order.items.reduce((n, l) => n + l.quantity, 0);
+  const placedOn = new Date(order.createdAt).toLocaleDateString(i18n.language === 'es' ? 'es-US' : 'en-US', { month: 'short', day: 'numeric' });
+  // "I'm here": once the store has it (not an order for later whose kitchen has not started yet)
+  const canSayHere = !!onHere && (order.status === 'READY' || (order.status === 'ACCEPTED' && !(order.startAt && new Date(order.startAt).getTime() > Date.now())));
   const cfg = STATUS[order.status];
   const etaLabel = useEtaCountdown(order);
   const [expanded, setExpanded] = useState(order.status === 'READY');
@@ -266,8 +278,9 @@ function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrde
         <View style={oc.topLeft}>
           <Text style={oc.emoji}>{cfg.emoji}</Text>
           <View>
-            <Text style={oc.orderNum}>#{order.orderNumber}</Text>
+            <Text style={[oc.orderNum, order.ticket ? oc.orderTicket : null]}>#{tagOf(order)}</Text>
             <Text style={oc.store}>{order.store.name}</Text>
+            {past ? <Text style={oc.pastLine}>{t('customerHotFood.pastSummary', { date: placedOn, count: itemCount, total: fmtPrice(order.totalAmount) })}</Text> : null}
             {(order.status === 'PENDING' || order.status === 'ACCEPTED' || order.status === 'READY') && addressLine(order.store) ? (
               <Text style={oc.storeAddr}>{addressLine(order.store)}</Text>
             ) : null}
@@ -320,6 +333,17 @@ function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrde
         </TouchableOpacity>
       )}
 
+      {canSayHere && (
+        <TouchableOpacity style={[oc.hereBtn, order.hereAt && oc.hereBtnDone]} onPress={() => onHere!(order)} accessibilityRole="button"
+          accessibilityLabel={order.hereAt ? t('customerHotFood.hereChangeA11y') : t('customerHotFood.imHereA11y', { n: tagOf(order) })}>
+          <Text style={[oc.hereBtnText, order.hereAt && oc.hereBtnTextDone]}>
+            {order.hereAt && order.herePump != null
+              ? `${order.herePump ? t('customerHotFood.hereAtPump', { pump: order.herePump }) : t('customerHotFood.hereInside')}  ·  ${t('customerHotFood.hereChange')}`
+              : `📍 ${t('customerHotFood.imHereBtn')}`}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {(order.status === 'ACCEPTED' || order.status === 'READY') && (
         <TouchableOpacity
           style={oc.dirBtn}
@@ -353,6 +377,7 @@ function OrderCard({ order, onCancel, cancelling, onReorder }: { order: FoodOrde
             <Text style={oc.totalLabel}>{t('customerHotFood.total')}</Text>
             <Text style={oc.totalVal}>{fmtPrice(order.totalAmount)}</Text>
           </View>
+          {!order.paidWithPoints && order.status !== 'CANCELLED' ? <Text style={oc.taxNote}>{t('customerHotFood.plusTax')}</Text> : null}
           {order.note ? (
             <View style={oc.noteRow}>
               <Text style={oc.noteLabel}>{t('customerHotFood.noteLabel')}</Text>
@@ -504,6 +529,7 @@ function CartSheet({ cart, store, closedText: closedNow, onClose, onOrderPlaced,
               <Text style={cs.totalLabel}>{t('customerHotFood.total')}</Text>
               <Text style={cs.totalVal}>{fmtPrice(total)}</Text>
             </View>
+            {!payWithPoints ? <Text style={cs.taxNote}>{t('customerHotFood.plusTax')}</Text> : null}
 
             {pointsAllowed && <View style={[cs.pointsRow, !canUsePoints && { opacity: 0.6 }]}>
               <View style={{ flex: 1 }}>
@@ -624,6 +650,14 @@ export default function CustomerHotFoodScreen() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [hereFor, setHereFor] = useState<FoodOrder | null>(null);   // "I'm here" (2026-11-15)
+  const [hereBusy, setHereBusy] = useState(false);
+  // The store box scrolls away with the menu (the owner, 2026-11-15); past it, a slim "Pickup: store · Change" line stays on top
+  const [pastTop, setPastTop] = useState(false);
+  useEffect(() => {
+    const id = largeTitle.scrollY.addListener(({ value }) => setPastTop((was) => (value > 220) !== was ? value > 220 : was));
+    return () => largeTitle.scrollY.removeListener(id);
+  }, [largeTitle.scrollY]);
 
   // ── Where the order is picked up (2026-10-11): the customer chooses; the app opens on the closest store, asks when two are about the
   // same distance or the location cannot tell, remembers the store they chose, and says how good the location is
@@ -801,6 +835,20 @@ export default function CustomerHotFoodScreen() {
       qc.invalidateQueries({ queryKey: ['my-hot-food-orders'] });
     },
   });
+  async function sayHere(pump: number) {
+    if (!hereFor || hereBusy) return;
+    setHereBusy(true);
+    try {
+      await hotFoodApi.imHere(hereFor.id, pump);
+      Toast.show({ type: 'success', text1: t('customerHotFood.hereSent') });
+      setHereFor(null);
+      qc.invalidateQueries({ queryKey: ['my-hot-food-orders'] });
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: e?.response?.data?.error || t('customerHotFood.hereFailed') });
+    } finally {
+      setHereBusy(false);
+    }
+  }
   function askCancel(order: FoodOrder) {
     Alert.alert(t('customerHotFood.cancelConfirmTitle'), t('customerHotFood.cancelConfirmBody', { number: order.orderNumber }), [
       { text: t('customerHotFood.keepOrder'), style: 'cancel' },
@@ -919,6 +967,23 @@ export default function CustomerHotFoodScreen() {
     return m ? { ...c, servedNow: m.servedNow, daypartIds: m.daypartIds, soldOut: m.soldOut, nextServedAt: m.nextServedAt } : c;
   });
 
+  // The store box (location, pickup store, hours): above the loading and empty states, the top of the list once the menu shows
+  const listShown = tab === 'menu' && !!store && !menuLoading && !menuIsError && menuItems.length > 0;
+  const storeBox = (
+    <>
+      <LocationLine status={locStatus} here={here} quality={quality} onUpdate={locate} onTurnOn={() => Linking.openSettings().catch(() => {})} />
+      {store && (
+        <PickupBar store={store} closer={closer} onChange={() => setShowPicker(true)} onSwitchToCloser={() => closer && pickStore(closer.id)} />
+      )}
+      {store && hours?.limited && (
+        <View style={[s.hoursBanner, closed ? s.hoursBannerClosed : s.hoursBannerOpen]} accessibilityRole="text">
+          <ClockIcon size={14} color={closed ? '#9A3412' : '#166534'} />
+          <Text style={[s.hoursText, { color: closed ? '#9A3412' : '#166534' }]}>{hoursLine(t, hours)}</Text>
+        </View>
+      )}
+    </>
+  );
+
   return (
     <View style={s.root}>
       {/* Header */}
@@ -971,18 +1036,9 @@ export default function CustomerHotFoodScreen() {
       {/* ── MENU TAB ── */}
       {tab === 'menu' && (
         <>
-          {/* How good the location is, then the store the order goes to (or the question which one) */}
-          <LocationLine status={locStatus} here={here} quality={quality} onUpdate={locate} onTurnOn={() => Linking.openSettings().catch(() => {})} />
-          {store && (
-            <PickupBar store={store} closer={closer} onChange={() => setShowPicker(true)} onSwitchToCloser={() => closer && pickStore(closer.id)} />
-          )}
-
-          {store && hours?.limited && (
-            <View style={[s.hoursBanner, closed ? s.hoursBannerClosed : s.hoursBannerOpen]} accessibilityRole="text">
-              <ClockIcon size={14} color={closed ? '#9A3412' : '#166534'} />
-              <Text style={[s.hoursText, { color: closed ? '#9A3412' : '#166534' }]}>{hoursLine(t, hours)}</Text>
-            </View>
-          )}
+          {/* How good the location is, then the store the order goes to (or the question which one). With the menu showing, this box
+              is the top of the list and scrolls away with it (2026-11-15) */}
+          {!listShown && storeBox}
 
           {!store && !choice ? (
             <View style={s.loadingBox}>
@@ -1021,6 +1077,7 @@ export default function CustomerHotFoodScreen() {
                 }}
                 ListHeaderComponent={
                   <View>
+                    {storeBox}
                     {!search.trim() && !closed && usual.length > 0 && (
                       <View style={s.usual}>
                         <Text style={s.usualTitle}>{t('engagement.yourUsual')}</Text>
@@ -1115,6 +1172,16 @@ export default function CustomerHotFoodScreen() {
                 )}
                 ListFooterComponent={<View style={{ height: cartCount > 0 ? 110 : 32 }} />}
               />
+              {pastTop && store && (
+                <View style={s.slimBar} accessibilityRole="summary">
+                  <MapPinIcon size={13} color={COLORS.secondary} />
+                  <Text style={s.slimText} numberOfLines={1}>{t('customerHotFood.slimPickup', { store: store.name })}{hours?.limited ? `  ·  ${hoursLine(t, hours)}` : ''}</Text>
+                  <TouchableOpacity onPress={() => setShowPicker(true)} accessibilityRole="button" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel={t('customerHotFood.slimChangeA11y', { store: store.name })}>
+                    <Text style={s.slimChange}>{t('customerHotFood.slimChange')}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </FadeSlideIn>
           )}
 
@@ -1184,7 +1251,7 @@ export default function CustomerHotFoodScreen() {
                 {index === activeOrders.length && pastOrders.length > 0 && (
                   <Text style={[s.sectionLabel, { marginTop: 20 }]}>{t('customerHotFood.pastOrdersSection')}</Text>
                 )}
-                <OrderCard order={item} onCancel={askCancel} cancelling={cancelMutation.isPending && cancelMutation.variables === item.id} onReorder={engFlags?.reorder ? reorder : undefined} />
+                <OrderCard order={item} onCancel={askCancel} cancelling={cancelMutation.isPending && cancelMutation.variables === item.id} onReorder={engFlags?.reorder ? reorder : undefined} onHere={setHereFor} />
               </>
             )}
           />
@@ -1220,6 +1287,11 @@ export default function CustomerHotFoodScreen() {
       {showSuccess && (
         <OrderSuccessSheet store={placedAt} onClose={() => setShowSuccess(false)} />
       )}
+
+      {/* "I'm here" (2026-11-15) */}
+      {hereFor && (
+        <HotFoodHereSheet number={tagOf(hereFor)} current={hereFor.hereAt ? hereFor.herePump ?? null : null} busy={hereBusy} onPick={sayHere} onClose={() => setHereFor(null)} />
+      )}
     </View>
   );
 }
@@ -1236,6 +1308,10 @@ const s = StyleSheet.create({
   popularImg: { width: 44, height: 44, borderRadius: 10 },
   popularImgEmpty: { backgroundColor: '#FFF7ED', alignItems: 'center', justifyContent: 'center' },
   root: { flex: 1, backgroundColor: COLORS.background },
+  slimBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 9,
+    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3 },
+  slimText: { flex: 1, fontSize: 13, fontWeight: '700', color: COLORS.text },
+  slimChange: { fontSize: 13, fontWeight: '800', color: COLORS.primary },
 
   // Header
   headerBg: { backgroundColor: COLORS.primary },
@@ -1344,12 +1420,13 @@ const mc = StyleSheet.create({
     borderWidth: 1, borderColor: Platform.OS === 'ios' ? '#F0F1F2' : '#E6E8EB',
   },
   left: { flexShrink: 0 },
+  // the photo about twice as big as before (the owner, 2026-11-15): the food sells it
   iconRing: {
-    width: 48, height: 48, borderRadius: 14,
+    width: 96, height: 96, borderRadius: 16,
     backgroundColor: '#FFF1F0', alignItems: 'center', justifyContent: 'center',
   },
   itemImage: {
-    width: 48, height: 48, borderRadius: 14,
+    width: 96, height: 96, borderRadius: 16, backgroundColor: '#0B0B0B',
   },
   info: { flex: 1 },
   name: { fontSize: 15, fontWeight: '800', color: COLORS.text, marginBottom: 3 },
@@ -1382,6 +1459,13 @@ const mc = StyleSheet.create({
 
 // ─── Order card styles ────────────────────────────────────────────────────────
 const oc = StyleSheet.create({
+  orderTicket: { fontSize: 22, fontWeight: '900', color: COLORS.secondary },
+  pastLine: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', marginTop: 2 },
+  taxNote: { fontSize: 12, color: COLORS.textMuted, textAlign: 'right', marginTop: 2 },
+  hereBtn: { alignSelf: 'stretch', minHeight: 46, borderRadius: 12, backgroundColor: COLORS.secondary, alignItems: 'center', justifyContent: 'center', marginTop: 10, paddingHorizontal: 12 },
+  hereBtnDone: { backgroundColor: '#DCFCE7' },
+  hereBtnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  hereBtnTextDone: { color: '#166534' },
   reorderBtn: { alignSelf: 'flex-start', marginTop: 10, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999, backgroundColor: COLORS.primary },
   reorderText: { fontSize: 13.5, fontWeight: '800', color: '#fff' },
   storeAddr: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
@@ -1430,6 +1514,7 @@ const oc = StyleSheet.create({
 
 // ─── Cart sheet styles ────────────────────────────────────────────────────────
 const cs = StyleSheet.create({
+  taxNote: { fontSize: 12, color: COLORS.textMuted, textAlign: 'right', marginTop: -4, marginBottom: 8 },
   closedNote: { fontSize: 13, fontWeight: '700', color: '#9A3412', textAlign: 'center', marginBottom: 8 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   backdrop: { flex: 1 },
