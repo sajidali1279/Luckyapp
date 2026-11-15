@@ -738,7 +738,18 @@
     "errClosedThen": "Hot food is closed at that time. Choose another time.",
     "errTooFar": "That pickup time is too far ahead.",
     "errAheadOff": "Ordering ahead is switched off right now.",
-    "popular": "Popular"
+    "popular": "Popular",
+    "chooseSize": "Choose a size",
+    "chooseSizeFirst": "Choose a size first",
+    "addOnsTitle": "Add-ons",
+    "addOnsMax": "up to {{count}}",
+    "addOnsPickSize": "Prices show once you choose a size.",
+    "addOnFree": "Free",
+    "addToOrderBtn": "Add to order · {{total}}",
+    "inOrder": "{{count}} in your order",
+    "choiceCloseA11y": "Close without adding",
+    "choiceLessA11y": "One less",
+    "choiceMoreA11y": "One more"
   },
   "customerLeaderboard": {
     "nameYou": " (You)",

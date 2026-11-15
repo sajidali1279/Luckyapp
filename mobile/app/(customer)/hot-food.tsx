@@ -38,6 +38,7 @@ import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../compon
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import OrderSteps from '../../components/OrderSteps';
 import { usePoll } from '../../hooks/usePoll';
+import HotFoodChoiceSheet, { priceChosen, choiceKey, type ChoiceOptions, type Chosen } from '../../components/HotFoodChoiceSheet';
 import { MenuTimeTabs, LastCallStrip, PickupChooser, PickupLine, slotsForCart, storeDay, useTimeWords, ALL_DAY, type MenuTime, type OrderAhead, type Timed } from '../../components/HotFoodTimes';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -51,9 +52,12 @@ interface MenuItem extends Timed {
   estimatedMinutes?: number;
   imageUrl?: string;
   isFeatured?: boolean;   // HQ's pick (2026-11-10): in the "Popular" row at the top
+  options?: ChoiceOptions | null;   // sizes and add-ons (2026-11-14): adding it opens a sheet to choose
 }
 
-interface CartItem extends MenuItem { qty: number; comboId?: string; drink?: string }   // a combo line: its drink too ('' for a deal with no drink)
+/** A cart line: a combo has its drink; an item with sizes and add-ons has its own line per choice (baseId = the menu item) */
+interface CartItem extends MenuItem { qty: number; comboId?: string; drink?: string; baseId?: string; sizeId?: string | null; addOnIds?: string[] }
+const hasChoices = (m: MenuItem) => !!m.options && (m.options.sizes.length > 0 || m.options.addOns.length > 0);   // a combo line: its drink too ('' for a deal with no drink)
 
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -414,7 +418,9 @@ function CartSheet({ cart, store, closedText: closedNow, onClose, onOrderPlaced,
   const placeMutation = useMutation({
     mutationFn: () => hotFoodApi.placeOrder({
       storeId: store.id,
-      items: cart.map(i => (i.comboId ? { comboId: i.comboId, ...(i.drink ? { drink: i.drink } : {}), quantity: i.qty } : { menuItemId: i.id, quantity: i.qty })),
+      items: cart.map(i => (i.comboId ? { comboId: i.comboId, ...(i.drink ? { drink: i.drink } : {}), quantity: i.qty }
+        : i.baseId ? { menuItemId: i.baseId, ...(i.sizeId ? { sizeId: i.sizeId } : {}), addOnIds: i.addOnIds ?? [], quantity: i.qty }
+        : { menuItemId: i.id, quantity: i.qty })),
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(payWithPoints ? { payWithPoints: true } : {}),
       expectedTotal: Math.round(total * 100) / 100,
@@ -742,6 +748,14 @@ export default function CustomerHotFoodScreen() {
         for (const d of c.drinks) byId.set(comboCartId(c.id, d), { price: c.price, name: `${comboWords.name(c)} + ${comboWords.drink(d)}` });
         if (c.drinks.length === 0) byId.set(comboCartId(c.id, ''), { price: c.price, name: comboWords.name(c) });   // a deal with no drink
       }
+      // a line with choices: priced again from its item's sizes and add-ons (gone when the item, its size or an add-on is gone)
+      for (const c of prev) {
+        if (!c.baseId) continue;
+        const m = menuItems.find((x) => x.id === c.baseId);
+        const o = m?.options;
+        const ok = !!m && (!c.sizeId || !!o?.sizes.some((sz) => sz.id === c.sizeId)) && (c.addOnIds ?? []).every((a) => o?.addOns.some((x) => x.id === a));
+        if (m && ok) { const p = priceChosen(m, c.sizeId ?? null, c.addOnIds ?? []); byId.set(c.id, { price: p.unit, name: p.label }); }
+      }
       const gone = prev.filter((c) => !byId.has(c.id));
       const next = prev.filter((c) => byId.has(c.id)).map((c) => ({ ...c, price: byId.get(c.id)!.price, name: byId.get(c.id)!.name }));
       const repriced = prev.some((c) => byId.has(c.id) && byId.get(c.id)!.price !== c.price);
@@ -814,13 +828,27 @@ export default function CustomerHotFoodScreen() {
 
   const getQty = useCallback((id: string) => cart.find(c => c.id === id)?.qty || 0, [cart]);
 
+  // an item with sizes or add-ons opens the sheet to choose (2026-11-14); every other item goes straight in
+  const [choosing, setChoosing] = useState<MenuItem | null>(null);
   const addToCart = useCallback((item: MenuItem) => {
+    if (hasChoices(item)) { setChoosing(item); return; }
     setCart(prev => {
       const existing = prev.find(c => c.id === item.id);
       if (existing) return prev.map(c => c.id === item.id ? { ...c, qty: Math.min(MAX_PER_ITEM, c.qty + 1) } : c);
       return [...prev, { ...item, qty: 1 }];
     });
   }, []);
+
+  function addChoice(item: MenuItem, c: Chosen) {
+    const id = choiceKey(item.id, c.sizeId, c.addOnIds);
+    setCart(prev => {
+      const existing = prev.find(x => x.id === id);
+      if (existing) return prev.map(x => x.id === id ? { ...x, qty: Math.min(MAX_PER_ITEM, x.qty + c.qty) } : x);
+      return [...prev, { ...item, id, name: c.label, price: c.unit, qty: Math.min(MAX_PER_ITEM, c.qty), baseId: item.id, sizeId: c.sizeId, addOnIds: c.addOnIds }];
+    });
+    Toast.show({ type: 'success', text1: t('customerHotFood.addedFromHome', { name: c.label }) });
+  }
+  const choiceCount = (itemId: string) => cart.filter((x) => x.baseId === itemId).reduce((n, x) => n + x.qty, 0);
 
   function addCombo(combo: Combo, drink: string) {
     const id = comboCartId(combo.id, drink);
@@ -887,7 +915,7 @@ export default function CustomerHotFoodScreen() {
   // The cart with what the menu says now about each item (served now, its menus, sold out): it can change while the cart waits
   const menuById = new Map(menuItems.map((m) => [m.id, m]));
   const cartNow: CartItem[] = cart.map((c) => {
-    const m = menuById.get(c.id);
+    const m = menuById.get(c.baseId ?? c.id);
     return m ? { ...c, servedNow: m.servedNow, daypartIds: m.daypartIds, soldOut: m.soldOut, nextServedAt: m.nextServedAt } : c;
   });
 
@@ -1076,12 +1104,12 @@ export default function CustomerHotFoodScreen() {
                 ) : (
                   <MenuCard
                     item={row.item}
-                    qty={getQty(row.item.id)}
+                    qty={hasChoices(row.item) ? 0 : getQty(row.item.id)}
                     onAdd={() => addToCart(row.item)}
                     onRemove={() => removeFromCart(row.item)}
                     closed={!itemState(row.item).now && !itemState(row.item).later}
                     laterOnly={itemState(row.item).later}
-                    note={itemState(row.item).note}
+                    note={[itemState(row.item).note, hasChoices(row.item) && choiceCount(row.item.id) ? t('customerHotFood.inOrder', { count: choiceCount(row.item.id) }) : null].filter(Boolean).join('  ·  ') || null}
                     closedLabel={itemState(row.item).closedLabel}
                   />
                 )}
@@ -1175,6 +1203,12 @@ export default function CustomerHotFoodScreen() {
           orderAhead={orderAhead}
           asapAllowed={!closed && cartNow.every((i) => i.servedNow !== false && !i.soldOut)}
         />
+      )}
+
+      {/* Sizes and add-ons (2026-11-14) */}
+      {choosing && (
+        <HotFoodChoiceSheet item={choosing} maxQty={MAX_PER_ITEM} onClose={() => setChoosing(null)}
+          onAdd={(c) => { addChoice(choosing, c); setChoosing(null); }} />
       )}
 
       {/* Every pickup store, closest first */}

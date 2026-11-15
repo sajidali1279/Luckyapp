@@ -738,7 +738,18 @@
     "errClosedThen": "La comida caliente está cerrada a esa hora. Elige otra hora.",
     "errTooFar": "Esa hora de recogida es demasiado adelante.",
     "errAheadOff": "Pedir por adelantado está apagado ahora.",
-    "popular": "Lo más pedido"
+    "popular": "Lo más pedido",
+    "chooseSize": "Elige un tamaño",
+    "chooseSizeFirst": "Primero elige un tamaño",
+    "addOnsTitle": "Extras",
+    "addOnsMax": "hasta {{count}}",
+    "addOnsPickSize": "Los precios aparecen al elegir un tamaño.",
+    "addOnFree": "Gratis",
+    "addToOrderBtn": "Agregar al pedido · {{total}}",
+    "inOrder": "{{count}} en tu pedido",
+    "choiceCloseA11y": "Cerrar sin agregar",
+    "choiceLessA11y": "Uno menos",
+    "choiceMoreA11y": "Uno más"
   },
   "customerLeaderboard": {
     "pointsValue": "{{points}} pts",

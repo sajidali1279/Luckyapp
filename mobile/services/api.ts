@@ -553,7 +553,8 @@ export const receiptScanApi = {
 export const hotFoodApi = {
   // deals=1: this app knows deals with no drink ("2 corn dogs for $3.50", 2026-10-16); older apps are not sent them
   // menus=1 (2026-11-10): every item with when it is served (menus by time) and the pickup times for ordering ahead
-  getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`, { params: { deals: 1, menus: 1 } }),
+  // options=1 (2026-11-14): items with sizes and add-ons (loaded chips), which an older app is not shown
+  getCustomerMenu: (storeId: string) => api.get(`/hot-food/store/${storeId}/menu`, { params: { deals: 1, menus: 1, options: 1 } }),
   // Employee management view, legacy + catalog items merged with availability + source
   getStoreAllItems: (storeId: string) => api.get(`/hot-food/store/${storeId}/all-items`),
   placeOrder:     (data: { storeId: string; items: ({ menuItemId: string; quantity: number } | { comboId: string; drink?: string; quantity: number })[]; note?: string; payWithPoints?: boolean; expectedTotal?: number; pickupAt?: string }) =>
