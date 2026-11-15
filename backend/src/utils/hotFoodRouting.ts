@@ -2,6 +2,7 @@
 // scheduled at the moment (no schedule kept, or between shifts), everyone assigned to the store, so an order is never missed. Someone
 // assigned to several stores is told only about the store they are working at. An order nobody accepts within ESCALATE_MINUTES is
 // escalated once: the store's managers and everyone assigned there hear about it. (It is still cancelled at AUTO_CANCEL_MINUTES.)
+import { orderTag } from './hotFoodWords';
 import prisma from '../config/prisma';
 import { saveNotificationMany, sendPushToStoreEmployees, sendPushToStoreManagers } from './push';
 import { sendExpoBatch } from './pushSend';
@@ -46,7 +47,7 @@ export async function escalateWaitingHotFoodOrders(now: Date = new Date()): Prom
   // An order placed ahead waits from when it should be started (2026-11-10), not from when it was placed
   const waiting = await prisma.hotFoodOrder.findMany({
     where: { status: 'PENDING', escalatedAt: null, OR: [{ startAt: null, createdAt: { lt: cutoff } }, { startAt: { lt: cutoff } }] },
-    select: { id: true, storeId: true, orderNumber: true, createdAt: true, startAt: true, store: { select: { name: true } } },
+    select: { id: true, storeId: true, orderNumber: true, ticket: true, createdAt: true, startAt: true, store: { select: { name: true } } },
   });
   let done = 0;
   for (const o of waiting) {
@@ -54,9 +55,9 @@ export async function escalateWaitingHotFoodOrders(now: Date = new Date()): Prom
     if (claimed.count === 0) continue;   // accepted, cancelled or escalated a moment ago
     done++;
     const waited = Math.max(escalate, Math.round((now.getTime() - (o.startAt ?? o.createdAt).getTime()) / 60_000));
-    await sendPushToStoreEmployees(o.storeId, `⏰ Order #${o.orderNumber} is waiting`,
+    await sendPushToStoreEmployees(o.storeId, `⏰ Order #${orderTag(o)} is waiting`,
       `A customer's hot food order at ${o.store.name} has waited ${waited} minutes. Accept it or decline it.`, 'HOT_FOOD_ORDER', hotFoodOrderUrl(o.id, o.storeId));
-    await sendPushToStoreManagers(o.storeId, `⏰ Order #${o.orderNumber} at ${o.store.name} is waiting`,
+    await sendPushToStoreManagers(o.storeId, `⏰ Order #${orderTag(o)} at ${o.store.name} is waiting`,
       `Nobody has accepted it in ${waited} minutes. Make sure someone at the store answers it; it cancels by itself at ${rule('hotFoodAutoCancelMinutes')} minutes.`, 'HOT_FOOD_ORDER');
   }
   return done;

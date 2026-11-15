@@ -5,7 +5,7 @@ import { AuthRequest } from '../types';
 import { hasMinRole } from '../middleware/auth';
 import cloudinary from '../config/cloudinary';
 import { sendPushToStoreEmployees, sendPushToUser } from '../utils/push';
-import { hotFoodWords } from '../utils/hotFoodWords';
+import { hotFoodWords, orderTag } from '../utils/hotFoodWords';
 import { hotFoodOrderUrl, customerHotFoodUrl } from '../utils/notificationRoutes';
 import { hotFoodState, opensSentence, HotFoodSchedules, HotFoodState } from '../utils/hotFoodHours';
 import { updateHoursSchema, dayProblem, dayWords, DAY_NAMES } from './storeHours.controller';
@@ -353,6 +353,10 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
     const mins = parseInt(estimatedMinutes);
     if (!isNaN(mins) && mins > 0 && mins <= 240) updateData.estimatedMinutes = mins;
   }
+  // When it should be ready (the kitchen screen's clock and the customer's countdown, 2026-11-15): the pickup time of an order placed
+  // ahead, else now plus the minutes the store gave
+  if (next === 'ACCEPTED') (updateData as any).readyBy = order.pickupAt && order.startAt && order.startAt > new Date() ? order.pickupAt
+    : updateData.estimatedMinutes ? new Date(Date.now() + updateData.estimatedMinutes * 60_000) : null;
   if (next === 'READY') (updateData as any).readyAt = new Date();   // the pickup reminder counts from here
   if (next === 'CANCELLED') {
     // Declined by the store, with the reason the customer is told (optional)
@@ -380,11 +384,12 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
   const es = order.customer?.language === 'es';
   const tell = (m: { title: string; body: string }) => sendPushToUser(order.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
   const now = new Date();
+  const tag = orderTag(order);
   if (next === 'ACCEPTED') tell(order.pickupAt && order.startAt && order.startAt > now
-    ? hotFoodWords.acceptedAhead(es, order.orderNumber, order.store.name, es ? pickupWordsEs(order.pickupAt, now) : pickupWords(order.pickupAt, now))
-    : hotFoodWords.accepted(es, order.orderNumber, order.store.name, updateData.estimatedMinutes));
-  if (next === 'CANCELLED') tell(hotFoodWords.declined(es, order.orderNumber, order.store.name, updateData.cancelReason, returned ? pts(returned) : 0));
-  if (next === 'READY') tell(hotFoodWords.ready(es, order.orderNumber, order.store, order.paidWithPoints, order.totalAmount));
+    ? hotFoodWords.acceptedAhead(es, tag, order.store.name, es ? pickupWordsEs(order.pickupAt, now) : pickupWords(order.pickupAt, now))
+    : hotFoodWords.accepted(es, tag, order.store.name, updateData.estimatedMinutes));
+  if (next === 'CANCELLED') tell(hotFoodWords.declined(es, tag, order.store.name, updateData.cancelReason, returned ? pts(returned) : 0));
+  if (next === 'READY') tell(hotFoodWords.ready(es, tag, order.store, order.paidWithPoints, order.totalAmount));
 
   res.json({ success: true, data: updated, changed: true });
 }
@@ -392,7 +397,7 @@ export async function updateOrderStatus(req: AuthRequest, res: Response) {
 // POST /hot-food/orders/:id/cancel (the customer), only while it is still waiting: once the store has accepted it, it is being made
 export async function customerCancelOrder(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const order = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { id: true, customerId: true, status: true, orderNumber: true, storeId: true, startAt: true } });
+  const order = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { id: true, customerId: true, status: true, orderNumber: true, ticket: true, storeId: true, startAt: true } });
   if (!order || order.customerId !== req.user!.id) { res.status(404).json({ success: false, error: 'Order not found' }); return; }
   if (order.status === 'CANCELLED') { res.json({ success: true, changed: false }); return; }
   // Paid with points: they go back in the same transaction that cancels it. Placed ahead and accepted: until it is time to start it.
@@ -406,8 +411,64 @@ export async function customerCancelOrder(req: AuthRequest, res: Response) {
   }
   const returned = cancelled.returned;
   // The staff board refreshes on its own; a push tells whoever is on shift not to start it
-  tellStoreAboutOrder({ id: order.id, storeId: order.storeId }, 'Order cancelled', `The customer cancelled order #${order.orderNumber}. Do not make it.`).catch(() => {});
+  tellStoreAboutOrder({ id: order.id, storeId: order.storeId }, 'Order cancelled', `The customer cancelled order #${orderTag(order)}. Do not make it.`).catch(() => {});
   res.json({ success: true, changed: true, pointsReturned: pts(returned) });
+}
+
+// POST /hot-food/orders/:id/more-time (staff, 2026-11-15): "+5 min" on an order being made. Its ready time moves on (from now when it
+// has passed) and the customer is told, in their language.
+export async function moreTimeForOrder(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const minutes = Number(req.body?.minutes);
+  if (![5, 10, 15].includes(minutes)) { res.status(400).json({ success: false, error: 'Add 5, 10 or 15 minutes.' }); return; }
+  const order = await prisma.hotFoodOrder.findUnique({ where: { id }, include: { store: { select: { name: true } }, customer: { select: { language: true } } } });
+  if (!order) { res.status(404).json({ success: false, error: 'Order not found' }); return; }
+  if (!(await canActOnStore(req.user!.id, req.user!.role, order.storeId))) { res.status(403).json({ success: false, error: 'You can only update orders at your own store.' }); return; }
+  if (order.status !== 'ACCEPTED') { res.status(409).json({ success: false, error: `This order is ${STATUS_WORD[order.status as OrderStatus]}, so its time cannot change.` }); return; }
+  const now = Date.now();
+  const base = Math.max(order.readyBy?.getTime() ?? now, now);
+  const readyBy = new Date(base + minutes * 60_000);
+  const left = Math.max(1, Math.ceil((readyBy.getTime() - now) / 60_000));
+  const moved = await prisma.hotFoodOrder.updateMany({ where: { id, status: 'ACCEPTED' }, data: { readyBy, estimatedMinutes: left } });
+  if (moved.count === 0) { res.status(409).json({ success: false, error: 'Someone else just changed this order.' }); return; }
+  const m = hotFoodWords.later(order.customer?.language === 'es', orderTag(order), order.store.name, left);
+  sendPushToUser(order.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
+  const data = await prisma.hotFoodOrder.findUnique({ where: { id }, include: { store: { select: { id: true, name: true } }, customer: { select: { id: true, name: true, phone: true } }, items: true } });
+  res.json({ success: true, data });
+}
+
+// POST /hot-food/orders/:id/here (the customer, 2026-11-15): "I'm here", at a pump (1 to 40) or inside (0). The store is told who is
+// waiting and where; said again, only the place changes.
+export async function imHereForOrder(req: AuthRequest, res: Response) {
+  const { id } = req.params;
+  const raw = req.body?.pump;
+  const pump = raw == null || raw === '' ? 0 : Number(raw);
+  if (!Number.isInteger(pump) || pump < 0 || pump > 40) { res.status(400).json({ success: false, error: 'Choose a pump from 1 to 40, or inside the store.' }); return; }
+  const order = await prisma.hotFoodOrder.findUnique({ where: { id }, select: { id: true, customerId: true, storeId: true, status: true, orderNumber: true, ticket: true, herePump: true, hereAt: true, customer: { select: { name: true } } } });
+  if (!order || order.customerId !== req.user!.id) { res.status(404).json({ success: false, error: 'Order not found' }); return; }
+  if (order.status !== 'ACCEPTED' && order.status !== 'READY') { res.status(409).json({ success: false, error: 'You can say you are here once the store has accepted your order.' }); return; }
+  if (order.hereAt && order.herePump === pump) { res.json({ success: true, changed: false }); return; }
+  await prisma.hotFoodOrder.update({ where: { id }, data: { hereAt: new Date(), herePump: pump }, select: { id: true } });
+  const who = (order.customer?.name ?? '').split(' ')[0] || 'The customer';
+  tellStoreAboutOrder({ id: order.id, storeId: order.storeId }, `🚗 #${orderTag(order)}: ${who} is here`,
+    pump ? `Waiting at pump ${pump}. Order ${order.status === 'READY' ? 'is ready' : 'is being made'}.` : `Waiting inside the store. Order ${order.status === 'READY' ? 'is ready' : 'is being made'}.`).catch(() => {});
+  res.json({ success: true, changed: true });
+}
+
+// PUT /stores/:storeId/hot-food-auto-cancel (HQ, 2026-11-15): this store's minutes before an order nobody accepts is cancelled; null = the chain's
+export async function setHotFoodAutoCancel(req: AuthRequest, res: Response) {
+  const { storeId } = req.params;
+  const raw = req.body?.minutes;
+  const minutes = raw == null || raw === '' ? null : Number(raw);
+  if (minutes != null && (!Number.isInteger(minutes) || minutes < 5 || minutes > 120)) { res.status(400).json({ success: false, error: 'Give whole minutes from 5 to 120, or leave it empty for the chain setting.' }); return; }
+  const store = await prisma.store.findUnique({ where: { id: storeId }, select: { name: true, hotFoodAutoCancelMinutes: true } });
+  if (!store) { res.status(404).json({ success: false, error: 'That store does not exist.' }); return; }
+  await prisma.store.update({ where: { id: storeId }, data: { hotFoodAutoCancelMinutes: minutes }, select: { id: true } });
+  if (store.hotFoodAutoCancelMinutes !== minutes) audit({
+    actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'UPDATE_HOT_FOOD_HOURS', entity: 'store', entityId: storeId,
+    details: { summary: `${store.name}: an order nobody accepts is cancelled after ${minutes ?? `${rule('hotFoodAutoCancelMinutes')} minutes (the chain setting)`}${minutes ? ' minutes' : ''}` }, storeId, storeName: store.name,
+  });
+  res.json({ success: true, data: { autoCancelMinutes: minutes, chainAutoCancelMinutes: rule('hotFoodAutoCancelMinutes') } });
 }
 
 // ─── Menu (customer / mobile) ─────────────────────────────────────────────────
@@ -584,7 +645,7 @@ export async function ranOutOfItem(req: AuthRequest, res: Response) {
   const waiting = await prisma.hotFoodOrder.findMany({
     where: { storeId, status: 'PENDING', OR: [{ startAt: null }, { startAt: { lte: until } }],
       items: { some: { OR: [{ catalogItemId }, ...(combos.length ? [{ comboId: { in: combos.map((c) => c.id) } }] : [])] } } },
-    select: { id: true, orderNumber: true, customerId: true, customer: { select: { language: true } } },
+    select: { id: true, orderNumber: true, ticket: true, customerId: true, customer: { select: { language: true } } },
     orderBy: { createdAt: 'asc' },
   });
   let declined = 0;
@@ -595,7 +656,7 @@ export async function ranOutOfItem(req: AuthRequest, res: Response) {
       .catch((e) => { console.error('[hot-food-ran-out] not declined:', o.id, e?.message ?? e); return null; });
     if (!done) continue;   // accepted or cancelled a moment ago
     declined++;
-    const m = hotFoodWords.declined(es, o.orderNumber, row.store.name, reason, done.returned ? pts(done.returned) : 0);
+    const m = hotFoodWords.declined(es, orderTag(o), row.store.name, reason, done.returned ? pts(done.returned) : 0);
     sendPushToUser(o.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
   }
   audit({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role, action: 'HOT_FOOD_RAN_OUT', entity: 'hot_food_item', entityId: catalogItemId, storeId,
@@ -852,7 +913,18 @@ export async function placeOrder(req: AuthRequest, res: Response) {
     if (recent && sameLines(recent.items) === sameLines(orderLines)) return { duplicate: recent };
     return open >= rule('hotFoodMaxOpenOrders') ? { open } : null;
   };
-  const r = await placeOrderHeld(customerId, payWithPoints ? totalAmount : null, check, (tx, taken) => tx.hotFoodOrder.create({ data: taken != null ? { ...data, pointsAmount: taken } : data, include }));
+  // The store's number of the day (2026-11-15): one more than its highest today; two orders at the very same moment: the second tries again
+  const ticketDay = storeDateKey(now);
+  const create = async (tx: any, taken?: number) => {
+    const top = await tx.hotFoodOrder.aggregate({ where: { storeId, ticketDay }, _max: { ticket: true } });
+    const ticket = (top?._max?.ticket ?? 0) + 1;
+    return tx.hotFoodOrder.create({ data: { ...(taken != null ? { ...data, pointsAmount: taken } : data), ticket, ticketDay }, include });
+  };
+  let r: Awaited<ReturnType<typeof placeOrderHeld<any, any>>> | undefined;
+  for (let i = 0; ; i++) {
+    try { r = await placeOrderHeld(customerId, payWithPoints ? totalAmount : null, check, create); break; }
+    catch (e: any) { if (e?.code === 'P2002' && String(e?.meta?.target ?? '').includes('ticket') && i < 4) continue; throw e; }
+  }
   if ('refused' in r) {
     if ('duplicate' in r.refused) { res.status(200).json({ success: true, data: r.refused.duplicate, duplicate: true }); return; }
     res.status(429).json({ success: false, code: 'TOO_MANY_OPEN_ORDERS', error: `You already have ${r.refused.open} orders open. Pick them up or cancel one before ordering again.` });
@@ -870,10 +942,10 @@ export async function placeOrder(req: AuthRequest, res: Response) {
   // when nobody accepts it in a few minutes.
   const itemSummary = (payWithPoints ? 'Paid with points. ' : '') + orderLines.map(l => `${l.quantity}× ${l.name}`).join(', ');
   if (pickupAt && startAt && !startsNow) {
-    tellStoreAboutOrder({ id: order.id, storeId }, `🗓 Order #${order.orderNumber} for ${pickupWords(pickupAt, now)}`,
+    tellStoreAboutOrder({ id: order.id, storeId }, `🗓 Order #${orderTag(order)} for ${pickupWords(pickupAt, now)}`,
       `${itemSummary}. Accept it now; you will be told when to start it (${pickupWords(startAt, now)}).`).catch(() => {});
   } else {
-    tellStoreAboutOrder({ id: order.id, storeId }, `🔥 New Order #${order.orderNumber}`, (pickupAt ? `Pickup at ${pickupWords(pickupAt, now)}. ` : '') + itemSummary).catch(() => {});
+    tellStoreAboutOrder({ id: order.id, storeId }, `🔥 New Order #${orderTag(order)}`, (pickupAt ? `Pickup at ${pickupWords(pickupAt, now)}. ` : '') + itemSummary).catch(() => {});
   }
 
   res.status(201).json({ success: true, data: order, ...(pointsBalance != null ? { pointsBalance } : {}) });
@@ -1126,8 +1198,9 @@ export async function removeCatalogItemFromStore(req: AuthRequest, res: Response
 // GET /stores/:storeId/hot-food-hours, the week as set (empty = follows the store's hours) and whether ordering is open now
 export async function getHotFoodHours(req: AuthRequest, res: Response) {
   const { storeId } = req.params;
-  const schedules = await schedulesFor(storeId);
-  res.json({ success: true, data: { weekly: schedules.hotFood, followsStore: schedules.hotFood.length === 0, storeHoursSet: schedules.storeWeekly.length > 0, now: hotFoodState(schedules) } });
+  const [schedules, store] = await Promise.all([schedulesFor(storeId), prisma.store.findUnique({ where: { id: storeId }, select: { hotFoodAutoCancelMinutes: true } })]);
+  res.json({ success: true, data: { weekly: schedules.hotFood, followsStore: schedules.hotFood.length === 0, storeHoursSet: schedules.storeWeekly.length > 0, now: hotFoodState(schedules),
+    autoCancelMinutes: store?.hotFoodAutoCancelMinutes ?? null, chainAutoCancelMinutes: rule('hotFoodAutoCancelMinutes') } });
 }
 
 // PUT /stores/:storeId/hot-food-hours, the whole week at once, checked like store hours

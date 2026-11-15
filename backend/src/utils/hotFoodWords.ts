@@ -14,7 +14,14 @@ const pay = (es: boolean, withPoints: boolean, total: number) => (withPoints
   : (es ? `Paga $${total.toFixed(2)} en el mostrador.` : `Pay $${total.toFixed(2)} at the counter.`));
 const back = (es: boolean, pts: number) => (es ? `Tus ${pts} puntos ya regresaron a tu cuenta.` : `Your ${pts} points are back.`);
 
+/** The number said at the counter: the store's number of the day ("27"), else the long order number (orders placed before 2026-11-15). */
+export const orderTag = (o: { ticket?: number | null; orderNumber: string }): string => (o.ticket ? String(o.ticket) : o.orderNumber);
+
 export const hotFoodWords = {
+  // "+5 min" from the kitchen (2026-11-15)
+  later: (es: boolean, n: string, store: string, mins: number): Msg => es
+    ? { title: `Pedido #${n}: unos minutos más`, body: `${store} necesita unos ${mins} minutos más. Perdón por la espera.` }
+    : { title: `Order #${n}: a few more minutes`, body: `${store} needs about ${mins} more minute${mins === 1 ? '' : 's'}. Sorry for the wait.` },
   accepted: (es: boolean, n: string, store: string, mins?: number): Msg => es
     ? { title: `Pedido #${n} aceptado`, body: `${store} lo está preparando${mins ? (mins === 1 ? ', listo en 1 minuto' : `, listo en unos ${mins} minutos`) : ''}.` }
     : { title: `Order #${n} accepted`, body: `${store} is making it${mins ? `, ready in about ${mins} minute${mins === 1 ? '' : 's'}` : ''}.` },

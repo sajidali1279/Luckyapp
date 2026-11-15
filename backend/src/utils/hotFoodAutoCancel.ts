@@ -7,7 +7,7 @@ import { customerHotFoodUrl } from './notificationRoutes';
 import { escalateWaitingHotFoodOrders, ESCALATE_MINUTES, tellStoreAboutOrder } from './hotFoodRouting';
 import { cancelOrder, recordPointsPickup, pts } from './hotFoodPoints';
 import { rule, feature } from './appSettings';
-import { hotFoodWords } from './hotFoodWords';
+import { hotFoodWords, orderTag } from './hotFoodWords';
 import { pickupWords } from './hotFoodMenus';
 
 /** Waiting since before `cutoff`: an order for now from when it was placed, an order placed ahead from when it should be started */
@@ -20,7 +20,7 @@ export const waitingSince = (cutoff: Date) => ({ OR: [{ startAt: null, createdAt
 export async function tellStoresToStart(now: Date = new Date()): Promise<number> {
   const due = await prisma.hotFoodOrder.findMany({
     where: { status: { in: ['PENDING', 'ACCEPTED'] }, startToldAt: null, startAt: { lte: now }, pickupAt: { not: null } },
-    select: { id: true, storeId: true, orderNumber: true, status: true, pickupAt: true, items: { select: { name: true, quantity: true } } },
+    select: { id: true, storeId: true, orderNumber: true, ticket: true, status: true, pickupAt: true, items: { select: { name: true, quantity: true } } },
   });
   let done = 0;
   for (const o of due) {
@@ -28,7 +28,7 @@ export async function tellStoresToStart(now: Date = new Date()): Promise<number>
     if (claimed.count === 0) continue;
     done++;
     const what = o.items.map((l) => `${l.quantity}× ${l.name}`).join(', ');
-    tellStoreAboutOrder(o, `⏰ Start order #${o.orderNumber} now`,
+    tellStoreAboutOrder(o, `⏰ Start order #${orderTag(o)} now`,
       `Pickup at ${pickupWords(o.pickupAt!, now)}: ${what}.${o.status === 'PENDING' ? ' Nobody has accepted it yet: accept it first.' : ''}`, now).catch(() => {});
   }
   return done;
@@ -43,14 +43,14 @@ export async function remindReadyHotFoodOrders(now: Date = new Date()): Promise<
   const cutoff = new Date(now.getTime() - rule('hotFoodReadyRemindMinutes') * 60_000);
   const waiting = await prisma.hotFoodOrder.findMany({
     where: { status: 'READY', readyRemindedAt: null, readyAt: { lt: cutoff } },
-    select: { id: true, customerId: true, orderNumber: true, paidWithPoints: true, totalAmount: true, store: { select: { name: true, address: true } }, customer: { select: { language: true } } },
+    select: { id: true, customerId: true, orderNumber: true, ticket: true, paidWithPoints: true, totalAmount: true, store: { select: { name: true, address: true } }, customer: { select: { language: true } } },
   });
   let done = 0;
   for (const o of waiting) {
     const claimed = await prisma.hotFoodOrder.updateMany({ where: { id: o.id, status: 'READY', readyRemindedAt: null }, data: { readyRemindedAt: now } });
     if (claimed.count === 0) continue;   // picked up or reminded a moment ago
     done++;
-    const m = hotFoodWords.waiting(o.customer?.language === 'es', o.orderNumber, o.store, o.paidWithPoints, o.totalAmount);
+    const m = hotFoodWords.waiting(o.customer?.language === 'es', orderTag(o), o.store, o.paidWithPoints, o.totalAmount);
     sendPushToUser(o.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
   }
   return done;
@@ -67,7 +67,7 @@ export async function closeUnpickedHotFoodOrders(now: Date = new Date()): Promis
   const cutoff = new Date(now.getTime() - minutes * 60_000);
   const left = await prisma.hotFoodOrder.findMany({
     where: { status: 'READY', readyAt: { lt: cutoff } },
-    select: { id: true, customerId: true, storeId: true, orderNumber: true, paidWithPoints: true, pointsAmount: true, store: { select: { name: true } }, customer: { select: { language: true } } },
+    select: { id: true, customerId: true, storeId: true, orderNumber: true, ticket: true, paidWithPoints: true, pointsAmount: true, store: { select: { name: true } }, customer: { select: { language: true } } },
   });
   const hours = minutes % 60 === 0 ? `${minutes / 60} hour${minutes === 60 ? '' : 's'}` : `${minutes} minutes`;
   let done = 0;
@@ -81,23 +81,29 @@ export async function closeUnpickedHotFoodOrders(now: Date = new Date()): Promis
     const back = closed.returned;
     // Kept: they count as used at that store, recorded with the customer as the one who used them (nobody handed it over)
     if (o.paidWithPoints && !giveBack) await recordPointsPickup(o, o.customerId).catch((e) => console.error('[hot-food-no-show] redemption not recorded:', o.id, e?.message ?? e));
-    const m = hotFoodWords.closed(o.customer?.language === 'es', o.orderNumber, o.store.name, minutes, o.paidWithPoints, back ? pts(back) : 0);
+    const m = hotFoodWords.closed(o.customer?.language === 'es', orderTag(o), o.store.name, minutes, o.paidWithPoints, back ? pts(back) : 0);
     sendPushToUser(o.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
-    tellStoreAboutOrder(o, `Order #${o.orderNumber} closed, not picked up`, `It was ready for ${hours}. It is off the board${o.paidWithPoints ? (back ? '; the customer\'s points went back' : '; paid with points') : ''}.`, now).catch(() => {});
+    tellStoreAboutOrder(o, `Order #${orderTag(o)} closed, not picked up`, `It was ready for ${hours}. It is off the board${o.paidWithPoints ? (back ? '; the customer\'s points went back' : '; paid with points') : ''}.`, now).catch(() => {});
   }
   return done;
 }
 
 /** Cancels every order still waiting after AUTO_CANCEL_MINUTES. Each one only once (a claim on its status). Returns how many. */
 export async function cancelStaleHotFoodOrders(now: Date = new Date()): Promise<number> {
-  const minutes = rule('hotFoodAutoCancelMinutes');
-  const cutoff = new Date(now.getTime() - minutes * 60_000);
-  const stale = await prisma.hotFoodOrder.findMany({
+  // The chain's minutes (Settings), or a store's own (2026-11-15, HQ per store): read from the shortest, each order checked against its store's
+  const chain = rule('hotFoodAutoCancelMinutes');
+  const own = await prisma.store.findMany({ where: { hotFoodAutoCancelMinutes: { not: null } }, select: { hotFoodAutoCancelMinutes: true } });
+  const shortest = Math.min(chain, ...own.map((s) => s.hotFoodAutoCancelMinutes ?? chain));
+  const cutoff = new Date(now.getTime() - shortest * 60_000);
+  const found = await prisma.hotFoodOrder.findMany({
     where: { status: 'PENDING', ...waitingSince(cutoff) },
-    select: { id: true, customerId: true, orderNumber: true, pickupAt: true, store: { select: { name: true } }, customer: { select: { language: true } } },
+    select: { id: true, customerId: true, orderNumber: true, ticket: true, pickupAt: true, startAt: true, createdAt: true, store: { select: { name: true, hotFoodAutoCancelMinutes: true } }, customer: { select: { language: true } } },
   });
+  const minutesOf = (o: (typeof found)[number]) => o.store.hotFoodAutoCancelMinutes ?? chain;
+  const stale = found.filter((o) => (o.startAt ?? o.createdAt).getTime() < now.getTime() - minutesOf(o) * 60_000);
   let done = 0;
   for (const o of stale) {
+    const minutes = minutesOf(o);
     // The points go back in the same transaction that cancels it; a failure leaves it PENDING for the next run
     const cancelled = await cancelOrder(o.id, 'PENDING', { cancelledBy: 'AUTO', cancelReason: `Not accepted within ${minutes} minutes`, cancelledAt: now }, true, now)
       .catch((e) => { console.error('[hot-food-auto-cancel] not cancelled:', o.id, e?.message ?? e); return null; });
@@ -105,8 +111,8 @@ export async function cancelStaleHotFoodOrders(now: Date = new Date()): Promise<
     done++;
     const returned = cancelled.returned;
     const m = o.pickupAt
-      ? hotFoodWords.timedOutAhead(o.customer?.language === 'es', o.orderNumber, o.store.name, returned ? pts(returned) : 0)
-      : hotFoodWords.timedOut(o.customer?.language === 'es', o.orderNumber, o.store.name, minutes, returned ? pts(returned) : 0);
+      ? hotFoodWords.timedOutAhead(o.customer?.language === 'es', orderTag(o), o.store.name, returned ? pts(returned) : 0)
+      : hotFoodWords.timedOut(o.customer?.language === 'es', orderTag(o), o.store.name, minutes, returned ? pts(returned) : 0);
     sendPushToUser(o.customerId, m.title, m.body, 'HOT_FOOD_ORDER', customerHotFoodUrl());
   }
   return done;

@@ -172,6 +172,9 @@ import {
   getAllOrders as getHotFoodOrders,
   updateOrderStatus,
   customerCancelOrder as cancelMyHotFoodOrder,
+  moreTimeForOrder,
+  imHereForOrder,
+  setHotFoodAutoCancel,
   getStoreMenu,
   getStoreAllItems,
   updateCatalogStoreAvailability,
@@ -503,6 +506,7 @@ router.delete('/stores/:storeId/holidays/:holidayId', authenticate, requireRole(
 router.get('/stores/:storeId/hot-food-hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, getHotFoodHours);
 router.put('/stores/:storeId/hot-food-hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, updateHotFoodHours);
 router.delete('/stores/:storeId/hot-food-hours', authenticate, requireRole(Role.STORE_MANAGER), requireStoreAccess, clearHotFoodHours);
+router.put('/stores/:storeId/hot-food-auto-cancel', authenticate, requireRole(Role.SUPER_ADMIN), setHotFoodAutoCancel);   // HQ: this store's cancel minutes
 
 // ─── Store Keyword Mappings (POS → Category classification) ──────────────────
 router.get('/stores/:storeId/keyword-mappings', authenticate, requireRole(Role.SUPER_ADMIN), getMappings);
@@ -798,6 +802,8 @@ router.get('/hot-food/orders/admin', authenticate, requireRole(Role.STORE_MANAGE
 router.get('/hot-food/orders/mine',  authenticate, requireRole(Role.CUSTOMER),      getMyHotFoodOrders);
 router.patch('/hot-food/orders/:id', authenticate, requireRole(Role.EMPLOYEE),      updateOrderStatus);
 router.post('/hot-food/orders/:id/cancel', authenticate, requireRole(Role.CUSTOMER), cancelMyHotFoodOrder);   // the customer, while it is still waiting
+router.post('/hot-food/orders/:id/more-time', authenticate, requireRole(Role.EMPLOYEE), moreTimeForOrder);    // kitchen "+5 min" (2026-11-15)
+router.post('/hot-food/orders/:id/here', authenticate, requireRole(Role.CUSTOMER), imHereForOrder);          // "I'm here at pump N" (2026-11-15)
 // Orders, employee per-store board
 router.get('/hot-food/orders/store/:storeId/pending-count', authenticate, requireRole(Role.EMPLOYEE), requireStoreAccess, getStorePendingCount);
 router.get('/hot-food/orders/my-stores/pending-count',       authenticate, requireRole(Role.EMPLOYEE), getMyStoresPendingCount);

@@ -327,6 +327,7 @@ model Store {
 
   // Feature flags
   hotFoodEnabled    Boolean  @default(true)
+  hotFoodAutoCancelMinutes Int?   // this store's "cancel an order nobody accepts after" (2026-11-15); null = the chain's (Settings)
 
   // Standing order instructions — shown to whoever opens the store's order list
   // (admin web or mobile), persists across list close/auto-reopen cycles
@@ -1726,6 +1727,13 @@ model HotFoodOrder {
   pickupAt         DateTime?
   startAt          DateTime?
   startToldAt      DateTime?
+  // The kitchen screen (2026-11-15): a short number per store per day, said at the counter ("#27"); when it should be ready (set when
+  // accepted, moved by "+5 min"); when the customer said they are here, and at which pump (0 = inside the store)
+  ticket           Int?
+  ticketDay        String?
+  readyBy          DateTime?
+  hereAt           DateTime?
+  herePump         Int?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -1733,6 +1741,7 @@ model HotFoodOrder {
   customer User               @relation("HotFoodOrdersPlaced", fields: [customerId], references: [id])
   items    HotFoodOrderItem[]
 
+  @@unique([storeId, ticketDay, ticket])
   @@index([storeId, status])
   @@index([customerId])
   @@index([status, startAt])
