@@ -135,6 +135,12 @@ export default function ReceiptPhotoScreen() {
                   )}
                 </View>
               ) : (
+                <>
+                {/* Gas: only the receipt printed after pumping earns points; a prepay one is refused (the owner, 2026-11-15) */}
+                <View style={st.gasBox} accessible accessibilityLabel={`${t('receiptPhoto.gasTitle')}. ${t('receiptPhoto.gasBody')}`}>
+                  <Text style={st.gasTitle}>⛽ {t('receiptPhoto.gasTitle')}</Text>
+                  <Text style={st.gasBody}>{t('receiptPhoto.gasBody')}</Text>
+                </View>
                 <View style={st.card}>
                   <Text style={st.cardTitle} accessibilityRole="header">{t('receiptPhoto.howTitle')}</Text>
                   {(['tip1', 'tip2', 'tip3', 'tip4'] as const).map((k) => (
@@ -148,6 +154,7 @@ export default function ReceiptPhotoScreen() {
                     <Text style={st.primaryBtnText}>{t('receiptPhoto.take')}</Text>
                   </TouchableOpacity>
                 </View>
+                </>
               )}
 
               {problem && <View style={st.problem} accessibilityLiveRegion="assertive"><Text style={st.problemText}>{problem}</Text></View>}
@@ -183,6 +190,9 @@ const st = StyleSheet.create({
   content: { padding: 16, paddingBottom: 48, gap: 14 },
   testing: { backgroundColor: '#FDF6E8', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#F1DCAF' },
   testingText: { color: '#8A5300', fontWeight: '600', fontSize: 13, lineHeight: 18 },
+  gasBox: { backgroundColor: '#FFF7ED', borderRadius: 14, padding: 14, borderWidth: 1.5, borderColor: '#FDBA74', gap: 4 },
+  gasTitle: { color: '#9A3412', fontWeight: '900', fontSize: 15 },
+  gasBody: { color: '#7C2D12', fontSize: 14, lineHeight: 20 },
   card: { backgroundColor: COLORS.white, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.border, gap: 10 },
   doneCard: { alignItems: 'stretch' },
   cardTitle: { color: COLORS.secondary, fontSize: 18, fontWeight: '800' },

@@ -3415,6 +3415,9 @@
     "summaryMissing_other": "{{count}} sin registrarse aún"
   },
   "receiptPhoto": {
+    "cardGas": "⛽ Gasolina: usa el recibo que sale después de cargar. Los recibos de prepago no dan puntos.",
+    "gasTitle": "Recibos de gasolina",
+    "gasBody": "Escanea el recibo que sale cuando terminas de cargar. Un recibo de prepago (impreso antes de cargar) no da puntos. Mejor muestra tu código QR al pagar.",
     "cardTitle": "Escanear un recibo",
     "cardBody": "¿No recibiste puntos en la caja? Envía una foto del recibo.",
     "title": "Escanear un recibo",

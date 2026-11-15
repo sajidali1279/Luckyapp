@@ -503,6 +503,8 @@ const ReceiptPhotoCard = memo(function ReceiptPhotoCard() {
       <View style={{ flex: 1 }}>
         <Text style={inv.title}>{t('receiptPhoto.cardTitle')}</Text>
         <Text style={inv.body}>{t('receiptPhoto.cardBody')}</Text>
+        {/* Prepaid gas earns nothing from a scan (the server refuses it): said before the photo, not after (the owner, 2026-11-15) */}
+        <Text style={inv.gas}>{t('receiptPhoto.cardGas')}</Text>
       </View>
       <ChevronRightIcon size={20} color={COLORS.secondary} />
     </TouchableOpacity>
@@ -532,6 +534,7 @@ const inv = StyleSheet.create({
   icon: { width: 42, height: 42, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 15, fontWeight: '800', color: COLORS.secondary },
   body: { fontSize: 13, color: COLORS.textMuted, marginTop: 1 },
+  gas: { fontSize: 12, color: '#B45309', fontWeight: '700', marginTop: 4, lineHeight: 16 },
 });
 
 const RewardsShelf = memo(function RewardsShelf({ items, userPts }: { items: any[]; userPts: number }) {
@@ -1061,6 +1064,8 @@ function CustomerHomeScreen() {
       </Animated.View>
 
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
+        {/* "Scan a receipt" sits first under the points card (the owner, 2026-11-15); it was low, below challenges */}
+        <ReceiptPhotoCard />
         <AnnouncementCard />
         <FlashDealBanner storeId={nearestStore?.id} enabled={locationReady} />
         <CuatroCard userPts={userPts} rewards={catalogItems} firstName={user?.name?.trim().split(/\s+/)[0] || null}
@@ -1446,7 +1451,6 @@ function CustomerHomeScreen() {
 
       {/* ── Invite friends (2026-10-09): both get the bonus when the friend makes a first purchase ── */}
       <InviteCard />
-      <ReceiptPhotoCard />
 
       {/* ── Local Businesses (distinct from "Active Promotions" above, which
           is Lucky Stop's own store offers, this is third-party local

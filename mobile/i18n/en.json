@@ -3415,6 +3415,9 @@
     "summaryMissing_other": "{{count}} not checked in yet"
   },
   "receiptPhoto": {
+    "cardGas": "⛽ Gas: use the receipt printed after you pump. Prepay receipts don't get points.",
+    "gasTitle": "Gas receipts",
+    "gasBody": "Scan the receipt that prints after you finish pumping. A prepay receipt (printed before you pump) does not get points. Show your QR code when you pay instead.",
     "cardTitle": "Scan a receipt",
     "cardBody": "Didn't get points at the register? Send a photo of the receipt.",
     "title": "Scan a receipt",
