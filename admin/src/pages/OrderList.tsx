@@ -763,7 +763,8 @@ function OrderListDetail({ list, canEdit, canClose, onBack, onListChanged }: {
 
 function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: boolean }) {
   const [filterStoreId, setFilterStoreId] = useState('');
-  const [filterStatus,  setFilterStatus]  = useState('');
+  // Open lists first (2026-11-11, the owner): they are the ones being worked on; "All statuses" shows open and closed in two sections
+  const [filterStatus,  setFilterStatus]  = useState('OPEN');
   const [selectedList,  setSelectedList]  = useState<OrderList | null>(null);
 
   const qc = useQueryClient();
@@ -880,11 +881,11 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
         <ErrorState onRetry={refetch} />
       ) : isLoading ? (
         <CardSkeleton count={4} />
-      ) : lists.length === 0 ? (
-        <div style={s.empty}>No order lists found.</div>
-      ) : (
-        <div style={s.listsGrid}>
-          {lists.map(list => {
+      ) : lists.length === 0 && filterStatus === 'CLOSED' ? (
+        <div style={s.empty}>No closed lists yet.</div>
+      ) : (() => {
+        // One card per list; with "All statuses" the open ones and the closed ones each under their own heading
+        const card = (list: OrderList) => {
             const isOpen    = list.status === 'OPEN';
             const itemCount = list._count?.items ?? list.items?.length ?? 0;
             const pending   = list.items?.filter(i => i.status === 'PENDING').length ?? 0;
@@ -912,9 +913,25 @@ function OrderListsTab({ canEdit, canClose }: { canEdit: boolean; canClose: bool
                 </div>
               </div>
             );
-          })}
-        </div>
-      )}
+        };
+        const openLists = lists.filter((l) => l.status === 'OPEN');
+        const closedLists = lists.filter((l) => l.status !== 'OPEN')
+          .sort((a, b) => new Date(b.closedAt ?? b.openedAt).getTime() - new Date(a.closedAt ?? a.openedAt).getTime());
+        const section = (title: string, items: OrderList[], empty: string) => (
+          <section style={{ marginBottom: 22 }} aria-label={title}>
+            <h3 style={s.sectionHead}>{title} <span style={s.sectionCount}>{items.length}</span></h3>
+            {items.length === 0
+              ? <div style={{ ...s.empty, padding: 18 }}>{empty}</div>
+              : <div style={s.listsGrid}>{items.map(card)}</div>}
+          </section>
+        );
+        return (
+          <>
+            {filterStatus !== 'CLOSED' && section('Open lists', openLists, canClose ? 'No open list. Open one with a store button above, or choose a store and "+ Open list".' : 'No open list right now.')}
+            {filterStatus !== 'OPEN' && section('Closed lists', closedLists, 'No closed lists yet.')}
+          </>
+        );
+      })()}
     </div>
   );
 }
@@ -1147,6 +1164,8 @@ const s: Record<string, React.CSSProperties> = {
   empty:   { padding: 40, textAlign: 'center', color: TEXT_MUTED, fontSize: 14 },
 
   // Lists grid
+  sectionHead: { display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0 10px', fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', color: '#374151' },
+  sectionCount: { fontSize: 12, fontWeight: 700, color: '#5a6472', background: '#eef1f5', borderRadius: 999, padding: '1px 8px', letterSpacing: 0 },
   listsGrid:    { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 },
   listCard:     { background: '#fff', borderRadius: 12, padding: 16, cursor: 'pointer', transition: 'box-shadow 0.2s', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', border: '1px solid #e4e7ec' },
   listCardTop:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
