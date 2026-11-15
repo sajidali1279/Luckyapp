@@ -89,9 +89,9 @@ const limiter = (windowMs: number, max: number, message?: { success: boolean; er
 app.use('/api/auth/login',    limiter(15 * 60 * 1000, 30, { success: false, code: 'PIN_LOCKED', error: 'Too many sign-in tries from this connection. Tap "Forgot PIN?" to get a text code and choose a new PIN.' }));
 app.use('/api/auth/register', limiter(60 * 60 * 1000, 30, { success: false, error: 'Too many registrations from this connection. Try again in a while.' }));
 // General auth routes: 150 per 15 min (covers /auth/me, push-token, etc.)
-app.use('/api/auth', limiter(15 * 60 * 1000, 150));
+app.use('/api/auth', limiter(15 * 60 * 1000, 150, { success: false, error: 'Too many requests from this connection. Wait a minute and try again.' }));
 // All other API routes: 400 per minute (generous for normal use, several devices can share one address)
-app.use('/api', limiter(1 * 60 * 1000, 400));
+app.use('/api', limiter(1 * 60 * 1000, 400, { success: false, error: 'Too many requests from this connection. Wait a minute and try again.' }));   // words, not plain text (2026-11-15)
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));

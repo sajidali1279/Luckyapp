@@ -2,6 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../constants';
 import { useTranslation } from 'react-i18next';
+import i18next from 'i18next';
 
 async function fetchWithAuth(path: string, options: RequestInit = {}) {
   const token = await SecureStore.getItemAsync('jwt_token');
@@ -48,6 +49,16 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    // No reason from the server (2026-11-15): a customer's reward redeem said only "Redemption failed", because the phone got no answer
+    // (a weak signal at the pump, or the server busy for a moment) and every screen falls back to its own vague words. Every failed call
+    // now carries words that say what happened, in the place every screen already reads (error.response.data.error). The status stays
+    // as it was (0 when nothing came back), so no screen mistakes this for a server "no".
+    const said = error.response?.data?.error;
+    if (typeof said !== 'string' || !said.trim()) {
+      const words = error.response ? i18next.t('sharedErrorState.serverBusy') : i18next.t('sharedErrorState.noConnection');
+      if (error.response) error.response.data = { ...(error.response.data && typeof error.response.data === 'object' ? error.response.data : {}), error: words };
+      else error.response = { status: 0, data: { error: words }, headers: {}, config: error.config, statusText: '' };
+    }
     if (error.response?.status === 401) {
       await SecureStore.deleteItemAsync('jwt_token');
       // A signed-in request refused: the session expired, the PIN was reset or the account was closed. Sign out properly so

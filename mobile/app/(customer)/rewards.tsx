@@ -420,7 +420,24 @@ export default function RewardsScreen() {
       qc.invalidateQueries({ queryKey: ['my-redemptions'] });
       qc.invalidateQueries({ queryKey: ['catalog'] });
     },
-    onError: (e: any) => Toast.show({ type: 'error', text1: e.response?.data?.error || t('customerRewards.redemptionFailedError') }),
+    onError: async (e: any, catalogItemId) => {
+      // The answer may have been lost after the server made the code (a weak signal), or a code for this reward is already held:
+      // look, and show that code instead of an error (2026-11-15)
+      const status = e.response?.status;
+      if (status === 0 || status === 400 || (status ?? 0) >= 500) {
+        try {
+          const mine = await catalogApi.getMyRedemptions();
+          const held = (mine.data?.data || []).find((r: any) => r.catalogItemId === catalogItemId && r.status === 'PENDING' && new Date(r.expiresAt) > new Date());
+          if (held) {
+            setSelectedItem(null);
+            setSuccessData({ redemptionId: held.id, redemptionCode: held.redemptionCode, expiresAt: held.expiresAt, pointsSpent: held.pointsSpent });
+            qc.invalidateQueries({ queryKey: ['my-redemptions'] });
+            return;
+          }
+        } catch { /* still no connection: say so below */ }
+      }
+      Toast.show({ type: 'error', text1: e.response?.data?.error || t('customerRewards.redemptionFailedError') });
+    },
   });
 
   const cancelMutation = useMutation({
