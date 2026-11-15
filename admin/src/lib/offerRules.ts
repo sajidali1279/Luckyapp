@@ -34,6 +34,8 @@ export interface DraftPromo {
   percent: number | null;
   tiers: Record<string, number> | null;
   centsPerGallon: number | null;
+  /** all categories: pays on gas and diesel too (2026-11-15) */
+  includeFuel?: boolean;
   startMs: number;
   endMs: number;
 }

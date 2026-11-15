@@ -3,7 +3,8 @@ import { getTierBonusRate } from './tier';
 
 // Which promotion applies to a sale. Only one can, so the rule has to give the same answer whatever order the
 // database returns the rows in (it used to take the first row it saw, and the same $40 sale earned $4.00 or $2.80):
-//   1. the most specific category: a promotion for this sale's category beats an all-category one
+//   1. the most specific category: a promotion for this sale's category beats an all-category one (which pays on gas and diesel
+//      only when HQ ticked "Include gas and diesel", includeFuel, 2026-11-15)
 //   2. then the store's own promotion beats the chain-wide one
 //   3. then the larger bonus for THIS sale (a percentage is worth amount x rate, cents per gallon is gallons x cents)
 //   4. then the newer one, then the id, so an exact tie still has one answer
@@ -17,8 +18,12 @@ export interface PickableOffer {
   bonusRate: number | null;
   tierBonusRates: unknown;
   gasBonusCentsPerGallon: number | null;
+  /** an all-category promotion pays on gas and diesel only when true (missing = not) */
+  includeFuel?: boolean | null;
   createdAt?: Date;
 }
+
+export const isFuel = (category: string | null | undefined) => category === 'GAS' || category === 'DIESEL';
 
 export interface SaleContext {
   storeId: string;
@@ -54,7 +59,7 @@ export function pickOffer(offers: PickableOffer[], sale: SaleContext): PickableO
     (o.type === OfferType.ALL_STORES || o.storeId === sale.storeId),
   );
   const pool = applies.filter((o) => o.category === sale.category);
-  const candidates = pool.length > 0 ? pool : applies.filter((o) => o.category === null);
+  const candidates = pool.length > 0 ? pool : applies.filter((o) => o.category === null && (!isFuel(sale.category) || o.includeFuel === true));
   if (candidates.length === 0) return null;
 
   const rank = (o: PickableOffer) => ({

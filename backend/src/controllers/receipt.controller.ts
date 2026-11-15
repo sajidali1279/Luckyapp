@@ -109,7 +109,7 @@ export async function getReceiptToken(req: AuthRequest, res: Response) {
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { id: true, createdAt: true, type: true, storeId: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, title: true, happyDays: true, happyFrom: true, happyTo: true,
+      select: { id: true, createdAt: true, type: true, storeId: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, includeFuel: true, category: true, title: true, happyDays: true, happyFrom: true, happyTo: true,
         audience: true, audienceTier: true, audienceDays: true, budgetCap: true, dailyCapPerCustomer: true },
     }).then((rows) => rows.filter((o) => offerPaysAt(o, now)))   // a happy-hour promotion pays only inside its hours
       .then((rows) => forCustomer(rows, req.user!.id, now, customerTier)),   // only the promotions this customer is in the audience of
@@ -243,7 +243,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
         AND: [{ OR: [{ type: 'ALL_STORES' }, { storeId: token.storeId }] }],
       },
       orderBy: { bonusRate: 'desc' },
-      select: { id: true, createdAt: true, type: true, storeId: true, title: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, category: true, happyDays: true, happyFrom: true, happyTo: true,
+      select: { id: true, createdAt: true, type: true, storeId: true, title: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, includeFuel: true, category: true, happyDays: true, happyFrom: true, happyTo: true,
         audience: true, audienceTier: true, audienceDays: true, budgetCap: true, dailyCapPerCustomer: true },
     }).then((rows) => rows.filter((o) => offerPaysAt(o, now)))   // a happy-hour promotion pays only inside its hours
       .then((rows) => forCustomer(rows, customer.id, now, customerTier)),   // only the promotions this customer is in the audience of

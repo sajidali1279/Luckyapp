@@ -23,7 +23,7 @@ export async function computeSaleCashback({ customer, storeId, purchaseAmount, c
       // a promotion whose budget is used up pays no more (utils/offerBudget.ts)
       where: { isActive: true, startDate: { lte: now }, endDate: { gte: now }, budgetReachedAt: null },
       select: {
-        id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, title: true, category: true, type: true, storeId: true,
+        id: true, createdAt: true, bonusRate: true, tierBonusRates: true, gasBonusCentsPerGallon: true, includeFuel: true, title: true, category: true, type: true, storeId: true,
         happyDays: true, happyFrom: true, happyTo: true, audience: true, audienceTier: true, audienceDays: true, budgetCap: true, dailyCapPerCustomer: true,
       },
     }),

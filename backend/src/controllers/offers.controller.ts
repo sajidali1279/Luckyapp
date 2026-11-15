@@ -64,6 +64,8 @@ export const offerSchema = z.object({
   descriptionEs: z.preprocess(blankToUndefined, z.string().trim().max(500, 'The Spanish description can be at most 500 characters.').optional()),
   dealTextEs: z.preprocess(blankToUndefined, z.string().trim().max(40, 'The Spanish deal text can be at most 40 characters.').optional()),
   requires21: z.preprocess(flag, z.boolean()).optional().default(false),
+  // An all-category promotion pays on gas and diesel only when ticked (2026-11-15); meaningless for one category
+  includeFuel: z.preprocess(flag, z.boolean()).optional().default(false),
   // Who it is for, and its limits (HQ)
   audience: z.preprocess(blankToUndefined, z.enum(AUDIENCES, { message: 'Choose who the promotion is for.' }).optional()),
   audienceTier: z.preprocess(blankToUndefined, z.nativeEnum(Tier, { message: 'Choose a tier.' }).optional()),
@@ -96,6 +98,7 @@ export const offerSchema = z.object({
     data.bonusRate = Math.max(...Object.values(data.tierBonusRates));
   }
   if (data.type === OfferType.ALL_STORES) data.storeId = undefined;
+  if (data.category) data.includeFuel = false;
   // only the audience's own setting is kept (a tier for "tier and up", days for a win-back or new customers)
   if (data.audience !== 'TIER_UP') data.audienceTier = undefined;
   if (data.audience !== 'LAPSED' && data.audience !== 'NEW') data.audienceDays = undefined;
@@ -189,6 +192,7 @@ export async function createOffer(req: AuthRequest, res: Response) {
     details: {
       title: offer.title, type: offer.type, category: offer.category, bonusRate: offer.bonusRate,
       gasBonusCentsPerGallon: offer.gasBonusCentsPerGallon, dealText: offer.dealText,
+      ...(offer.category == null && !offer.dealText ? { gasAndDiesel: offer.includeFuel ? 'included' : 'not included' } : {}),
       startDate: offer.startDate, endDate: offer.endDate, happyHours: hoursText(offer),
       audience: audienceText(offer), budgetCap: offer.budgetCap, dailyCapPerCustomer: offer.dailyCapPerCustomer,
     },
@@ -267,6 +271,7 @@ const updateOfferSchema = z.object({
   gasBonusCentsPerGallon: cpgField.nullable().optional(),
   dealText: z.string().min(1).max(40, 'The deal text can be at most 40 characters.').nullable().optional(),
   requires21: z.preprocess(flag, z.boolean()).optional(),   // "false" is false (z.coerce.boolean made any text true)
+  includeFuel: z.preprocess(flag, z.boolean()).optional(),   // an all-category promotion on gas and diesel too (HQ)
   // Spanish words: empty takes them off (the English shows)
   titleEs: z.string().trim().max(100, 'The Spanish title can be at most 100 characters.').transform((v) => v || null).nullable().optional(),
   descriptionEs: z.string().trim().max(500, 'The Spanish description can be at most 500 characters.').transform((v) => v || null).nullable().optional(),
@@ -316,7 +321,8 @@ export async function updateOffer(req: AuthRequest, res: Response) {
       (d.bonusRate !== undefined && !sameRate(d.bonusRate, existing.bonusRate)) ||
       (d.tierBonusRates !== undefined && JSON.stringify(d.tierBonusRates ?? null) !== JSON.stringify(existing.tierBonusRates ?? null)) ||
       (d.gasBonusCentsPerGallon !== undefined && (d.gasBonusCentsPerGallon ?? null) !== (existing.gasBonusCentsPerGallon ?? null)) ||
-      (existingHasCashback && d.category !== undefined && (d.category ?? null) !== (existing.category ?? null));
+      (existingHasCashback && d.category !== undefined && (d.category ?? null) !== (existing.category ?? null)) ||
+      (d.includeFuel !== undefined && d.includeFuel !== existing.includeFuel);
     if (wantsChange) {
       res.status(403).json({ success: false, error: MANAGER_CASHBACK_MESSAGE });
       return;
@@ -324,6 +330,7 @@ export async function updateOffer(req: AuthRequest, res: Response) {
     delete d.bonusRate;
     delete d.tierBonusRates;
     delete d.gasBonusCentsPerGallon;
+    delete d.includeFuel;
     // nor who it is for, or its limits (HQ's)
     delete d.audience; delete d.audienceTier; delete d.audienceDays; delete d.budgetCap; delete d.dailyCapPerCustomer;
     if (existingHasCashback) delete d.category;
@@ -393,6 +400,7 @@ export async function updateOffer(req: AuthRequest, res: Response) {
       summary: (() => {
         const changes: string[] = [];
         if (before.title !== offer.title) changes.push(`renamed from "${before.title}"`);
+        if (before.includeFuel !== offer.includeFuel) changes.push(offer.includeFuel ? 'now pays on gas and diesel too' : 'no longer pays on gas and diesel');
         if (+before.startDate !== +offer.startDate) changes.push(`now starts ${storeDateKey(offer.startDate)}`);
         if (+before.endDate !== +offer.endDate) changes.push(offer.endDate.getTime() <= Date.now() + 60_000 ? 'ended early' : `now ends ${storeDateKey(offer.endDate)}`);
         // What it pays (HQ, 2026-10-20): from now on; sales already made keep what they earned
@@ -807,7 +815,7 @@ export async function estimateOfferCost(req: AuthRequest, res: Response) {
   const d = parsed.data;
   const est = await estimateOffer({
     storeId: d.storeId ?? null, category: d.category ?? null, bonusRate: d.bonusRate ?? null,
-    tierBonusRates: d.tierBonusRates ?? null, gasBonusCentsPerGallon: d.gasBonusCentsPerGallon ?? null,
+    tierBonusRates: d.tierBonusRates ?? null, gasBonusCentsPerGallon: d.gasBonusCentsPerGallon ?? null, includeFuel: d.includeFuel,
     startDate: new Date(d.startDate), endDate: new Date(d.endDate), ...hours.hours,
     audience: d.audience ?? null, audienceTier: d.audienceTier ?? null, audienceDays: d.audienceDays ?? null,
     budgetCap: d.budgetCap ?? null, dailyCapPerCustomer: d.dailyCapPerCustomer ?? null,

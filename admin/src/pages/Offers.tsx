@@ -145,7 +145,14 @@ const POSTED_CATEGORY: Record<string, string> = {
 };
 function postedCategory(category: string, none: string) { return category === '' ? none : POSTED_CATEGORY[category] ?? category; }
 /** "on hot food purchases" for a category, "on every purchase" for none: what the post box says it pays on. */
-function onPurchases(category: string) { return category === '' ? 'on every purchase' : `on ${categoryLabel(category).toLowerCase()} purchases`; }
+function onPurchases(category: string, includeFuel = true) { return category === '' ? (includeFuel ? 'on every purchase, gas and diesel included' : 'on every purchase except gas and diesel') : `on ${categoryLabel(category).toLowerCase()} purchases`; }
+// An all-category promotion without gas and diesel says so to customers (2026-11-15): the words are added unless they already talk about fuel
+const FUEL_WORDS = /\b(gas|diesel|fuel|gasolina|di[eé]sel|combustible)\b/i;
+function withFuelNote(text: string, es = false): string {
+  const t = text.trim();
+  if (!t || FUEL_WORDS.test(t)) return t;
+  return `${t} ${es ? 'No incluye gasolina ni diésel.' : 'Not on gas or diesel.'}`;
+}
 
 // Dates are store days (Central time), wherever the admin is opened. They used to be the UTC date and the browser's
 // midnight, which started a promotion at 7 pm the evening before and drew its first day a day early.
@@ -207,6 +214,7 @@ export default function Offers() {
   const [quickCpg, setQuickCpg] = useState('');
   const [quickBonusMode, setQuickBonusMode] = useState<'pct' | 'cpg'>('pct');
   const [quickDuration, setQuickDuration] = useState<QuickDuration>('1w');
+  const [quickIncludeFuel, setQuickIncludeFuel] = useState(false);
   // Deal form state
   const [showDealForm, setShowDealForm] = useState(false);
   const [dealTitle, setDealTitle] = useState('');
@@ -223,6 +231,7 @@ export default function Offers() {
   const [description, setDescription] = useState('');
   const [bonusRate, setBonusRate] = useState('');
   const [requires21, setRequires21] = useState(false);
+  const [includeFuel, setIncludeFuel] = useState(false);   // all categories only: off = not on gas and diesel
   const [useTierBonuses, setUseTierBonuses] = useState(false);
   const [tierBonuses, setTierBonuses] = useState({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
   const [type, setType] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
@@ -320,7 +329,7 @@ export default function Offers() {
     setTitle(''); setDescription(''); setBonusRate('');
     setUseTierBonuses(false); setTierBonuses({ BRONZE: '', SILVER: '', GOLD: '', DIAMOND: '', PLATINUM: '' });
     setType('ALL_STORES'); setStoreId(''); setCategory(null); setGasBonusCpg(''); setGasBonusType('cpg');
-    setStartDate(todayStr()); setEndDate(defaultEndStr()); setImageFile(null); setRequires21(false);
+    setStartDate(todayStr()); setEndDate(defaultEndStr()); setImageFile(null); setRequires21(false); setIncludeFuel(false);
     setHours(NO_HOURS); setLastDayReminder(true); setSpanish(NO_SPANISH); setAud(NO_AUDIENCE);
 
   }
@@ -328,7 +337,7 @@ export default function Offers() {
   function resetQuick() {
     setShowQuick(false);
     setQuickBonus(''); setQuickCpg(''); setQuickBonusMode('pct');
-    setQuickCategory(''); setQuickDuration('1w');
+    setQuickCategory(''); setQuickDuration('1w'); setQuickIncludeFuel(false);
   }
 
   function applyTemplate(t: Template) {
@@ -338,6 +347,7 @@ export default function Offers() {
     setSpanish(es ? { titleEs: es[0], descriptionEs: es[1].replace('{bonus}', `${t.bonusRate}%`), dealTextEs: '' } : NO_SPANISH);
     setBonusRate(t.bonusRate);
     setCategory(t.category || '');
+    setIncludeFuel(false);
     setGasBonusType('pct');
     setHours(t.hours ?? NO_HOURS);
     setStartDate(todayStr());
@@ -365,6 +375,7 @@ export default function Offers() {
     setType(offer.type || 'ALL_STORES');
     setStoreId(offer.storeId || '');
     setRequires21(!!offer.requires21);
+    setIncludeFuel(!offer.category && !!offer.includeFuel);
     setHours(hoursFrom(offer));
     setLastDayReminder(offer.lastDayReminder !== false);
     setSpanish(spanishFrom(offer));
@@ -391,6 +402,7 @@ export default function Offers() {
     setGasBonusCpg(cents ? String(o.gasBonusCentsPerGallon) : '');
     setGasBonusType(cents ? 'cpg' : 'pct');
     setCategory(o.category || '');
+    setIncludeFuel(false);
     setType(o.storeId ? 'SPECIFIC_STORE' : 'ALL_STORES');
     setStoreId(o.storeId || '');
     setRequires21(false);
@@ -507,9 +519,11 @@ export default function Offers() {
 
     const startMs = startOfStoreDay(startDate).getTime();
     const endMs = endOfStoreDay(endDate).getTime();
+    const fuelOff = category === '' && !includeFuel;
     const fd = new FormData();
     fd.append('title', autoTitle);
-    fd.append('description', autoDesc);
+    fd.append('description', fuelOff ? withFuelNote(autoDesc) : autoDesc);
+    if (category === '' && includeFuel) fd.append('includeFuel', 'true');
     fd.append('type', type);
     fd.append('startDate', new Date(startMs).toISOString());
     fd.append('endDate', new Date(endMs).toISOString());
@@ -531,15 +545,15 @@ export default function Offers() {
     fd.append('lastDayReminder', String(lastDayReminder));
     for (const [k, v] of Object.entries(audiencePayload(aud))) if (v != null && v !== '') fd.append(k, String(v));
     if (spanish.titleEs.trim()) fd.append('titleEs', spanish.titleEs.trim());
-    if (spanish.descriptionEs.trim()) fd.append('descriptionEs', spanish.descriptionEs.trim());
+    if (spanish.descriptionEs.trim()) fd.append('descriptionEs', fuelOff ? withFuelNote(spanish.descriptionEs, true) : spanish.descriptionEs.trim());
 
     const draft: DraftPromo = {
       type, storeId: type === 'SPECIFIC_STORE' ? storeId : null, category: category || null,
       percent: tierMap ? Math.max(...Object.values(tierMap)) : isCpg ? null : frac(pct),
-      tiers: tierMap, centsPerGallon: isCpg ? cpg : null, startMs, endMs,
+      tiers: tierMap, centsPerGallon: isCpg ? cpg : null, includeFuel: category === '' && includeFuel, startMs, endMs,
     };
     const label = hoursLabel(hp);
-    askToPost(describePost('promo', fd, autoTitle, `${bonusDisplay} ${onPurchases(category)}${label ? `, ${label}` : ''}`, draft, whereText(type, storeId), whenText(startMs, endMs, false)));
+    askToPost(describePost('promo', fd, autoTitle, `${bonusDisplay} ${onPurchases(category, includeFuel)}${label ? `, ${label}` : ''}`, draft, whereText(type, storeId), whenText(startMs, endMs, false)));
   }
 
   /** What stops a quick post, or null; it shows above the "Review and post" button. */
@@ -575,9 +589,11 @@ export default function Offers() {
 
     const fd = new FormData();
     fd.append('title', autoTitle);
-    fd.append('description', useCpg
+    const quickDesc = useCpg
       ? `${cpg}¢ per gallon bonus on ${catLabel.toLowerCase()} purchases. Valid ${durationLabel.toLowerCase()}.`
-      : `${bonus}% bonus cashback on ${catLabel.toLowerCase()} purchases. Valid ${durationLabel.toLowerCase()}.`);
+      : `${bonus}% bonus cashback on ${catLabel.toLowerCase()} purchases. Valid ${durationLabel.toLowerCase()}.`;
+    fd.append('description', quickCategory === '' && !quickIncludeFuel ? withFuelNote(quickDesc) : quickDesc);
+    if (quickCategory === '' && quickIncludeFuel) fd.append('includeFuel', 'true');
     fd.append('type', 'ALL_STORES');
     fd.append('startDate', new Date(startMs).toISOString());
     fd.append('endDate', new Date(endMs).toISOString());
@@ -587,9 +603,9 @@ export default function Offers() {
 
     const draft: DraftPromo = {
       type: 'ALL_STORES', storeId: null, category: quickCategory || null,
-      percent: useCpg ? null : frac(bonus), tiers: null, centsPerGallon: useCpg ? cpg : null, startMs, endMs,
+      percent: useCpg ? null : frac(bonus), tiers: null, centsPerGallon: useCpg ? cpg : null, includeFuel: quickCategory === '' && quickIncludeFuel, startMs, endMs,
     };
-    askToPost(describePost('quick', fd, autoTitle, `${bonusDisplay} ${onPurchases(quickCategory)}`, draft, whereText('ALL_STORES', ''), whenText(startMs, endMs, true)));
+    askToPost(describePost('quick', fd, autoTitle, `${bonusDisplay} ${onPurchases(quickCategory, quickIncludeFuel)}`, draft, whereText('ALL_STORES', ''), whenText(startMs, endMs, true)));
   }
 
   // Everything the confirmation box shows, worked out once
@@ -640,6 +656,7 @@ export default function Offers() {
       storeId: draft.storeId ?? undefined, category: draft.category ?? '',
       bonusRate: draft.centsPerGallon != null ? undefined : draft.percent ?? undefined,
       tierBonusRates: draft.tiers ?? undefined, gasBonusCentsPerGallon: draft.centsPerGallon ?? undefined,
+      ...(draft.includeFuel ? { includeFuel: true } : {}),
       startDate: new Date(draft.startMs).toISOString(), endDate: new Date(draft.endMs).toISOString(),
       ...(fd?.get('happyFrom') ? { happyDays: JSON.parse(String(fd.get('happyDays') ?? '[]')), happyFrom: fd.get('happyFrom'), happyTo: fd.get('happyTo') } : {}),
       ...Object.fromEntries(['audience', 'audienceTier', 'audienceDays', 'budgetCap', 'dailyCapPerCustomer'].filter((k) => fd?.get(k)).map((k) => [k, fd!.get(k)])),
@@ -665,6 +682,7 @@ export default function Offers() {
     return {
       storeId: type === 'SPECIFIC_STORE' ? storeId : undefined, category,
       ...(cpg > 0 ? { gasBonusCentsPerGallon: cpg } : tiers ? { tierBonusRates: tiers } : { bonusRate: frac(pct) }),
+      ...(category === '' && includeFuel ? { includeFuel: true } : {}),
       startDate: startOfStoreDay(startDate).toISOString(), endDate: endOfStoreDay(endDate).toISOString(),
       ...(hp.happyFrom ? hp : {}),
       ...Object.fromEntries(Object.entries(audiencePayload(aud)).filter(([, v]) => v != null)),
@@ -847,6 +865,7 @@ export default function Offers() {
                   </Chip>
                 ))}
               </div>
+              {quickCategory === '' && <div style={{ marginTop: 10 }}><FuelToggle id="quick-include-fuel" on={quickIncludeFuel} onToggle={() => setQuickIncludeFuel(!quickIncludeFuel)} /></div>}
             </div>
 
             <div style={s.group}>
@@ -974,6 +993,7 @@ export default function Offers() {
                   </Chip>
                 ))}
               </div>
+              {category === '' && <div style={{ marginTop: 10 }}><FuelToggle id="offer-include-fuel" on={includeFuel} onToggle={() => setIncludeFuel(!includeFuel)} /></div>}
             </div>
 
             {category !== null && (
@@ -1353,6 +1373,21 @@ function AgeToggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
+/** All categories only (2026-11-15): off = gas and diesel earn their usual cashback and not this bonus (fuel margins are thin). */
+function FuelToggle({ id, on, onToggle }: { id: string; on: boolean; onToggle: () => void }) {
+  return (
+    <div>
+      <label htmlFor={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: FONT.body, color: C.text2 }}>
+        <input id={id} type="checkbox" checked={on} onChange={onToggle} style={{ width: 16, height: 16, accentColor: C.primary, cursor: 'pointer' }} />
+        Include gas and diesel
+      </label>
+      <div style={{ fontSize: FONT.small, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>
+        {on ? 'Gas and diesel earn this bonus too, on top of their usual cashback.' : 'Gas and diesel earn their usual cashback only. "Not on gas or diesel." is added to the description.'}
+      </div>
+    </div>
+  );
+}
+
 function OfferTags({ offer, isPast, isScheduled }: { offer: any; isPast?: boolean; isScheduled?: boolean }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -1363,6 +1398,7 @@ function OfferTags({ offer, isPast, isScheduled }: { offer: any; isPast?: boolea
         {offer.type === 'ALL_STORES' ? 'All stores' : (offer.store?.name ?? 'Store')}
       </Badge>
       {offer.category && <Badge>{categoryLabel(offer.category)}</Badge>}
+      {!offer.category && !offer.dealText && (offer.bonusRate != null || offer.tierBonusRates != null) && <Badge tone={offer.includeFuel ? 'warning' : undefined}>{offer.includeFuel ? 'Gas and diesel too' : 'Not on gas or diesel'}</Badge>}
       {offer.requires21 && <Badge tone="warning">21+</Badge>}
       {offer.titleEs && <Badge title={`In Spanish: ${offer.titleEs}`}>ES</Badge>}
       {audienceLabel(offer) && <Badge tone="info">{audienceLabel(offer)}</Badge>}
@@ -1455,6 +1491,9 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
   const [aud, setAud] = useState<AudienceLimitsValue>(audienceFrom(offer));
   const audBefore = JSON.stringify(audiencePayload(audienceFrom(offer)));
   const [removePicture, setRemovePicture] = useState(false);
+  const [fuel, setFuel] = useState<boolean>(!!offer.includeFuel);
+  const fuelEditable = !!canEditHours && !offer.dealText && !offer.category;
+  const fuelChanged = fuelEditable && fuel !== !!offer.includeFuel;
   // What it pays (HQ): the same kind it was posted as (one percentage, a percentage per tier, or cents a gallon), new numbers from now on
   const oldTiers: Record<string, number> = offer.tierBonusRates && Object.keys(offer.tierBonusRates).length > 0 ? offer.tierBonusRates : {};
   const kind: 'cpg' | 'tiers' | 'pct' = offer.gasBonusCentsPerGallon != null ? 'cpg' : Object.keys(oldTiers).length > 0 ? 'tiers' : 'pct';
@@ -1499,6 +1538,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
           ...(hoursChanged ? hoursPayload(hours) : {}),
           ...(canEditHours && lastDay !== (offer.lastDayReminder !== false) ? { lastDayReminder: lastDay } : {}),
           ...(canEditHours && JSON.stringify(audiencePayload(aud)) !== audBefore ? audiencePayload(aud) : {}),
+          ...(fuelChanged ? { includeFuel: fuel } : {}),
         }, { file: picture, remove: removePicture });
       }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {editsPay && (
@@ -1521,6 +1561,12 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
             {wordsWillChange && <Notice tone="info" style={{ fontSize: FONT.small, marginTop: 8 }}>The words say {oldPct}%. When you save, they will say {pctText(frac(parseFloat(pct)))}% (title and description, English and Spanish).</Notice>}
             {pctWordsChange && !wordsWillChange && <Notice tone="neutral" style={{ fontSize: FONT.small, marginTop: 8 }}>The title and description do not mention {oldPct}%, so they stay as they are.</Notice>}
           </Field>
+        )}
+        {fuelEditable && (
+          <div>
+            <FuelToggle id="edit-offer-include-fuel" on={fuel} onToggle={() => setFuel(!fuel)} />
+            {fuelChanged && <Notice tone="info" style={{ fontSize: FONT.small, marginTop: 8 }}>Applies to sales from now on. Check the description says it ({fuel ? 'gas and diesel included' : 'not on gas or diesel'}).</Notice>}
+          </div>
         )}
         <Field label="Title" htmlFor="edit-offer-title" required>
           <input id="edit-offer-title" className="ui-input" style={INPUT} value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />

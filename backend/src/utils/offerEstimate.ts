@@ -20,6 +20,7 @@ export interface EstimateInput extends OfferHours {
   bonusRate?: number | null;
   tierBonusRates?: Record<string, number> | null;
   gasBonusCentsPerGallon?: number | null;
+  includeFuel?: boolean | null;          // all categories: gas and diesel sales count only when true (2026-11-15)
   startDate: Date;
   endDate: Date;
   // who it is for and its limits (utils/offerAudience.ts, utils/offerBudget.ts)
@@ -54,7 +55,7 @@ export async function estimateOffer(input: EstimateInput, now: Date = new Date()
       referralId: null,
       createdAt: { gte: since, lt: now },
       ...(input.storeId ? { storeId: input.storeId } : { store: { isActive: true } }),
-      ...(input.category ? { category: input.category } : {}),
+      ...(input.category ? { category: input.category } : input.includeFuel ? {} : { category: { notIn: [ProductCategory.GAS, ProductCategory.DIESEL] } }),
     },
     select: { purchaseAmount: true, gasGallons: true, createdAt: true, customerId: true, customer: { select: { tier: true, createdAt: true, birthMonth: true } } },
   });
