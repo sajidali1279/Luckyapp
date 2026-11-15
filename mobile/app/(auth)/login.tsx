@@ -167,6 +167,24 @@ export default function LoginScreen() {
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
   }
 
+  // Wrong PINs (the owner, 2026-11-15): no waiting time. After 3 wrong tries a big "Forgot PIN" card shows; after 5 the server pauses
+  // PIN sign-in for the number until it is reset with a text code, and the card says so
+  const [wrongTries, setWrongTries] = useState(0);
+  const [pinPaused, setPinPaused] = useState(false);
+  const noteFailure = (err: any) => {
+    if (err?.response?.status === 429 || err?.response?.data?.code === 'PIN_LOCKED') setPinPaused(true);
+    else if (err?.response?.status === 401) setWrongTries((n) => n + 1);
+  };
+  const goForgot = (phoneDigits?: string) => router.push({ pathname: '/(auth)/forgot-pin', params: phoneDigits ? { phone: phoneDigits } : {} } as any);
+  const forgotCard = (phoneDigits?: string) => (wrongTries >= 3 || pinPaused) ? (
+    <TouchableOpacity style={styles.forgotCard} onPress={() => goForgot(phoneDigits)} activeOpacity={0.85} accessibilityRole="button"
+      accessibilityLabel={pinPaused ? t('auth.pinPausedTitle') : t('auth.forgotNudgeTitle')}>
+      <Text style={styles.forgotCardTitle}>{pinPaused ? t('auth.pinPausedTitle') : t('auth.forgotNudgeTitle')}</Text>
+      <Text style={styles.forgotCardSub}>{t('auth.forgotNudgeSub')}</Text>
+      <View style={styles.forgotCardBtn}><Text style={styles.forgotCardBtnText}>{t('auth.forgotNudgeBtn')}</Text></View>
+    </TouchableOpacity>
+  ) : null;
+
   function rawPhone(formatted?: string) {
     return (formatted ?? phone).replace(/\D/g, '');
   }
@@ -184,6 +202,7 @@ export default function LoginScreen() {
       if (biometricEnabled) await saveBiometricPin(pin); // keep saved PIN in sync
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
+      noteFailure(err);
       setPin('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('auth.loginFailed') });
@@ -210,6 +229,7 @@ export default function LoginScreen() {
       if (bioAvailable && !biometricEnabled) offerBiometricAfterSignIn(pin);
       else if (bioAvailable && biometricEnabled) await saveBiometricPin(pin); // refresh saved PIN
     } catch (err: any) {
+      noteFailure(err);
       setPin('');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Toast.show({ type: 'error', text1: err.response?.data?.error || t('auth.loginFailed') });
@@ -366,17 +386,18 @@ export default function LoginScreen() {
                 : <Text style={styles.buttonText}>{t('auth.signIn')}</Text>
               }
             </TouchableOpacity>
+            {forgotCard(quickLoginPhone ?? undefined)}
 
             <TouchableOpacity
               style={styles.switchLink}
-              onPress={() => { setScreen('login'); setPin(''); }}
+              onPress={() => { setScreen('login'); setPin(''); setWrongTries(0); setPinPaused(false); }}
             >
               <Text style={styles.switchLinkText}>{t('auth.useDifferentAccount')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.switchLink}
-              onPress={() => router.push('/(auth)/forgot-pin')}
+              onPress={() => goForgot(quickLoginPhone ?? undefined)}
             >
               <Text style={[styles.switchLinkText, { color: COLORS.textMuted, fontSize: 13 }]}>{t('auth.forgotPin')}</Text>
             </TouchableOpacity>
@@ -601,10 +622,11 @@ keyboardType="number-pad"
             }
           </TouchableOpacity>
 
+          {screen === 'login' && forgotCard(rawPhone().length >= 10 ? rawPhone() : undefined)}
           {screen === 'login' && (
             <TouchableOpacity
               style={styles.switchLink}
-              onPress={() => router.push('/(auth)/forgot-pin')}
+              onPress={() => goForgot(rawPhone().length >= 10 ? rawPhone() : undefined)}
             >
               <Text style={styles.switchLinkText}>{t('auth.forgotPin')}</Text>
             </TouchableOpacity>
@@ -670,6 +692,11 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   switchLink: { alignItems: 'center', marginTop: 16 },
+  forgotCard: { marginTop: 16, padding: 16, borderRadius: 16, backgroundColor: '#FFF7ED', borderWidth: 1.5, borderColor: '#FDBA74', gap: 6 },
+  forgotCardTitle: { fontSize: 16, fontWeight: '900', color: '#9A3412' },
+  forgotCardSub: { fontSize: 13, color: '#7C2D12', lineHeight: 18 },
+  forgotCardBtn: { marginTop: 6, minHeight: 46, borderRadius: 12, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
+  forgotCardBtnText: { color: '#fff', fontSize: 15, fontWeight: '900' },
   switchLinkText: { color: COLORS.primary, fontSize: 14, fontWeight: '600' },
 
   // Quick login card

@@ -83,10 +83,10 @@ app.use(cors(corsOptions));
 // only for customer submission abuse.
 // Limits are per person, keyed by the real client address (see utils/rateLimitKey.ts), and sized for a store's shared
 // Wi-Fi where several staff and customers share one address. Guessing PINs is stopped per ACCOUNT by the database
-// lockout (5 wrong PINs, then 5 minutes, growing to 4 hours); these limits stop floods. A signup also needs a Firebase SMS code.
-const limiter = (windowMs: number, max: number, message?: { success: boolean; error: string }) =>
+// lockout (5 wrong PINs, then PIN sign-in waits for Forgot PIN, 2026-11-15); these limits stop floods. A signup also needs a Firebase SMS code.
+const limiter = (windowMs: number, max: number, message?: { success: boolean; error: string; code?: string }) =>
   rateLimit({ windowMs, max, keyGenerator: clientKey, ...(message ? { message } : {}) });
-app.use('/api/auth/login',    limiter(15 * 60 * 1000, 30, { success: false, error: 'Too many login attempts. Try again in 15 minutes.' }));
+app.use('/api/auth/login',    limiter(15 * 60 * 1000, 30, { success: false, code: 'PIN_LOCKED', error: 'Too many sign-in tries from this connection. Tap "Forgot PIN?" to get a text code and choose a new PIN.' }));
 app.use('/api/auth/register', limiter(60 * 60 * 1000, 30, { success: false, error: 'Too many registrations from this connection. Try again in a while.' }));
 // General auth routes: 150 per 15 min (covers /auth/me, push-token, etc.)
 app.use('/api/auth', limiter(15 * 60 * 1000, 150));

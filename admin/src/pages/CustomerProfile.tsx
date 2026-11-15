@@ -162,7 +162,7 @@ function Overview({ id, d, onChanged }: { id: string; d: any; onChanged: () => v
           <SectionTitle>Sign-in</SectionTitle>
           {d.signIn.locked ? (
             <>
-              <Notice tone="warning" style={{ marginBottom: 12 }}>Locked after too many wrong PINs, until {storeDayTime(d.signIn.lockedUntil)}.</Notice>
+              <Notice tone="warning" style={{ marginBottom: 12 }}>PIN sign-in is paused after too many wrong PINs{new Date(d.signIn.lockedUntil).getFullYear() < 2099 ? `, until ${storeDayTime(d.signIn.lockedUntil)}` : ''}. The customer gets back in with Forgot PIN in the app (a text code), or unlock it here.</Notice>
               <Button variant="primary" onClick={() => setUnlocking(true)} disabled={unlock.isPending}>Unlock sign-in</Button>
             </>
           ) : (

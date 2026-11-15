@@ -2993,6 +2993,10 @@
     "urgentA11y": "Aviso urgente: {{title}}. {{body}}"
   },
   "auth": {
+    "forgotNudgeTitle": "¿Olvidaste tu PIN?",
+    "pinPausedTitle": "El inicio con PIN está en pausa para este número",
+    "forgotNudgeSub": "Sin esperar: te enviamos un código por mensaje, eliges un PIN nuevo y entras.",
+    "forgotNudgeBtn": "Recibir un código",
     "unlockPrompt": "Desbloquear Lucky Stop",
     "usePinInstead": "Usar PIN",
     "cancel": "Cancelar",

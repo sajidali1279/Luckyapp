@@ -11,7 +11,7 @@ import {
 import { Text, TextInput } from '../../components/ScaledText';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAuth, signInWithPhoneNumber, signOut } from '@react-native-firebase/auth';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { authApi } from '../../services/api';
 import { COLORS } from '../../constants';
@@ -23,10 +23,20 @@ import FocusStatusBar from '../../components/FocusStatusBar';
 
 type Step = 'phone' | 'verify' | 'reset' | 'done';
 
+/** (555) 123-4567 from digits, as the phone box shows it */
+function formatPhoneDigits(d: string) {
+  const x = d.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '').slice(0, 10);
+  if (x.length < 4) return x;
+  if (x.length < 7) return `(${x.slice(0, 3)}) ${x.slice(3)}`;
+  return `(${x.slice(0, 3)}) ${x.slice(3, 6)}-${x.slice(6)}`;
+}
+
 export default function ForgotPinScreen() {
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
+  // From the sign-in screen's "Forgot PIN" (2026-11-15): the number they were typing is filled in
+  const { phone: givenPhone } = useLocalSearchParams<{ phone?: string }>();
+  const [phone, setPhone] = useState(() => (givenPhone ? formatPhoneDigits(String(givenPhone)) : ''));
   const [otp, setOtp] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPin, setNewPin] = useState('');

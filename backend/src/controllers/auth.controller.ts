@@ -38,13 +38,14 @@ export const jwtLifetimeSeconds = (role: Role) => (role === Role.DEV_ADMIN || ro
 
 // ─── Per-phone login lockout (DB-backed) ──────────────────────────────────────
 const MAX_FAILURES = 5;
-// Each lockout in a row is longer: 5 minutes, then 15 minutes, then 1 hour, then 4 hours (4 hours from then on). Guessing a
-// four-digit PIN is the weak point, so repeated failures get slower and slower. A good sign-in, Forgot PIN or an admin PIN reset
-// starts over, so nobody stays locked out of their own account for long. The first pause was 15 minutes until 2026-10-31: too
-// long for a customer who simply forgot their PIN (the owner); the later steps still make guessing hopeless.
-const LOCKOUT_STEPS_MS = [5 * 60 * 1000, 15 * 60 * 1000, 60 * 60 * 1000, 4 * 60 * 60 * 1000];
+// No waiting time (the owner, 2026-11-15): after 5 wrong PINs, signing in with a PIN stops until the person resets it with Forgot PIN
+// (a text code to their phone, which works at once) or HQ unlocks it on the customer's profile. Timed pauses (5 minutes, then
+// longer) until then: people waited instead of resetting. Guessing a four-digit PIN stays impossible. The lock is a date far ahead,
+// so the code and the database keep their shape.
+export const LOCKED_UNTIL_RESET = new Date('2100-01-01T00:00:00Z');
 // Shown on every wrong PIN at sign-in, the same for every number (it must not tell whether a number has an account)
-const WRONG_PIN_MESSAGE = 'Incorrect phone number or PIN. After 5 wrong tries, sign-in pauses for a few minutes. Forgot your PIN? Tap "Forgot PIN?" to choose a new one.';
+const WRONG_PIN_MESSAGE = 'Incorrect phone number or PIN. Forgot your PIN? Tap "Forgot PIN?" and we will text you a code to choose a new one.';
+export const PIN_LOCKED_MESSAGE = 'Too many wrong PINs, so PIN sign-in is paused for this number. Tap "Forgot PIN?" and we will text you a code to choose a new PIN and sign in right away.';
 
 // The helpers take a database client so a test can run them inside a transaction it rolls back.
 type LockoutDb = Prisma.TransactionClient;
@@ -52,11 +53,7 @@ type LockoutDb = Prisma.TransactionClient;
 export async function checkLockout(phone: string, db: LockoutDb = prisma): Promise<string | null> {
   const user = await db.user.findUnique({ where: { phone }, select: { lockedUntil: true } });
   if (!user?.lockedUntil) return null;
-  if (user.lockedUntil > new Date()) {
-    const mins = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
-    const when = mins >= 120 ? `${Math.ceil(mins / 60)} hours` : `${mins} minute${mins !== 1 ? 's' : ''}`;
-    return `Too many failed attempts. Try again in ${when}, or use Forgot PIN to reset it now.`;
-  }
+  if (user.lockedUntil > new Date()) return PIN_LOCKED_MESSAGE;   // never a time to wait: Forgot PIN (2026-11-15)
   return null;
 }
 
@@ -73,7 +70,7 @@ export async function recordFailure(phone: string, db: LockoutDb = prisma): Prom
     where: { phone },
     data: {
       failedLoginAttempts: count,
-      lockedUntil: locking ? new Date(Date.now() + LOCKOUT_STEPS_MS[Math.min(user.lockoutLevel, LOCKOUT_STEPS_MS.length - 1)]) : null,
+      lockedUntil: locking ? LOCKED_UNTIL_RESET : null,
       ...(locking ? { lockoutLevel: user.lockoutLevel + 1 } : {}),
     },
   });
@@ -100,9 +97,9 @@ export async function claimPinTry(phone: string): Promise<string | null> {
   const who = lockedNow as { id: string; es: boolean } | null;
   if (who) {
     sendPushToUser(who.id,
-      who.es ? 'Inicio de sesión bloqueado por un rato' : 'Sign-in locked for a while',
-      who.es ? 'Alguien escribió un PIN equivocado 5 veces. Si no fuiste tú, usa "¿Olvidaste tu PIN?" para elegir uno nuevo y entrar ahora.'
-        : 'Someone entered a wrong PIN 5 times. If it was not you, use Forgot PIN to choose a new one and sign in now.',
+      who.es ? 'Inicio con PIN en pausa' : 'PIN sign-in paused',
+      who.es ? 'Alguien escribió un PIN equivocado 5 veces. Usa "¿Olvidaste tu PIN?" para recibir un código por mensaje, elegir un PIN nuevo y entrar.'
+        : 'Someone entered a wrong PIN 5 times. Use Forgot PIN to get a text code, choose a new PIN and sign in.',
       'ALERT').catch(() => {});
   }
   return msg;
@@ -266,7 +263,7 @@ export async function login(req: Request, res: Response) {
   // Locked? If not, this try is counted now, before the PIN is checked (claimPinTry)
   const lockMsg = await claimPinTry(phone);
   if (lockMsg) {
-    res.status(429).json({ success: false, error: lockMsg });
+    res.status(429).json({ success: false, error: lockMsg, code: 'PIN_LOCKED' });   // the app shows a big Forgot PIN button
     return;
   }
 
