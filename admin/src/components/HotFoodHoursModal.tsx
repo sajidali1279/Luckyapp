@@ -4,6 +4,7 @@ import Modal from './Modal';
 import { storesApi } from '../services/api';
 import { failureMessage } from '../lib/apiError';
 import { TEXT_MUTED, PRIMARY } from '../lib/theme';
+import { useAuthStore } from '../store/authStore';
 
 // When hot food can be ordered at one store. Either the same as the store's own hours (the default), or hours of its own for a
 // kitchen that opens later or closes earlier. Either way the server refuses orders outside them, and whenever the store itself is
@@ -52,6 +53,11 @@ export default function HotFoodHoursModal({ store, onClose, onSaved }: {
   const [allDays, setAllDays] = useState({ openTime: '', closeTime: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // This store's own "cancel an order nobody accepts after" (2026-11-15, HQ only); empty = the chain's minutes from Settings
+  const isHQ = ['SUPER_ADMIN', 'DEV_ADMIN'].includes(useAuthStore((s) => s.user?.role ?? ''));
+  const [cancelMins, setCancelMins] = useState('');
+  const [cancelWas, setCancelWas] = useState('');
+  const [chainMins, setChainMins] = useState<number | null>(null);
 
   async function load() {
     setLoading(true);
@@ -62,6 +68,8 @@ export default function HotFoodHoursModal({ store, onClose, onSaved }: {
       setStoreHoursSet(!!d?.storeHoursSet);
       setNow(d?.now ?? null);
       setMode(d?.followsStore ? 'store' : 'own');
+      const own = d?.autoCancelMinutes != null ? String(d.autoCancelMinutes) : '';
+      setCancelMins(own); setCancelWas(own); setChainMins(d?.chainAutoCancelMinutes ?? null);
       const next = Object.fromEntries(DAYS.map(x => [x.value, BLANK])) as Record<DayOfWeek, DayForm>;
       for (const row of d?.weekly ?? []) {
         next[row.dayOfWeek as DayOfWeek] = { isClosed: row.isClosed, isOpen24Hours: row.isOpen24Hours, openTime: row.openTime ?? '', closeTime: row.closeTime ?? '' };
@@ -88,6 +96,9 @@ export default function HotFoodHoursModal({ store, onClose, onSaved }: {
         if (day.openTime === day.closeTime) { setError(`${d.label} opens and closes at the same time. Use 24 Hours for a day that never closes.`); return; }
       }
     }
+    const cancelChanged = isHQ && cancelMins.trim() !== cancelWas;
+    const cm = cancelMins.trim() === '' ? null : Number(cancelMins);
+    if (cancelChanged && cm != null && (!Number.isInteger(cm) || cm < 5 || cm > 120)) { setError('Cancel after: whole minutes from 5 to 120, or leave it empty for the chain setting.'); return; }
     setSaving(true);
     try {
       if (mode === 'store') await storesApi.clearHotFoodHours(store.id);
@@ -98,6 +109,7 @@ export default function HotFoodHoursModal({ store, onClose, onSaved }: {
           return { dayOfWeek: d.value, isClosed: day.isClosed, isOpen24Hours: day.isOpen24Hours, openTime: noTimes ? null : day.openTime, closeTime: noTimes ? null : day.closeTime };
         }));
       }
+      if (cancelChanged) await storesApi.setHotFoodAutoCancel(store.id, cm);
       toast.success(`Hot food hours saved for ${store.name}.`);
       onSaved();
       onClose();
@@ -175,6 +187,14 @@ export default function HotFoodHoursModal({ store, onClose, onSaved }: {
           )}
 
           <p style={h.note}>Outside these hours nobody can place a hot food order, and ordering also stops whenever the store itself is closed, holidays included. Orders already placed carry on as normal.</p>
+          {isHQ && (
+            <div style={h.cancelRow}>
+              <label htmlFor="hf-cancel-mins" style={{ fontWeight: 600 }}>Cancel an order nobody accepts after</label>
+              <input id="hf-cancel-mins" style={{ ...h.time, width: 90 }} type="number" min={5} max={120} step={1} placeholder={chainMins != null ? String(chainMins) : ''}
+                value={cancelMins} onChange={(e) => { setCancelMins(e.target.value); setError(''); }} />
+              <span style={{ color: TEXT_MUTED, fontSize: 13 }}>minutes {cancelMins.trim() === '' && chainMins != null ? `(empty: the chain setting, ${chainMins})` : '(this store only)'}</span>
+            </div>
+          )}
           {error && <div role="alert" style={h.error}>{error}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button type="button" style={h.cancel} onClick={onClose} disabled={saving}>Cancel</button>
@@ -187,6 +207,7 @@ export default function HotFoodHoursModal({ store, onClose, onSaved }: {
 }
 
 const h: Record<string, any> = {
+  cancelRow: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 14, padding: '10px 12px', borderRadius: 10, background: '#f7f8fa', border: '1px solid #e4e7ec' },
   now: { display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 10, background: '#f1f3f6', fontWeight: 700, fontSize: 14, color: '#374151' } as CSSProperties,
   nowOpen: { background: '#edf7f0', color: '#17663a' } as CSSProperties,
   nowClosed: { background: '#fdf6e8', color: '#8a5300' } as CSSProperties,

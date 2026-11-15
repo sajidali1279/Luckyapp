@@ -363,6 +363,8 @@ export const storesApi = {
   getHotFoodHours: (storeId: string) => api.get(`/stores/${storeId}/hot-food-hours`),
   updateHotFoodHours: (storeId: string, days: object[]) => api.put(`/stores/${storeId}/hot-food-hours`, { days }),
   clearHotFoodHours: (storeId: string) => api.delete(`/stores/${storeId}/hot-food-hours`),
+  /** HQ: this store's minutes before an order nobody accepts is cancelled; null = the chain's (2026-11-15) */
+  setHotFoodAutoCancel: (storeId: string, minutes: number | null) => api.put(`/stores/${storeId}/hot-food-auto-cancel`, { minutes }),
   addHoliday: (storeId: string, data: object) => api.post(`/stores/${storeId}/holidays`, data),
   deleteHoliday: (storeId: string, holidayId: string) =>
     api.delete(`/stores/${storeId}/holidays/${holidayId}`),
