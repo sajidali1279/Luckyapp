@@ -1,7 +1,7 @@
 export const PRIVACY_POLICY = `# Privacy Policy
 
 **Lucky Stop Inc. / Cliff Industries**
-Last updated: October 18, 2026
+Last updated: November 15, 2026 (version 1.7, the same as luckystop.cliffindus.com/privacy)
 
 ---
 
@@ -108,9 +108,11 @@ We use the following providers who process your data only on our behalf:
 - **Vercel** - hosting for the admin dashboard
 - **Resend** - email delivery (recovery emails)
 
-- **Anthropic** - its Claude AI reads receipt photos (when you scan a receipt, or when store staff send one to our head office) to fill in the store, date, items, totals and payment details, and suggests Spanish translations of promotion text for our staff. It receives the receipt photo only, never your name or phone number.
+- **Anthropic** - its Claude AI reads receipt photos (when you scan a receipt, or when store staff send one to our head office) to fill in the store, date, items, totals and payment details. It also reads the receipt photo store staff take when they give you points at the register, but only for the store, transaction number, date, time and total, so the same receipt cannot earn points a second time. It also suggests Spanish translations of promotion text for our staff. It receives the receipt photo only, never your name or phone number.
 
 We do not use advertising networks or data brokers.
+
+**Friends leaderboard.** When Lucky Stop switches on the friends leaderboard, you can choose to join it in the app. Nobody is shown until they tap Join, and you can leave at any time, which takes you off it. It ranks you only inside your invite circle: the person whose invite code you used, and the friends who joined with your code. People in your circle who also joined see your place in the ranking and one number for this week or month: how many days you shopped, or the points you earned from purchases. The person who invited you, and the friends you invited, see your first name and the first letter of your last name (for example “Maria G.”); other friends of the same person see you only as “A friend”. They never see your phone number, which stores you visit, when you shop, or how much you spend.
 
 ---
 

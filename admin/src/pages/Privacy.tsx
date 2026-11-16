@@ -41,7 +41,7 @@ export default function Privacy() {
       </div>
 
       <h1 style={s.h1}>Privacy Policy</h1>
-      <p style={s.updated}>Last updated: October 18, 2026</p>
+      <p style={s.updated}>Last updated: November 15, 2026 (version 1.7, the same as luckystop.cliffindus.com/privacy)</p>
       <p style={s.updated}>Effective date: June 7, 2026</p>
 
       <p style={s.intro}>
@@ -238,7 +238,7 @@ export default function Privacy() {
             ['Firebase Authentication (Google)', 'Phone number OTP verification: confirms your identity when you log in', 'Phone number'],
             ['Firebase Cloud Messaging (Google)', 'Delivery of push notifications to your device', 'Push device token'],
             ['Cloudinary', 'Storage for receipt photos, profile avatars, and promotional images', 'Uploaded images'],
-            ['Anthropic (Claude)', 'Reads receipt photos (when you scan a receipt, or staff send one to head office) to fill in the store, date, items, totals and payment details; suggests Spanish translations of promotion text', 'Receipt photos only, never your name or phone number'],
+            ['Anthropic (Claude)', 'Reads receipt photos (when you scan a receipt, or staff send one to head office) to fill in the store, date, items, totals and payment details; also reads the receipt photo staff take when they give you points at the register, only for the store, transaction number, date, time and total, so the same receipt cannot earn points twice; suggests Spanish translations of promotion text', 'Receipt photos only, never your name or phone number'],
             ['Neon / PostgreSQL', 'Encrypted database hosting for account, transaction, and rewards data', 'All account data'],
             ['Render', 'Cloud hosting for the App\'s backend API server', 'Request data (processed in transit)'],
             ['Vercel', 'Hosting for the staff administration dashboard', 'Admin session data'],
@@ -254,6 +254,9 @@ export default function Privacy() {
       <p style={s.p}>
         We do not use advertising networks, data brokers, or analytics companies that track you across
         other apps or websites.
+      </p>
+      <p style={s.p}>
+        <strong>Friends leaderboard.</strong> When Lucky Stop switches on the friends leaderboard, you can choose to join it in the app. Nobody is shown until they tap Join, and you can leave at any time, which takes you off it. It ranks you only inside your invite circle: the person whose invite code you used, and the friends who joined with your code. People in your circle who also joined see your place in the ranking and one number for this week or month: how many days you shopped, or the points you earned from purchases. The person who invited you, and the friends you invited, see your first name and the first letter of your last name (for example &ldquo;Maria G.&rdquo;); other friends of the same person see you only as &ldquo;A friend&rdquo;. They never see your phone number, which stores you visit, when you shop, or how much you spend.
       </p>
 
       {/* 7 */}
