@@ -4,7 +4,20 @@ const storeManagerManual = `# Lucky Stop Platform: Store Manager User Manual
 **Role:** Store Manager
 **Access Level:** Your assigned store(s) only
 **Platform:** Mobile App + Web Admin Portal
-**Version:** 1.6 | Last Updated: September 18, 2026
+**Version:** 1.7 | Last Updated: November 15, 2026
+
+---
+
+## What's New in Version 1.7 (November 2026)
+
+- **Who's where.** **Team Schedule** has a **Who's where** tab. For this week or last week it shows where each person was scheduled and where they checked in: **On site**, **At another store instead**, **Not checked in**, or **Not scheduled, checked in**.
+- **Staff check in.** Employees tap **Check in** on their home screen when they arrive; the app uses their location. If they are at a different store than scheduled, the app asks where they are working that day, and you see their answer.
+- **Price Check.** Menu > **Price Check**: scan a barcode (or type it) to see the price at your store, whether the shelf label needs a reprint, and add it to **My Prints**.
+- **Item requests say which store.** Staff who work at more than one store pick the store under **Request for**, so each request reaches the right store.
+- **Shift times.** Shift times now show as **2:00 pm to 10:00 pm** instead of 14:00 to 22:00.
+- **Gas price updates.** When HQ changes the gas prices, staff get a notification marked **Update pumps** to update the pump display.
+- **Notifications.** The menu item that was called "Alerts" is now **Notifications**. **Store Alerts** is unchanged.
+- **Wrong PIN.** There is no waiting time any more. After 5 wrong PINs, PIN sign-in pauses for that number until the person taps **Forgot PIN?** and chooses a new PIN with a text code. HQ can also reset a PIN.
 
 ---
 

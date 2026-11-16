@@ -3,7 +3,26 @@
 **Role:** Employee / Cashier
 **Access Level:** Assigned store(s) only: transaction processing and store tools
 **Platform:** Mobile App
-**Version:** 1.6 | Last Updated: September 18, 2026
+**Version:** 1.7 | Last Updated: November 15, 2026
+
+---
+
+## What's New in Version 1.7 (November 2026)
+
+- **Check in at your store.** Your home screen shows today's shift. Tap **Check in** when you arrive; the app uses your location to find the store. If you are at a different store than your schedule says, it asks where you are working today. Your manager and HQ see where you checked in.
+- **Recent sales.** Menu > **Recent sales** lists your sales and redemptions today. If a customer left before their receipt was added, you can add it here with **Add a receipt**. The top of the screen says how many you can still add today and how long after the sale.
+- **Price Check.** Menu > **Price Check**: scan a barcode (or type it) to see the price at your store, whether the shelf label needs a reprint, and add it to **My Prints**.
+- **Hot food kitchen screen.** On **Hot Food Orders**, tap **Kitchen** for a full-screen view with four columns: **New**, **Cooking**, **Ready** and **Later**. **Cook now** at the top adds up what to make. While an order waits to be accepted, the phone rings and vibrates every 30 seconds; the bell button mutes it.
+  - Tap **Accept** and choose when it will be ready (5 to 45 minutes). The customer is told this time.
+  - **+5 min** gives an order more time.
+  - Each order has a short number for the day, like **#27**. Call it out when the order is ready.
+  - When a customer taps **I'm here**, the order shows **At pump 4** or **Inside the store**.
+  - An order nobody accepts is cancelled after the store's time limit, and any points the customer used come back to them.
+- **Stock Request.** Choose **Low Stock** or **Customer Ask**. If you work at more than one store, pick the store under **Request for**.
+- **Daily Tasks and Daily Report.** **Daily Tasks** is your shift checklist; it starts fresh each day. **Daily Report** is where you enter the gas and diesel prices, the gallons for regular, mid-grade and premium, the cigarette count, notes and an optional photo.
+- **Gas price updates.** When HQ changes the gas prices you get a notification marked **Update pumps**. Update the pump display.
+- **Notifications.** The menu item that was called "Alerts" is now **Notifications**. **Store Alerts** (low stock, work orders) is unchanged.
+- **Wrong PIN.** There is no waiting time any more. After 5 wrong PINs, PIN sign-in pauses for that number: tap **Forgot PIN?**, get a text code and choose a new PIN.
 
 ---
 
