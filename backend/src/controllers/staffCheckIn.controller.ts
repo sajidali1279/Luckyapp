@@ -23,8 +23,13 @@ export async function getMyStaffToday(req: AuthRequest, res: Response) {
     latestCheckIns([user.id], storeDay),
     prisma.store.findMany({ where: { id: { in: user.storeIds ?? [] }, isActive: true }, select: { id: true, name: true, address: true, city: true, latitude: true, longitude: true } }),
   ]);
-  const nameOf = (id: string) => stores.find((s) => s.id === id)?.name ?? null;
   const c = checks.get(user.id);
+  // A shift or check-in at a store the person is not assigned to (scheduled to cover the Truck Stop, say) still has a name
+  // (2026-11-15: the card said "Scheduled at , 14:00 to 22:00")
+  const known = new Set(stores.map((s) => s.id));
+  const missing = [...new Set([...(shifts.get(user.id) ?? []).map((s) => s.storeId), ...(c ? [c.storeId] : [])])].filter((id) => !known.has(id));
+  const others = missing.length ? await prisma.store.findMany({ where: { id: { in: missing } }, select: { id: true, name: true } }) : [];
+  const nameOf = (id: string) => stores.find((s) => s.id === id)?.name ?? others.find((s) => s.id === id)?.name ?? null;
   res.json({
     success: true,
     data: {
