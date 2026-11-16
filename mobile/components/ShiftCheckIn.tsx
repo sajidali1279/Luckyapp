@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Modal, View, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Location from 'expo-location';
 import { useQueryClient } from '@tanstack/react-query';
+import { clock12 } from '../utils/schedule';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import { Text } from './ScaledText';
@@ -133,7 +134,7 @@ export function AskModal({ ask, onChoose }: { ask: Ask; onChoose: (workingHere: 
           <View style={c.icon}><MapPinIcon size={22} color="#fff" /></View>
           <Text style={c.title}>{t('staffCheckIn.askTitle')}</Text>
           <Text style={c.body}>
-            {t('staffCheckIn.askBody', { here: ask.atStore.name, scheduled: ask.scheduled.storeName ?? '', from: ask.scheduled.startTime, to: ask.scheduled.endTime })}
+            {t('staffCheckIn.askBody', { here: ask.atStore.name, scheduled: ask.scheduled.storeName ?? '', from: clock12(ask.scheduled.startTime), to: clock12(ask.scheduled.endTime) })}
           </Text>
           <TouchableOpacity style={c.primary} onPress={() => choose(true)} accessibilityRole="button">
             <Text style={c.primaryText}>{t('staffCheckIn.workingHere', { store: ask.atStore.name })}</Text>

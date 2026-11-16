@@ -24,7 +24,7 @@ import PulseHighlight from '../../components/PulseHighlight';
 import {
   DAY_ORDER, DAY_LABELS, DAY_LETTER, JS_DAY_TO_ENUM,
   SHIFT_COLORS as SHIFT_COLORS_TYPED, SHIFT_LABELS as SHIFT_LABELS_TYPED,
-  getTodayDayKey, getCurrentWeekDates, fmtDateISO, fmtMonthDay, fmtDateFull, formatShiftTime,
+  getTodayDayKey, getCurrentWeekDates, fmtDateISO, fmtMonthDay, fmtDateFull, formatShiftTime, clock12,
 } from '../../utils/schedule';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ErrorState from '../../components/ErrorState';
@@ -322,7 +322,7 @@ export default function ScheduleScreen() {
                         {SHIFT_LABELS[selectedTemplate.shiftType]}
                       </Text>
                       <Text style={[s.shiftBadgeTime, { color: SHIFT_COLORS[selectedTemplate.shiftType] }]}>
-                        {selectedTemplate.startTime} – {selectedTemplate.endTime}
+                        {clock12(selectedTemplate.startTime)} – {clock12(selectedTemplate.endTime)}
                       </Text>
                     </View>
 

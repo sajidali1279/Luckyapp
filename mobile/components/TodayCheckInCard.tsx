@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Modal, View, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { clock12 } from '../utils/schedule';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import { Text } from './ScaledText';
@@ -65,7 +66,7 @@ export default function TodayCheckInCard() {
         ) : (
           <Text style={k.main}>{t('staffCheckIn.notCheckedIn')}</Text>
         )}
-        {shift && <Text style={k.sub}>{t('staffCheckIn.scheduledLine', { store: shift.storeName ?? '', from: shift.startTime, to: shift.endTime })}</Text>}
+        {shift && <Text style={k.sub}>{t('staffCheckIn.scheduledLine', { store: shift.storeName ?? '', from: clock12(shift.startTime), to: clock12(shift.endTime) })}</Text>}
       </View>
       {!c && (
         <TouchableOpacity style={k.btn} onPress={checkIn} disabled={busy} accessibilityRole="button" accessibilityLabel={t('staffCheckIn.checkInA11y')}>

@@ -26,7 +26,7 @@ import ManagerHeader from '../../components/ManagerHeader';
 import {
   DAY_ORDER, DAY_LABELS, DAY_SHORT, DAY_LETTER, JS_DAY_TO_ENUM,
   SHIFT_ORDER, SHIFT_COLORS, SHIFT_LABELS as SHIFT_LABELS_TYPED,
-  getTodayDayKey as getTodayKey, getCurrentWeekDates, fmtDateFull, formatShiftTime,
+  getTodayDayKey as getTodayKey, getCurrentWeekDates, fmtDateFull, formatShiftTime, clock12,
 } from '../../utils/schedule';
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import StoreChips, { startStore } from '../../components/StoreChips';
@@ -289,7 +289,7 @@ export default function ManagerScheduleScreen() {
                               <Text style={s.staffPhone}>{item.employee?.phone}</Text>
                             </View>
                             <View style={[s.staffTimePill, { backgroundColor: color + '12' }]}>
-                              <Text style={[s.staffTimeText, { color }]}>{item.startTime}–{item.endTime}</Text>
+                              <Text style={[s.staffTimeText, { color }]}>{clock12(item.startTime, true)}–{clock12(item.endTime, true)}</Text>
                             </View>
                           </View>
                         );

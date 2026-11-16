@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { clock12 } from '../utils/schedule';
 import { useTranslation } from 'react-i18next';
 import { Text } from './ScaledText';
 import { COLORS } from '../constants';
@@ -95,10 +96,10 @@ export default function WhereStaffAre({ storeId, accent = COLORS.managerPrimary 
                   const last = e.checkIns[e.checkIns.length - 1];
                   return (
                     <View key={e.userId} style={[w.row, e.status === 'ELSEWHERE' && w.rowAlert]}
-                      accessible accessibilityLabel={[e.name, statusText(e), e.scheduled ? t('whereStaff.scheduledLine', { store: e.scheduled.storeName, from: e.scheduled.startTime, to: e.scheduled.endTime }) : null, last ? t('whereStaff.checkedInLine', { store: last.storeName, time: timeOf(last.at) }) : null].filter(Boolean).join('. ')}>
+                      accessible accessibilityLabel={[e.name, statusText(e), e.scheduled ? t('whereStaff.scheduledLine', { store: e.scheduled.storeName, from: clock12(e.scheduled.startTime), to: clock12(e.scheduled.endTime) }) : null, last ? t('whereStaff.checkedInLine', { store: last.storeName, time: timeOf(last.at) }) : null].filter(Boolean).join('. ')}>
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={w.name} numberOfLines={1}>{e.name ?? ''}</Text>
-                        {e.scheduled && <Text style={w.line}>{t('whereStaff.scheduledLine', { store: e.scheduled.storeName, from: e.scheduled.startTime, to: e.scheduled.endTime })}</Text>}
+                        {e.scheduled && <Text style={w.line}>{t('whereStaff.scheduledLine', { store: e.scheduled.storeName, from: clock12(e.scheduled.startTime), to: clock12(e.scheduled.endTime) })}</Text>}
                         {last && <Text style={w.line}>{t('whereStaff.checkedInLine', { store: last.storeName, time: timeOf(last.at) })}{last.method === 'CHOSEN' ? ` · ${t('whereStaff.chosen')}` : ''}</Text>}
                       </View>
                       <View style={[w.pill, { backgroundColor: tone.bg, borderColor: tone.border }]}>

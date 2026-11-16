@@ -39,6 +39,18 @@ function fmtHour(h: number, compact: boolean): string {
   return compact ? `${h12}${period}` : `${h12}:00 ${period}`;
 }
 
+/** A shift's own time as saved ("14:00", "06:30") in the same words as the fixed shift times: "2:00 pm", "6:30 am"; compact "2pm",
+ *  "6:30am" (2026-11-15, the owner: the schedule showed 14:00 to 22:00). Anything that is not hh:mm comes back as it was. */
+export function clock12(hhmm: string | null | undefined, compact = false): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm ?? '').trim());
+  if (!m) return String(hhmm ?? '');
+  const h = Number(m[1]) % 24, min = m[2];
+  const period = h < 12 ? 'am' : 'pm';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  if (compact) return min === '00' ? `${h12}${period}` : `${h12}:${min}${period}`;
+  return `${h12}:${min} ${period}`;
+}
+
 /** compact=false → "6:00 am – 2:00 pm" (Employee). compact=true → "6am–2pm" (Manager). */
 export function formatShiftTime(shift: ShiftKey, compact = false): string {
   const { start, end } = SHIFT_HOURS[shift];

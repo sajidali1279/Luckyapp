@@ -203,7 +203,7 @@ export default function NotificationsScreen() {
         </View>
         <View style={s.cardBody}>
           <View style={s.cardTop}>
-            <Text style={[s.cardTitle, !item.isRead && s.cardTitleUnread, isExpiredOffer && s.cardTitleExpired]} numberOfLines={1}>
+            <Text style={[s.cardTitle, !item.isRead && s.cardTitleUnread, isExpiredOffer && s.cardTitleExpired]} numberOfLines={2}>
               {item.title}
             </Text>
             {isGasAlert
@@ -329,10 +329,11 @@ const s = StyleSheet.create({
   },
 
   cardBody: { flex: 1, gap: 3 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Two lines for the title (2026-11-15: "Gas prices updated: Lu..." lost the store name); the badge stays at the top
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   cardTitle: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
   cardTitleUnread: { color: COLORS.text, fontWeight: '800' },
-  dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0, marginTop: 5 },   // level with the title's first line
   cardText: { fontSize: 13, color: COLORS.textMuted, lineHeight: 18 },
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
   cardTime: { fontSize: 11, color: COLORS.border, fontWeight: '600' },
