@@ -9,6 +9,15 @@ import { storeDateKey, storeDayStart, storeDayEnd, storeMinutes, storeWeekday } 
 import { sendPushToUser } from './push';
 import { rule } from './appSettings';
 
+/** "14:00" -> "2:00 pm", like the app's shift times (2026-11-15: managers' pushes said "(14:00 to 22:00)"); anything else unchanged */
+export function clock12(hhmm: string | null | undefined): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(hhmm ?? '').trim());
+  if (!m) return String(hhmm ?? '');
+  const h = Number(m[1]) % 24;
+  return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${h < 12 ? 'am' : 'pm'}`;
+}
+
+
 /** Where the alert opens: the manager app's Where staff are tab (managers); HQ reads it on the admin site. */
 const CHECK_INS_URL = '/(manager)/schedule?tab=where';
 
@@ -117,7 +126,7 @@ export async function recordCheckIn(user: { id: string; name?: string | null }, 
     const nameOf = (id: string) => stores.find((s) => s.id === id)?.name ?? 'another store';
     const who = user.name || 'A staff member';
     const title = `${who} is at ${nameOf(storeId)}`;
-    const body = `${who} checked in at ${nameOf(storeId)} but is scheduled at ${nameOf(scheduledStoreId!)} today${scheduled ? ` (${scheduled.startTime} to ${scheduled.endTime})` : ''}. Check ${nameOf(scheduledStoreId!)} is covered.`;
+    const body = `${who} checked in at ${nameOf(storeId)} but is scheduled at ${nameOf(scheduledStoreId!)} today${scheduled ? ` (${clock12(scheduled.startTime)} to ${clock12(scheduled.endTime)})` : ''}. Check ${nameOf(scheduledStoreId!)} is covered.`;
     try {
       // Each person once: the managers of both stores and HQ (someone can be both)
       const [managers, hq] = await Promise.all([

@@ -9,6 +9,7 @@ import { Badge, Button, Card, Notice, type Tone } from './kit';
 import CardSkeleton from './CardSkeleton';
 import ErrorState from './ErrorState';
 import { storeToday, addDays, storeDayLong, startOfStoreDay, storeTime } from '../lib/storeDates';
+import { clock12 } from '../lib/clock12';
 
 type Status = 'ON_SITE' | 'ELSEWHERE' | 'NO_CHECK_IN' | 'UNSCHEDULED' | 'OFF' | 'UPCOMING';
 interface Entry {
@@ -77,7 +78,7 @@ export default function WhereStaffPanel({ storeId }: { storeId: string }) {
                       <div key={e.userId} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderTop: i ? `1px solid ${C.border}` : 'none', flexWrap: 'wrap', background: e.status === 'ELSEWHERE' ? C.dangerTint : undefined }}>
                         <div style={{ flex: 1, minWidth: 220 }}>
                           <div style={{ fontWeight: 600, color: C.text }}>{e.name ?? ''}{e.role === 'STORE_MANAGER' ? <span style={{ color: C.muted, fontWeight: 400 }}> · Manager</span> : null}</div>
-                          {e.scheduled && <div style={{ fontSize: FONT.small, color: C.text2 }}>Scheduled at {e.scheduled.storeName}, {e.scheduled.startTime} to {e.scheduled.endTime}</div>}
+                          {e.scheduled && <div style={{ fontSize: FONT.small, color: C.text2 }}>Scheduled at {e.scheduled.storeName}, {clock12(e.scheduled.startTime)} to {clock12(e.scheduled.endTime)}</div>}
                           {e.checkIns.length > 0 && (
                             <div style={{ fontSize: FONT.small, color: C.text2 }}>
                               Checked in: {e.checkIns.map((c) => `${c.storeName} ${storeTime(c.at)}${c.method === 'CHOSEN' ? ' (chose the store)' : ''}`).join(', then ')}

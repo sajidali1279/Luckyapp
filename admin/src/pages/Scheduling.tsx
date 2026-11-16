@@ -13,6 +13,7 @@ import { TEXT_MUTED, PRIMARY, INPUT } from '../lib/theme';
 import { Button, Field, Notice } from '../components/kit';
 import Glyph from '../components/Glyph';
 import { pickStore, rememberStore, recallStore } from '../lib/lastStore';
+import { clock12 } from '../lib/clock12';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -379,7 +380,7 @@ export default function Scheduling() {
                             <div style={{ ...s.rosterShiftTag, backgroundColor: (shift?.color || '#d5dae1') + '18', color: shift?.color || '#5a6472', borderColor: (shift?.color || '#d5dae1') + '40' }}>
                               {shift?.label}
                             </div>
-                            <div style={s.rosterTime}>{r.startTime} to {r.endTime}</div>
+                            <div style={s.rosterTime}>{clock12(r.startTime)} to {clock12(r.endTime)}</div>
                           </div>
                         );
                       })}
