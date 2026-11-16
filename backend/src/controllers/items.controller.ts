@@ -17,6 +17,7 @@ import { canonicalPrice, samePrice } from '../utils/labelPrice';
 import { ensureScannedProductForBarcode } from '../utils/labelSync';
 import { priceUp, priceDown, costUpSamePrice } from '../utils/pdiPriceHistory';
 import { departmentMargins, dealIdeas, rewardCost, hotFoodMatches, defaultQuery, DEAL_MIN_MARGIN, DEAL_KEEP_MARGIN, DEAL_MIN_SAVING } from '../utils/itemInsights';
+import { TX_LIMITS } from '../utils/txLimits';
 
 const str = (v: unknown, n = 80) => (typeof v === 'string' ? v.trim().slice(0, n) : undefined);
 
@@ -231,7 +232,7 @@ export async function makeLabels(req: AuthRequest, res: Response) {
           const chain = placeholder ? r.price : existing.priceText;
           await tx.storeLabel.create({ data: { labelId: existing.id, storeId: store.id, priceText: samePrice(chain, r.price) ? null : r.price } });
           return placeholder ? 'filled' : 'added';
-        });
+        }, TX_LIMITS);
         out[done]++;
         if (done !== 'already') names.push(existing.productName);
       } else {

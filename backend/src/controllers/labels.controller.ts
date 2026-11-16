@@ -16,6 +16,7 @@ import { syncRewardPoints, auditRewardSync, RewardPointChange } from '../utils/r
 import { endedSaleView, saleEnded, parseSaleEnd, planPriceSave, describeStorePrice } from '../utils/labelSale';
 import { pdiKey } from '../utils/pdiItemList';
 import { appCategoryFor } from '../utils/pdiDepartments';
+import { TX_LIMITS } from '../utils/txLimits';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
 // allStoresAccess or an explicit UserStoreRole for this specific store.
@@ -229,7 +230,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
         });
       }
       return tx.label.findUnique({ where: { id: taken.id }, include: { storeLabels: true } });
-    });
+    }, TX_LIMITS);
     if (!claimed) {
       res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(labelData.barcode!, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
       return;
@@ -388,7 +389,7 @@ export async function updateLabel(req: AuthRequest, res: Response) {
         flagged = (await tx.storeLabel.updateMany({ where: { labelId }, data: { printedAt: null } })).count;
       }
       return updated;
-    });
+    }, TX_LIMITS);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
       res.status(404).json({ success: false, error: ITEM_GONE_MESSAGE });

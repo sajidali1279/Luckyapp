@@ -16,6 +16,7 @@ import { payBonus } from './engagement';
 import { raiseTierFor } from './tier';
 import { ensureBudgetLock, takeFromBudget } from './engagementBudget';
 import type { PushText } from './engagementConfig';
+import { TX_LIMITS } from './txLimits';
 
 const DAY = 86_400_000;
 const PER_RUN = 1000;
@@ -80,7 +81,7 @@ export async function runBirthdays(now: Date = new Date()): Promise<{ greeted: n
       if (made.count === 0) return null;   // another server copy greeted them a moment ago
       if (pts > 0) await payBonus(db, { customerId: p.id, storeId: buy!.storeId, points: pts, note: 'Birthday gift', kind: 'BIRTHDAY' });
       return { pts };
-    });
+    }, TX_LIMITS);
     if (!result) continue;
     budget--;
     out.greeted++;

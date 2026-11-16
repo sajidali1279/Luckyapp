@@ -25,6 +25,7 @@ import { sendPushToUser } from '../utils/push';
 import { attachReferral } from '../utils/referrals';
 import { rule } from '../utils/appSettings';
 import { addLot } from '../utils/pointLots';
+import { TX_LIMITS } from '../utils/txLimits';
 
 const SALT_ROUNDS = 12;
 
@@ -93,7 +94,7 @@ export async function claimPinTry(phone: string): Promise<string | null> {
     if (locked) return locked;
     if (await recordFailure(phone, tx)) lockedNow = { id: rows[0].id, es: rows[0].language === 'es' };
     return null;
-  });
+  }, TX_LIMITS);
   const who = lockedNow as { id: string; es: boolean } | null;
   if (who) {
     sendPushToUser(who.id,
@@ -777,7 +778,7 @@ export async function grantGoodwillCredit(req: AuthRequest, res: Response) {
     const u = await tx.user.update({ where: { id: userId }, data: { pointsBalance: { increment: amount } }, select: { pointsBalance: true } });
     await addLot(tx, userId, amount, 'GOODWILL', null, u.pointsBalance);   // points expiry (utils/pointLots.ts)
     return u;
-  });
+  }, TX_LIMITS);
 
   const actor = req.user!;
   const who = customer.name || customer.phone;
@@ -1069,7 +1070,7 @@ export async function deleteUser(req: AuthRequest, res: Response) {
       await tx.userStoreRole.deleteMany({ where: { userId } });
       await tx.pushToken.deleteMany({ where: { userId } });
       await tx.user.delete({ where: { id: userId } });
-    });
+    }, TX_LIMITS);
   } catch (err) {
     console.error('[deleteUser] failed:', err);
     const linked = err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003';
@@ -1239,7 +1240,7 @@ export async function createStaffAccount(req: AuthRequest, res: Response) {
       const created = await tx.user.create({ data: { phone, name, pinHash, role: role as Role, isProfileComplete: true } });
       await tx.userStoreRole.create({ data: { userId: created.id, storeId, role: role as Role } });
       return created;
-    });
+    }, TX_LIMITS);
   } catch (e) {
     if (isUniqueViolation(e)) { res.status(409).json({ success: false, code: 'PHONE_IN_USE', error: 'That number was just taken by another account.' }); return; }
     throw e;

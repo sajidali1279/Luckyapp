@@ -13,6 +13,7 @@ import { rollCustomerPeriod } from './tier';
 import { excludeDeletedCustomers } from './accountDeletion';
 import { engagement } from './appSettings';
 import { addStoreDays, storeDateKey } from './storeTime';
+import { TX_LIMITS } from './txLimits';
 
 type Db = Prisma.TransactionClient | PrismaClient;
 const fee4 = (n: number) => Math.round(n * 10000) / 10000;   // the platform fee to 4 places, like a real sale: a 2 pt check-in is $0.0008, not $0.00
@@ -212,7 +213,7 @@ export async function doCheckIn(customerId: string, now: Date = new Date(), roll
     if (made.count === 0) return { ok: false as const, reason: 'ALREADY' as Refusal };   // two taps at once: the other one won
     if (pts > 0) await payBonus(db, { customerId, storeId: v.storeId, points: pts, note: 'Daily check-in', kind: 'CHECKIN' });
     return { ok: true as const, pts, streakDays: day, mode: cfg.mode };
-  });
+  }, TX_LIMITS);
 }
 
 // ─── badges (worked out from the customer's history each time: nothing to store, and a rule change applies at once) ─────────────────
@@ -332,7 +333,7 @@ export async function payFinishedGoals(now: Date = new Date()): Promise<{ goals:
           if (made.count === 0) return false;
           await payBonus(db, { customerId: b.customerId, storeId: s.id, points: g.rewardPoints, note: `Store goal reached: ${g.title}`, kind: 'GOAL' });
           return true;
-        });
+        }, TX_LIMITS);
         if (ok) { paid++; winners.push({ customerId: b.customerId, title: g.title, titleEs: g.titleEs, pts: g.rewardPoints }); }
       }
     }

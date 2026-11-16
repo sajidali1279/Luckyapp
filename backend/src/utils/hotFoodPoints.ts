@@ -4,6 +4,7 @@
 import prisma from '../config/prisma';
 import { lockCustomer, coversInPoints, amountToTake } from './moneyGuards';
 import { useLots, restoreLots } from './pointLots';
+import { TX_LIMITS } from './txLimits';
 
 export const pts = (dollars: number) => Math.round(dollars * 100);
 
@@ -29,7 +30,7 @@ export async function placeOrderHeld<T, R>(
     const order = await create(tx, take);
     await useLots(tx, customerId, take, 'HOT_FOOD', (order as any)?.id ?? null);   // oldest points first (utils/pointLots.ts)
     return { order, balance: pointsBalance - take };
-  });
+  }, TX_LIMITS);
 }
 
 /** Gives back the points of a cancelled order inside `tx`, once (whoever cancels it first). Returns the dollars given back, 0 when none. */
@@ -58,7 +59,7 @@ export async function cancelOrder(orderId: string, from: string, data: Record<st
     const moved = await tx.hotFoodOrder.updateMany({ where: { ...also, id: orderId, status: from as any }, data: { ...data, status: 'CANCELLED' } });
     if (moved.count === 0) return null;
     return { returned: refund ? await returnPointsIn(tx, orderId, now) : 0 };
-  });
+  }, TX_LIMITS);
 }
 
 /** A points order picked up: recorded as a redemption at that store by the person who handed it over (store reports and billing). */

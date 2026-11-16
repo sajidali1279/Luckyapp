@@ -8,6 +8,7 @@ import { Role, OrderListItemStatus, OrderItemPriority, OrderItemSource } from '@
 import { hasMinRole } from '../middleware/auth';
 import { usableStoreIds } from '../utils/storeAccess';
 import { pdiNameSuggestions, type NameSuggestion } from '../utils/pdiNames';
+import { TX_LIMITS } from '../utils/txLimits';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -189,7 +190,7 @@ export async function openList(req: AuthRequest, res: Response) {
     if (existing) return { existing };
     const list = await tx.orderList.create({ data: { storeId, name, openedById: req.user!.id }, include: { openedBy: { select: { id: true, name: true } } } });
     return { list };
-  });
+  }, TX_LIMITS);
   if ('existing' in outcome) { res.status(409).json({ success: false, error: 'A list is already open for this store', data: outcome.existing }); return; }
   res.status(201).json({ success: true, data: outcome.list });
 }
@@ -218,7 +219,7 @@ export async function closeList(req: AuthRequest, res: Response) {
       include: { openedBy: { select: { id: true, name: true } } },
     });
     return { closed, reopened };
-  });
+  }, TX_LIMITS);
   if (!outcome) { res.status(409).json({ success: false, error: 'Someone else just closed this list. Refresh to see the new one.' }); return; }
   res.json({ success: true, data: outcome });
 }

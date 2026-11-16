@@ -13,6 +13,7 @@ import { rule } from '../utils/appSettings';
 import { addLot } from '../utils/pointLots';
 import { canUseStore } from '../utils/storeAccess';
 import { lockCustomer } from '../utils/moneyGuards';
+import { TX_LIMITS } from '../utils/txLimits';
 
 const submitSchema = z.object({
   storeId:       z.string().uuid().optional(),
@@ -330,7 +331,7 @@ export async function resolveDispute(req: AuthRequest, res: Response) {
         });
         await addLot(tx, dispute.customerId, finalCreditedAmt, 'DISPUTE', id, after.pointsBalance);   // points expiry (utils/pointLots.ts)
       }
-    });
+    }, TX_LIMITS);
   } catch (err) {
     if (err instanceof AlreadyCredited) {
       res.status(409).json({ success: false, code: 'ALREADY_CREDITED', error: `Another report on this sale was already approved for $${err.amount.toFixed(2)}, so this one cannot credit it again. Reject it instead.` });

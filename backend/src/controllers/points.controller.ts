@@ -38,6 +38,7 @@ import { useLots, voidSaleLots, expiredPartOfSale, expirySummary, lotsMatch, und
 import { UNFINISHED, SHOWN, AWAITING_DECISION, NOT_A_SALE, cancelUnfinished } from '../utils/unfinishedSales';
 import { canUseStore, usableStoreIds } from '../utils/storeAccess';
 import { queueRegisterReceipt } from '../utils/registerReceipts';
+import { TX_LIMITS } from '../utils/txLimits';
 
 // A challenge's reward line (utils/challenges.ts) is cashback but not a sale: the counts of sales leave it out, the sums keep it
 const saleCount = (c: unknown) => { const n = (c ?? {}) as { _all?: number; challengeId?: number; referralId?: number }; return (n._all ?? 0) - (n.challengeId ?? 0) - (n.referralId ?? 0); };
@@ -438,7 +439,7 @@ export async function uploadReceiptAndApprove(req: AuthRequest, res: Response) {
     } : {});
     if (!customer) return null;
     return { customer, sale: await db.pointsTransaction.findUniqueOrThrow({ where: { id: transactionId } }) };
-  });
+  }, TX_LIMITS);
   if (!settled) {
     res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
     return;
@@ -532,7 +533,7 @@ export async function redeemCredits(req: AuthRequest, res: Response) {
     });
     await useLots(tx, customer.id, take, 'CREDIT_REDEMPTION', redemption.id);   // oldest points first (utils/pointLots.ts)
     return { kind: 'done' as const, updated: updatedCustomer };
-  });
+  }, TX_LIMITS);
   if (outcome.kind === 'short') {
     res.status(400).json({ success: false, error: `Insufficient balance. Customer has $${outcome.balance.toFixed(2)}.` });
     return;
@@ -778,7 +779,7 @@ export async function voidTransaction(req: AuthRequest, res: Response) {
     });
     await voidSaleLots(db, transaction.customerId, transactionId, takeBack);   // its batch back out (utils/pointLots.ts)
     return after;
-  });
+  }, TX_LIMITS);
 
   if (!updatedCustomer) {
     res.status(409).json({ success: false, error: ALREADY_DECIDED_MESSAGE });
@@ -1288,7 +1289,7 @@ export async function claimTierBenefit(req: AuthRequest, res: Response) {
     }
     await tx.tierBenefitClaim.create({ data: { userId: customer.id, period, benefitType } });
     return null;
-  });
+  }, TX_LIMITS);
   if (refusal) {
     res.status(400).json({ success: false, error: refusal });
     return;
@@ -1348,7 +1349,7 @@ export async function processCatalogRedemption(req: AuthRequest, res: Response) 
     });
     await useLots(tx, customer.id, take, 'CATALOG', given.id);
     return { kind: 'done' as const, balance: fresh.pointsBalance - take };
-  });
+  }, TX_LIMITS);
   if (outcome.kind === 'short') {
     res.status(400).json({ success: false, error: `Insufficient points. Need ${item.pointsCost} pts, have ${Math.round(outcome.balance * 100)} pts` });
     return;

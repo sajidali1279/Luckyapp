@@ -14,6 +14,7 @@ import { ensureBudgetLock, spentThisMonth, takeFromBudget } from './engagementBu
 import { raiseTierFor } from './tier';
 import { addStoreDays, startOfStoreDate, storeDateKey } from './storeTime';
 import type { GameKind, GamePrize } from './engagementConfig';
+import { TX_LIMITS } from './txLimits';
 
 export const GAME_KIND = 'GAME_PLAY';
 const NAME: Record<GameKind, string> = { SPIN: 'Spin the wheel', SCRATCH: 'Scratch card', LUCKY: 'Lucky number' };
@@ -105,7 +106,7 @@ export async function playGame(customerId: string, o: { storeId?: unknown; pick?
     if (made.count === 0) return 'ALREADY' as const;
     if (pts > 0) await payBonus(tx, { customerId, storeId, points: pts, note: `${NAME[g.game]} prize`, kind: g.game });
     return 'PLAYED' as const;
-  });
+  }, TX_LIMITS);
   if (out === 'CLOSED') return { ok: false, code: 'CLOSED', error: "This month's prizes have all been won. The game is back next month." };
   if (out === 'ALREADY') {
     const p = await prisma.engagementEvent.findFirst({ where: { customerId, kind: GAME_KIND, key: day }, select: { points: true } });

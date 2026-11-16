@@ -15,6 +15,7 @@ import { sendPushToUser } from '../utils/push';
 import { announceOffer } from '../utils/offerAnnounce';
 import { checkHours, hoursText } from '../utils/offerHours';
 import { offerSchema } from './offers.controller';
+import { TX_LIMITS } from '../utils/txLimits';
 
 const MANAGER_URL = '/(manager)/offers?tab=requests';
 const pct = (r: number | null | undefined) => (r == null ? null : `${Math.round(r * 1000) / 10}%`);
@@ -171,7 +172,7 @@ export async function approveOfferRequest(req: AuthRequest, res: Response) {
     });
     await tx.offerRequest.update({ where: { id: r.id }, data: { offerId: offer.id } });
     return offer;
-  });
+  }, TX_LIMITS);
   if (!created) { res.status(409).json({ success: false, error: 'This request has already been decided.' }); return; }
 
   if (created.startDate.getTime() <= Date.now() + 60_000) {

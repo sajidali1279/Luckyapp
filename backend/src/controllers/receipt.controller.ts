@@ -17,6 +17,7 @@ import { getStoreByApiKey, generateStoreApiKey } from '../utils/storeApiKey';
 import { audit } from '../utils/audit';
 import { storeDayStart } from '../utils/storeTime';
 import { addLot } from '../utils/pointLots';
+import { TX_LIMITS } from '../utils/txLimits';
 
 const TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -367,7 +368,7 @@ export async function selfGrant(req: AuthRequest, res: Response) {
       });
       await addLot(tx, customer.id, totalPointsAwarded, 'RECEIPT_QR', tokenId, after.pointsBalance);   // points expiry (utils/pointLots.ts)
       return after;
-    });
+    }, TX_LIMITS);
   } catch (err: any) {
     if (err.code === 'ALREADY_CLAIMED') {
       res.status(409).json({ success: false, error: 'These points have already been claimed' });

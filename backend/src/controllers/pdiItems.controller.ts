@@ -21,6 +21,7 @@ import { addPdiToScanned } from '../utils/scannedFromPdi';
 import { syncRewardPoints, auditRewardSync, type RewardPointChange } from '../utils/rewardPoints';
 import { sendPushToUsers } from '../utils/push';
 import { labelsUrlManager } from '../utils/notificationRoutes';
+import { TX_LIMITS } from '../utils/txLimits';
 
 const SEARCH_LIMIT = 25;
 const CHUNK = 2000;
@@ -419,7 +420,7 @@ export async function fillLabelPrices(req: AuthRequest, res: Response) {
       const { count } = await tx.label.updateMany({ where: { id: l.id, priceText: null }, data: { priceText: price } });
       if (!count) return null;
       return syncRewardPoints(tx, [l.id]);
-    });
+    }, TX_LIMITS);
     if (!done) { out.changedMeanwhile++; continue; }
     out.filled++; filledIds.push(l.id); rewardChanges = rewardChanges.concat(done);
   }

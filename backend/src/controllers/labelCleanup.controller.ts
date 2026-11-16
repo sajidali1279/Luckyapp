@@ -24,6 +24,7 @@ import { loadDealLimits, dealLimitsSchema, DEAL_LIMITS_KEY } from '../utils/deal
 import { DEAL_LIMITS_DEFAULT, learnStyles } from '../utils/dealSuggest';
 import { loadDealEdits, recordDealEdits, learningSummary, loadLearningSince, DEAL_LEARNING_SINCE_KEY } from '../utils/dealLearning';
 import { syncRewardPoints, auditRewardSync, RewardPointChange } from '../utils/rewardPoints';
+import { TX_LIMITS } from '../utils/txLimits';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -273,7 +274,7 @@ export async function importLabels(req: AuthRequest, res: Response) {
         else reprint += (await tx.storeLabel.updateMany({ where: { labelId: o.labelId }, data: { printedAt: null } })).count;
         if (l.barcode && (o.changes.productName || o.changes.category || o.changes.barcode)) syncs.push({ barcode: l.barcode, name: l.productName, category: l.category });
         if (o.changes.priceText) rewardChanges.push(...await syncRewardPoints(tx, [o.labelId]));
-      });
+      }, TX_LIMITS);
       updated += 1;
     } else if (o.kind === 'new') {
       const v = o.values;
