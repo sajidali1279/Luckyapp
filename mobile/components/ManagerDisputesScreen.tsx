@@ -27,6 +27,8 @@ import KeyboardSafe from './KeyboardSafe';
 import { useLargeTitleScroll } from './LargeTitleHeader';
 import StoreChips, { startStore } from './StoreChips';
 import { usePoll } from '../hooks/usePoll';
+import StorePicker from './StorePicker';
+import { useManagerStorePick } from '../store/managerStorePick';
 
 interface Dispute {
   id: string;
@@ -53,7 +55,7 @@ export default function ManagerDisputesScreen() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
 
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useManagerStorePick();   // shared by the manager screens (2026-11-15)
   const { data: storesData } = useQuery({
     queryKey: ['accessible-stores'],
     queryFn: () => storesApi.accessible(),
@@ -210,15 +212,8 @@ export default function ManagerDisputesScreen() {
           ) : null
         }
       >
-        {stores.length > 1 && (
-          <StoreChips
-            stores={stores}
-            selectedId={storeId}
-            onSelect={setSelectedStoreId}
-            counts={pendingBy}
-            a11yLabel={(name) => t('managerDisputes.storeFilterLabel', { name })}
-          />
-        )}
+        {/* One store button with badges and a list (2026-11-15, the owner): it was a long row of chips */}
+        <StorePicker stores={stores} selectedId={storeId} onSelect={setSelectedStoreId} />
 
         <View style={s.filterRow}>
           {[

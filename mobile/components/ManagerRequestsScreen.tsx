@@ -31,6 +31,8 @@ import { useLargeTitleScroll } from './LargeTitleHeader';
 import StoreChips, { startStore } from './StoreChips';
 import { useAuthStore } from '../store/authStore';
 import { usePoll } from '../hooks/usePoll';
+import StorePicker from './StorePicker';
+import { useManagerStorePick } from '../store/managerStorePick';
 
 export function TypeIcon({ type, size = 22, color = '#374151' }: { type: string; size?: number; color?: string }) {
   const p = { size, color, strokeWidth: 1.75 };
@@ -135,7 +137,7 @@ export default function ManagerRequestsScreen() {
   const highlightedId = useHighlightParam();
 
   // ── Store picker ────────────────────────────────────────────────────────────
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useManagerStorePick();   // shared by the manager screens (2026-11-15)
 
   // ── Store alerts state ──────────────────────────────────────────────────────
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -557,17 +559,8 @@ export default function ManagerRequestsScreen() {
         })()}
       >
         {/* Store picker */}
-        {stores.length > 1 && (
-          <>
-            <StoreChips
-              stores={stores}
-              selectedId={effectiveStoreId}
-              onSelect={setSelectedStoreId}
-              counts={waitingBy}
-              a11yLabel={(name) => t('sharedManagerRequests.selectStoreA11y', { name })}
-            />
-          </>
-        )}
+        {/* One store button with badges and a list (2026-11-15, the owner): it was a long row of chips */}
+        <StorePicker stores={stores} selectedId={effectiveStoreId} onSelect={setSelectedStoreId} />
 
         {/* Main tabs */}
         <View style={s.mainTabRow}>

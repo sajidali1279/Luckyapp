@@ -28,6 +28,7 @@ import { NoticeStack, usePinnedNotices } from '../../components/NoticeBanner';
 import FocusStatusBar from '../../components/FocusStatusBar';
 import { usePoll } from '../../hooks/usePoll';
 import { useManagerStorePick } from '../../store/managerStorePick';
+import StorePicker from '../../components/StorePicker';
 
 const BAR_COLORS = [
   '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
@@ -242,26 +243,8 @@ export default function ManagerHome() {
           </View>
         </View>
 
-        {stores.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.storePicker} contentContainerStyle={s.storePickerRow}>
-            {stores.map(store => (
-              <TouchableOpacity
-                key={store.id}
-                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
-                onPress={() => setSelectedStoreId(store.id)}
-                activeOpacity={0.75}
-                accessibilityRole="tab"
-                accessibilityLabel={t('managerHome.showDashboardForStore', { store: store.name })}
-                accessibilityState={{ selected: store.id === storeId }}
-                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-              >
-                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
-                  {store.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
+        {/* One store button with badges and a list (2026-11-15, the owner): it was a long row of chips */}
+        <StorePicker stores={stores} selectedId={storeId} onSelect={setSelectedStoreId} />
 
       </View>
       </SafeAreaView>

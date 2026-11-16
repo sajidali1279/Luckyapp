@@ -35,6 +35,7 @@ import ModalToastHost from '../../components/ModalToastHost';
 import { showActionSheet } from '../../utils/actionSheet';
 import { usePoll } from '../../hooks/usePoll';
 import { useManagerStorePick } from '../../store/managerStorePick';
+import StorePicker from '../../components/StorePicker';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1711,49 +1712,8 @@ export default function ManagerOrderListScreen() {
         }
       >
         {/* Store Tabs */}
-        <View style={s.storeTabs}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storeTabsInner}>
-            {stores.map(store => {
-              const isSel = selectedStoreId === store.id;
-              return (
-                <TouchableOpacity key={store.id} onPress={() => setSelectedStoreId(store.id)}
-                  style={[s.storeTab, isSel && s.storeTabActive]}
-                  hitSlop={{ top: 7, bottom: 7, left: 4, right: 4 }}
-                  accessibilityRole="tab"
-                  accessibilityLabel={t('managerOrderList.selectStoreA11y', { name: store.name })}
-                >
-                  <Text style={[s.storeTabText, isSel && s.storeTabTextActive]} numberOfLines={1}>
-                    {store.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Scroll-edge fades - hint that the tab row scrolls */}
-          <View style={s.storeTabFadeLeft} pointerEvents="none">
-            <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
-              <Defs>
-                <SvgGradient id="stfL" x1="0" y1="0" x2="1" y2="0">
-                  <Stop offset="0" stopColor="#fff" stopOpacity="1" />
-                  <Stop offset="1" stopColor="#fff" stopOpacity="0" />
-                </SvgGradient>
-              </Defs>
-              <Rect width="100%" height="100%" fill="url(#stfL)" />
-            </Svg>
-          </View>
-          <View style={s.storeTabFadeRight} pointerEvents="none">
-            <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
-              <Defs>
-                <SvgGradient id="stfR" x1="0" y1="0" x2="1" y2="0">
-                  <Stop offset="0" stopColor="#fff" stopOpacity="0" />
-                  <Stop offset="1" stopColor="#fff" stopOpacity="1" />
-                </SvgGradient>
-              </Defs>
-              <Rect width="100%" height="100%" fill="url(#stfR)" />
-            </Svg>
-          </View>
-        </View>
+        {/* One store button with badges and a list (2026-11-15, the owner): it was a long row of chips */}
+        <StorePicker stores={stores} selectedId={selectedStoreId} onSelect={setSelectedStoreId} />
       </ManagerHeader>
 
       {/* Content */}

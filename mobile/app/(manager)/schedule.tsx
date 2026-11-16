@@ -32,6 +32,7 @@ import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import StoreChips, { startStore } from '../../components/StoreChips';
 import { usePoll } from '../../hooks/usePoll';
 import { useManagerStorePick } from '../../store/managerStorePick';
+import StorePicker from '../../components/StorePicker';
 
 // This file indexes SHIFT_LABELS/SHIFT_TIMES with untyped strings from API
 // responses (e.g. req.shiftType), so both are re-typed loosely here rather
@@ -188,15 +189,8 @@ export default function ManagerScheduleScreen() {
           ) : null
         }
       >
-        {stores.length > 1 && (
-          <StoreChips
-            stores={stores}
-            selectedId={storeId}
-            onSelect={setSelectedStoreId}
-            counts={pendingBy}
-            a11yLabel={(name) => t('managerSchedule.filterByStore', { store: name })}
-          />
-        )}
+        {/* One store button with badges and a list (2026-11-15, the owner): it was a long row of chips */}
+        <StorePicker stores={stores} selectedId={storeId} onSelect={setSelectedStoreId} />
 
         {/* Tab bar */}
         <View style={s.tabBar}>

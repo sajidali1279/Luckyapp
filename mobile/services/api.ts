@@ -547,6 +547,8 @@ export const dailyTaskApi = {
 };
 
 export const managerApi = {
+  /** What waits at each of my stores, for the store picker's badges (2026-11-15) */
+  storeBadges: () => api.get('/manager/store-badges'),
   getStoreStats: (storeId: string) =>
     api.get(`/points/store/${storeId}/summary`),
   getInventoryAnalytics: (params?: { storeId?: string; period?: string; category?: string }) => {

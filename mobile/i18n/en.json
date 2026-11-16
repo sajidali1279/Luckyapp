@@ -3845,5 +3845,27 @@
     "night": "It's late... 😴 Don't forget your points!",
     "weekend": "Happy weekend! 🎉",
     "sulkHint": "(Tap me to make up.)"
+  },
+  "storePicker": {
+    "title": "Choose a store",
+    "close": "Close",
+    "search": "Search stores",
+    "noMatch": "No store matches.",
+    "closed": "Closed",
+    "allClear": "All clear",
+    "allClearHere": "All clear here",
+    "elsewhere_one": "{{count}} elsewhere",
+    "elsewhere_other": "{{count}} elsewhere",
+    "toOrder_one": "{{count}} to order",
+    "toOrder_other": "{{count}} to order",
+    "requests_one": "{{count}} request",
+    "requests_other": "{{count}} requests",
+    "disputes_one": "{{count}} dispute",
+    "disputes_other": "{{count}} disputes",
+    "schedule_one": "{{count}} schedule request",
+    "schedule_other": "{{count}} schedule requests",
+    "buttonA11y": "Store: {{store}}. Tap to choose another store.",
+    "buttonA11yWaiting_one": "Store: {{store}}. {{count}} thing waits at your other stores. Tap to choose a store.",
+    "buttonA11yWaiting_other": "Store: {{store}}. {{count}} things wait at your other stores. Tap to choose a store."
   }
 }

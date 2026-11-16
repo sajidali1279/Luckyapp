@@ -3845,5 +3845,27 @@
     "night": "Ya es tarde... 😴 ¡No olvides tus puntos!",
     "weekend": "¡Feliz fin de semana! 🎉",
     "sulkHint": "(Tócame para hacer las paces.)"
+  },
+  "storePicker": {
+    "title": "Elige una tienda",
+    "close": "Cerrar",
+    "search": "Buscar tiendas",
+    "noMatch": "Ninguna tienda coincide.",
+    "closed": "Cerrada",
+    "allClear": "Todo al día",
+    "allClearHere": "Todo al día aquí",
+    "elsewhere_one": "{{count}} en otras",
+    "elsewhere_other": "{{count}} en otras",
+    "toOrder_one": "{{count}} por pedir",
+    "toOrder_other": "{{count}} por pedir",
+    "requests_one": "{{count}} solicitud",
+    "requests_other": "{{count}} solicitudes",
+    "disputes_one": "{{count}} reclamo",
+    "disputes_other": "{{count}} reclamos",
+    "schedule_one": "{{count}} solicitud de horario",
+    "schedule_other": "{{count}} solicitudes de horario",
+    "buttonA11y": "Tienda: {{store}}. Toca para elegir otra tienda.",
+    "buttonA11yWaiting_one": "Tienda: {{store}}. {{count}} cosa espera en tus otras tiendas. Toca para elegir una tienda.",
+    "buttonA11yWaiting_other": "Tienda: {{store}}. {{count}} cosas esperan en tus otras tiendas. Toca para elegir una tienda."
   }
 }

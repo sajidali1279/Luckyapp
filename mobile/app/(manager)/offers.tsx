@@ -29,6 +29,7 @@ import { hoursText } from '../../utils/offerHours';
 import { SHEET_HEADER_TOP } from '../../utils/sheetInsets';
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { useManagerStorePick } from '../../store/managerStorePick';
+import StorePicker from '../../components/StorePicker';
 
 interface Store { id: string; name: string }
 
@@ -203,26 +204,8 @@ export default function ManagerOffersScreen() {
         )}
       >
         {/* Store selector */}
-        {stores.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
-            {stores.map(store => (
-              <TouchableOpacity
-                key={store.id}
-                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
-                onPress={() => setSelectedStoreId(store.id)}
-                activeOpacity={0.75}
-                accessibilityRole="tab"
-                accessibilityLabel={t('managerOffers.filterByStore', { store: store.name })}
-                accessibilityState={{ selected: store.id === storeId }}
-                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-              >
-                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>
-                  {store.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
+        {/* One store button with badges and a list (2026-11-15, the owner): it was a long row of chips */}
+        <StorePicker stores={stores} selectedId={storeId} onSelect={setSelectedStoreId} />
         {!canSetBonus && (
           <View style={s.tabRow} accessibilityRole="tablist">
             {(['offers', 'requests'] as const).map((k) => (

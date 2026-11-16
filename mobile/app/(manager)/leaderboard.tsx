@@ -21,6 +21,7 @@ import { usePullRefresh } from '../../hooks/usePullRefresh';
 import ManagerHeader from '../../components/ManagerHeader';
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { useManagerStorePick } from '../../store/managerStorePick';
+import StorePicker from '../../components/StorePicker';
 
 interface Store { id: string; name: string }
 
@@ -89,24 +90,8 @@ export default function ManagerLeaderboardScreen() {
         rightSlot={<TrophyIcon size={24} color="rgba(255,255,255,0.55)" strokeWidth={1.75} />}
       >
         {/* Store selector */}
-        {stores.length > 1 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.storePickerRow}>
-            {stores.map(store => (
-              <TouchableOpacity
-                key={store.id}
-                style={[s.storeChip, store.id === storeId && s.storeChipActive]}
-                onPress={() => setSelectedStoreId(store.id)}
-                activeOpacity={0.75}
-                accessibilityRole="tab"
-                accessibilityLabel={t('managerLeaderboard.filterByStore', { store: store.name })}
-                accessibilityState={{ selected: store.id === storeId }}
-                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-              >
-                <Text style={[s.storeChipText, store.id === storeId && s.storeChipTextActive]}>{store.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
+        {/* One store button with badges and a list (2026-11-15, the owner): it was a long row of chips */}
+        <StorePicker stores={stores} selectedId={storeId} onSelect={setSelectedStoreId} />
 
         {/* Tab bar */}
         <View style={s.tabBar}>
