@@ -25,7 +25,7 @@ async function endSessionOn401() {
 /** A photo or form upload (fetch, not axios: React Native needs it for multipart). It answers like an axios call: `{ data }`, or a thrown
  *  `{ response: { data, status } }`. A page that is not JSON (a 502 while the server restarts, a proxy's 413) is turned into a plain
  *  message instead of a SyntaxError, a 401 signs out like every other call, and a connection that hangs gives up after `timeoutMs`
- *  (a network failure or the timeout is thrown as it is, with no `response`, as axios does). */
+ *  (2026-11-15: a network failure or the timeout now carries words too, with status 0, like the axios calls). */
 async function uploadForm(path: string, body: FormData, timeoutMs = 90_000) {
   const stop = new AbortController();
   const timer = setTimeout(() => stop.abort(), timeoutMs);
@@ -33,8 +33,18 @@ async function uploadForm(path: string, body: FormData, timeoutMs = 90_000) {
     const res = await fetchWithAuth(path, { method: 'POST', body: body as any, signal: stop.signal });
     const json = await res.json().catch(() => null);
     if (res.status === 401 && !path.startsWith('/auth/login')) await endSessionOn401();
-    if (!res.ok) throw { response: { data: json ?? { success: false, error: 'The server did not answer properly. Please try again in a moment.' }, status: res.status } };
+    if (!res.ok) {
+      const data = json && typeof json === 'object' ? json : { success: false };
+      if (data.error && typeof data.error === 'object') data.error = refusalSentence(data.error);
+      if (typeof data.error !== 'string' || !data.error.trim()) data.error = i18next.t('sharedErrorState.serverBusy');
+      throw { response: { data, status: res.status } };
+    }
     return { data: json ?? {} };
+  } catch (e: any) {
+    if (e?.response) throw e;
+    // No answer: the phone lost its connection, or the upload took longer than timeoutMs
+    const words = e?.name === 'AbortError' ? i18next.t('sharedErrorState.tooSlow') : i18next.t('sharedErrorState.noConnection');
+    throw Object.assign(e && typeof e === 'object' ? e : new Error(String(e)), { response: { status: 0, data: { error: words } } });
   } finally { clearTimeout(timer); }
 }
 
@@ -53,6 +63,10 @@ api.interceptors.response.use(
     // (a weak signal at the pump, or the server busy for a moment) and every screen falls back to its own vague words. Every failed call
     // now carries words that say what happened, in the place every screen already reads (error.response.data.error). The status stays
     // as it was (0 when nothing came back), so no screen mistakes this for a server "no".
+    // A refused form can come back as zod's { formErrors, fieldErrors } object, not a sentence: put into a toast it showed nothing
+    // useful (or "[object Object]"). Turned into one sentence here, the way the HQ website does (admin lib/apiError.ts).
+    const said0 = error.response?.data?.error;
+    if (said0 && typeof said0 === 'object') error.response.data.error = refusalSentence(said0);
     const said = error.response?.data?.error;
     if (typeof said !== 'string' || !said.trim()) {
       const words = error.response ? i18next.t('sharedErrorState.serverBusy') : i18next.t('sharedErrorState.noConnection');
@@ -74,6 +88,19 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+/** One sentence from zod's flatten() object (or a list of messages); '' when there is nothing readable in it */
+function refusalSentence(error: any): string {
+  if (Array.isArray(error)) return error.filter((x) => typeof x === 'string').join(' ');
+  const parts: string[] = [];
+  if (Array.isArray(error?.formErrors)) parts.push(...error.formErrors.filter((x: unknown) => typeof x === 'string'));
+  if (error?.fieldErrors && typeof error.fieldErrors === 'object') {
+    for (const msgs of Object.values(error.fieldErrors as Record<string, unknown>)) {
+      if (Array.isArray(msgs)) for (const m of msgs) if (typeof m === 'string') parts.push(m);
+    }
+  }
+  return parts.length ? parts.slice(0, 3).join(' ') : i18next.t('sharedErrorState.notAccepted');
+}
 
 // ─── API Methods ──────────────────────────────────────────────────────────────
 

@@ -2857,6 +2857,8 @@
     "tapToFlipBack": "Toca para regresar"
   },
   "sharedErrorState": {
+    "tooSlow": "Esto está tardando demasiado. Revisa tu señal o Wi-Fi e inténtalo de nuevo.",
+    "notAccepted": "Algunos datos no fueron aceptados. Revísalos e inténtalo de nuevo.",
     "noConnection": "No se pudo conectar con Lucky Stop. Revisa tu señal o Wi-Fi e inténtalo de nuevo.",
     "serverBusy": "Lucky Stop está ocupado por un momento. Inténtalo de nuevo en unos segundos.",
     "defaultMessage": "Algo salió mal.",

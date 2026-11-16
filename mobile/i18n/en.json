@@ -2857,6 +2857,8 @@
     "tapToFlipBack": "Tap to flip back"
   },
   "sharedErrorState": {
+    "tooSlow": "This is taking too long. Check your signal or Wi-Fi and try again.",
+    "notAccepted": "Some of the details were not accepted. Check them and try again.",
     "noConnection": "Could not reach Lucky Stop. Check your signal or Wi-Fi and try again.",
     "serverBusy": "Lucky Stop is busy for a moment. Try again in a few seconds.",
     "defaultMessage": "Something went wrong.",
