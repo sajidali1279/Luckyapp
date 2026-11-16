@@ -67,7 +67,7 @@ const PdiInvoice             = lazyPage(() => import('./pages/PdiInvoice'));
 // this default only applies where a query does not say.
 function shouldRetryQuery(failureCount: number, error: unknown): boolean {
   const status = (error as { response?: { status?: number } })?.response?.status;
-  if (status !== undefined && status < 500) return false;
+  if (status !== undefined && status !== 0 && status < 500) return false;   // 0 = no answer (services/api.ts): worth another try
   return failureCount < 2;
 }
 

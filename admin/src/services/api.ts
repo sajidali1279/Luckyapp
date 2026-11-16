@@ -1,5 +1,5 @@
 import axios, { type AxiosResponse } from 'axios';
-import { refusalText } from '../lib/apiError';
+import { refusalText, NO_ANSWER, TOO_SLOW, SERVER_BUSY } from '../lib/apiError';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -20,6 +20,15 @@ api.interceptors.response.use(
     // A refused form can come back as an object of field messages; make it one sentence so no page tries to draw an object
     const body = error.response?.data;
     if (body && body.error !== undefined && typeof body.error !== 'string') body.error = refusalText(body.error);
+    // No words from the server (2026-11-15): about half the pages read response.data.error with their own vague fallback ("Failed").
+    // A request that got no answer now carries words in that same place, with status 0 (failureMessage and the retry rule in App.tsx
+    // know 0 means "no answer"); an answer without words (a 502 page while the server restarts) says the server is busy.
+    if (!error.response) {
+      const slow = error.code === 'ECONNABORTED' || /timeout/i.test(String(error.message ?? ''));
+      error.response = { status: 0, data: { error: slow ? TOO_SLOW : NO_ANSWER }, headers: {}, config: error.config, statusText: '' };
+    } else if (typeof error.response.data?.error !== 'string' || !error.response.data.error.trim()) {
+      error.response.data = { ...(error.response.data && typeof error.response.data === 'object' ? error.response.data : {}), error: SERVER_BUSY };
+    }
     if (error.response?.status === 401) {
       localStorage.removeItem('jwt_token');
       localStorage.removeItem('luckystop-admin-auth');

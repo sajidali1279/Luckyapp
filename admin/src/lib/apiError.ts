@@ -9,10 +9,15 @@ export function serverMessage(e: unknown, fallback: string): string {
  * answered (so nobody wonders whether the change went through), otherwise the fallback.
  */
 export function failureMessage(e: unknown, fallback: string): string {
-  const answered = (e as { response?: unknown })?.response;
-  if (!answered) return 'Could not reach the server, so nothing was changed. Check the connection and try again.';
+  const answered = (e as { response?: { status?: number } })?.response;
+  if (!answered || answered.status === 0) return serverMessage(e, NO_ANSWER);   // status 0: no answer (services/api.ts)
   return serverMessage(e, fallback);
 }
+
+/** The words services/api.ts puts on a request that got no usable answer (2026-11-15) */
+export const NO_ANSWER = 'Could not reach the server, so nothing was changed. Check the connection and try again.';
+export const TOO_SLOW = 'The server took too long to answer. Refresh the page to see whether the change went through before trying again.';
+export const SERVER_BUSY = 'The server is busy for a moment. Try again in a few seconds.';
 
 const FIELD_NAMES: Record<string, string> = {
   storeId: 'Store', bonusRate: 'Bonus', tierBonusRates: 'Tier bonuses', gasBonusCentsPerGallon: 'Cents per gallon',
