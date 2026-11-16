@@ -3851,7 +3851,7 @@
     "close": "Close",
     "search": "Search stores",
     "noMatch": "No store matches.",
-    "closed": "Closed",
+    "closed": "Switched off",
     "allClear": "All clear",
     "allClearHere": "All clear here",
     "elsewhere_one": "{{count}} elsewhere",
