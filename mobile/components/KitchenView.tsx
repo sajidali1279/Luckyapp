@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, ScrollView, TouchableOpacity, StyleSheet, Vibration, useWindowDimensions, Alert, ActivityIndicator } from 'react-native';
 import { useKeepAwake } from 'expo-keep-awake';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { useTranslation } from 'react-i18next';
 import { Text } from './ScaledText';
@@ -88,6 +89,9 @@ export default function KitchenView({ orders, storeName, updatingId, onClose, on
   onMoreTime: (o: KitchenOrder) => void;
 }) {
   useKeepAwake();
+  // It covers the whole screen from the very top: its header starts below the phone's status bar (2026-11-15, on the owner's
+  // phone the clock sat on top of "Kitchen", the bell and the X)
+  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const tw = useTimeWords();
   const { width } = useWindowDimensions();
@@ -194,7 +198,7 @@ export default function KitchenView({ orders, storeName, updatingId, onClose, on
 
   return (
     <View style={k.root}>
-      <View style={k.top}>
+      <View style={[k.top, { paddingTop: 10 + insets.top }]}>
         <View style={{ flex: 1 }}>
           <Text style={k.title}>{t('employeeHotFood.kitchenTitle')}</Text>
           {storeName ? <Text style={k.sub}>{storeName}</Text> : null}

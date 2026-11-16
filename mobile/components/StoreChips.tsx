@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScrollView, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Text } from './ScaledText';   // capped font scaling, like every other screen (audit 2026-11-11)
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '../constants';
 
 interface Store { id: string; name: string }
 
@@ -15,8 +16,11 @@ export function startStore(stores: Store[], counts: Record<string, number>, mySt
   return (busiest ?? own ?? stores[0]).id;
 }
 
-export default function StoreChips({ stores, selectedId, onSelect, counts = {}, a11yLabel }: {
+export default function StoreChips({ stores, selectedId, onSelect, counts = {}, a11yLabel, tone = 'dark' }: {
   stores: Store[];
+  /** 'dark' (default): on a navy header. 'light': on the light page (Stock Request's "Request for", 2026-11-15: the dark look's
+   *  white words were invisible there) */
+  tone?: 'dark' | 'light';
   selectedId: string | null | undefined;
   onSelect: (id: string) => void;
   counts?: Record<string, number>;
@@ -42,7 +46,7 @@ export default function StoreChips({ stores, selectedId, onSelect, counts = {}, 
         return (
           <TouchableOpacity
             key={store.id}
-            style={[s.chip, active && s.chipActive]}
+            style={[s.chip, active && s.chipActive, tone === 'light' && (active ? s.chipLightActive : s.chipLight)]}
             onPress={() => onSelect(store.id)}
             onLayout={(e) => { xs.current[store.id] = e.nativeEvent.layout.x; if (i === stores.length - 1) setLaidOut(true); }}
             activeOpacity={0.75}
@@ -51,7 +55,7 @@ export default function StoreChips({ stores, selectedId, onSelect, counts = {}, 
             accessibilityState={{ selected: active }}
             hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
           >
-            <Text style={[s.chipText, active && s.chipTextActive]}>{store.name}</Text>
+            <Text style={[s.chipText, active && s.chipTextActive, tone === 'light' && (active ? s.chipTextLightActive : s.chipTextLight)]}>{store.name}</Text>
             {n > 0 && (
               <View style={s.badge}>
                 <Text style={s.badgeText}>{n > 99 ? '99+' : n}</Text>
@@ -74,6 +78,10 @@ const s = StyleSheet.create({
   chipActive: { backgroundColor: 'rgba(255,255,255,0.22)', borderColor: 'rgba(255,255,255,0.55)' },
   chipText: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' },
   chipTextActive: { color: '#fff', fontWeight: '700' },
+  chipLight: { backgroundColor: COLORS.white, borderColor: COLORS.border },
+  chipLightActive: { backgroundColor: COLORS.secondary, borderColor: COLORS.secondary },
+  chipTextLight: { color: COLORS.text, fontWeight: '600' },
+  chipTextLightActive: { color: '#fff', fontWeight: '800' },
   badge: { minWidth: 20, height: 20, borderRadius: 10, backgroundColor: '#DC2626', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
 });

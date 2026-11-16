@@ -581,7 +581,9 @@ export default function StockRequestScreen() {
   }
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
+    // Navy behind the phone's status bar like the other staff screens (2026-11-15: its white clock was on a white strip); the page
+    // below the header keeps its light background
+    <SafeAreaView style={[s.container, { backgroundColor: COLORS.secondary }]} edges={['top']}>
       <FocusStatusBar barStyle="light-content" />
 
       {/* Header */}
@@ -592,6 +594,7 @@ export default function StockRequestScreen() {
         </View>
         <Text style={s.headerSub}>{t('employeeStockRequest.subtitle')}</Text>
       </View>
+      <View style={{ flex: 1, backgroundColor: COLORS.background }}>
 
       {/* Tabs */}
       <View style={s.tabs}>
@@ -620,7 +623,7 @@ export default function StockRequestScreen() {
           {myStores.length > 1 && (
             <View style={{ paddingTop: 10 }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.textMuted, paddingHorizontal: 16 }}>{t('employeeStockRequest.forStore')}</Text>
-              <StoreChips stores={myStores} selectedId={storeId} onSelect={setPickedStore} a11yLabel={(name) => t('employeeStockRequest.forStoreA11y', { store: name })} />
+              <StoreChips stores={myStores} selectedId={storeId} onSelect={setPickedStore} a11yLabel={(name) => t('employeeStockRequest.forStoreA11y', { store: name })} tone="light" />
             </View>
           )}
         <NewRequestForm
@@ -632,6 +635,7 @@ export default function StockRequestScreen() {
       ) : (
         <MyRequests highlightId={highlightId} />
       )}
+      </View>
     </SafeAreaView>
   );
 }
