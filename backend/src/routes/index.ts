@@ -81,6 +81,7 @@ import {
   adminDeleteCategory,
 } from '../controllers/orderCategory.controller';
 import { getInventoryAnalytics } from '../controllers/inventoryAnalytics.controller';
+import { getStoreBadges } from '../controllers/storeBadges.controller';
 import { getRestockInsights, getDemandInsights, getRewardsHotFoodInsights } from '../controllers/inventoryInsights.controller';
 import { getAppVersion, updateAppVersions } from '../controllers/appVersion.controller';
 import { hqReadReceipt, hqLinkReceipt } from '../controllers/hqReceipt.controller';
@@ -774,6 +775,7 @@ router.patch ('/store-labels/:storeLabelId', authenticate, requireRole(Role.EMPL
 router.delete('/store-labels/:storeLabelId', authenticate, requireRole(Role.SUPER_ADMIN), removeStoreLabel);  // Takes a never-printed label out of one store
 
 // ─── Inventory Analytics ─────────────────────────────────────────────────────
+router.get('/manager/store-badges',          authenticate, requireRole(Role.STORE_MANAGER), getStoreBadges);   // what waits at each store: the store picker's badges (2026-11-15)
 router.get('/inventory/analytics',         authenticate, requireRole(Role.STORE_MANAGER), getInventoryAnalytics);   // Top items, category breakdown, store comparison
 router.get('/inventory/analytics/restock', authenticate, requireRole(Role.STORE_MANAGER), getRestockInsights);      // Order list speed, fill rate, stuck items
 router.get('/inventory/analytics/demand',  authenticate, requireRole(Role.STORE_MANAGER), getDemandInsights);       // Customer + staff asks, scanned items not in Labels
