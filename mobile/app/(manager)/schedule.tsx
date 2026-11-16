@@ -31,6 +31,7 @@ import {
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import StoreChips, { startStore } from '../../components/StoreChips';
 import { usePoll } from '../../hooks/usePoll';
+import { useManagerStorePick } from '../../store/managerStorePick';
 
 // This file indexes SHIFT_LABELS/SHIFT_TIMES with untyped strings from API
 // responses (e.g. req.shiftType), so both are re-typed loosely here rather
@@ -56,7 +57,7 @@ export default function ManagerScheduleScreen() {
   const todayKey = getTodayKey();
   const weekDates = getCurrentWeekDates();
 
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useManagerStorePick();   // shared by the manager screens (2026-11-15)
   const { data: storesData } = useQuery({
     queryKey: ['accessible-stores'],
     queryFn: () => storesApi.accessible(),

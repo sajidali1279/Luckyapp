@@ -27,6 +27,7 @@ import ModalToastHost from '../../components/ModalToastHost';
 import { SHEET_HEADER_TOP } from '../../utils/sheetInsets';
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
 import { sized } from '../../utils/imageUrl';
+import { useManagerStorePick } from '../../store/managerStorePick';
 
 interface Store { id: string; name: string }
 
@@ -35,7 +36,7 @@ export default function ManagerBannersScreen() {
   const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const qc = useQueryClient();
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useManagerStorePick();   // shared by the manager screens (2026-11-15)
 
   // Accessible stores
   const { data: storesData } = useQuery({

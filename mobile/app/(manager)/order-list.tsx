@@ -34,6 +34,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { showActionSheet } from '../../utils/actionSheet';
 import { usePoll } from '../../hooks/usePoll';
+import { useManagerStorePick } from '../../store/managerStorePick';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1346,7 +1347,7 @@ export default function ManagerOrderListScreen() {
   const { t } = useTranslation();
   const qc = useQueryClient();
 
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useManagerStorePick();   // shared by the manager screens (2026-11-15)
   const [editingItem,     setEditingItem]      = useState<OrderListItem | null>(null);
   const [showReview,      setShowReview]       = useState(false);
   const [showHistory,     setShowHistory]      = useState(false);

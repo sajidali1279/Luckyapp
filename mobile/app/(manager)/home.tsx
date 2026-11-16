@@ -27,6 +27,7 @@ import DashboardWatermark from '../../components/DashboardWatermark';
 import { NoticeStack, usePinnedNotices } from '../../components/NoticeBanner';
 import FocusStatusBar from '../../components/FocusStatusBar';
 import { usePoll } from '../../hooks/usePoll';
+import { useManagerStorePick } from '../../store/managerStorePick';
 
 const BAR_COLORS = [
   '#1D3557', '#E63946', '#F4A261', '#2DC653', '#6A4C93',
@@ -72,7 +73,7 @@ export default function ManagerHome() {
   const [period, setPeriod] = useState('30');
   const [category, setCategory] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useManagerStorePick();   // shared by the manager screens (2026-11-15)
 
   // Staggered entrance, 4 groups fade + slide up on mount
   const fadeAnims  = useRef([...Array(4)].map(() => new Animated.Value(0))).current;

@@ -28,6 +28,7 @@ import { pctLabel } from '../../utils/offerRate';
 import { hoursText } from '../../utils/offerHours';
 import { SHEET_HEADER_TOP } from '../../utils/sheetInsets';
 import { useLargeTitleScroll } from '../../components/LargeTitleHeader';
+import { useManagerStorePick } from '../../store/managerStorePick';
 
 interface Store { id: string; name: string }
 
@@ -55,7 +56,7 @@ export default function ManagerOffersScreen() {
   const largeTitle = useLargeTitleScroll();
   const { user } = useAuthStore();
   const qc = useQueryClient();
-  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useManagerStorePick();   // shared by the manager screens (2026-11-15)
   // A Store Manager can no longer post or change a cashback promotion (percentage, per-tier or cents per
   // gallon) - only HQ sets those now; a manager can still post and edit Deals for their store. Dev
   // Admin/Super Admin testing this screen from the app itself are unaffected.
