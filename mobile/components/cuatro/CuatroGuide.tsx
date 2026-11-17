@@ -34,6 +34,7 @@ import CuatroRig, { Part, useRigValues, about, type Extras } from './CuatroRig';
 import { ASPECT, FEET, PIVOT, DROP, VIEWBOX, COSTUMES, COSTUME_RISE, star, type Costume, type Face, type Glove } from './art';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGuideCovered } from './guideCover';
+import { introSettled } from '../seasonal/introState';
 import { tips, answer, TOPICS, type Ctx, type Line, type Topic } from './guideTips';
 import { hasGuideEvent, takeGuideEvent } from './guideEvents';
 import RunningTurkey, { TURKEY_H } from './RunningTurkey';
@@ -89,10 +90,9 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 const deg = (v: Animated.Value) => v.interpolate({ inputRange: [-360, 360], outputRange: ['-360deg', '360deg'] });
 /** A hop's height at t (0 to 1): from y0 to y1 over a top `rise` above the higher end (a quadratic curve). */
-const arc = (y0: number, y1: number, rise: number) => {
-  const c = 2 * (Math.min(y0, y1) - rise) - (y0 + y1) / 2;
-  return (t: number) => (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * c + t * t * y1;
-};
+/** How high above the straight line from y0 to y1 a jump's top is: the same curve as before (2026-11-17), now as a lift on top of a
+ *  straight glide (see lift() in the guide), so every move ends exactly where it lands */
+const peakFor = (y0: number, y1: number, rise: number) => -(rise + Math.abs(y0 - y1) / 2);
 
 /** Whether the keyboard is up. Asked again on every screen change and on coming back to the app: a "hidden" event missed (the
  *  screen left or the app put away with the keyboard up) used to keep him away until the keyboard opened and closed again. */
@@ -185,6 +185,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   // where he is (his box's top left), his spin about his middle, his lean and squash about his feet
   const x = useRef(new Animated.Value(-SIZE * 3)).current;
   const y = useRef(new Animated.Value(h)).current;
+  // a jump's lift above the straight line he glides along (0 at rest); drawn as y + hopY
+  const hopY = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
   const lean = useRef(new Animated.Value(0)).current;
   const sx = useRef(new Animated.Value(1)).current;
@@ -247,15 +249,19 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const to = (v: Animated.Value, toValue: number, duration: number, easing: (t: number) => number = Easing.inOut(Easing.quad)) =>
     Animated.timing(v, { toValue, duration, easing, ...N });
   const spring = (v: Animated.Value, toValue: number, o: Record<string, number> = {}) => Animated.spring(v, { toValue, friction: 5, tension: 150, ...o, ...N });
-  /** v along any curve (f gives the position at t, 0 to 1): worked out up front, so it still runs on the native thread. Its toValue is a
-   *  stand-in (from + 1), so when it ends the app's own copy of the value is left near the START of the curve, and the next redraw on the
-   *  phone put him back there: after a jump up from behind the bar he sank out of sight and could not be tapped (2026-10-31, seen on the
-   *  owner's phone). Every move made with it must end with place() at the real end. */
-  const along = (v: Animated.Value, f: (t: number) => number, duration: number) => {
-    const from = f(0);
-    v.setValue(from);
-    return Animated.timing(v, { toValue: from + 1, duration, easing: (t) => f(t) - from, ...N });
-  };
+  /** A jump's lift (2026-11-17): up to `peak` (negative is up) with a slowing start, back to 0 speeding up, which is a true thrown arc
+   *  when y glides straight from start to end at the same time. It replaces along(), whose stand-in end value left the phone's copy of
+   *  y near the START of the jump (he sank back after jumps, 2026-10-31) and needed place() after every move. Both values now end at
+   *  their real end. */
+  const lift = (peak: number, duration: number) => Animated.sequence([
+    to(hopY, peak, duration / 2, Easing.out(Easing.quad)), to(hopY, 0, duration / 2, Easing.in(Easing.quad)),
+  ]);
+  /** A move cut short mid-jump: the lift folds into y, so he stays where he is drawn */
+  const foldLift = () => hopY.stopAnimation((hv) => {
+    if (!hv) return;
+    y.stopAnimation((yv) => { y.setValue(yv + hv); pos.current = { ...pos.current, y: yv + hv }; });
+    hopY.setValue(0);
+  });
   const loop = (a: Animated.CompositeAnimation, iterations = -1, onEnd?: () => void) => {
     const l = Animated.loop(a, { iterations });
     loops.current.push(l);
@@ -264,11 +270,11 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   };
   const stopLoops = () => { loops.current.forEach((l) => l.stop()); loops.current = []; };
   const moving = [x, y, spin, lean, sx, sy, rig.armL, rig.armR, rig.legL, rig.legR, rig.gazeX, rig.gazeY, rig.talk];
-  const stopAll = () => { stopLoops(); moving.forEach((v) => v.stopAnimation()); };
+  const stopAll = () => { stopLoops(); foldLift(); moving.forEach((v) => v.stopAnimation()); };
 
   const floorY = () => dims.current.h - FEET * H + 1;
   const spotX = () => { const { w: ww } = dims.current; return clamp((saved?.spot ?? 1) * (ww - SIZE - 12) + 6, 6, ww - SIZE - 6); };
-  const place = (nx: number, ny: number) => { x.setValue(nx); y.setValue(ny); pos.current = { x: nx, y: ny }; };
+  const place = (nx: number, ny: number) => { hopY.stopAnimation(); hopY.setValue(0); x.setValue(nx); y.setValue(ny); pos.current = { x: nx, y: ny }; };
   const arms = (l: number, r: number, ms = 260) => Animated.parallel([to(rig.armL, l, ms), to(rig.armR, r, ms)]);
   // also straight up again: a tickle cut short by the next tap used to leave him leaning over (2026-10-31)
   const rest = () => { setGloves(['fist', 'fist']); play(Animated.parallel([arms(-62, -62), to(rig.legL, 0, 200), to(rig.legR, 0, 200), to(rig.gazeX, 0, 200), to(rig.gazeY, 0, 200), to(lean, 0, 200), to(spin, 0, 200)])); };
@@ -327,8 +333,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     if (!dims.current.reduce) await play(Animated.parallel([to(sy, 0.82, 110), to(sx, 1.12, 110), to(lean, 0, 110), to(spin, 0, 110)]));
     if (!still(my)) return false;
     await play(Animated.parallel([
-      to(x, tx, ms, Easing.inOut(Easing.quad)),
-      along(y, arc(y0, ty, rise), ms),
+      to(x, tx, ms, Easing.linear),
+      to(y, ty, ms, Easing.linear), lift(peakFor(y0, ty, rise), ms),
       Animated.sequence([Animated.parallel([to(sy, 1.12, 120), to(sx, 0.9, 120)]), Animated.parallel([to(sy, 1, ms - 120), to(sx, 1, ms - 120)])]),
       Animated.sequence([Animated.parallel([to(rig.legL, 18, 160), to(rig.legR, 18, 160)]), Animated.parallel([to(rig.legL, 0, ms - 160), to(rig.legR, 0, ms - 160)])]),
     ]));
@@ -338,7 +344,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   };
   const hop = async (my: number) => {
     const { x: px, y: py } = pos.current;
-    if (await play(along(y, arc(py, py, 26), 320))) place(px, py);   // cut short: whatever cut in has placed him
+    if (await play(lift(-26, 320))) place(px, py);   // cut short: whatever cut in has placed him
     return land(my, true);
   };
   const look = () => {
@@ -488,6 +494,11 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     later(16_000, () => { if (modeRef.current === 'peek' && scene.current === my) duck(fromLeft); });
   };
 
+  /** The day's holiday scene ran to its end: not again today on this phone */
+  const sceneDone = () => {
+    const c = costumeRef.current, k = c ? SCENE_KEYS[c] : undefined;
+    if (k) AsyncStorage.setItem(k, dayKey()).catch(() => {});
+  };
   /** Thanksgiving: a turkey chases him across the bar from the right, both run off the left edge, and he peeks back in out of breath. */
   const chase = async () => {
     const my = fresh(); stopAll(); closeBubble(); setMode('busy');
@@ -513,6 +524,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     rest();
     await pause(700);
     if (!still(my)) return;
+    sceneDone();
     peek({ fromLeft: true, line: t('guide.turkeyPhew'), sweat: true });
   };
 
@@ -541,7 +553,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     loop(Animated.sequence([arms(80, 40, 140), arms(40, 80, 140)]));
     await play(Animated.parallel([
       to(x, off, t2, Easing.linear),
-      along(y, arc(fy, fy, 22), 380),
+      lift(-22, 380),
       Animated.sequence([to(sledY, -14, 170, Easing.out(Easing.quad)), to(sledY, 0, 210, Easing.in(Easing.quad))]),
       Animated.sequence([to(lean, -8, 190), to(lean, 6, 190)]),
     ]));
@@ -551,6 +563,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     rest();
     await pause(700);
     if (!still(my)) return;
+    sceneDone();
     peek({ fromLeft: true, line: t('guide.sledOops') });
   };
   /** The gift was tapped open: off to the Rewards catalog, and he says why once he is free to talk. */
@@ -582,7 +595,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     const tx = spotX(), ty = floorY();
     setFace('joy'); setGloves(['fist', 'fist']); rig.armL.setValue(-62); rig.armR.setValue(-62);
     place(tx, dims.current.h + 8);
-    await play(along(y, arc(dims.current.h + 8, ty, 40), dims.current.reduce ? 1 : 440));
+    const upMs = dims.current.reduce ? 1 : 440;
+    await play(Animated.parallel([to(y, ty, upMs, Easing.linear), lift(peakFor(dims.current.h + 8, ty, 40), upMs)]));
     if (!still(my)) return;
     place(tx, ty);
     if (!(await land(my))) return;
@@ -836,9 +850,13 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       Animated.sequence([to(rig.armL, 85, 90), to(rig.armL, 35, 90)]), Animated.sequence([to(rig.armR, 35, 90), to(rig.armR, 85, 90)]),
       Animated.sequence([to(rig.legL, 26, 110), to(rig.legL, -8, 110)]), Animated.sequence([to(rig.legR, -8, 110), to(rig.legR, 26, 110)]),
     ]));
+    // thrown: a straight glide to where he hits the wall plus gravity's arc on top (y0 + vy0 t + G t^2 / 2 is that line plus a lift of
+    // G secs^2 / 8 at the middle), never above the top of the screen
+    const yEnd = yAt(secs);
+    const peak = Math.max(-(G * secs * secs) / 8, top - (y0 + yEnd) / 2);
     await play(Animated.parallel([
       to(x, wallX, secs * 1000, Easing.linear),
-      along(y, (p) => yAt(p * secs), secs * 1000),
+      to(y, yEnd, secs * 1000, Easing.linear), lift(Math.min(0, peak), secs * 1000),
       to(spin, side === 'left' ? -360 : 360, secs * 1000, Easing.linear),
     ]));
     if (!still(my)) return;
@@ -979,10 +997,11 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     const holiday = costumeRef.current;
     const sceneKey = holiday ? SCENE_KEYS[holiday] : undefined;
     if (sceneKey && !dims.current.reduce && !s?.away && dims.current.screen === 'home') {
-      AsyncStorage.getItem(sceneKey).then((day) => {
+      // after the seasonal opening is over or skipped (2026-11-17: it started 3 s in and cut the chase off half way), and marked as seen
+      // only once he has run it to the end (sceneDone), so a scene cut short plays again next time
+      Promise.all([AsyncStorage.getItem(sceneKey), introSettled()]).then(([day]) => {
         if (!live.current) return;
         if (day === dayKey()) { start(); return; }
-        AsyncStorage.setItem(sceneKey, dayKey()).catch(() => {});
         later(400, () => { if (holiday === 'CHRISTMAS') sledRun(); else chase(); });
       }).catch(() => { if (live.current) start(); });
     } else start();
@@ -1093,7 +1112,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
           <Sled />
         </Animated.View>
       ) : null}
-      <Animated.View pointerEvents="box-none" style={[s.mascot, { transform: [{ translateX: x }, { translateY: y }] }]}>
+      <Animated.View pointerEvents="box-none" style={[s.mascot, { transform: [{ translateX: x }, { translateY: Animated.add(y, hopY) }] }]}>
         <Animated.View
           {...pan.panHandlers}
           pointerEvents={inTab || mode === 'off' ? 'none' : 'auto'}
@@ -1119,7 +1138,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       </Animated.View>
 
       {bubble?.kind === 'line' && bubble.line.sign ? (
-        <Animated.View pointerEvents="none" style={[s.sign, { transform: [{ translateX: Animated.add(x, signSide === 'right' ? SIZE * 0.78 : SIZE * 0.22 - SIGN_W) }, { translateY: y }] }]}>
+        <Animated.View pointerEvents="none" style={[s.sign, { transform: [{ translateX: Animated.add(x, signSide === 'right' ? SIZE * 0.78 : SIZE * 0.22 - SIGN_W) }, { translateY: Animated.add(y, hopY) }] }]}>
           <PromoSign business={bubble.line.sign.business} adLabel={t('guide.signAd')} />
         </Animated.View>
       ) : null}
