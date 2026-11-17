@@ -11,6 +11,7 @@ import GiftIntro from './GiftIntro';
 import KickoffIntro from './KickoffIntro';
 import { useShellCover } from '../DrawerShell';
 import { useGuideCover } from '../cuatro/guideCover';
+import { setIntroState } from './introState';
 
 type Intro = ComponentType<{ onPop: () => void; onDone: () => void }>;
 /** Each preset's opening. One this version does not know (added by HQ after this build) plays nothing. */
@@ -30,23 +31,28 @@ export default function SeasonalHost({ children }: { children: ReactNode }) {
     // Wait for the server's answer: the one kept on the phone has yesterday's date, and deciding on it meant the opening played on the
     // first day only (it looked "already played today" and was never looked at again)
     const intro = INTROS[theme.preset];
-    if (decided.current || !theme.settled || !intro || !theme.intro) return;
+    if (decided.current || !theme.settled) return;
+    // what Cuatro's holiday scene waits for (introState.ts): no opening today, or one coming
+    if (!intro || !theme.intro) { decided.current = true; setIntroState('none'); return; }
     decided.current = true;
     let cancelled = false;
     (async () => {
       try {
         const [reduce, last] = await Promise.all([AccessibilityInfo.isReduceMotionEnabled(), SecureStore.getItemAsync(KEY)]);
         const stamp = `${theme.preset}:${theme.today}`;
-        if (reduce || last === stamp) return;   // reduced motion: never; already played today on this phone: not again
+        if (reduce || last === stamp) { setIntroState('none'); return; }   // reduced motion: never; already played today on this phone: not again
+        setIntroState('pending');
         await SecureStore.setItemAsync(KEY, stamp).catch(() => {});
         const wait = Math.max(150, COLD_START_MS - (Date.now() - APP_START));
-        setTimeout(() => { if (!cancelled) { pop.setValue(0.8); setPlaying(() => intro); } }, wait);
-      } catch { /* the animation is a treat, never a reason to fail */ }
+        setTimeout(() => { if (!cancelled) { pop.setValue(0.8); setIntroState('playing'); setPlaying(() => intro); } else setIntroState('none'); }, wait);
+      } catch { setIntroState('none'); /* the animation is a treat, never a reason to fail */ }
     })();
     return () => { cancelled = true; };
   }, [theme.preset, theme.intro, theme.today, theme.settled]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPop = () => Animated.spring(pop, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }).start();
+  // over or skipped (a tap anywhere): Cuatro's holiday scene may start now
+  const finish = () => { setPlaying(null); setIntroState('done'); };
   const Playing = playing;
 
   // The opening fills the whole screen, over the bottom bar (2026-10-31: drawn inside Home, the bar showed on top of the pumpkin): the
@@ -55,14 +61,14 @@ export default function SeasonalHost({ children }: { children: ReactNode }) {
   useGuideCover(!!Playing);
   useEffect(() => {
     if (!cover) return;
-    cover(Playing ? <Playing onPop={onPop} onDone={() => setPlaying(null)} /> : null);
+    cover(Playing ? <Playing onPop={onPop} onDone={finish} /> : null);
     return () => cover(null);
   }, [Playing]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={{ flex: 1 }}>
       <Animated.View style={{ flex: 1, transform: [{ scale: pop }] }}>{children}</Animated.View>
-      {Playing && !cover && <Playing onPop={onPop} onDone={() => setPlaying(null)} />}
+      {Playing && !cover && <Playing onPop={onPop} onDone={finish} />}
     </View>
   );
 }
