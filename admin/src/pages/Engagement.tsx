@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { engagementApi, challengesApi } from '../services/api';
+import { engagementApi, challengesApi, storesApi, offersApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { addDays, dayLabel, endOfStoreDay, startOfStoreDay, storeToday } from '../lib/storeDates';
@@ -17,6 +17,15 @@ type WelcomeKey = 'qrBonus' | 'qr' | 'hotFood' | 'checkIn' | 'invite' | 'tier';
 type WelcomeText = { titleEn: string; bodyEn: string; titleEs: string; bodyEs: string };
 type WelcomeStep = { day: number; enabled: boolean };
 type Prize = { pts: number; weight: number };
+// "Cuatro says" lines HQ writes (2026-11-17): he says them on customers' screens like his own tips, no new app version needed
+interface CuatroLine { id: string; on: boolean; text: string; textEs: string; target: string; start: string | null; end: string | null; stores: string[]; urgent: boolean }
+const LINE_TARGETS: [string, string][] = [
+  ['NONE', 'No button'], ['HOME', 'Home'], ['DEALS', 'Deals and promotions on Home'], ['GAS', 'Gas prices on Home'], ['CHALLENGES', 'Challenges on Home'],
+  ['REWARDS', 'Rewards'], ['HOT_FOOD', 'Hot food'], ['CAREERS', 'Careers'], ['REQUEST_PRODUCT', 'Request a product'], ['LOCAL_BUSINESSES', 'Local businesses'],
+  ['INVITE', 'Invite friends'], ['GAMES', 'Prize game'], ['PROGRESS', 'My progress'], ['SCAN_RECEIPT', 'Scan a receipt'], ['LEADERBOARD', 'Leaderboard'], ['PROFILE', 'Profile'],
+];
+const LINE_MAX = 160, LINES_MAX = 20;
+
 interface Config {
   streaks: { enabled: boolean; minPurchase: number; milestones: Milestone[] };
   punchCards: { enabled: boolean };
@@ -31,7 +40,7 @@ interface Config {
   weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
   flashDeals: { enabled: boolean; maxPerWeek: number };
   tierUp: { enabled: boolean };
-  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide?: boolean };
+  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide?: boolean; lines?: CuatroLine[] };
   games: { enabled: boolean; game: GameKind; prizes: { pts: number; weight: number }[]; monthlyBudgetPts: number; since: string | null; endsOn: string | null };
   friendsBoard: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH'; minMembers: number; maxRows: number };
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };
@@ -233,6 +242,7 @@ export default function Engagement() {
           on={c.mascot.enabled} onToggle={toggle('mascot')} busy={save.isPending} open={!!open.mascot} setOpen={(v) => setOpen((o) => ({ ...o, mascot: v }))}
           summary={[c.mascot.guide !== false && 'On-screen guide', c.mascot.homeCard && 'a tip on Home', c.mascot.emptyStates && 'empty screens', c.mascot.pushVoice && 'signs the automated pushes'].filter(Boolean).join(', ') || 'Nothing picked: open Settings'}>
           <MascotEditor value={c.mascot} onSave={(v) => save.mutate({ mascot: v })} busy={save.isPending} />
+          <LinesEditor value={c.mascot.lines ?? []} who={c.mascot.name || 'Cuatro'} guideOn={c.mascot.guide !== false} onSave={(lines) => save.mutate({ mascot: { lines } })} busy={save.isPending} />
         </Feature>
 
         <Feature id="games" emoji="🎡" title="Prize game" blurb="Spin the wheel, a scratch card or a lucky number: one free play a day for every customer, with no purchase needed and the same odds for everyone. Prizes are points, drawn by the server, inside a hard monthly budget. The app shows the official rules." money
@@ -729,6 +739,103 @@ function MascotEditor({ value, onSave, busy }: { value: Config['mascot']; onSave
       {box('ma-voice', voice, setVoice, 'Signs the automated pushes', `The smart nudges, the welcome series, the birthday push and the challenge of the week start with "${who}: ". Pushes about a sale, an order or an alert the customer set up never do.`)}
       <div style={row}><Button variant="primary" disabled={!n || !changed || busy} onClick={() => onSave({ name: n, homeCard: home, emptyStates: empty, pushVoice: voice, guide })}>Save</Button></div>
     </>
+  );
+}
+
+/** What HQ writes for Cuatro to say (2026-11-17). Each line: the words (Spanish optional), the screen his button opens, the dates, the
+ *  stores, urgent or not, on or off. Saved together with the Save under the list. */
+function LinesEditor({ value, who, guideOn, onSave, busy }: { value: CuatroLine[]; who: string; guideOn: boolean; onSave: (v: CuatroLine[]) => void; busy: boolean }) {
+  const [lines, setLines] = useState<CuatroLine[]>(value);
+  const [translating, setTranslating] = useState<string | null>(null);
+  const saved = JSON.stringify(value);
+  useEffect(() => { setLines(value); }, [saved]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const storesQ = useQuery({ queryKey: ['stores-all'], queryFn: () => storesApi.getAll().then((r) => (r.data?.data ?? []) as { id: string; name: string; isActive?: boolean }[]), staleTime: 300_000 });
+  const stores = (storesQ.data ?? []).slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const set = (id: string, patch: Partial<CuatroLine>) => setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const add = () => setLines((ls) => [...ls, { id: crypto.randomUUID(), on: true, text: '', textEs: '', target: 'NONE', start: storeToday(), end: null, stores: [], urgent: false }]);
+  const remove = (id: string) => setLines((ls) => ls.filter((l) => l.id !== id));
+  const count = (t: string) => Array.from(t.trim()).length;
+  const bad = lines.some((l) => !l.text.trim() || count(l.text) > LINE_MAX || count(l.textEs) > LINE_MAX || (l.start && l.end && l.end < l.start));
+  const changed = JSON.stringify(lines) !== saved;
+  const suggest = async (l: CuatroLine) => {
+    setTranslating(l.id);
+    try {
+      const r = await offersApi.translate({ title: '', description: l.text.trim(), dealText: '' });
+      const es = r.data?.data?.descriptionEs;
+      if (typeof es === 'string' && es.trim()) set(l.id, { textEs: Array.from(es.trim()).slice(0, LINE_MAX).join('') });
+    } catch (e) { toast.error(serverMessage(e, 'Could not suggest the Spanish. Type it yourself.')); }
+    finally { setTranslating(null); }
+  };
+  const today = storeToday();
+  const state = (l: CuatroLine) => !l.on ? 'Off' : l.end && l.end < today ? 'Ended' : l.start && l.start > today ? `Starts ${dayLabel(l.start)}` : 'Showing now';
+  return (
+    <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${C.border}` }}>
+      <SectionTitle>{who} says: your own lines</SectionTitle>
+      <p style={{ margin: '4px 0 12px', fontSize: FONT.small, color: TEXT_MUTED }}>
+        Write news for {who} to tell customers on their screens: a new item, a store event, a hiring day. He says each line at most once a day to each
+        customer, along with his own tips (urgent lines go first). Customers get it the next time they open the app, with no new app version. Needs app version 1.8.7 or newer.
+      </p>
+      {!guideOn && <Notice tone="warning" style={{ marginBottom: 12 }}>The on-screen guide is off, so customers do not see these lines. Tick "On-screen guide" above.</Notice>}
+      {lines.length === 0 && <p style={{ color: TEXT_MUTED, fontSize: FONT.small }}>No lines yet.</p>}
+      {lines.map((l, i) => (
+        <div key={l.id} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, marginBottom: 12, background: l.on ? '#fff' : '#F8FAFC' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            <strong style={{ color: C.text }}>Line {i + 1}</strong>
+            <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <Badge tone={state(l) === 'Showing now' ? 'success' : 'neutral'}>{state(l)}</Badge>
+              {l.urgent && <Badge tone="danger">Urgent</Badge>}
+            </span>
+          </div>
+          <Field label="What he says (English)" htmlFor={`cl-t-${l.id}`} after={`${count(l.text)} of ${LINE_MAX}`}>
+            <textarea id={`cl-t-${l.id}`} style={{ ...INPUT, width: '100%', minHeight: 56, resize: 'vertical' }} maxLength={LINE_MAX + 20} value={l.text}
+              placeholder="Fresh breakfast tacos at #9 every morning till 11!" onChange={(e) => set(l.id, { text: e.target.value })} />
+          </Field>
+          <Field label="In Spanish (optional)" htmlFor={`cl-e-${l.id}`} hint="Empty: Spanish customers get the English." after={`${count(l.textEs)} of ${LINE_MAX}`}>
+            <textarea id={`cl-e-${l.id}`} style={{ ...INPUT, width: '100%', minHeight: 56, resize: 'vertical' }} maxLength={LINE_MAX + 20} value={l.textEs} onChange={(e) => set(l.id, { textEs: e.target.value })} />
+          </Field>
+          <div style={{ marginBottom: 10 }}>
+            <Button variant="secondary" disabled={!l.text.trim() || translating === l.id} onClick={() => suggest(l)}>{translating === l.id ? 'Suggesting...' : 'Suggest the Spanish'}</Button>
+          </div>
+          <FieldRow>
+            <Field label="His button opens" htmlFor={`cl-g-${l.id}`}>
+              <select id={`cl-g-${l.id}`} style={{ ...INPUT, width: 230 }} value={l.target} onChange={(e) => set(l.id, { target: e.target.value })}>
+                {LINE_TARGETS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+              </select>
+            </Field>
+            <Field label="From" htmlFor={`cl-s-${l.id}`} hint="Empty: from now"><input id={`cl-s-${l.id}`} type="date" style={{ ...INPUT, width: 160 }} value={l.start ?? ''} onChange={(e) => set(l.id, { start: e.target.value || null })} /></Field>
+            <Field label="Until" htmlFor={`cl-u-${l.id}`} hint="Empty: until you switch it off"><input id={`cl-u-${l.id}`} type="date" style={{ ...INPUT, width: 160 }} value={l.end ?? ''} onChange={(e) => set(l.id, { end: e.target.value || null })} /></Field>
+          </FieldRow>
+          {l.start && l.end && l.end < l.start && <Notice tone="danger" style={{ marginBottom: 10 }}>"Until" is before "From".</Notice>}
+          <Field label="Stores" htmlFor={`cl-all-${l.id}`}>
+            <label htmlFor={`cl-all-${l.id}`} style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', color: C.text, marginBottom: 6 }}>
+              <input id={`cl-all-${l.id}`} type="checkbox" checked={l.stores.length === 0} onChange={(e) => set(l.id, { stores: e.target.checked ? [] : stores.filter((s) => s.isActive !== false).slice(0, 1).map((s) => s.id) })} />
+              Every store
+            </label>
+            {l.stores.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
+                {stores.map((s) => (
+                  <label key={s.id} style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer', color: C.text, fontSize: FONT.small }}>
+                    <input type="checkbox" checked={l.stores.includes(s.id)}
+                      onChange={(e) => set(l.id, { stores: e.target.checked ? [...l.stores, s.id] : l.stores.filter((x) => x !== s.id) })} />
+                    {s.name}{s.isActive === false ? ' (switched off)' : ''}
+                  </label>
+                ))}
+              </div>
+            )}
+          </Field>
+          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', marginTop: 6 }}>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer', color: C.text }}><input type="checkbox" checked={l.on} onChange={(e) => set(l.id, { on: e.target.checked })} /> On</label>
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', cursor: 'pointer', color: C.text }}><input type="checkbox" checked={l.urgent} onChange={(e) => set(l.id, { urgent: e.target.checked })} /> Urgent (he says it before his own tips)</label>
+            <Button variant="ghost" onClick={() => remove(l.id)}>Remove</Button>
+          </div>
+        </div>
+      ))}
+      <div style={row}>
+        <Button variant="secondary" disabled={lines.length >= LINES_MAX} onClick={add}>Add a line</Button>
+        <Button variant="primary" disabled={bad || !changed || busy} onClick={() => onSave(lines.map((l) => ({ ...l, text: l.text.trim(), textEs: l.textEs.trim() })))}>Save lines</Button>
+        {lines.length >= LINES_MAX && <span style={{ fontSize: FONT.small, color: TEXT_MUTED }}>{LINES_MAX} lines at most: remove an old one first.</span>}
+      </div>
+    </div>
   );
 }
 
