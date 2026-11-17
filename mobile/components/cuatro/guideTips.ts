@@ -5,6 +5,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import type { Face } from './art';
 import { offerBonusText, myOfferRate } from '../../utils/offerRate';
 import { spanishOffer } from '../../utils/offerText';
+import type { HqLine } from '../../hooks/useEngagement';
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 export type Go = { pathname: string; params?: Record<string, string> };
@@ -26,7 +27,28 @@ export interface Ctx {
   birthdaySet?: boolean;   // the customer gave their birthday
   notifOff?: boolean;      // notifications are off on this phone
   pitchDue?: boolean;      // "Own a local business?" not said yet this month
+  hqLines?: HqLine[];      // what HQ wrote for him to say (admin Engagement > Cuatro)
+  today?: string;          // the phone's day, YYYY-MM-DD (HQ's lines are checked against their dates again here)
 }
+
+/** Where an HQ line's button goes, and its label key. A target this app does not know: no button (2026-11-17). */
+const TARGETS: Record<string, { go: Go; label: string }> = {
+  HOME: { go: { pathname: '/(customer)/home' }, label: 'guide.ctaSeeIt' },
+  DEALS: { go: { pathname: '/(customer)/home', params: { scrollTo: 'offers' } }, label: 'guide.ctaDeals' },
+  GAS: { go: { pathname: '/(customer)/home', params: { scrollTo: 'gas' } }, label: 'guide.ctaGasPrices' },
+  CHALLENGES: { go: { pathname: '/(customer)/home', params: { scrollTo: 'challenges' } }, label: 'guide.ctaChallenges' },
+  REWARDS: { go: { pathname: '/(customer)/rewards' }, label: 'guide.ctaRewards' },
+  HOT_FOOD: { go: { pathname: '/(customer)/hot-food' }, label: 'guide.ctaOrder' },
+  CAREERS: { go: { pathname: '/(customer)/careers' }, label: 'guide.ctaCareers' },
+  REQUEST_PRODUCT: { go: { pathname: '/(customer)/request-product' }, label: 'guide.ctaRequest' },
+  LOCAL_BUSINESSES: { go: { pathname: '/(customer)/ads' }, label: 'guide.ctaAds' },
+  INVITE: { go: { pathname: '/(customer)/invite-friends' }, label: 'guide.ctaInvite' },
+  GAMES: { go: { pathname: '/(customer)/games' }, label: 'guide.ctaPlay' },
+  PROGRESS: { go: { pathname: '/(customer)/progress' }, label: 'guide.ctaStreak' },
+  SCAN_RECEIPT: { go: { pathname: '/(customer)/receipt-photo' }, label: 'guide.ctaReceipt' },
+  LEADERBOARD: { go: { pathname: '/(customer)/leaderboard' }, label: 'guide.ctaLeaderboard' },
+  PROFILE: { go: { pathname: '/(customer)/profile' }, label: 'guide.ctaProfile' },
+};
 
 const HOME_OFFERS: Go = { pathname: '/(customer)/home', params: { scrollTo: 'offers' } };
 const HOME_CHALLENGES: Go = { pathname: '/(customer)/home', params: { scrollTo: 'challenges' } };
@@ -103,6 +125,7 @@ function nearReward(c: Ctx) {
 
 /** Everything he could bring up on his own, most worth saying first (prio). The guide skips what it already said today. */
 export function tips(c: Ctx): Line[] {
+  const storeIdNow = homeStoreId(c.qc);   // the store Home shows
   const { t } = c;
   const out: Line[] = [];
   const f = flash(c);
@@ -140,9 +163,20 @@ export function tips(c: Ctx): Line[] {
     out.push({ key: `ad:${ad.id}`, prio: 6, face: 'wow', text: t('guide.tipPromoSign', { business: ad.businessName, title: ad.adTitle }),
       cta: { label: t('guide.ctaSeeIt'), go: { pathname: '/(customer)/ads', params: { focus: ad.id } } }, sign: { business: ad.businessName, adId: ad.id } });
   }
+  // HQ's own lines first in line (urgent ones above everything): for this store (or every store), in their dates, in the customer's
+  // language when HQ wrote it
+  for (const l of c.hqLines ?? []) {
+    if (!l?.id || !l.text) continue;
+    if (l.stores?.length && !(storeIdNow && l.stores.includes(storeIdNow))) continue;
+    if (c.today && ((l.start && l.start > c.today) || (l.end && l.end < c.today))) continue;
+    const tg = TARGETS[l.target];
+    out.push({ key: `hq:${l.id}`, prio: l.urgent ? 10 : 7, face: l.urgent ? 'wow' : 'joy', text: (c.es && l.textEs) || l.text,
+      ...(tg ? { cta: { label: t(tg.label), go: tg.go } } : {}) });
+  }
+
   // 2026-11-17, the owner's list: gas price, hot food combos, hiring, scan a receipt, birthday, notifications, missing persons, and
   // (once a month) "own a local business?". Each only when its feature is on and has something to say.
-  const storeId = homeStoreId(c.qc);
+  const storeId = storeIdNow;
   const pumps: any[] = cached<any>(c.qc, 'gas-prices')?.data?.data ?? [];
   const here = pumps.find((s) => s?.id === storeId);
   if (here?.gasPricePerGallon) {

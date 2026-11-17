@@ -90,8 +90,9 @@ const isNight = () => { const hr = new Date().getHours(); return hr >= 21 || hr 
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+/** The phone's day as YYYY-MM-DD, to compare with HQ's dates (dayKey is not zero-padded; it stays as it is so saved days still match) */
+const isoDay = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const deg = (v: Animated.Value) => v.interpolate({ inputRange: [-360, 360], outputRange: ['-360deg', '360deg'] });
-/** A hop's height at t (0 to 1): from y0 to y1 over a top `rise` above the higher end (a quadratic curve). */
 /** How high above the straight line from y0 to y1 a jump's top is: the same curve as before (2026-11-17), now as a lift on top of a
  *  straight glide (see lift() in the guide), so every move ends exactly where it lands */
 const peakFor = (y0: number, y1: number, rise: number) => -(rise + Math.abs(y0 - y1) / 2);
@@ -289,6 +290,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     lastAd: saved?.lastAd ?? null, promoDone: run.promo,
     birthdayOn: !!flags?.birthday, birthdaySet: useAuthStore.getState().user?.birthMonth != null,
     notifOff: notif.isOff, pitchDue: saved?.pitchMonth !== dayKey().slice(0, 7),
+    hqLines: flags?.mascot?.lines ?? [], today: isoDay(),
   });
 
   // ------------------------------------------------------------ talking
