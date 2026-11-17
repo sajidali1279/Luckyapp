@@ -39,7 +39,7 @@ import CuatroCard from '../../components/engagement/CuatroCard';
 import { useGuideCover } from '../../components/cuatro/guideCover';
 import PrizeGameCard from '../../components/engagement/games/PrizeGameCard';
 import { useEngagementFlags } from '../../hooks/useEngagement';
-import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi } from '../../services/api';
+import { offersApi, authApi, notificationsApi, storesApi, hotFoodApi, catalogApi, promotionsApi, referralsApi, receiptScanApi, jobOpeningsApi } from '../../services/api';
 import WelcomeBonusCard from '../../components/WelcomeBonusCard';
 import NotificationsOffBanner from '../../components/NotificationsOffBanner';
 import ErrorState from '../../components/ErrorState';
@@ -700,6 +700,10 @@ function CustomerHomeScreen() {
   });
   const allStores: any[] = gasPricesData?.data?.data ?? [];
   const engFlags = useEngagementFlags();   // HQ's engagement switches (a price alert link shows under the gas prices while alerts are on)
+  // Cuatro's "we're hiring" tip reads the job openings from the cache (2026-11-17): loaded quietly, at most every 6 hours, while he is on
+  useEffect(() => {
+    if (engFlags?.mascot?.guide) qc.prefetchQuery({ queryKey: ['job-openings'], queryFn: () => jobOpeningsApi.getActive(), staleTime: 6 * 3600_000 }).catch(() => {});
+  }, [engFlags?.mascot?.guide]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const [nearestStore, setNearestStore] = useState<{ id: string; name: string } | null>(null);
   const [locationStatus, setLocationStatus] = useState<'detecting' | 'found' | 'none'>('detecting');

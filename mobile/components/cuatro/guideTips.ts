@@ -9,7 +9,8 @@ import { spanishOffer } from '../../utils/offerText';
 type T = (key: string, opts?: Record<string, unknown>) => string;
 export type Go = { pathname: string; params?: Record<string, string> };
 // sign: a business promotion he holds up on a sign (2026-11-08)
-export interface Line { key: string; text: string; face: Face; cta?: { label: string; go: Go }; prio: number; sign?: { business: string; adId: string } }
+// serious: no hop or fun pose when he says it (a missing person, 2026-11-17)
+export interface Line { key: string; text: string; face: Face; cta?: { label: string; go: Go }; prio: number; sign?: { business: string; adId: string }; serious?: boolean }
 export type Topic = 'offers' | 'challenges' | 'deals' | 'rewards' | 'earn' | 'surprise';
 export const TOPICS: Topic[] = ['offers', 'challenges', 'deals', 'rewards', 'earn', 'surprise'];
 
@@ -20,11 +21,24 @@ export interface Ctx {
   hotFood: boolean;
   lastAd?: string | null;  // the promotion on his sign last time (another one comes first)
   promoDone?: boolean;     // a promotion was already shown this time the app is open (one per opening)
+  // 2026-11-17 (the owner's feature tips)
+  birthdayOn?: boolean;    // HQ's birthday treats switched on
+  birthdaySet?: boolean;   // the customer gave their birthday
+  notifOff?: boolean;      // notifications are off on this phone
+  pitchDue?: boolean;      // "Own a local business?" not said yet this month
 }
 
 const HOME_OFFERS: Go = { pathname: '/(customer)/home', params: { scrollTo: 'offers' } };
 const HOME_CHALLENGES: Go = { pathname: '/(customer)/home', params: { scrollTo: 'challenges' } };
+const HOME_GAS: Go = { pathname: '/(customer)/home', params: { scrollTo: 'gas' } };
 const go = (pathname: string): Go => ({ pathname });
+
+/** The store Home is showing (its offers are asked for that store): the newest cached offers query's store id. */
+function homeStoreId(qc: QueryClient): string | null {
+  const found = qc.getQueryCache().findAll({ queryKey: ['offers'] }).filter((q) => q.state.data !== undefined && typeof q.queryKey[1] === 'string');
+  found.sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt);
+  return (found[0]?.queryKey[1] as string | undefined) ?? null;
+}
 
 /** The newest cached answer for a query, whatever store it was asked for. */
 function cached<D>(qc: QueryClient, key: string): D | undefined {
@@ -126,6 +140,42 @@ export function tips(c: Ctx): Line[] {
     out.push({ key: `ad:${ad.id}`, prio: 6, face: 'wow', text: t('guide.tipPromoSign', { business: ad.businessName, title: ad.adTitle }),
       cta: { label: t('guide.ctaSeeIt'), go: { pathname: '/(customer)/ads', params: { focus: ad.id } } }, sign: { business: ad.businessName, adId: ad.id } });
   }
+  // 2026-11-17, the owner's list: gas price, hot food combos, hiring, scan a receipt, birthday, notifications, missing persons, and
+  // (once a month) "own a local business?". Each only when its feature is on and has something to say.
+  const storeId = homeStoreId(c.qc);
+  const pumps: any[] = cached<any>(c.qc, 'gas-prices')?.data?.data ?? [];
+  const here = pumps.find((s) => s?.id === storeId);
+  if (here?.gasPricePerGallon) {
+    const price = `$${Number(here.gasPricePerGallon).toFixed(3)}`;
+    const gasPromo = all.find((o) => o.gasBonusCentsPerGallon != null && o.gasBonusCentsPerGallon > 0);
+    out.push({ key: `gasprice:${here.id}`, prio: 3, face: 'cool',
+      text: gasPromo ? t('guide.tipGasPriceBonus', { store: here.name, price, cents: gasPromo.gasBonusCentsPerGallon }) : t('guide.tipGasPrice', { store: here.name, price }),
+      cta: { label: t('guide.ctaGasPrices'), go: HOME_GAS } });
+  }
+  if (c.hotFood && hf && hf.hours?.open !== false && (hf.combos ?? []).length > 0) {
+    out.push({ key: 'hfcombo', prio: 4, face: 'love', text: t('guide.tipHotFoodCombos'), cta: { label: t('guide.ctaOrder'), go: go('/(customer)/hot-food') } });
+  }
+  const jobs: any[] = cached<any>(c.qc, 'job-openings')?.data?.data ?? [];
+  if (jobs.length) {
+    const job = jobs.find((j) => j?.storeId && j.storeId === storeId) ?? jobs[0];
+    out.push({ key: 'jobs', prio: 2, face: 'joy',
+      text: job?.store?.name ? t('guide.tipHiring', { store: job.store.name, title: job.title }) : t('guide.tipHiringAny', { title: job?.title ?? '' }),
+      cta: { label: t('guide.ctaCareers'), go: go('/(customer)/careers') } });
+  }
+  if (cached<any>(c.qc, 'receipt-scan-access')?.data?.data?.enabled === true) {
+    out.push({ key: 'receipt', prio: 2, face: 'happy', text: t('guide.tipReceipt'), cta: { label: t('guide.ctaReceipt'), go: go('/(customer)/receipt-photo') } });
+  }
+  if (c.birthdayOn && !c.birthdaySet) out.push({ key: 'birthday', prio: 2, face: 'love', text: t('guide.tipBirthday'), cta: { label: t('guide.ctaProfile'), go: go('/(customer)/profile') } });
+  if (c.notifOff) out.push({ key: 'notif', prio: 3, face: 'wow', text: t('guide.tipNotif'), cta: { label: t('guide.ctaProfile'), go: go('/(customer)/profile') } });
+  const missing: any[] = cached<any>(c.qc, 'missing-active')?.data?.data ?? [];
+  const poster = missing.find((p) => p?.urgent) ?? missing[0];
+  if (poster?.id && poster.name) {
+    out.push({ key: `missing:${poster.id}`, prio: poster.urgent ? 6 : 3, face: 'sad', serious: true,
+      text: t(poster.urgent ? 'guide.tipMissingUrgent' : 'guide.tipMissing', { name: poster.name }),
+      cta: { label: t('guide.ctaMissing'), go: { pathname: '/(customer)/missing/[id]', params: { id: poster.id } } } });
+  }
+  if (c.pitchDue) out.push({ key: 'pitch', prio: 1, face: 'wink', text: t('guide.tipPitch'), cta: { label: t('guide.ctaPitch'), go: go('/(customer)/ads') } });
+
   // the everyday ones
   out.push({ key: 'qr', prio: 2, face: 'happy', text: t('guide.tipQr'), cta: { label: t('guide.ctaCode'), go: go('/(customer)/home') } });
   if (cached<any>(c.qc, 'my-referrals')?.data?.data?.settings?.enabled) {

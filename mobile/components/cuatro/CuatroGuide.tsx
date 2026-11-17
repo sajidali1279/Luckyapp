@@ -34,6 +34,7 @@ import CuatroRig, { Part, useRigValues, about, type Extras } from './CuatroRig';
 import { ASPECT, FEET, PIVOT, DROP, VIEWBOX, COSTUMES, COSTUME_RISE, star, type Costume, type Face, type Glove } from './art';
 import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGuideCovered } from './guideCover';
+import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { introSettled } from '../seasonal/introState';
 import { tips, answer, TOPICS, type Ctx, type Line, type Topic } from './guideTips';
 import { hasGuideEvent, takeGuideEvent } from './guideEvents';
@@ -56,7 +57,8 @@ const N = { useNativeDriver: true } as const;
 
 type Mood = 'sad' | 'mad';
 type Mode = 'off' | 'peek' | 'bar' | 'held' | 'busy' | 'tab';
-interface Saved { introduced: boolean; away: boolean; mood: Mood | null; spot: number; tipDay: string; tipKeys: string[]; lastAd?: string | null }
+// pitchMonth: the month he last said "Own a local business?" (once a month, 2026-11-17)
+interface Saved { introduced: boolean; away: boolean; mood: Mood | null; spot: number; tipDay: string; tipKeys: string[]; lastAd?: string | null; pitchMonth?: string }
 const FRESH: Saved = { introduced: false, away: false, mood: null, spot: 1, tipDay: '', tipKeys: [] };
 
 // What the phone remembers, per customer, read once per app run
@@ -174,6 +176,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const app = useAppSettings();
   const insets = useSafeAreaInsets();
   const reduce = useReduceMotion();
+  const notif = useNotificationPermission();
   const rig = useRigValues();
   const tabRig = useRigValues();
   // HQ's seasonal theme (admin Settings > App) dresses him up: a witch hat for Halloween, and so on (2026-10-28)
@@ -284,6 +287,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     pts: Math.round(Number(useAuthStore.getState().user?.pointsBalance || 0) * 100),
     gasAlerts: !!flags?.gasAlerts, hotFood: app.features.hotFoodOrdering,
     lastAd: saved?.lastAd ?? null, promoDone: run.promo,
+    birthdayOn: !!flags?.birthday, birthdaySet: useAuthStore.getState().user?.birthMonth != null,
+    notifOff: notif.isOff, pitchDue: saved?.pitchMonth !== dayKey().slice(0, 7),
   });
 
   // ------------------------------------------------------------ talking
@@ -695,7 +700,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   };
   const present = async (line: Line, tip: boolean) => {
     const my = fresh(); stopLoops();
-    if (tip && !dims.current.reduce) { haptic.tap(); if (!(await hop(my))) return; }
+    if (tip && !line.serious && !dims.current.reduce) { haptic.tap(); if (!(await hop(my))) return; }
+    if (line.key === 'pitch') remember({ pitchMonth: dayKey().slice(0, 7) });   // once a month
     if (line.sign) {
       // a business promotion: he holds its sign up on the side with room (counted as seen for the business), once per app opening
       run.promo = true;
@@ -704,7 +710,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       const right = pos.current.x + SIZE / 2 < dims.current.w / 2;
       setSignSide(right ? 'right' : 'left');
       setFace(line.face); setGloves(right ? ['fist', 'open'] : ['open', 'fist']); play(right ? arms(-62, 18) : arms(18, -62));
-    } else { setFace(line.face); setGloves(['point', 'fist']); play(arms(30, -62)); }
+    } else if (line.serious) { setFace(line.face); setFx({}); setBits({}); setGloves(['fist', 'fist']); rest(); }   // no fun pose
+    else { setFace(line.face); setGloves(['point', 'fist']); play(arms(30, -62)); }
     openBubble({ kind: 'line', line, tip });
     if (tip) later(10_000, () => { const b = bubbleRef.current; if (b?.kind === 'line' && b.tip && b.line.key === line.key) { closeBubble(); setFace('happy'); rest(); } });
   };
