@@ -26,7 +26,7 @@ const uuidOnly = (v: unknown): string | undefined => (typeof v === 'string' && /
 
 /** GET /engagement/config: just the switches (the app menu and cards need to know what is on before anything is worked out). */
 export async function getEngagementConfig(_req: AuthRequest, res: Response) {
-  res.json({ success: true, data: publicEngagement(engagement()) });
+  res.json({ success: true, data: publicEngagement(engagement(), storeDateKey(new Date())) });
 }
 
 /** GET /engagement/me?storeId= : the switches, and only the parts HQ has on, worked out for this customer. */
@@ -39,7 +39,7 @@ export async function getMyEngagement(req: AuthRequest, res: Response) {
     cfg.gasAlerts.enabled ? prisma.gasAlert.findMany({ where: { customerId: id }, select: { id: true, storeId: true, fuel: true, maxPrice: true } }) : Promise.resolve(null),
     birthdayFor(id),
   ]);
-  res.json({ success: true, data: { config: publicEngagement(cfg), streak, checkIn, badges, goals, gasAlerts, birthday } });
+  res.json({ success: true, data: { config: publicEngagement(cfg, storeDateKey(new Date())), streak, checkIn, badges, goals, gasAlerts, birthday } });
 }
 
 const CHECKIN_WORDS: Record<string, string> = {

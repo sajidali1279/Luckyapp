@@ -12,11 +12,19 @@ export const ENGAGEMENT_LIMITS = {
   ratePurchases: { min: 1, max: 50 }, rateDays: { min: 0, max: 365 },
   welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
   weeklySlots: 12, flashPerWeek: { min: 1, max: 14 }, friendsMinMembers: { min: 3, max: 20 }, friendsMaxRows: { min: 5, max: 50 },
-  birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200, mascotName: 20,
+  birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200, mascotName: 20, mascotLines: 20, mascotLineText: 160,
   gamePrizes: { min: 2, max: 8 }, gamePts: { min: 0, max: 500 }, gameWeight: { min: 1, max: 10000 }, gameBudget: { min: 0, max: 200000 },
 } as const;
 
 export interface Milestone { weeks: number; pts: number }
+
+// "Cuatro says" lines HQ writes (2026-11-17, the owner): he says them on the customer's screens like his own tips, so news reaches the
+// app with no new app version. target: the screen his button opens (the app knows these; one it does not know gets no button, so a
+// newer target never breaks an older app). start/end: store days, both included; stores: empty = every store.
+export const CUATRO_TARGETS = ['NONE', 'HOME', 'DEALS', 'GAS', 'CHALLENGES', 'REWARDS', 'HOT_FOOD', 'CAREERS', 'REQUEST_PRODUCT',
+  'LOCAL_BUSINESSES', 'INVITE', 'GAMES', 'PROGRESS', 'SCAN_RECEIPT', 'LEADERBOARD', 'PROFILE'] as const;
+export type CuatroTarget = typeof CUATRO_TARGETS[number];
+export interface MascotLine { id: string; on: boolean; text: string; textEs: string; target: CuatroTarget; start: string | null; end: string | null; stores: string[]; urgent: boolean }
 export interface MysteryPrize { pts: number; weight: number }
 
 // The welcome series (2026-10-24): three steps, each with message choices; the server sends the first choice that fits the person
@@ -57,7 +65,7 @@ export interface EngagementConfig {
   // Cuatro, the mascot (2026-10-25): a "Cuatro says" tip card on Home, Cuatro in the empty screens, and (pushVoice) the mascot's name in
   // front of the automated pushes ("Cuatro: 🎁 So close!", utils/mascot.ts). name: what the app calls it, so a new name needs no build.
   // guide (2026-10-27): the animated Cuatro on the customer's main screens, who introduces himself, gives tips and can be thrown away.
-  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide: boolean };
+  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide: boolean; lines: MascotLine[] };
   // Prize game (2026-10-25): spin the wheel, a scratch card or a lucky number (utils/engagementGames.ts). One free play per customer per
   // store day, no purchase needed, the same odds for everyone; prizes are points inside a hard monthly budget, and the game closes for the
   // month once what is left could not pay the top prize. since: set by the server when HQ switches it on; endsOn: an optional last day.
@@ -101,7 +109,7 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
   flashDeals: { enabled: false, maxPerWeek: 3 },
   friendsBoard: { enabled: false, metric: 'VISITS', period: 'WEEK', minMembers: 3, maxRows: 15 },
   tierUp: { enabled: false },
-  mascot: { enabled: false, name: 'Cuatro', homeCard: true, emptyStates: true, pushVoice: false, guide: true },
+  mascot: { enabled: false, name: 'Cuatro', homeCard: true, emptyStates: true, pushVoice: false, guide: true, lines: [] },
   games: { enabled: false, game: 'SPIN', prizes: [{ pts: 0, weight: 400 }, { pts: 2, weight: 300 }, { pts: 5, weight: 180 }, { pts: 10, weight: 90 }, { pts: 25, weight: 25 }, { pts: 100, weight: 5 }], monthlyBudgetPts: 20000, since: null, endsOn: null },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
@@ -136,6 +144,31 @@ const text = (v: unknown, max: number, def: string) => {
   return t ? Array.from(t).slice(0, max).join('') : def;
 };
 const dayKey = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** HQ's "Cuatro says" lines: at most 20, each with English words (Spanish optional), a known target, real dates and store ids. */
+function cleanLines(v: unknown): MascotLine[] {
+  if (!Array.isArray(v)) return [];
+  const L = ENGAGEMENT_LIMITS, out: MascotLine[] = [], ids = new Set<string>();
+  for (const [i, x] of v.entries()) {
+    if (!isObj(x)) continue;
+    const words = text(x.text, L.mascotLineText, '');
+    if (!words) continue;
+    let id = typeof x.id === 'string' && /^[A-Za-z0-9-]{4,40}$/.test(x.id) ? x.id : `line-${i + 1}`;
+    if (ids.has(id)) id = `${id}-${i + 1}`;
+    ids.add(id);
+    const start = dayKey(x.start), end = dayKey(x.end);
+    out.push({
+      id, on: bool(x.on, true), text: words, textEs: text(x.textEs, L.mascotLineText, ''),
+      target: (CUATRO_TARGETS as readonly string[]).includes(x.target as string) ? (x.target as CuatroTarget) : 'NONE',
+      start, end: start && end && end < start ? start : end,
+      stores: Array.isArray(x.stores) ? [...new Set(x.stores.filter((s): s is string => typeof s === 'string' && UUID.test(s)))].slice(0, 50) : [],
+      urgent: bool(x.urgent, false),
+    });
+    if (out.length >= L.mascotLines) break;
+  }
+  return out;
+}
 
 /** Everything that is stored goes through here: unknown keys dropped, numbers clamped, lists kept in order and within their size. */
 export function cleanEngagement(stored: unknown): EngagementConfig {
@@ -239,7 +272,8 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
     mascot: (() => {
       const m = isObj(s.mascot) ? s.mascot : {};
       return { enabled: bool(m.enabled, false), name: text(m.name, L.mascotName, d.mascot.name), homeCard: bool(m.homeCard, d.mascot.homeCard),
-        emptyStates: bool(m.emptyStates, d.mascot.emptyStates), pushVoice: bool(m.pushVoice, d.mascot.pushVoice), guide: bool(m.guide, d.mascot.guide) };
+        emptyStates: bool(m.emptyStates, d.mascot.emptyStates), pushVoice: bool(m.pushVoice, d.mascot.pushVoice), guide: bool(m.guide, d.mascot.guide),
+        lines: cleanLines(m.lines) };
     })(),
     games: (() => {
       const g = isObj(s.games) ? s.games : {};
@@ -267,7 +301,12 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
 }
 
 /** What the phones are told (the switches, and the numbers their words repeat): nothing here is a secret or a cost control. */
-export function publicEngagement(c: EngagementConfig) {
+/** today: the store day; HQ's Cuatro lines go out only while switched on and in their dates (the app checks the dates again) */
+export function publicEngagement(c: EngagementConfig, today?: string) {
+  const lines = c.mascot.enabled && c.mascot.guide
+    ? c.mascot.lines.filter((l) => l.on && (!today || ((!l.start || l.start <= today) && (!l.end || l.end >= today))))
+      .map(({ id, text, textEs, target, start, end, stores, urgent }) => ({ id, text, textEs, target, start, end, stores, urgent }))
+    : [];
   return {
     streaks: { enabled: c.streaks.enabled, milestones: c.streaks.milestones, minPurchase: c.streaks.minPurchase },
     punchCards: c.punchCards.enabled,
@@ -283,7 +322,7 @@ export function publicEngagement(c: EngagementConfig) {
     weeklyChallenge: c.weeklyChallenge.enabled,
     flashDeals: c.flashDeals.enabled,
     friendsBoard: { enabled: c.friendsBoard.enabled, metric: c.friendsBoard.metric, period: c.friendsBoard.period },
-    mascot: { home: c.mascot.enabled && c.mascot.homeCard, empty: c.mascot.enabled && c.mascot.emptyStates, name: c.mascot.name, guide: c.mascot.enabled && c.mascot.guide },
+    mascot: { home: c.mascot.enabled && c.mascot.homeCard, empty: c.mascot.enabled && c.mascot.emptyStates, name: c.mascot.name, guide: c.mascot.enabled && c.mascot.guide, lines },
     games: c.games.enabled,   // the app asks GET /engagement/games for the rest (the odds, and whether this customer has played today)
   };
 }
