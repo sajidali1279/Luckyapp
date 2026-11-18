@@ -3,7 +3,7 @@
 // `refetchInterval: usePoll(15_000)`, at the top of the component like any hook. The badge counts in the layouts keep their own
 // intervals on purpose (the bar and the menu show them everywhere).
 import { useContext, useEffect, useState } from 'react';
-import { NavigationContext } from '@react-navigation/native';
+import { NavigationContext } from 'expo-router/react-navigation';   // expo-router's own navigation (Expo 56+ no longer uses @react-navigation)
 
 /** True while the calling screen is the one shown (true outside a navigator, so a component used anywhere keeps working). */
 export function useScreenShown(): boolean {
