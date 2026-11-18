@@ -86,18 +86,21 @@ jobs:
         working-directory: ./mobile
         run: |
           mkdir -p out
-          RUNTIME=$(xcrun simctl list runtimes -j | python3 -c "
-          import json, sys
-          rts = [r for r in json.load(sys.stdin)['runtimes'] if r['platform'] == 'iOS' and r['isAvailable']]
+          # the newest general iOS runtime (not one made for a single device model), and device models it supports
+          xcrun simctl list runtimes -j > out/runtimes.json
+          RUNTIME=$(python3 -c "
+          import json
+          rts = [r for r in json.load(open('out/runtimes.json'))['runtimes'] if r['platform'] == 'iOS' and r['isAvailable'] and r['identifier'].rsplit('.', 1)[-1].startswith('iOS-') and r['identifier'].count('-') <= 3]
           rts.sort(key=lambda r: [int(x) for x in r['version'].split('.')])
           print(rts[-1]['identifier'])")
           echo "Runtime: $RUNTIME" | tee out/runtime.txt
-          pick() {
-            xcrun simctl list devicetypes -j | python3 -c "
+          pick() {  # the newest supported device model whose name starts with $1 (iPhone or iPad Air)
+            python3 -c "
           import json, sys
-          want = sys.argv[1]
-          ts = [t for t in json.load(sys.stdin)['devicetypes'] if want in t['name']]
-          print(ts[-1]['identifier'] if ts else '')" "$1"
+          want, rt = sys.argv[1], sys.argv[2]
+          r = [x for x in json.load(open('out/runtimes.json'))['runtimes'] if x['identifier'] == rt][0]
+          ts = [t for t in r.get('supportedDeviceTypes', []) if t['name'].startswith(want) and 'Pro' not in t['name'] and 'mini' not in t['name']]
+          print(ts[-1]['identifier'] if ts else '')" "$1" "$RUNTIME"
           }
           run_on() {
             local label=$1 type=$2
@@ -119,7 +122,7 @@ jobs:
             grep -hiE "Unhandled JS Exception|RCTFatal|TypeError|ReferenceError|Terminating app|uncaught exception|UIScene|scene|is not a function|undefined is not|Error:" "out/$label-console.txt" "out/$label-log.txt" | head -40 | tee -a out/summary.txt
             xcrun simctl shutdown "$udid" || true
           }
-          run_on iphone "$(pick 'iPhone')"
+          run_on iphone "$(pick 'iPhone ')"
           run_on ipad "$(pick 'iPad Air')"
           cp ~/Library/Logs/DiagnosticReports/LuckyStop* out/ 2>/dev/null || true
           echo; echo "==== SUMMARY"; cat out/summary.txt
