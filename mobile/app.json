@@ -43,6 +43,7 @@
       "./plugins/withPodfileStaticFrameworks",
       "./plugins/withPodfileSwiftVersion",
       "./plugins/withAdiRegistration",
+      "./plugins/withOptionalScreenFeatures",
       [
         "expo-build-properties",
         {
