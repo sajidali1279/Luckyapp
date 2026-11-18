@@ -107,13 +107,15 @@ jobs:
             local udid=$(xcrun simctl create "probe-$label" "$type" "$RUNTIME")
             echo "== $label: $type ($udid)"
             xcrun simctl boot "$udid"; xcrun simctl bootstatus "$udid" -b > /dev/null
+            sleep 5; xcrun simctl io "$udid" screenshot "out/$label-0-homescreen.png" || true   # black too = this runner draws nothing
             xcrun simctl install "$udid" "$APP"
             xcrun simctl spawn "$udid" log stream --level debug --style compact --predicate 'process == "LuckyStop"' > "out/$label-log.txt" 2>&1 &
             local logpid=$!
             sleep 2
             ( xcrun simctl launch --console-pty "$udid" com.luckystop.app > "out/$label-console.txt" 2>&1 & )
-            sleep 30
-            xcrun simctl io "$udid" screenshot "out/$label.png" || true
+            sleep 8;  xcrun simctl io "$udid" screenshot "out/$label-1-8s.png" || true
+            sleep 12; xcrun simctl io "$udid" screenshot "out/$label-2-20s.png" || true
+            sleep 20; xcrun simctl io "$udid" screenshot "out/$label.png" || true
             kill $logpid 2>/dev/null || true
             if xcrun simctl spawn "$udid" launchctl list | grep -q com.luckystop.app; then echo "$label: STILL RUNNING after 30 s" | tee -a out/summary.txt
             else echo "$label: NOT RUNNING (crashed or quit)" | tee -a out/summary.txt; fi
@@ -122,7 +124,7 @@ jobs:
             xcrun simctl shutdown "$udid" || true
           }
           run_on iphone "$(pick 'iPhone ')"
-          run_on ipad "$(pick 'iPad Air')"
+          # the iPad simulator hung on boot on this runner (2026-11-18): iPhone only for now
           cp ~/Library/Logs/DiagnosticReports/LuckyStop* out/ 2>/dev/null || true
           echo; echo "==== SUMMARY"; cat out/summary.txt
 
