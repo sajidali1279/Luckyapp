@@ -22,6 +22,7 @@ import { readInvoice, paperFromRead, InvoicePhoto, PdiReadError, MAX_PHOTOS } fr
 import { matchVendor, exactVendor, vendorKey } from '../utils/pdiVendors';
 import { preparePhoto, storePhoto, photoLinks, fetchPhoto, destroyPhotos } from '../utils/pdiPhotos';
 import { upcKeyOf } from '../utils/pdiItemList';
+import { gs1CheckDigit } from '../utils/barcode';
 
 export const MAX_READS_PER_STORE_HOUR = 20; // one store's share of the hour (2026-11-03)
 export const MAX_READS_PER_HOUR = 60; // everyone together: a stuck page cannot run up the AI bill (30 until 2026-11-03: 12 stores)
@@ -163,13 +164,55 @@ async function pdiCheckFor(storeId: string, conv: Conversion): Promise<PdiCheck 
 async function reviewOf(row: Row, known: (upc: string) => KnownUnits | undefined, knownUpc: (key: string) => string | undefined = () => undefined) {
   const paper = row.paper as unknown as PaperInvoice | null;
   if (!paper) return null;
-  const ctx = { knownUnits: known, knownUpc, today: storeDateKey() };
+  // a 14-digit case code's item, when the store's PDI list has it (2026-11-18: AMS prints some case codes; 4 of 5 were in the list)
+  const caseCodes = [...new Set(tidyPaper(paper).lines.map((l) => (typeof l.upc === 'string' ? l.upc.replace(/\D/g, '') : ''))
+    .filter((d) => /^\d{14}$/.test(d) && d[1] === '0').map((d) => d.slice(2, 13)))];
+  const caseNames = new Map(caseCodes.length
+    ? (await prisma.pdiItem.findMany({ where: { storeId: row.storeId, code: { in: caseCodes } }, select: { code: true, name: true } })).map((r) => [r.code, r.name] as const)
+    : []);
+  const ctx = { knownUnits: known, knownUpc, today: storeDateKey(), caseItemName: (code: string) => caseNames.get(code) };
   const first = convertInvoice(vendorRules(row.vendor), paper, ctx);
   const pdi = await pdiCheckFor(row.storeId, first);
   if (!pdi) return review(row, first, null);
   // again with PDI's costs, so a units per case nobody knows yet can come from the case price over the cost of one (2026-11-06)
   const costOf = (upc: string) => (pdi.byCode.get(upc) ?? pdi.byKey.get(upcKeyOf(upc)))?.costCents ?? undefined;
-  return review(row, convertInvoice(vendorRules(row.vendor), paper, { ...ctx, pdiCostCents: costOf }), pdi);
+  const out = review(row, convertInvoice(vendorRules(row.vendor), paper, { ...ctx, pdiCostCents: costOf }), pdi);
+  await addNameHints(row.storeId, out);
+  return out;
+}
+
+/** "PDI has no item with UPC ...": the closest name in the store's PDI list, as a hint beside the problem (2026-11-18: the most common
+ *  stop, 35 on 7 invoices). Its own field, never in the message: a tick is remembered by the message, so the words must not change.
+ *  Two or more words of the line's name must appear in the PDI name; at most 20 lines are looked up, each with one small query. */
+const NO_ITEM = 'PDI has no item with UPC';
+const STOP_WORDS = new Set(['THE', 'AND', 'FOR', 'WITH', 'OZ', 'CT', 'PK', 'CS', 'EA', 'PCS', 'PACK', 'CASE', 'NEW', 'BIG', 'SM', 'LG']);
+export function nameWords(description: string): string[] {
+  const words = description.toUpperCase().replace(/[^A-Z ]/g, ' ').split(/\s+/).filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+  return [...new Set(words)].sort((a, b) => b.length - a.length).slice(0, 4);
+}
+/** The numbers in a name, as sizes and counts are written: "MONSTER 16OZ" -> 16, "1.5LT" -> 1.5, "2/1.29" -> 2 and 1.29 */
+const numbersIn = (name: string) => [...name.matchAll(/\d+(?:\.\d+)?/g)].map((m) => String(Number(m[0])));
+async function addNameHints(storeId: string, rev: ReturnType<typeof review>) {
+  const asks = rev.lines.flatMap((l) => l.problems.filter((p) => p.message.startsWith(NO_ITEM)).map((p) => ({ l, p }))).slice(0, 20);
+  await Promise.all(asks.map(async ({ l, p }) => {
+    const words = nameWords(l.line.description ?? '');
+    if (words.length < 2) return;
+    const found = await prisma.pdiItem.findMany({
+      where: { storeId, AND: words.slice(0, 2).map((w) => ({ name: { contains: w, mode: 'insensitive' as const } })) },
+      select: { code: true, name: true }, take: 25,
+    }).catch(() => []);
+    // a size or count in the line's name must be in the suggestion too: "OZARKA 20OZ" is not "OZARKA WATER 1.5LT" (no hint beats a wrong one)
+    const sizes = numbersIn(l.line.description ?? '');
+    const best = found
+      .filter((f) => !sizes.length || numbersIn(f.name).some((n) => sizes.includes(n)))
+      .map((f) => ({ f, n: words.filter((w) => f.name.toUpperCase().includes(w)).length }))
+      .sort((a, b) => b.n - a.n || a.f.name.length - b.f.name.length)[0];
+    if (best && best.n >= 2) {
+      // PDI holds most UPCs as 11 digits without the check digit: shown whole; any other code is shown as PDI has it
+      const upc = /^\d{11}$/.test(best.f.code) ? best.f.code + gs1CheckDigit(best.f.code) : best.f.code;
+      (p as { pdiHint?: { name: string; upc: string } }).pdiHint = { name: best.f.name, upc };
+    }
+  }));
 }
 
 function review(row: Row, conv: Conversion, pdi: PdiCheck | null) {

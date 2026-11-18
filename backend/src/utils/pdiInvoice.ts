@@ -430,6 +430,7 @@ export interface ConvertContext {
   knownUpc?: (itemKey: string) => string | undefined;    // the UPC used before for this vendor's item code (pdi_product_upcs)
   today?: string;                                        // YYYY-MM-DD, to question a date far from it
   pdiCostCents?: (upc: string) => number | undefined;   // what one unit costs in the store's PDI item list, by the 11 file digits
+  caseItemName?: (upc11: string) => string | undefined;  // the store's PDI item with these 11 file digits, by name (a case code's item, 2026-11-18)
 }
 
 // The pack sizes a case is checked against. Bag-in-box fountain syrup (PDI's cost is per serving, so a box comes out near 50) and the
@@ -466,8 +467,9 @@ export function lineKey(p: PaperLine): string {
   return itemKey(p.sku) || itemKey(p.item);
 }
 
-/** Whether a paper line printed no UPC at all (as opposed to one that cannot be read). */
-const noUpcPrinted = (upc: string | null | undefined) => typeof upc !== 'string' || !upc.trim();
+/** Whether a paper line printed no UPC at all (as opposed to one that cannot be read). All zeros counts as none (2026-11-18: Delicious
+ *  Express prints 000000000000 where it has no barcode): the item's UPC is then typed once and remembered, as for a SKU line. */
+const noUpcPrinted = (upc: string | null | undefined) => typeof upc !== 'string' || !upc.trim() || /^0+$/.test(upc.replace(SEPARATORS, ''));
 
 /** The vendor's own code (SKU) printed where the UPC goes, moved out of the UPC (2026-11-03, AMS Wholesale prints "SKU:" over both its
  *  barcodes and its own codes): a short code with no item or manufacturer number beside it (21695, 088125), or a code read into both the
@@ -522,7 +524,15 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   // no UPC on the paper: the one used for this SKU or item code on an earlier file, if there is one (typed once per product, not every
   // time). One column holding a UPC on some lines and the vendor's own code on others (AMS Wholesale, 2026-11-03): a code there is a UPC
   // only when it is a whole barcode that checks out (skuFromUpcColumn moves the others to sku).
-  const checked = fileUpc(p.upc, p.manufacturer);
+  let checked = fileUpc(p.upc, p.manufacturer);
+  // A 14-digit case code (AMS prints some, 2026-11-18): the packing digit, the 0 of a 12-digit UPC, the item's 11 file digits and the
+  // case's own check digit. When the store's PDI list has that item, the file uses it (it was a stop that asked for the UPC to be typed).
+  const caseDigits = typeof p.upc === 'string' ? p.upc.replace(SEPARATORS, '') : '';
+  if (/^\d{14}$/.test(caseDigits) && caseDigits[1] === '0' && ctx.caseItemName) {
+    const inner = caseDigits.slice(2, 13);
+    const name = ctx.caseItemName(inner);
+    if (name) checked = { upc: inner, problems: [{ field: 'upc', message: `The paper prints the case code ${p.upc}; the file uses the item's own UPC inside it (${inner}${gs1CheckDigit(inner)}), which this store's PDI list has as "${name}".` }] };
+  }
   const sameAsItem = !noUpcPrinted(p.upc) && !!itemKey(p.item) && itemKey(p.upc) === itemKey(p.item);
   const itemOnly = noUpcPrinted(p.upc) || (sameAsItem && (!checked.upc || checked.problems.length > 0));
   const key = lineKey(p);
@@ -540,12 +550,25 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   const fine = partCentValue(p.price);
   const signedPrice = printedCents(p.price) ?? (fine !== null ? Math.round(fine / 100) : null);
   const signedAmount = printedCents(p.amount);
-  const rawQty = typeof p.quantity === 'number' && Number.isSafeInteger(p.quantity) && p.quantity !== 0 ? p.quantity : null;
+  let rawQty = typeof p.quantity === 'number' && Number.isSafeInteger(p.quantity) && p.quantity !== 0 ? p.quantity : null;
+  // A quantity the reader left blank, when the line's total over its price is a whole number to the cent (2026-11-18: 13 lines of a
+  // Frito-Lay invoice read with price and total but no quantity). Shown as a note to compare with the paper.
+  let qtyFromAmount: number | null = null;
+  if (rawQty === null && (p.quantity === null || p.quantity === undefined || p.quantity === ('' as unknown)) && signedAmount !== null && signedAmount !== 0) {
+    const exact = fine !== null ? Math.abs(fine) / 100 : signedPrice !== null ? Math.abs(signedPrice) : null;   // cents, part-cents kept
+    if (exact && exact > 0) {
+      const q = Math.round(Math.abs(signedAmount) / exact);
+      // exactly, for a whole-cent price; within the rounding of the printed total (half a cent) for a part-cent one
+      const slack = fine !== null ? 0.5 : 0;
+      if (q >= 1 && q <= 9999 && Math.abs(q * exact - Math.abs(signedAmount)) <= slack + 1e-9) { rawQty = signedAmount < 0 ? -q : q; qtyFromAmount = q; }
+    }
+  }
   const isReturn = !!p.isReturn || (signedPrice !== null && signedPrice < 0) || (signedAmount !== null && signedAmount < 0) || (rawQty !== null && rawQty < 0);
   const price = signedPrice === null ? null : Math.abs(signedPrice);
   if (price === null) say('price', `The price "${p.price ?? ''}" could not be read: type it in.`, true);
   const qty = rawQty === null ? null : Math.abs(rawQty);
   if (qty === null) say('quantity', `The quantity "${p.quantity ?? ''}" should be a whole number above 0.`, true);
+  else if (qtyFromAmount !== null) say('quantity', `The quantity was not read, so it comes from the line total over the price: ${qtyFromAmount}. Compare it with the paper.`);
 
   // the vendor's item number, in the file's 6 places. PDI does not need it (Deep Water left it blank for PepsiCo), so one that is not
   // printed, has letters, or has the wrong length is left blank, never a stop (2026-11-03: every AMS line waited for an item number). A
