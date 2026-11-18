@@ -42,6 +42,7 @@
       "expo-image",
       "./plugins/withPodfileStaticFrameworks",
       "./plugins/withPodfileSwiftVersion",
+      "./plugins/withPodfileDeploymentTarget",
       "./plugins/withAdiRegistration",
       "./plugins/withOptionalScreenFeatures",
       [
