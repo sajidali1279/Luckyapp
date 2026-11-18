@@ -28,7 +28,30 @@ export interface Ctx {
   notifOff?: boolean;      // notifications are off on this phone
   pitchDue?: boolean;      // "Own a local business?" not said yet this month
   hqLines?: HqLine[];      // what HQ wrote for him to say (admin Engagement > Cuatro)
+  tour?: TourStop | null;  // today's first-week tour stop, if any (tourStop below)
   today?: string;          // the phone's day, YYYY-MM-DD (HQ's lines are checked against their dates again here)
+}
+
+/** A new customer's first week with Cuatro (2026-11-17, the owner): one stop a day, in this order, each skipped when it does not apply
+ *  or the customer already does it; the tour ends after the last stop or 14 days after sign-up, whichever comes first. */
+export type TourStop = 'qr' | 'rewards' | 'hotfood' | 'deals' | 'invite';
+export const TOUR: TourStop[] = ['qr', 'rewards', 'hotfood', 'deals', 'invite'];
+export function tourStop(c: Ctx, done: number, joinedAt: string | null | undefined, now = Date.now()): { stop: TourStop; index: number } | null {
+  if (!joinedAt) return null;
+  const joined = new Date(joinedAt).getTime();
+  if (!Number.isFinite(joined) || now - joined > 14 * 86_400_000) return null;
+  for (let i = Math.max(0, done); i < TOUR.length; i++) {
+    const s = TOUR[i];
+    if (s === 'qr' && c.pts > 0) continue;                                   // already earning: they know the code
+    if (s === 'rewards' && (cached<any>(c.qc, 'my-redemptions')?.data?.data ?? []).length > 0) continue;   // already redeemed
+    if (s === 'hotfood') {
+      const hf = cached<any>(c.qc, 'hot-food-customer-menu')?.data;
+      if (!c.hotFood || !hf || ((hf.data ?? []).length === 0 && (hf.combos ?? []).length === 0)) continue;
+    }
+    if (s === 'invite' && !cached<any>(c.qc, 'my-referrals')?.data?.data?.settings?.enabled) continue;
+    return { stop: s, index: i };
+  }
+  return null;
 }
 
 /** Where an HQ line's button goes, and its label key. A target this app does not know: no button (2026-11-17). */
@@ -163,6 +186,13 @@ export function tips(c: Ctx): Line[] {
     out.push({ key: `ad:${ad.id}`, prio: 6, face: 'wow', text: t('guide.tipPromoSign', { business: ad.businessName, title: ad.adTitle }),
       cta: { label: t('guide.ctaSeeIt'), go: { pathname: '/(customer)/ads', params: { focus: ad.id } } }, sign: { business: ad.businessName, adId: ad.id } });
   }
+  // a new customer's tour stop for today: above the everyday tips (only HQ's urgent lines go first)
+  if (c.tour) {
+    const go1: Record<TourStop, Go> = { qr: go('/(customer)/home'), rewards: go('/(customer)/rewards'), hotfood: go('/(customer)/hot-food'), deals: HOME_OFFERS, invite: go('/(customer)/invite-friends') };
+    const cta: Record<TourStop, string> = { qr: 'guide.ctaCode', rewards: 'guide.ctaRewards', hotfood: 'guide.ctaOrder', deals: 'guide.ctaDeals', invite: 'guide.ctaInvite' };
+    out.push({ key: `tour:${c.tour}`, prio: 9, face: 'joy', text: t(`guide.tour_${c.tour}`), cta: { label: t(cta[c.tour]), go: go1[c.tour] } });
+  }
+
   // HQ's own lines first in line (urgent ones above everything): for this store (or every store), in their dates, in the customer's
   // language when HQ wrote it
   for (const l of c.hqLines ?? []) {

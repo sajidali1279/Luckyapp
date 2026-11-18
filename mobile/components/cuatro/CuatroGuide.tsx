@@ -36,7 +36,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGuideCovered } from './guideCover';
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { introSettled } from '../seasonal/introState';
-import { tips, answer, TOPICS, type Ctx, type Line, type Topic } from './guideTips';
+import { tips, answer, TOPICS, type Ctx, type Line, type Topic, TOUR, tourStop, type TourStop } from './guideTips';
 import { hasGuideEvent, takeGuideEvent } from './guideEvents';
 import RunningTurkey, { TURKEY_H } from './RunningTurkey';
 import { Sled, Gift, SLED_W, SLED_H, SLED_DECK, GIFT_W, GIFT_H } from './ChristmasSled';
@@ -57,8 +57,9 @@ const N = { useNativeDriver: true } as const;
 
 type Mood = 'sad' | 'mad';
 type Mode = 'off' | 'peek' | 'bar' | 'held' | 'busy' | 'tab';
-// pitchMonth: the month he last said "Own a local business?" (once a month, 2026-11-17)
-interface Saved { introduced: boolean; away: boolean; mood: Mood | null; spot: number; tipDay: string; tipKeys: string[]; lastAd?: string | null; pitchMonth?: string }
+// pitchMonth: the month he last said "Own a local business?" (once a month, 2026-11-17). tourDone: first-week tour stops already shown;
+// tourDay: the day the last one was (one stop a day)
+interface Saved { introduced: boolean; away: boolean; mood: Mood | null; spot: number; tipDay: string; tipKeys: string[]; lastAd?: string | null; pitchMonth?: string; tourDone?: number; tourDay?: string }
 const FRESH: Saved = { introduced: false, away: false, mood: null, spot: 1, tipDay: '', tipKeys: [] };
 
 // What the phone remembers, per customer, read once per app run
@@ -292,6 +293,13 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     notifOff: notif.isOff, pitchDue: saved?.pitchMonth !== dayKey().slice(0, 7),
     hqLines: flags?.mascot?.lines ?? [], today: isoDay(),
   });
+  /** Today's first-week tour stop (none if one was already shown today, the tour is over, or he has not been introduced yet) */
+  const tourCtx = (): Ctx => {
+    const c = ctx();
+    if (!saved?.introduced || saved?.tourDay === dayKey()) return c;
+    const s = tourStop(c, saved?.tourDone ?? 0, useAuthStore.getState().user?.joinedAt);
+    return s ? { ...c, tour: s.stop } : c;
+  };
 
   // ------------------------------------------------------------ talking
   const bubbleSeq = useRef(0);
@@ -721,12 +729,17 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const showTip = () => {
     const today = dayKey();
     const said = saved?.tipDay === today ? saved.tipKeys : [];
-    const pool = tips(ctx()).filter((l) => !said.includes(l.key));
+    const pool = tips(tourCtx()).filter((l) => !said.includes(l.key));
     if (!pool.length) { run.nextTipAt = Date.now() + 10 * 60_000; return; }
     const top = Math.max(...pool.map((l) => l.prio));
     const best = pool.filter((l) => l.prio >= top - 1);
     const line = best[Math.floor(Math.random() * best.length)];
     remember({ tipDay: today, tipKeys: [...said, line.key].slice(-40) });
+    if (line.key.startsWith('tour:')) {
+      // a tour stop shown: the next one tomorrow (skipped stops count as done)
+      const at = TOUR.indexOf(line.key.slice(5) as TourStop);
+      remember({ tourDone: Math.max(saved?.tourDone ?? 0, at + 1), tourDay: dayKey() });
+    }
     run.tips += 1;
     run.nextTipAt = Date.now() + 150_000 + Math.random() * 90_000;
     present(line, true);

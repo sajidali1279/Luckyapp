@@ -45,6 +45,7 @@ export interface AuthUser {
   age21Declined?: boolean;
   birthMonth?: number | null;   // the birthday they gave (month and day only), for birthday-month promotions
   birthDay?: number | null;
+  joinedAt?: string | null;     // when the account was made (GET /auth/me), for Cuatro's first-week tour (2026-11-17)
 }
 
 interface AuthState {
@@ -148,6 +149,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           age21Declined: data.data.age21Declined,
           birthMonth: data.data.birthMonth ?? null,   // the birthday they gave (Profile), for birthday-month promotions
           birthDay: data.data.birthDay ?? null,
+          joinedAt: data.data.createdAt ?? u.joinedAt ?? null,
         }, data.data.token ?? t);   // a renewed session when the server sent one (GET /auth/me)
       } catch (err: any) {
         // Account no longer exists or was deactivated server-side: a locally cached session should not keep the app usable.

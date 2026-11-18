@@ -3727,6 +3727,11 @@
     "luckyLost": "El número fue {{n}}."
   },
   "guide": {
+    "tour_qr": "¡Bienvenido! El truco: muestra tu código QR al pagar y cada compra te da puntos. ¿Quieres verlo?",
+    "tour_rewards": "Tus puntos se convierten en cosas gratis: bebidas, botanas y más. ¡Mira las recompensas!",
+    "tour_hotfood": "¿Sabías que puedes pedir comida caliente por adelantado y recogerla calientita? ¡Échale un vistazo!",
+    "tour_deals": "Las ofertas cambian todo el tiempo y algunas te dan puntos extra. ¡Te enseño las de hoy!",
+    "tour_invite": "¿Tienes amigos que pasan por aquí? ¡Invítalos y los dos ganan un bono!",
     "tipGasPrice": "La gasolina está a {{price}} en {{store}} hoy. ¡Muestra tu código en la caja y gana puntos!",
     "tipGasPriceBonus": "La gasolina está a {{price}} en {{store}} hoy, ¡y ahora te regresamos {{cents}}¢ por galón en puntos!",
     "ctaGasPrices": "Precios de gasolina",
