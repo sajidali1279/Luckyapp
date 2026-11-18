@@ -7,7 +7,7 @@ const path = require('path');
 // for library pods that still declare an older minimum (2026-11-18, the Xcode 27 probe). The app itself needs iOS 15.1 (Expo SDK 55),
 // so raising those pods to 15.1 changes nothing on real devices. Injected into Expo's own post_install block, like
 // withPodfileSwiftVersion (CocoaPods keeps only the last post_install hook).
-const MIN = '15.1';
+const MIN = '16.0';   // probe: expo-router 55 uses an iOS 16 API that Xcode 27 rejects at 15.1
 module.exports = function withPodfileDeploymentTarget(config) {
   return withDangerousMod(config, [
     'ios',
