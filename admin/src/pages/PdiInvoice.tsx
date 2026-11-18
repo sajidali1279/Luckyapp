@@ -20,7 +20,8 @@ import { dollars, STATUS, SELLS_BY, VendorForm, useVendors } from './PdiInvoices
 // The vendor is read off the invoice (2026-10-28): one seen for the first time is chosen or added here, once.
 
 // note (2026-11-11): shown for information, never a stop; only blocking ones (correct) and confirm ones (tick) hold the file
-interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean; blocking?: boolean; confirm?: boolean; note?: boolean }
+// pdiHint (2026-11-18): on "PDI has no item", the closest name in the store's PDI list, for a person to compare
+interface Problem { field: string; message: string; key: string; canCheck: boolean; checked: boolean; blocking?: boolean; confirm?: boolean; note?: boolean; pdiHint?: { name: string; upc: string } }
 interface FileLine { upc: string; description: string; itemNumber: string | null; priceCents: number; unitsPerCase: number; quantity: number }
 // pdi: the item as the store's PDI list has it (2026-11-06), null when the store has no list or PDI does not have this UPC
 interface ReviewLine { line: FileLine; unitsFrom: string | null; upcFrom?: 'memory' | null; skipped?: boolean; pdi?: { name: string; costCents: number | null; priceCents: number | null } | null; problems: Problem[] }
@@ -563,7 +564,14 @@ function VendorBar({ inv, hq, onChanged }: { inv: Invoice; hq: boolean; onChange
 function ProblemItem({ p, busy, onAccept, hint }: { p: Problem; busy: boolean; onAccept: (p: Problem, on: boolean) => void; hint?: string }) {
   return (
     <li style={{ ...s.problem, ...(p.checked || p.note ? s.problemDone : {}) }}>
-      <span style={{ flex: '1 1 260px', minWidth: 0 }}>{p.message}</span>
+      <span style={{ flex: '1 1 260px', minWidth: 0 }}>
+        {p.message}
+        {p.pdiHint && (
+          <span style={s.pdiHint}>
+            Closest name in this store's PDI list: <strong>{p.pdiHint.name}</strong> (UPC {p.pdiHint.upc}). If it is the same product, type this UPC on the line.
+          </span>
+        )}
+      </span>
       {hint ? <span style={s.mustFix}>{hint}</span> : p.note ? <span style={s.noteTag}>Note</span> : p.canCheck ? (
         <label style={s.acceptLabel}><input type="checkbox" checked={p.checked} disabled={busy} onChange={(e) => onAccept(p, e.target.checked)} /> Looked at: it is right</label>
       ) : <span style={s.mustFix}>Correct this to continue</span>}
@@ -576,6 +584,7 @@ const s: Record<string, React.CSSProperties> = {
   center: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24, color: TEXT_MUTED },
   inlineBtn: { background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 700, color: 'inherit', textDecoration: 'underline', cursor: 'pointer' },
   link: { color: C.primary, fontWeight: 600 },
+  pdiHint: { display: 'block', marginTop: 4, fontSize: FONT.small, color: C.text2 },
   layout: { display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' },
   vendorRow: { display: 'flex', alignItems: 'center', gap: '6px 18px', flexWrap: 'wrap', fontSize: FONT.small, color: C.text2 },
   vendorPick: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
