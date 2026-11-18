@@ -28,7 +28,7 @@ module.exports = function withIosCaptchaOpenUrlFix(config) {
           throw new Error('withIosCaptchaOpenUrlFix: expected "' + SCENE_MARKER + '" in SceneDelegate.swift: the Expo template changed ' +
             'again. Update this plugin instead of shipping the reCAPTCHA-redirect navigation glitch unfixed.');
         }
-        if (!scene.includes('import FirebaseAuth')) scene = scene.replace('internal import Expo\n', 'internal import Expo\nimport FirebaseAuth\n');
+        if (!scene.includes('import FirebaseAuth')) scene = scene.replace('internal import Expo\n', 'internal import Expo\nimport UIKit\nimport FirebaseAuth\n');
         scene = scene.replace(SCENE_MARKER, `${SCENE_MARKER}
 
   // Firebase phone sign-in's reCAPTCHA page returns with a "firebaseauth" link: Firebase handles it, Expo Router never sees it
