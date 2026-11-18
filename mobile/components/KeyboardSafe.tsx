@@ -1,6 +1,7 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, StyleProp, View, ViewStyle, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { ViewInstance } from 'react-native';
 
 // Keeps whatever is being typed above the keyboard, on every screen and in every pop-up.
 //
@@ -42,7 +43,7 @@ function AndroidKeyboardSafe({ style, children }: Props) {
   const keyboard = useKeyboardHeight();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const ref = useRef<View>(null);
+  const ref = useRef<ViewInstance>(null);
   // How far this area already ends above the bottom of the window. A pop-up fills the window (0). A screen like Chat ends above the
   // app's own bottom bar (Home / Scan / Menu), which the keyboard covers anyway; padding by the full keyboard height there left a gap
   // the height of that bar between the message box and the keyboard. The area's own frame does not change with its padding, so

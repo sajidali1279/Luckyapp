@@ -74,7 +74,7 @@ export default function BiometricOffer() {
 }
 
 const s = StyleSheet.create({
-  root: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 32, 56, 0.55)', justifyContent: 'center', padding: 24, zIndex: 50, elevation: 50 },
+  root: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15, 32, 56, 0.55)', justifyContent: 'center', padding: 24, zIndex: 50, elevation: 50 },
   card: {
     backgroundColor: COLORS.white, borderRadius: 24, padding: 32, alignItems: 'center', gap: 14,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 6,

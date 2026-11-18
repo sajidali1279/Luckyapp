@@ -11,6 +11,7 @@ import * as Notifications from 'expo-notifications';
 import { useTranslation } from 'react-i18next';
 import { Text } from './ScaledText';
 import { useTimeWords } from './HotFoodTimes';
+import type { ScrollViewInstance } from 'react-native';
 
 export type KitchenStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 export interface KitchenOrder {
@@ -99,7 +100,7 @@ export default function KitchenView({ orders, storeName, updatingId, onClose, on
   const [muted, setMuted] = useState(false);
   const [page, setPage] = useState(0);
   const [, tick] = useState(0);
-  const pager = useRef<ScrollView>(null);
+  const pager = useRef<ScrollViewInstance>(null);
   useEffect(() => { const i = setInterval(() => tick((n) => n + 1), 15_000); return () => clearInterval(i); }, []);
 
   const byCol = useMemo(() => {
@@ -253,7 +254,7 @@ export function confirmDecline(t: (k: string, o?: any) => string, o: KitchenOrde
 }
 
 const k = StyleSheet.create({
-  root: { ...StyleSheet.absoluteFillObject, backgroundColor: '#EEF1F6', zIndex: 50, elevation: 50 },
+  root: { ...StyleSheet.absoluteFill, backgroundColor: '#EEF1F6', zIndex: 50, elevation: 50 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: NAVY, paddingHorizontal: 14, paddingVertical: 10 },
   title: { color: '#fff', fontSize: 20, fontWeight: '900' },
   sub: { color: '#C7D2E3', fontSize: 13, fontWeight: '600' },
@@ -293,7 +294,7 @@ const k = StyleSheet.create({
 });
 
 const a = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end', zIndex: 100, elevation: 100 },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end', zIndex: 100, elevation: 100 },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, paddingBottom: 28, gap: 10 },
   title: { fontSize: 19, fontWeight: '900', color: '#0F172A' },
   sub: { fontSize: 13, color: '#64748B' },

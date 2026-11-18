@@ -20,6 +20,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import { useTranslation } from 'react-i18next';
 import { phoneAuthErrorText } from '../../utils/phoneAuthError';
 import FocusStatusBar from '../../components/FocusStatusBar';
+import type { TextInputInstance } from 'react-native';
 
 type Step = 'phone' | 'verify' | 'reset' | 'done';
 
@@ -46,8 +47,8 @@ export default function ForgotPinScreen() {
   const [sendingOtp, setSendingOtp] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const newPinRef = useRef<TextInput>(null);
-  const confirmPinRef = useRef<TextInput>(null);
+  const newPinRef = useRef<TextInputInstance>(null);
+  const confirmPinRef = useRef<TextInputInstance>(null);
 
   useEffect(() => {
     if (resendCooldown <= 0) return;

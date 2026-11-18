@@ -63,6 +63,7 @@ import { useAppSettings } from '../../hooks/useAppSettings';
 import { usePointsExpiry, expiryDate } from '../../hooks/usePointsExpiry';
 import MissingPersonsCard from '../../components/MissingPersonsCard';
 import { usePoll } from '../../hooks/usePoll';
+import type { ScrollViewInstance, ViewInstance } from 'react-native';
 
 const MAX_NEARBY_MILES = 2;
 
@@ -243,7 +244,7 @@ function InlineModal({
     // from a stale pre-transform measurement, rendering as a narrow column
     // instead of full width. Sibling paint order (last in the JSX tree)
     // already puts this on top without it.
-    <Animated.View style={[StyleSheet.absoluteFillObject, overlay, { opacity: progress, zIndex: 60 }]}>
+    <Animated.View style={[StyleSheet.absoluteFill, overlay, { opacity: progress, zIndex: 60 }]}>
       {/* width:'100%' is required, not decorative - alignSelf:'stretch' silently
           collapses to content width in this same layer, same root cause as above. */}
       <Animated.View style={{ width: '100%', transform }}>
@@ -655,10 +656,10 @@ function CustomerHomeScreen() {
   useFullBrightness(showQR);   // full brightness for the scanner while My QR is open, the phone's own brightness back after (hooks/useFullBrightness.ts)
 
   // Scroll-to-section support (triggered from notification taps)
-  const scrollViewRef = useRef<ScrollView>(null);
-  const gasSectionRef = useRef<View>(null);
-  const offersSectionRef = useRef<View>(null);
-  const challengesSectionRef = useRef<View>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
+  const gasSectionRef = useRef<ViewInstance>(null);
+  const offersSectionRef = useRef<ViewInstance>(null);
+  const challengesSectionRef = useRef<ViewInstance>(null);
   const { scrollTo, lastDay } = useLocalSearchParams<{ scrollTo?: string; lastDay?: string }>();
 
   useFocusEffect(useCallback(() => {
@@ -2235,7 +2236,7 @@ const ds = StyleSheet.create({
     height: 176, ...SOFT_SHADOW,
   },
   slideClip: { flex: 1, borderRadius: 22, overflow: 'hidden' },
-  slideImage: { ...StyleSheet.absoluteFillObject, width: undefined, height: undefined },
+  slideImage: { ...StyleSheet.absoluteFill, width: undefined, height: undefined },
   imageScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '65%', backgroundColor: 'rgba(0,0,0,0.55)' },
   decoCircleLg: { position: 'absolute', width: 200, height: 200, borderRadius: 100, top: -60, right: -50 },
   decoCircleSm: { position: 'absolute', width: 100, height: 100, borderRadius: 50, bottom: -30, left: -20 },

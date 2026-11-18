@@ -37,6 +37,7 @@ import KeyboardSafe from './KeyboardSafe';
 import LabelPaperModal, { paperSummary, StorePrinter } from './LabelPaperModal';
 import { SheetSettings, DEFAULT_SHEET, loadSheet, saveSheet, fitIssue, perSheet, LetterLayout, LETTER_DEFAULTS } from '../utils/labelSheet';
 import FocusStatusBar from './FocusStatusBar';
+import type { TextInputInstance } from 'react-native';
 
 interface Label {
   id: string;
@@ -175,8 +176,8 @@ export default function LabelsScreen() {
   // Where the New Label form was opened from: only a scan keeps the camera
   // going after the label is saved.
   const createdViaRef = useRef<'scan' | 'search'>('scan');
-  const nameRef = useRef<TextInput>(null);
-  const priceRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputInstance>(null);
+  const priceRef = useRef<TextInputInstance>(null);
   const [saving, setSaving] = useState(false);
   const [printing, setPrinting] = useState(false);
   // Which label paper prints come out on (US Letter 30, or A4 18 tall labels), kept on this phone
@@ -1575,7 +1576,7 @@ export default function LabelsScreen() {
               keyExtractor={p => p.id}
               contentContainerStyle={s.list}
               keyboardShouldPersistTaps="handled"
-              ListFooterComponent={productsHitCap ? <Text style={s.productsCapNote}>{t('sharedLabels.productsCapNote')}</Text> : null}
+              ListFooterComponent={productsHitCap ? <Text style={s.productsCapNote}>{t('sharedLabels.productsCapNote')}</Text> : undefined}
               renderItem={({ item }) => renderProductCard(item)}
             />
           )
@@ -1641,7 +1642,7 @@ export default function LabelsScreen() {
             refreshing={catalogRefetching}
             onRefresh={refetchCatalog}
             keyboardShouldPersistTaps="handled"
-            ListFooterComponent={renderProductSuggestions()}
+            ListFooterComponent={renderProductSuggestions() ?? undefined}
             renderItem={({ item }) => renderCatalogCard(item)}
           />
         )

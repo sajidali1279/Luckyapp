@@ -299,7 +299,7 @@ const s = StyleSheet.create({
 
   // Camera
   camera: { flex: 1 },
-  overlay: { ...StyleSheet.absoluteFillObject },
+  overlay: { ...StyleSheet.absoluteFill },
   overlayTop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' },
   overlayMiddle: { flexDirection: 'row', height: FRAME },
   overlaySide: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)' },

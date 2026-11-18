@@ -155,7 +155,7 @@ export default function ManagerBannersScreen() {
         onScroll={largeTitle.onScroll}
         scrollEventThrottle={largeTitle.scrollEventThrottle}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+          <RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} />
         }
       >
         {isLoading ? (

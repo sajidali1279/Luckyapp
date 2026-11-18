@@ -652,7 +652,7 @@ export default function RewardsScreen() {
                 <Text style={r.emptySub}>{activeCategory === 'READY' ? t('customerRewards.emptyReadySub') : t('customerRewards.emptySubtitle')}</Text>
               </View>
             )
-          ) : null
+          ) : undefined
         }
         ListFooterComponent={
           filtered.length > 0 ? (

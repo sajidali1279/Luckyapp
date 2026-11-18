@@ -8,7 +8,7 @@ import { Bobber, Faller, Flyer } from './drift';
 
 function Layer({ children }: { children: ReactNode }) {
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, st.clip]}>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, st.clip]}>
       <View style={st.layer}>{children}</View>
     </View>
   );

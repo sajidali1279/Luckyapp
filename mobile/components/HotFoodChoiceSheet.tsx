@@ -118,7 +118,7 @@ export default function HotFoodChoiceSheet({ item, maxQty, onClose, onAdd }: { i
 
 const st = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.45)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.45)' },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: 26 },
   header: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 8 },
   img: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#111' },

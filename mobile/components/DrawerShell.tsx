@@ -322,12 +322,12 @@ const s = StyleSheet.create({
   badgeText: { color: '#fff', fontSize: 9, fontWeight: '800', lineHeight: 13 },
 
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.45)',
     zIndex: 10,
   },
   // above the bottom bar (elevation 10) and Cuatro's layer
-  cover: { ...StyleSheet.absoluteFillObject, zIndex: 30, elevation: 30 },
+  cover: { ...StyleSheet.absoluteFill, zIndex: 30, elevation: 30 },
 
   drawer: {
     position: 'absolute', top: 0, left: 0, bottom: 0,
