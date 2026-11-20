@@ -1,13 +1,11 @@
 // Hot food combos (2026-10-12): HQ puts a catalog item together with a drink the customer chooses (fountain, a 20oz bottle, a 12oz can,
 // coffee, water) for one price. Featured combos lead the app's hot food menu. A combo is on at a store when the store has its item on
 // (and, when HQ chose stores, it is one of them), inside its hours (store time) when it has hours. "Save $X" comes from the regular
-// price HQ gives, and the saving stays within the deal limit for hot food (Labels > Deals > Deal limits).
+// price HQ gives. HQ sets any price (2026-11-20, the owner: the old deal limit for combos is gone).
 // Multi-buy deals (2026-10-16): a combo can hold more than one of the item (itemQuantity, "2 corn dogs for $3.50") and can come with no
 // drink. A combo with no drink is only shown to apps that ask for it (?deals=1): an older app would open a drink choice with nothing in it.
 import prisma from '../config/prisma';
 import { storeMinutes, storeWeekday } from './storeTime';
-import { loadDealLimits } from './dealLimits';
-import { limitFor } from './dealSuggest';
 import { feature } from './appSettings';
 
 /** The drinks a combo can come with. The English name goes on the order the store sees; the app shows its own words. */
@@ -75,8 +73,3 @@ export async function combosAt(storeId: string, now: Date = new Date(), withoutD
   return (combos as ComboRow[]).filter((c) => items.has(c.catalogItem.id) && (c.storeIds.length === 0 || c.storeIds.includes(storeId)) && comboOpenAt(c, now) && (withoutDrink || c.drinks.length > 0));
 }
 
-/** The largest saving a combo may give, as a share of its regular price: the deal limit for hot food (the default limit). */
-export async function comboSavingLimit(): Promise<number> {
-  const limits = await loadDealLimits();
-  return limitFor(limits, null) ?? 0.08;
-}

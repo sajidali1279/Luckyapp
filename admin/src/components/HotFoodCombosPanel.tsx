@@ -1,6 +1,6 @@
 // Hot Food > Combos (HQ, 2026-10-12): a hot food item with a drink the customer chooses (fountain, a 20oz bottle, a 12oz can, coffee,
 // water) for one price. Featured combos lead the app's hot food menu. Today's hot food combo ideas (from Offers > Deals) can fill the
-// form. The saving stays within the hot food deal limit (Labels > Deals > Deal limits); the server checks it too.
+// form. HQ sets any price (2026-11-20, no deal limit); the form shows the percent off and says when the combo costs less than the item alone.
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -54,7 +54,6 @@ export default function HotFoodCombosPanel({ catalog, stores }: { catalog: Catal
   const q = useQuery({ queryKey: ['hot-food-combos'], queryFn: () => hotFoodCombosApi.list() });
   const ideasQ = useQuery({ queryKey: ['combo-ideas'], queryFn: () => offersApi.comboIdeas(), staleTime: 10 * 60_000 });
   const combos: Combo[] = Array.isArray(q.data?.data?.data) ? q.data!.data.data : [];
-  const limit: number = typeof q.data?.data?.savingLimit === 'number' ? q.data.data.savingLimit : 0.08;
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
   const [deleting, setDeleting] = useState<Combo | null>(null);
 
@@ -87,8 +86,8 @@ export default function HotFoodCombosPanel({ catalog, stores }: { catalog: Catal
           A combo is a hot food item with a drink the customer chooses in the app, for one price, or a multi-buy deal: 2 or more of one item,
           with or without a drink (2 corn dogs for $3.50). Featured combos are shown first on the app's
           hot food menu. A combo is on at every store that has its item on, or only at the stores you pick, and only in its hours if you give
-          some (store time). The store sees the combo and the drink on the order. With a regular price, the app shows "Save $X"; the saving
-          stays within your hot food deal limit ({Math.round(limit * 1000) / 10}% now, in Labels &gt; Deals &gt; Deal limits).
+          some (store time). The store sees the combo and the drink on the order. With a regular price, the app shows "Save $X". You set
+          any price you like.
         </HowItWorks>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button onClick={() => setEditing({ id: null, form: MULTI_BUY })} disabled={catalog.length === 0}>New multi-buy deal</Button>
@@ -153,7 +152,7 @@ export default function HotFoodCombosPanel({ catalog, stores }: { catalog: Catal
           </div>
         )}
 
-      {editing && <ComboForm initial={editing.form} id={editing.id} catalog={catalog} stores={stores} limit={limit} onClose={() => setEditing(null)} />}
+      {editing && <ComboForm initial={editing.form} id={editing.id} catalog={catalog} stores={stores} onClose={() => setEditing(null)} />}
       <ConfirmModal
         open={!!deleting}
         title="Delete this combo?"
@@ -168,7 +167,7 @@ export default function HotFoodCombosPanel({ catalog, stores }: { catalog: Catal
   );
 }
 
-function ComboForm({ initial, id, catalog, stores, limit, onClose }: { initial: Form; id: string | null; catalog: CatalogItem[]; stores: Store[]; limit: number; onClose: () => void }) {
+function ComboForm({ initial, id, catalog, stores, onClose }: { initial: Form; id: string | null; catalog: CatalogItem[]; stores: Store[]; onClose: () => void }) {
   const qc = useQueryClient();
   const [f, setF] = useState<Form>(initial);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
@@ -178,13 +177,13 @@ function ComboForm({ initial, id, catalog, stores, limit, onClose }: { initial: 
   const itemsApart = item && validQty ? Math.round(item.price * qty * 100) / 100 : null;   // the items bought one by one
   const price = Number(f.price), regular = Number(f.regularPrice);
   const saving = f.regularPrice.trim() && Number.isFinite(regular) && Number.isFinite(price) && regular > 0 ? regular - price : null;
-  const lowest = f.regularPrice.trim() && regular > 0 ? Math.ceil(regular * (1 - limit) * 100) / 100 : null;
+  const hasRegular = !!f.regularPrice.trim() && regular > 0;
+  const pctOff = saving != null && saving > 0 && hasRegular ? Math.round((saving / regular) * 1000) / 10 : null;
   const problem = !f.name.trim() ? 'Give the combo a name.' : !f.catalogItemId ? 'Choose the hot food item.'
     : !validQty ? 'Give how many of the item, 1 to 10.'
     : f.drinks.length === 0 && qty < 2 ? 'Choose at least one drink, or make it 2 or more of the item (like 2 for $3.50).'
-    : !(price > 0) ? 'Give the combo price.' : item && price < item.price ? `The combo costs less than ${item.name} alone (${money(item.price)}).`
-    : lowest != null && price < lowest ? `Within your ${Math.round(limit * 1000) / 10}% hot food deal limit, the lowest is ${money(lowest)}.`
-    : lowest != null && price >= regular ? 'The combo price must be below the regular price.'
+    : !(price > 0) ? 'Give the combo price.'
+    : hasRegular && price >= regular ? 'The combo price must be below the regular price.'
     : !f.allStores && f.storeIds.length === 0 ? 'Pick at least one store, or choose every store.'
     : f.hours && f.fromTime === f.toTime ? 'The start and end time are the same.' : null;
 
@@ -247,7 +246,10 @@ function ComboForm({ initial, id, catalog, stores, limit, onClose }: { initial: 
         {item && itemsApart != null && qty > 1 && f.drinks.length === 0 && !f.regularPrice.trim() && (
           <div><Button size="sm" onClick={() => set('regularPrice', itemsApart.toFixed(2))}>Use {money(itemsApart)} as the regular price</Button></div>
         )}
-        {saving != null && saving > 0 && <div style={{ fontSize: FONT.small, color: C.success }}>Customers see "Save {money(saving)}".</div>}
+        {saving != null && saving > 0 && <div style={{ fontSize: FONT.small, color: C.success }}>Customers see "Save {money(saving)}"{pctOff != null ? ` (${pctOff}% off)` : ''}.</div>}
+        {item && price > 0 && price < item.price && (
+          <div style={{ fontSize: FONT.small, color: '#B45309' }}>Note: this is less than {item.name} alone ({money(item.price)}). Fine if you mean it.</div>
+        )}
         <div>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: FONT.body }}>
             <input type="checkbox" checked={f.allStores} onChange={(e) => set('allStores', e.target.checked)} /> Every store that has the item on

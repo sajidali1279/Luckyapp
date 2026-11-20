@@ -7,7 +7,7 @@ import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
 import { refuse } from '../utils/refusal';
 import { audit } from '../utils/audit';
-import { DRINK_CODES, comboSavingLimit, daysText } from '../utils/hotFoodCombos';
+import { DRINK_CODES, daysText } from '../utils/hotFoodCombos';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -39,15 +39,11 @@ async function problem(d: z.infer<typeof comboSchema>): Promise<string | null> {
   if (!!d.fromTime !== !!d.toTime) return 'Give both the start and the end time, or neither.';
   if (d.fromTime && d.fromTime === d.toTime) return 'The start and end time are the same.';
   if (d.drinks.length === 0 && d.itemQuantity < 2) return 'Choose at least one drink, or make it 2 or more of the item (like 2 for $3.50).';
-  const item = await prisma.hotFoodCatalogItem.findUnique({ where: { id: d.catalogItemId }, select: { name: true, price: true } });
+  const item = await prisma.hotFoodCatalogItem.findUnique({ where: { id: d.catalogItemId }, select: { id: true } });
   if (!item) return 'That hot food item is not in the catalog any more.';
-  if (cents(d.price) < item.price) return `The combo (${money(d.price)}) costs less than ${item.name} alone (${money(item.price)}).`;
-  if (d.regularPrice != null) {
-    if (cents(d.price) >= cents(d.regularPrice)) return 'The combo price must be below the regular price, or leave the regular price empty.';
-    const limit = await comboSavingLimit();
-    const lowest = Math.ceil(d.regularPrice * (1 - limit) * 100) / 100;
-    if (cents(d.price) < lowest) return `Your deal limit for hot food is ${Math.round(limit * 1000) / 10}% off, so with a regular price of ${money(d.regularPrice)} the combo can be ${money(lowest)} at the lowest. Change the limit in Labels > Deals > Deal limits.`;
-  }
+  // HQ sets any combo price (the owner, 2026-11-20): no deal limit and no "less than the item alone" stop. The admin form shows the
+  // percent off as a note. Only "Save $X" must make sense, so a regular price must be above the combo price.
+  if (d.regularPrice != null && cents(d.price) >= cents(d.regularPrice)) return 'The combo price must be below the regular price, or leave the regular price empty.';
   if (d.storeIds.length) {
     const found = await prisma.store.count({ where: { id: { in: d.storeIds } } });
     if (found !== new Set(d.storeIds).size) return 'One of the stores does not exist.';
@@ -70,7 +66,7 @@ export async function listCombos(_req: AuthRequest, res: Response) {
     prisma.hotFoodOrderItem.groupBy({ by: ['comboId'], where: { comboId: { not: null }, order: { createdAt: { gte: since }, status: { not: 'CANCELLED' } } }, _sum: { quantity: true } }),
   ]);
   const count = new Map(sold.map((s) => [s.comboId, s._sum.quantity ?? 0]));
-  res.json({ success: true, data: combos.map((c) => ({ ...c, ordered30d: count.get(c.id) ?? 0 })), savingLimit: await comboSavingLimit() });
+  res.json({ success: true, data: combos.map((c) => ({ ...c, ordered30d: count.get(c.id) ?? 0 })) });
 }
 
 /** POST /hot-food/combos */
