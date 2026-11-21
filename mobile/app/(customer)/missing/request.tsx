@@ -15,6 +15,7 @@ import { Text, TextInput } from '../../../components/ScaledText';
 import KeyboardSafe from '../../../components/KeyboardSafe';
 import { missingApi } from '../../../services/api';
 import { seenDate } from '../../../components/MissingPersonsCard';
+import FocusStatusBar from '../../../components/FocusStatusBar';
 
 const RELATIONSHIPS = ['FAMILY', 'FRIEND', 'OTHER'] as const;
 type Relationship = typeof RELATIONSHIPS[number];
@@ -88,6 +89,7 @@ export default function MissingRequestScreen() {
   const today = new Date();
   return (
     <SafeAreaView style={s.root} edges={['top', 'bottom']}>
+      <FocusStatusBar barStyle="dark-content" />
       <View style={s.top}>
         <TouchableOpacity onPress={back} accessibilityRole="button" accessibilityLabel={t('missing.back')} style={s.backBtn}>
           <Text style={s.backText}>‹ {t('missing.back')}</Text>

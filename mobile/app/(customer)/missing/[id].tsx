@@ -12,6 +12,7 @@ import Toast from 'react-native-toast-message';
 import { Text } from '../../../components/ScaledText';
 import { missingApi } from '../../../services/api';
 import { seenDate, type MissingPoster } from '../../../components/MissingPersonsCard';
+import FocusStatusBar from '../../../components/FocusStatusBar';
 
 const phoneText = (d: string) => (d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : d);
 
@@ -48,6 +49,7 @@ export default function MissingPosterScreen() {
 
   return (
     <SafeAreaView style={s.root} edges={['top', 'bottom']}>
+      <FocusStatusBar barStyle="dark-content" />
       <View style={s.top}>
         <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/(customer)/home'))} accessibilityRole="button" accessibilityLabel={t('missing.back')} style={s.back}>
           <Text style={s.backText}>‹ {t('missing.back')}</Text>
