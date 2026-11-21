@@ -172,6 +172,13 @@
   100% { box-shadow: 0 0 0 10px rgba(23, 102, 58, 0); }
 }
 .ui-saved { animation: ui-saved-glow 0.9s var(--ease-premium); }
+/* A list row that opens something when clicked (the Stores list, 2026-11-20) */
+.ui-row-click:hover > td { background: #f1f3f6; }
+/* The side panel (components/SidePanel.tsx, 2026-11-20) slides in from the right */
+@keyframes ui-slide-in {
+  from { transform: translateX(24px); opacity: 0.6; }
+  to   { transform: none; opacity: 1; }
+}
 @keyframes ui-working {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }

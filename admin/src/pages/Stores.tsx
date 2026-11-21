@@ -13,8 +13,12 @@ import { TEXT_MUTED, PRIMARY } from '../lib/theme';
 import { failureMessage } from '../lib/apiError';
 import { showPhone, phoneDigits } from '../lib/phoneText';
 import { useSingleFlight } from '../hooks/useSingleFlight';
-import { Page, PageHeader, HeaderStat, Button, MenuButton } from '../components/kit';
-import { Clock, Printer, Tags, KeyRound, Power, MoreHorizontal } from 'lucide-react';
+import { Page, PageHeader, HeaderStat, Button, MenuButton, Tabs, Chip, Badge, Card, EmptyState } from '../components/kit';
+import SidePanel from '../components/SidePanel';
+import GasPriceBoard from '../components/GasPriceBoard';
+import { priceAge, priceProblem, categoryEnabled, priceText } from '../lib/gasPrice';
+import { C, FONT, INPUT } from '../lib/theme';
+import { Clock, Printer, Tags, KeyRound, Power, MoreHorizontal, ChevronRight, Search } from 'lucide-react';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
 
@@ -130,28 +134,17 @@ function scheduleSummary(s: { isClosed: boolean; isOpen24Hours: boolean; openTim
   return 'Not set';
 }
 
-function categoryEnabled(store: Pick<Store, 'enabledCategories'>, category: 'GAS' | 'DIESEL'): boolean {
-  const cats = store.enabledCategories ?? [];   // missing on a partial reply: all categories, never a crash (2026-10-25)
-  return cats.length === 0 || cats.includes(category);
-}
-
-const DAY_MS = 86_400_000;
-/** How old a price is, in words. A price of 0 (what a store starts with) or a missing date means it was never set. Stale is more than two days. */
-function priceAge(price: number | null, at: string | null): { text: string; stale: boolean } {
-  if (price == null || price <= 0 || !at) return { text: 'never set', stale: true };
-  const days = Math.floor((Date.now() - new Date(at).getTime()) / DAY_MS);
-  return { text: days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`, stale: days > 2 };
-}
-
-/** The problem with a typed price (the server enforces the same rule), or null when it is fine or empty. */
-function priceProblem(label: string, text: string): string | null {
-  const t = text.trim();
-  if (t === '') return null;
-  if (!/^\d{1,2}(\.\d{1,3})?$/.test(t)) return `${label}: enter a price such as 3.499 (at most three decimals).`;
-  const v = Number(t);
-  if (v < 0.5) return `${label}: the price must be at least $0.50.`;
-  if (v > 20) return `${label}: the price can be at most $20.00.`;
-  return null;
+// Short words for the "Needs attention" strip and the list (2026-11-20 rework): what each readiness gap is called there
+const GAP_SHORT: Record<string, string> = {
+  hours: 'hours not set', phone: 'no phone', location: 'no location', 'gas price (set or fresh)': 'gas price old',
+  'diesel price': 'diesel not set', 'diesel price freshness': 'diesel price old', 'staff assigned': 'no staff', 'a first sale': 'no sale yet',
+};
+type Filter = 'all' | 'active' | 'off' | 'attention';
+/** The store's number for its round badge ("Lucky Stop #9" is 9); a store with no number gets its initials ("Lucky Truck Stop" is LTS, cut to 3). */
+function shortName(name: string): string {
+  const n = name.match(/#\s*(\d+)/) ?? name.match(/(\d+)/);
+  if (n) return n[1];
+  return name.split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
 }
 
 /** A holiday date is stored as midnight UTC of that day, so it is read in UTC ('Nov 26, 2026'). */
@@ -173,6 +166,11 @@ function storeAvatar(idx: number) { return AVATAR_PALETTE[idx % AVATAR_PALETTE.l
 
 export default function Stores() {
   const [keyOpenId, setKeyOpenId] = useState<string | null>(null);   // the store whose printer agent key panel is open
+  // The 2026-11-20 rework: a short list, a side panel per store, and a Gas prices board
+  const [tab, setTab] = useState<'list' | 'gas'>('list');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -243,6 +241,28 @@ export default function Stores() {
     pendingDisputesByStore[d.storeId] = (pendingDisputesByStore[d.storeId] || 0) + 1;
   });
 
+  // What each store needs (active stores only; a switched-off store is waiting on training, not broken), for the strip, the filter and the list
+  function issuesOf(store: Store): { text: string; tone: 'warning' | 'danger' }[] {
+    if (!store.isActive) return [];
+    const out: { text: string; tone: 'warning' | 'danger' }[] = readinessGaps(store).map((g) => ({
+      text: GAP_SHORT[g] ?? g,
+      tone: g === 'a first sale' || g.includes('fresh') ? 'warning' : 'danger',
+    }));
+    const disputes = pendingDisputesByStore[store.id] ?? 0;
+    if (disputes > 0) out.push({ text: `${disputes} dispute${disputes > 1 ? 's' : ''} waiting`, tone: 'danger' });
+    return out;
+  }
+  const attention = stores.map((store) => ({ store, items: issuesOf(store) })).filter((x) => x.items.length > 0);
+  const offCount = stores.filter((st) => !st.isActive).length;
+  const q = search.trim().toLowerCase();
+  const shown = stores.filter((st) => {
+    if (filter === 'active' && !st.isActive) return false;
+    if (filter === 'off' && st.isActive) return false;
+    if (filter === 'attention' && issuesOf(st).length === 0) return false;
+    return !q || [st.name, st.city, st.address, st.zipCode].some((v) => (v ?? '').toLowerCase().includes(q));
+  });
+  const openStore = openId ? stores.find((st) => st.id === openId) ?? null : null;
+
   const mutation = useMutation({
     mutationFn: ({ storeId, payload }: { storeId: string; payload: object }) =>
       storesApi.update(storeId, payload),
@@ -274,7 +294,7 @@ export default function Stores() {
       storesApi.update(storeId, { isActive }),
     onSuccess: (_, { isActive }) => {
       qc.invalidateQueries({ queryKey: ['stores'] });
-      toast.success(isActive ? 'Store reopened. It records sales again.' : 'Store deactivated. It no longer records sales or redemptions.');
+      toast.success(isActive ? 'Store switched on. It records sales again.' : 'Store switched off. It no longer records sales or redemptions.');
     },
     onError: (e: any) => toast.error(failureMessage(e, 'Could not change the store. Nothing was changed.')),
   });
@@ -666,9 +686,9 @@ export default function Stores() {
       />
       <ConfirmModal headingLevel="h2"
         open={!!confirmDeactivateId}
-        title="Deactivate store"
-        message="Customers stop seeing this store anywhere in the app (gas prices, offers, hot food), and sales, redemptions and benefit claims can no longer be recorded here. Staff keep their accounts. You can reactivate it any time from this page."
-        confirmLabel="Deactivate"
+        title="Switch off store"
+        message="Customers stop seeing this store anywhere in the app (gas prices, offers, hot food), and sales, redemptions and benefit claims can no longer be recorded here. Staff keep their accounts. You can switch it back on any time from this page."
+        confirmLabel="Switch off"
         danger
         onConfirm={() => { if (confirmDeactivateId) { runActive({ storeId: confirmDeactivateId, isActive: false }); } setConfirmDeactivateId(null); }}
         onCancel={() => setConfirmDeactivateId(null)}
@@ -691,7 +711,7 @@ export default function Stores() {
       {/* Header */}
       <PageHeader
         title="Stores"
-        description="Manage store details and location coordinates."
+        description="Every store at a glance. Click a store for everything about it; set prices for many stores at once in Gas prices."
         actions={
           <>
             <HeaderStat label="stores" value={stores.length} />
@@ -704,43 +724,122 @@ export default function Stores() {
         }
       />
 
+      <Tabs ariaLabel="Stores page" value={tab} onChange={setTab} tabs={[
+        { value: 'list', label: 'Stores', count: stores.length },
+        { value: 'gas', label: 'Gas prices' },
+      ]} />
+
       {isLoading ? (
         <CardSkeleton count={4} />
       ) : isError ? (
         <ErrorState message="Failed to load stores." onRetry={refetch} />
+      ) : tab === 'gas' ? (
+        <GasPriceBoard stores={stores} />
       ) : (
-        <div style={s.grid}>
-          {stores.map((store, idx) => {
-            const color = storeAvatar(idx);
-            const hasCoords = store.latitude != null && store.longitude != null;
-            return (
-              <div key={store.id} style={{ ...s.card, ...(store.isActive ? {} : s.cardInactive) }}>
-                {!store.isActive && (
-                  <div style={s.inactiveBanner}>Inactive, hidden from customers and staff</div>
+        <>
+          {/* Needs attention: one chip per store with something to fix, opens the store (2026-11-20) */}
+          {(attention.length > 0 || offCount > 0) && (
+            <Card padding="12px 14px" style={{ marginBottom: 14 }}>
+              <div style={s.attnTitle}>Needs attention</div>
+              <div style={s.attnRow}>
+                {attention.map(({ store, items }) => (
+                  <button key={store.id} type="button" style={{ ...s.attnChip, ...(items.some((i) => i.tone === 'danger') ? s.attnChipDanger : {}) }} onClick={() => setOpenId(store.id)}>
+                    <strong>{store.name}</strong>: {items.map((i) => i.text).join(', ')}
+                  </button>
+                ))}
+                {offCount > 0 && (
+                  <button type="button" style={{ ...s.attnChip, ...s.attnChipOff }} onClick={() => setFilter('off')}>
+                    {offCount} switched off
+                  </button>
                 )}
-                {/* Card header */}
-                <div style={s.cardTop}>
-                  <div style={{ ...s.avatar, background: color }}>
-                    {store.name[0].toUpperCase()}
-                  </div>
-                  <div style={s.cardInfo}>
-                    <div style={s.storeName}>{store.name}</div>
-                    <div style={s.storeSub}>{store.city}, {store.state}</div>
-                  </div>
-                  <div style={s.badgeStack}>
-                    <div style={{ ...s.coordBadge, background: hasCoords ? '#edf7f0' : '#fdf2f2', border: hasCoords ? '1px solid #c8e6d2' : '1px solid #f3cdd1', color: hasCoords ? '#1a7f45' : '#a51b28' }}>
-                      {hasCoords ? 'Located' : 'No coords'}
-                    </div>
-                    {store.minimumAge === 21 && (
-                      <div style={{ ...s.coordBadge, background: '#fdf6e8', border: '1px solid #f1dcaf', color: '#8a5300' }}>
-                        21+ Required
-                      </div>
-                    )}
-                  </div>
-                </div>
+              </div>
+            </Card>
+          )}
 
+          <div style={s.toolbar}>
+            <div style={s.searchBox}>
+              <Search size={16} color={TEXT_MUTED} aria-hidden="true" style={s.searchIcon} />
+              <input aria-label="Search stores" style={s.searchInput} placeholder="Search by name, city or address" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="group" aria-label="Show">
+              {([['all', `All ${stores.length}`], ['active', `Active ${stores.length - offCount}`], ['off', `Switched off ${offCount}`], ['attention', `Needs attention ${attention.length}`]] as [Filter, string][]).map(([v, label]) => (
+                <Chip key={v} selected={filter === v} onClick={() => setFilter(v)}>{label}</Chip>
+              ))}
+            </div>
+          </div>
+
+          <Card padding={0} style={{ overflowX: 'auto' }}>
+            <table style={s.table}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Store</th>
+                  <th style={s.th}>Today</th>
+                  <th style={s.th}>Regular</th>
+                  <th style={s.th}>Diesel</th>
+                  <th style={s.th}>Status</th>
+                  <th style={{ ...s.th, width: 36 }} aria-label="Open" />
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((store) => {
+                  const idx = stores.indexOf(store);
+                  const gaps = issuesOf(store);
+                  const priceCell = (kind: 'GAS' | 'DIESEL') => {
+                    if (!categoryEnabled(store, kind)) return <span style={s.cellMuted}>not sold</span>;
+                    const v = kind === 'GAS' ? store.gasPricePerGallon : store.dieselPricePerGallon;
+                    const age = priceAge(v, kind === 'GAS' ? store.gasPriceUpdatedAt : store.dieselPriceUpdatedAt);
+                    return (
+                      <div>
+                        <div style={s.cellPrice}>{priceText(v) ? `$${priceText(v)}` : 'not set'}</div>
+                        <div style={{ ...s.cellMuted, ...(age.stale ? { color: C.warning, fontWeight: 600 } : {}) }}>{age.text}</div>
+                      </div>
+                    );
+                  };
+                  return (
+                    <tr key={store.id} className="ui-row-click" style={{ ...s.tr, ...(store.isActive ? {} : s.trOff) }} onClick={() => setOpenId(store.id)}>
+                      <td style={s.td}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ ...s.avatarSm, background: storeAvatar(idx) }} aria-hidden="true">{shortName(store.name)}</div>
+                          <div style={{ minWidth: 0 }}>
+                            <button type="button" style={s.nameBtn} onClick={(e) => { e.stopPropagation(); setOpenId(store.id); }}>{store.name}</button>
+                            <div style={s.cellMuted}>{store.city}, {store.state}{store.minimumAge === 21 ? ' · 21+' : ''}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={s.td}>{store.todayHours ? <span style={s.cellText}>{store.todayHours}</span> : <span style={{ ...s.cellText, color: C.danger }}>Hours not set</span>}</td>
+                      <td style={s.td}>{priceCell('GAS')}</td>
+                      <td style={s.td}>{priceCell('DIESEL')}</td>
+                      <td style={s.td}>
+                        {!store.isActive ? <Badge>Switched off</Badge>
+                          : gaps.length === 0 ? <Badge tone="success">Ready</Badge>
+                          : <Badge tone={gaps.some((g) => g.tone === 'danger') ? 'danger' : 'warning'} title={gaps.map((g) => g.text).join(', ')}>Needs {gaps.length}</Badge>}
+                      </td>
+                      <td style={s.td}><ChevronRight size={18} color={TEXT_MUTED} aria-hidden="true" /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {shown.length === 0 && <EmptyState title="No stores match" description="Try another search or show all stores." action={<Button onClick={() => { setSearch(''); setFilter('all'); }}>Show all</Button>} />}
+          </Card>
+        </>
+      )}
+
+      {/* Everything about one store: what the tall card held before the 2026-11-20 rework */}
+      {openStore && (() => {
+        const store = openStore;
+        const hasCoords = store.latitude != null && store.longitude != null;
+        return (
+          <SidePanel title={store.name} subtitle={`${store.city}, ${store.state}`} onClose={() => setOpenId(null)}
+            header={
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                {!store.isActive && <Badge>Switched off</Badge>}
+                <Badge tone={hasCoords ? 'success' : 'danger'}>{hasCoords ? 'Located' : 'No location'}</Badge>
+                {store.minimumAge === 21 && <Badge tone="warning">21+ required</Badge>}
+              </div>
+            }>
+            {!store.isActive && <div style={s.inactiveBanner}>Switched off: hidden from customers, no sales recorded</div>}
                 {/* Address row */}
-                <div style={s.divider} />
                 <div style={s.detailRow}>
                   <span style={s.detailLabel}>Address</span>
                   <span style={s.detailVal}>{store.address}, {store.zipCode}</span>
@@ -771,7 +870,7 @@ export default function Stores() {
                   store.isReady ? (
                     <div style={s.readyLine}>Ready for customers</div>
                   ) : (
-                    <div style={s.notReadyLine}>Needs: {readinessGaps(store).join(', ')}</div>
+                    <div style={s.notReadyLine}>Needs: {readinessGaps(store).map((g) => GAP_SHORT[g] ?? g).join(', ')}</div>
                   )
                 )}
 
@@ -898,16 +997,14 @@ export default function Stores() {
                     ...(isDevAdmin ? [
                       { label: 'Printer agent key', icon: <KeyRound />, description: 'See whether a key is set, or make a new one.', onClick: () => { setKeyOpenId(store.id); checkApiKeyStatus(store.id); } },
                       store.isActive
-                        ? { label: 'Deactivate store', icon: <Power />, danger: true, description: 'Hidden from customers, no sales recorded. Asks first.', onClick: () => setConfirmDeactivateId(store.id), disabled: activeMutation.isPending }
-                        : { label: 'Reactivate store', icon: <Power />, description: 'Shows it to customers and records sales again.', onClick: () => runActive({ storeId: store.id, isActive: true }), disabled: activeMutation.isPending },
+                        ? { label: 'Switch off store', icon: <Power />, danger: true, description: 'Hidden from customers, no sales recorded. Asks first.', onClick: () => setConfirmDeactivateId(store.id), disabled: activeMutation.isPending }
+                        : { label: 'Switch on store', icon: <Power />, description: 'Shows it to customers and records sales again.', onClick: () => runActive({ storeId: store.id, isActive: true }), disabled: activeMutation.isPending },
                     ] : []),
                   ]} />
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+          </SidePanel>
+        );
+      })()}
 
       {/* The store's label printer fine-tune (HQ only): every phone printing for the store uses it */}
       {printerStore && <LabelPrinterModal store={printerStore} onClose={() => setPrinterStore(null)} />}
@@ -1312,26 +1409,31 @@ export default function Stores() {
 }
 
 const s: Record<string, React.CSSProperties> = {
+  // The 2026-11-20 list, strip and toolbar
+  attnTitle: { fontSize: FONT.caption, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 8 },
+  attnRow: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  attnChip: { fontSize: FONT.small, padding: '5px 10px', borderRadius: 999, border: '1px solid #f1dcaf', background: C.warningTint, color: C.warning, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' },
+  attnChipDanger: { borderColor: '#f3cdd1', background: C.dangerTint, color: C.danger },
+  attnChipOff: { borderColor: C.border, background: C.hover, color: C.text2 },
+  toolbar: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 },
+  searchBox: { position: 'relative', flex: '1 1 240px', maxWidth: 380 },
+  searchIcon: { position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' },
+  searchInput: { ...INPUT, paddingLeft: 34 },
+  table: { width: '100%', borderCollapse: 'collapse', minWidth: 720 },
+  th: { textAlign: 'left', fontSize: FONT.caption, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.4, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.subtle },
+  tr: { cursor: 'pointer' },
+  trOff: { background: '#f7f8fa' },
+  td: { padding: '10px 12px', borderBottom: `1px solid ${C.border}`, verticalAlign: 'middle' },
+  avatarSm: { width: 32, height: 32, borderRadius: 8, color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14 },
+  nameBtn: { background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 650, color: C.text, cursor: 'pointer', textAlign: 'left', fontSize: FONT.body },
+  cellText: { fontSize: FONT.small, color: C.text2 },
+  cellPrice: { fontSize: FONT.body, fontWeight: 600, color: C.text, fontVariantNumeric: 'tabular-nums' },
+  cellMuted: { fontSize: FONT.caption, color: TEXT_MUTED, marginTop: 1 },
 
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, gap: 12, flexWrap: 'wrap' },
-  title: { margin: 0, fontSize: 26, fontWeight: 700, color: PRIMARY },
-  subtitle: { margin: '4px 0 0', color: TEXT_MUTED, fontSize: 14 },
-  countPill: { background: PRIMARY, color: '#fff', borderRadius: 20, padding: '4px 14px', fontSize: 15, fontWeight: 700, alignSelf: 'center' },
-  addStoreBtn: { padding: '9px 18px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 15 },
 
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(320px, 100%), 1fr))', gap: 18 },
-  card: { background: '#fff', borderRadius: 12, boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 0 },
   // A closed store is grey with a dashed edge, not faded: fading the card faded its More menu too, so Reactivate looked switched off (2026-10-16)
-  cardInactive: { background: '#f7f8fa', boxShadow: 'none', outline: '1px dashed #c4cad4', outlineOffset: -1 },
-  inactiveBanner: { background: '#fdf2f2', border: '1px solid #f3cdd1', color: '#a51b28', fontSize: 13, fontWeight: 700, borderRadius: 9, padding: '7px 11px', marginBottom: 12, textAlign: 'center' },
+  inactiveBanner: { background: C.hover, border: `1px solid ${C.border}`, color: C.text2, fontSize: 13, fontWeight: 700, borderRadius: 9, padding: '7px 11px', marginBottom: 12, textAlign: 'center' },
 
-  cardTop: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },
-  avatar: { width: 44, height: 44, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 700, flexShrink: 0 },
-  cardInfo: { flex: 1, minWidth: 0 },
-  storeName: { fontWeight: 700, fontSize: 15, color: '#111827', overflowWrap: 'anywhere' },
-  storeSub: { fontSize: 14, color: TEXT_MUTED, marginTop: 2 },
-  badgeStack: { display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 },
-  coordBadge: { fontSize: 13, fontWeight: 600, padding: '3px 9px', borderRadius: 20, flexShrink: 0, whiteSpace: 'nowrap' },
 
   divider: { height: 1, background: '#f1f3f6', margin: '10px 0' },
   detailRow: { display: 'flex', gap: 10, alignItems: 'baseline', marginBottom: 6 },
@@ -1342,7 +1444,6 @@ const s: Record<string, React.CSSProperties> = {
   notReadyLine: { fontSize: 13, fontWeight: 700, color: '#8a5300', background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 8, padding: '5px 10px', marginTop: 4, marginBottom: 4 },
 
   gasSectionLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  gasUpdatedAt: { fontSize: 12, fontWeight: 500, color: TEXT_MUTED, textTransform: 'none' as const, letterSpacing: 0 },
   // top-aligned (2026-10-25): the Updated / Never set line under each price box pushed the bottom-aligned Update button below the boxes
   gasRow: { display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 },
   gasField: { flex: 1, display: 'flex', flexDirection: 'column' as const, gap: 4 },
@@ -1355,7 +1456,6 @@ const s: Record<string, React.CSSProperties> = {
   gasAgeStale: { color: '#a51b28' },
   gasError: { fontSize: 13, fontWeight: 600, color: '#a51b28', margin: '4px 0 6px', lineHeight: 1.4 },
 
-  editBtn: { marginTop: 4, width: '100%', padding: '8px 0', borderRadius: 9, border: '1.5px solid', background: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' },
 
   apiKeySection: { paddingTop: 4 },
   apiKeyLabel: { fontSize: 13, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase' as const, letterSpacing: '0.05em', marginBottom: 8 },
@@ -1372,8 +1472,6 @@ const s: Record<string, React.CSSProperties> = {
   disputeBannerText: { flex: 1, fontSize: 14, fontWeight: 700, color: '#8a5300' },
   disputeBannerLink: { fontSize: 14, fontWeight: 700, color: '#8a5300', textDecoration: 'none' },
 
-  cardBtns: { display: 'flex', gap: 8, marginTop: 4 },
-  kwBtn: { flex: 1, padding: '8px 0', borderRadius: 9, border: '1.5px solid #e4e7ec', background: '#f7f8fa', fontWeight: 700, fontSize: 14, cursor: 'pointer', color: PRIMARY },
 
   kwHint: { fontSize: 14, color: TEXT_MUTED, background: '#fdf6e8', border: '1px solid #f1dcaf', borderRadius: 9, padding: '10px 13px', marginBottom: 14, lineHeight: 1.6 },
   kwEmpty: { fontSize: 15, color: TEXT_MUTED, padding: '10px 0', marginBottom: 8, textAlign: 'center' as const },
@@ -1386,7 +1484,6 @@ const s: Record<string, React.CSSProperties> = {
   kwAddRow: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 },
   kwAddBtn: { padding: '9px 16px', background: PRIMARY, color: '#fff', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' as const },
 
-  empty: { textAlign: 'center', padding: '60px 0', color: TEXT_MUTED, fontSize: 15 },
 
   // Boxes (the dialog itself is components/Modal)
   editForm: { display: 'flex', flexDirection: 'column', gap: 18 },
