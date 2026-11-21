@@ -100,6 +100,7 @@ import { lookupBarcode, saveProduct, listProducts, updateProduct, deleteProduct,
 import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
+import { getGasGroups, putGasGroups } from '../controllers/gasGroups.controller';
 import { getBarcodeDuplicates, mergeLabels, importLabels, getDealRecommendations, dismissDealRecommendation, restoreDealRecommendations, getDealSettings, updateDealSettings, setDealsBulk, resetDealLearning } from '../controllers/labelCleanup.controller';
 import {
   getStoreSchedule,
@@ -485,6 +486,8 @@ router.post('/stores', authenticate, requireRole(Role.DEV_ADMIN), createStore); 
 router.get('/stores/accessible', authenticate, requireRole(Role.STORE_MANAGER), getAccessibleStores);    // Manager+: own stores (or all if allStoresAccess)
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
+router.get('/stores/gas-groups', authenticate, requireRole(Role.SUPER_ADMIN), getGasGroups);                 // HQ: stores that share a gas price (above :storeId)
+router.put('/stores/gas-groups', authenticate, requireRole(Role.SUPER_ADMIN), putGasGroups);
 // Must stay above the GET /stores/:storeId wildcard below, Express matches routes in
 // registration order, and ":storeId" matches any single path segment including the
 // literal string "my-keyword-mappings", which would otherwise route printer-agent
