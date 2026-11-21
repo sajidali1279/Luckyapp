@@ -852,7 +852,7 @@ export default function EmployeeScanScreen() {
 
   async function pickReceiptImage() {
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
     });
     if (!result.canceled) setReceiptImage(result.assets[0].uri);
