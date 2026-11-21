@@ -71,10 +71,10 @@ export default function CustomerLayout() {
     <DrawerShell bottomItems={bottomItems} groups={groups} headerColor={COLORS.primary} floating={<CuatroGuide />}>
       <Tabs screenOptions={{ headerShown: false, tabBarStyle: { display: 'none' } }}>
         <Tabs.Screen name="home" />
-        <Tabs.Screen name="scan-receipt" options={{ href: null }} />
-        <Tabs.Screen name="receipt-photo" options={{ href: null }} />
-        <Tabs.Screen name="missing/[id]" options={{ href: null }} />
-        <Tabs.Screen name="missing/request" options={{ href: null }} />
+        <Tabs.Screen name="scan-receipt" />
+        <Tabs.Screen name="receipt-photo" />
+        <Tabs.Screen name="missing/[id]" />
+        <Tabs.Screen name="missing/request" />
         <Tabs.Screen name="rewards" />
         <Tabs.Screen name="ads" />
         <Tabs.Screen name="history" />
@@ -87,9 +87,9 @@ export default function CustomerLayout() {
         <Tabs.Screen name="guide" />
         <Tabs.Screen name="profile" />
         <Tabs.Screen name="invite-friends" />
-        <Tabs.Screen name="progress" options={{ href: null }} />
-        <Tabs.Screen name="gas-alerts" options={{ href: null }} />
-        <Tabs.Screen name="games" options={{ href: null }} />
+        <Tabs.Screen name="progress" />
+        <Tabs.Screen name="gas-alerts" />
+        <Tabs.Screen name="games" />
       </Tabs>
     </DrawerShell>
     {/* the one-time tier celebration, over every customer screen and the bottom bar (2026-10-24) */}
