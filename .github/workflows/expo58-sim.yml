@@ -1,0 +1,136 @@
+name: Expo 58 simulator test (iOS 27)
+
+# The Expo 58 upgrade (branch expo58, 2026-11-18): builds the app with Xcode 27 for the simulator, opens it on the newest iPhone and
+# iPad and keeps what it printed and any crash report. No signing, nothing uploaded to Apple. Runs on every push to expo58.
+
+on:
+  push:
+    branches: [expo58]
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: xcode-27
+    timeout-minutes: 150
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: What this runner has
+        run: |
+          sw_vers
+          ls -d /Applications/Xcode*.app
+          xcodebuild -version || true
+          xcrun simctl list runtimes
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./mobile
+        run: npm ci
+
+      - name: Select the newest Xcode 27
+        run: |
+          X=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$X" ]; then X=$(ls -d /Applications/Xcode*.app | sort -V | tail -1); fi
+          echo "Using $X"
+          sudo xcode-select -s "$X"
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i ios
+
+      - name: Decode GoogleService-Info.plist
+        working-directory: ./mobile
+        run: echo "${{ secrets.GOOGLE_SERVICES_INFO_PLIST_B64 }}" | base64 -d > GoogleService-Info.plist
+
+      - name: Prebuild iOS
+        working-directory: ./mobile
+        run: npx expo prebuild --platform ios --clean
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Remove GoogleService-Info.plist
+        if: always()
+        working-directory: ./mobile
+        run: rm -f GoogleService-Info.plist
+
+      - name: Build for the simulator (Release) with Xcode 27
+        working-directory: ./mobile
+        run: |
+          mkdir -p out
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          set -o pipefail
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build 2>&1 | tee out/build-full.txt | tail -60
+          APP=$(find build/Build/Products -maxdepth 2 -name "*.app" | head -1)
+          echo "APP=$PWD/$APP" >> "$GITHUB_ENV"
+          ls -la "$APP" | head
+
+      - name: Build errors and warnings (always)
+        if: always()
+        working-directory: ./mobile
+        run: |
+          [ -f out/build-full.txt ] || exit 0
+          echo "==== errors"; grep -E "error:|\*\* BUILD FAILED" out/build-full.txt | sort -u | head -80 | tee out/build-errors.txt
+          echo "==== deprecation and SDK warnings (first 60)"; grep -iE "warning:.*(deprecat|ios 27|uiscene|scene)" out/build-full.txt | sort -u | head -60 | tee out/build-warnings.txt
+
+      - name: Open the app on an iPhone and an iPad
+        working-directory: ./mobile
+        run: |
+          mkdir -p out
+          # the newest general iOS runtime (not one made for a single device model), and device models it supports
+          xcrun simctl list runtimes -j > out/runtimes.json
+          RUNTIME=$(python3 -c "
+          import json
+          rts = [r for r in json.load(open('out/runtimes.json'))['runtimes'] if r['platform'] == 'iOS' and r['isAvailable'] and r['identifier'].rsplit('.', 1)[-1].startswith('iOS-') and r['identifier'].count('-') <= 3]
+          rts.sort(key=lambda r: [int(x) for x in r['version'].split('.')])
+          print(rts[-1]['identifier'])")
+          echo "Runtime: $RUNTIME" | tee out/runtime.txt
+          pick() {  # the newest supported device model whose name starts with $1 (iPhone or iPad Air)
+            python3 -c "
+          import json, sys
+          want, rt = sys.argv[1], sys.argv[2]
+          r = [x for x in json.load(open('out/runtimes.json'))['runtimes'] if x['identifier'] == rt][0]
+          ts = [t for t in r.get('supportedDeviceTypes', []) if t['name'].startswith(want) and 'Pro' not in t['name'] and 'mini' not in t['name']]
+          print(ts[-1]['identifier'] if ts else '')" "$1" "$RUNTIME"
+          }
+          run_on() {
+            local label=$1 type=$2
+            [ -z "$type" ] && { echo "no device type for $label"; return; }
+            local udid=$(xcrun simctl create "probe-$label" "$type" "$RUNTIME")
+            echo "== $label: $type ($udid)"
+            xcrun simctl boot "$udid"; xcrun simctl bootstatus "$udid" -b > /dev/null
+            sleep 5; xcrun simctl io "$udid" screenshot "out/$label-0-homescreen.png" || true   # black too = this runner draws nothing
+            xcrun simctl install "$udid" "$APP"
+            xcrun simctl spawn "$udid" log stream --level debug --style compact --predicate 'process == "LuckyStop"' > "out/$label-log.txt" 2>&1 &
+            local logpid=$!
+            sleep 2
+            ( xcrun simctl launch --console-pty "$udid" com.luckystop.app > "out/$label-console.txt" 2>&1 & )
+            sleep 8;  xcrun simctl io "$udid" screenshot "out/$label-1-8s.png" || true
+            sleep 12; xcrun simctl io "$udid" screenshot "out/$label-2-20s.png" || true
+            sleep 20; xcrun simctl io "$udid" screenshot "out/$label.png" || true
+            kill $logpid 2>/dev/null || true
+            if xcrun simctl spawn "$udid" launchctl list | grep -q com.luckystop.app; then echo "$label: STILL RUNNING after 30 s" | tee -a out/summary.txt
+            else echo "$label: NOT RUNNING (crashed or quit)" | tee -a out/summary.txt; fi
+            echo "---- $label: errors the app printed" | tee -a out/summary.txt
+            grep -hiE "Unhandled JS Exception|RCTFatal|TypeError|ReferenceError|Terminating app|uncaught exception|UIScene|scene|is not a function|undefined is not|Error:" "out/$label-console.txt" "out/$label-log.txt" | head -40 | tee -a out/summary.txt
+            xcrun simctl shutdown "$udid" || true
+          }
+          run_on iphone "$(pick 'iPhone ')"
+          # the iPad simulator hung on boot on this runner (2026-11-18): iPhone only for now
+          cp ~/Library/Logs/DiagnosticReports/LuckyStop* out/ 2>/dev/null || true
+          echo; echo "==== SUMMARY"; cat out/summary.txt
+
+      - name: Keep the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expo58-sim
+          path: mobile/out

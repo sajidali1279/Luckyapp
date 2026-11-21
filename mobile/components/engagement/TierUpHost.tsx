@@ -84,7 +84,7 @@ function TierUpCelebration({ tier, onClose }: { tier: string; onClose: () => voi
 
 const s = StyleSheet.create({
   // no elevation on the overlay (it would sit under other views on Android); zIndex keeps it above the screens and the bottom bar
-  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 1000, backgroundColor: 'rgba(15,23,42,0.62)', justifyContent: 'center', padding: 20 },
+  overlay: { ...StyleSheet.absoluteFill, zIndex: 1000, backgroundColor: 'rgba(15,23,42,0.62)', justifyContent: 'center', padding: 20 },
   card: { backgroundColor: '#fff', borderRadius: 24, paddingVertical: 24, paddingHorizontal: 20, alignItems: 'center', gap: 10 },
   hero: { width: 160, height: 130, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 50 },

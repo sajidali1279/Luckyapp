@@ -59,7 +59,7 @@ const DashboardWatermark = memo(function DashboardWatermark({ color }: { color: 
   const Seasonal = theme.background ? SEASONAL[theme.preset] : undefined;
   if (Seasonal) return <Seasonal />;
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <View style={styles.opacityLayer}>
         {ITEMS.map((item, i) => (
           <FloatingIcon key={i} item={item} color={color} />

@@ -92,7 +92,7 @@ export default function ScratchCard({ pts, uncovered, onStart, onDone, onTouch }
 
 const s = StyleSheet.create({
   card: { borderRadius: 18, overflow: 'hidden', borderWidth: 4, borderColor: '#E9A23B', backgroundColor: '#FFF8E1' },
-  under: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  under: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 4 },
   big: { fontSize: 40, fontWeight: '900', color: COLORS.primary },
   small: { fontSize: 14, fontWeight: '700', color: COLORS.text },
   labelWrap: { alignItems: 'center', justifyContent: 'center' },

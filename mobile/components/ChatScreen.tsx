@@ -753,7 +753,7 @@ const s = StyleSheet.create({
   sendBtnDisabled: { backgroundColor: '#d1d5db' },
   attachBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#eef2f7', alignItems: 'center', justifyContent: 'center' },
   photo: { width: 220, height: 165, borderRadius: 12, backgroundColor: '#e5e7eb' },
-  uploadOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  uploadOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', gap: 6 },
   uploadText: { color: '#fff', fontSize: 12, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 3 },
   pdfCard: { flexDirection: 'row', alignItems: 'center', gap: 10, width: 230, paddingVertical: 2 },
   pdfThumb: { width: 46, height: 58, borderRadius: 6, backgroundColor: '#e5e7eb' },

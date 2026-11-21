@@ -19,6 +19,7 @@ import { XIcon, CheckCircleIcon, PackageIcon } from './Icons';
 import { scannedProductApi, orderCategoriesApi } from '../services/api';
 import { useTranslation } from 'react-i18next';
 import KeyboardSafe from './KeyboardSafe';
+import type { TextInputInstance } from 'react-native';
 
 export interface BarcodeResult {
   name:     string;
@@ -86,9 +87,9 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
 
   const [approvedCats, setApprovedCats] = useState<string[]>([]);
 
-  const qtyRef      = useRef<TextInput>(null);
-  const nameRef     = useRef<TextInput>(null);
-  const manualInputRef = useRef<TextInput>(null);
+  const qtyRef      = useRef<TextInputInstance>(null);
+  const nameRef     = useRef<TextInputInstance>(null);
+  const manualInputRef = useRef<TextInputInstance>(null);
 
   // Manual entry, a fallback for a worn/damaged barcode, or just faster
   // than lining up the camera when the number's already visible/known.
@@ -363,7 +364,7 @@ export default function BarcodeScannerModal({ visible, onClose, onResult, hideQu
         ) : phase === 'scanning' || phase === 'loading' ? (
           <View style={{ flex: 1 }}>
             <CameraView
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               facing="back"
               onBarcodeScanned={phase === 'scanning' ? handleBarcodeDetected : undefined}
               barcodeScannerSettings={{ barcodeTypes: ['ean13','ean8','upc_a','upc_e','code128','code39','itf14'] }}
@@ -645,7 +646,7 @@ const st = StyleSheet.create({
   overlaySideLeft:  { position: 'absolute', top: '25%', left: 0, width: '12%', bottom: '32%', backgroundColor: DARK },
   overlaySideRight: { position: 'absolute', top: '25%', right: 0, width: '12%', bottom: '32%', backgroundColor: DARK },
 
-  frameWrapper: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  frameWrapper: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   frame:        { width: FRAME_SIZE, height: FRAME_SIZE, position: 'relative' },
   corner:       { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE },
   cornerTL: { top: 0, left: 0, borderTopWidth: CORNER_W, borderLeftWidth: CORNER_W, borderColor: '#fff', borderTopLeftRadius: 6 },
@@ -740,7 +741,7 @@ const st = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
   manualEntryOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center', justifyContent: 'center',
     padding: 24,

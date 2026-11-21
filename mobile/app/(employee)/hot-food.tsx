@@ -998,7 +998,7 @@ export default function HotFoodOrders() {
             keyExtractor={item => item.id}
             contentContainerStyle={menuItems.length === 0 ? s.emptyList : s.list}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
+            refreshControl={<RefreshControl refreshing={menuRefetching} onRefresh={() => { refetchMenu(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
             renderItem={({ item }) => (
               <MenuItemCard
                 item={item}
@@ -1025,7 +1025,7 @@ export default function HotFoodOrders() {
             contentContainerStyle={filteredOrders.length === 0 ? s.emptyList : s.list}
             showsVerticalScrollIndicator={false}
             refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+              <RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} />
             }
             renderItem={({ item, index }) => (
               <>

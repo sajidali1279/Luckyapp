@@ -75,7 +75,7 @@ export function useRigValues(): RigValues {
 }
 
 const deg = (v: Animated.Value | Animated.AnimatedInterpolation<number>, sign = 1) =>
-  v.interpolate({ inputRange: [-360, 360], outputRange: [`${-360 * sign}deg`, `${360 * sign}deg`] });
+  (v as Animated.Value).interpolate({ inputRange: [-360, 360], outputRange: [`${-360 * sign}deg`, `${360 * sign}deg`] });   // both have interpolate()
 
 /** Turns or squeezes about a joint: moves the joint to the box's centre, does it, and moves back (works everywhere, no transform origin). */
 export function about(p: readonly number[], w: number, ...t: any[]): any[] {

@@ -140,7 +140,7 @@ export default function HistoryScreen() {
                 <Text key={`x${e.date}`} style={[s.expiryLine, s.expiredLine]}>{t('customerHistory.expiredLine', { points: e.points.toLocaleString(), date: expiryDate(e.date, i18n.language) })}</Text>
               ))}
             </View>
-          ) : null}
+          ) : undefined}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
           onScrollToIndexFailed={(info) => {
             setTimeout(() => listRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.3, animated: true }), 200);
@@ -153,7 +153,7 @@ export default function HistoryScreen() {
               ? <View style={s.footerLoader}><ActivityIndicator color={COLORS.primary} /></View>
               : transactions.length > 0
                 ? <Text style={s.footerEnd}>{t('customerHistory.footerEnd')}</Text>
-                : null
+                : undefined
           }
           renderItem={({ item }) => {
             // A challenge's reward is its own line: no purchase, so it says what it is (and is not a purchase to report)

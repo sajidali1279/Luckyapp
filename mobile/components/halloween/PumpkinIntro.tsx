@@ -151,7 +151,7 @@ export default function PumpkinIntro({ onPop, onDone }: { onPop: () => void; onD
 
 const st = StyleSheet.create({
   overlay: { zIndex: 9999, elevation: 9999 },
-  night: { ...StyleSheet.absoluteFillObject, backgroundColor: C.night },
-  center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  night: { ...StyleSheet.absoluteFill, backgroundColor: C.night },
+  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   skip: { position: 'absolute', bottom: 48, alignSelf: 'center', color: '#cdb8e6', opacity: 0.55, fontSize: 13, fontWeight: '600' },
 });

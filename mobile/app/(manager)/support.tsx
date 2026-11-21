@@ -24,6 +24,7 @@ import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import ModalToastHost from '../../components/ModalToastHost';
 import { usePoll } from '../../hooks/usePoll';
+import type { ScrollViewInstance } from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -237,7 +238,7 @@ function NewThreadModal({ visible, onClose, onCreated }: {
 function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void }) {
   const { t } = useTranslation();
   const [reply,  setReply]  = useState('');
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const qc = useQueryClient();
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -300,7 +301,7 @@ function ThreadModal({ thread, onClose }: { thread: Thread; onClose: () => void 
             style={{ flex: 1 }}
             contentContainerStyle={{ padding: 16, gap: 10 }}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={() => { refetch(); }} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
           >
             {messages.map(msg => {
               const isSupport = msg.isFromSupport;
@@ -436,7 +437,7 @@ export default function SupportScreen() {
         <ScrollView
           contentContainerStyle={{ padding: 16, gap: 8 }}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
         >
           {openThreads.length > 0 && (
             <>

@@ -50,7 +50,7 @@ export default function HotFoodHereSheet({ number, current, busy, onPick, onClos
 }
 
 const h = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end', zIndex: 60, elevation: 60 },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end', zIndex: 60, elevation: 60 },
   sheet: { backgroundColor: '#fff', borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: 28, gap: 10 },
   title: { fontSize: 19, fontWeight: '900', color: COLORS.text },
   sub: { fontSize: 13, color: COLORS.textMuted },

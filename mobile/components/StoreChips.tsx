@@ -5,6 +5,7 @@ import { ScrollView, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Text } from './ScaledText';   // capped font scaling, like every other screen (audit 2026-11-11)
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../constants';
+import type { ScrollViewInstance } from 'react-native';
 
 interface Store { id: string; name: string }
 
@@ -27,7 +28,7 @@ export default function StoreChips({ stores, selectedId, onSelect, counts = {}, 
   a11yLabel: (name: string) => string;
 }) {
   const { t } = useTranslation();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const xs = useRef<Record<string, number>>({});
   const [laidOut, setLaidOut] = useState(false);
 

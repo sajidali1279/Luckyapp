@@ -158,5 +158,5 @@ export default function GiftIntro(props: IntroProps) {
 }
 
 const st = StyleSheet.create({
-  center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
 });

@@ -2,15 +2,10 @@
   "expo": {
     "name": "Lucky Stop",
     "slug": "luckystop",
-    "version": "1.8.7",
+    "version": "1.9.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/store-icon-512.png",
-    "splash": {
-      "image": "./assets/store-icon-512.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#1D3557"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.luckystop.app",
@@ -42,6 +37,7 @@
       "expo-image",
       "./plugins/withPodfileStaticFrameworks",
       "./plugins/withPodfileSwiftVersion",
+      "./plugins/withPodfileDeploymentTarget",
       "./plugins/withAdiRegistration",
       "./plugins/withOptionalScreenFeatures",
       [
@@ -77,6 +73,8 @@
         }
       ],
       "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-status-bar",
       [
         "expo-location",
         {

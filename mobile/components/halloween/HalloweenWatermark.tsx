@@ -67,7 +67,7 @@ const Dangler = memo(function Dangler({ size, left, color, drop }: { size: numbe
 
 const HalloweenWatermark = memo(function HalloweenWatermark() {
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <View style={st.layer}>
         <Bobber name="moon" size={84} color={C.purple} pos={{ top: '5%', right: '26%' }} ms={5200} lift={6} tilt={3} />
         <FlyingBat size={70} top="14%" color={C.purple} secs={16} />

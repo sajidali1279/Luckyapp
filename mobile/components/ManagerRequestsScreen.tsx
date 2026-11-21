@@ -710,7 +710,7 @@ export default function ManagerRequestsScreen() {
               data={displayed} keyExtractor={r => r.id} renderItem={renderAlertItem}
               contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
               onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle}
-              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
+              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={() => { refetchCurrent(); }} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
             />
           </FadeSlideIn>
         )
@@ -731,7 +731,7 @@ export default function ManagerRequestsScreen() {
               data={displayedEmp} keyExtractor={r => r.id} renderItem={renderEmpItem}
               contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
               onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle}
-              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
+              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={() => { refetchCurrent(); }} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
             />
           </FadeSlideIn>
         )
@@ -756,7 +756,7 @@ export default function ManagerRequestsScreen() {
               data={displayedProducts} keyExtractor={r => r.id} renderItem={renderProductItem}
               contentContainerStyle={s.list} showsVerticalScrollIndicator={false}
               onScroll={largeTitle.onScroll} scrollEventThrottle={largeTitle.scrollEventThrottle}
-              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={refetchCurrent} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
+              refreshControl={<RefreshControl refreshing={isRefetchingCurrent} onRefresh={() => { refetchCurrent(); }} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
             />
           </FadeSlideIn>
         )

@@ -223,7 +223,7 @@ export default function ManagerOffersScreen() {
         contentContainerStyle={s.body}
         onScroll={largeTitle.onScroll}
         scrollEventThrottle={largeTitle.scrollEventThrottle}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} />}
       >
         {tab === 'requests' ? (
           <OfferRequestsTab storeId={storeId} storeName={stores.find((x) => x.id === storeId)?.name} />

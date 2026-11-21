@@ -47,7 +47,7 @@ export default function ReceiptPhotoScreen() {
       return;
     }
     // Camera only (not the photo library): a receipt in hand, today
-    const shot = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.5, exif: false });
+    const shot = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.5, exif: false });
     if (shot.canceled) return;
     const a = shot.assets[0];
     if (a.fileSize && a.fileSize > 5 * 1024 * 1024) { setProblem(t('receiptPhoto.tooLarge')); return; }

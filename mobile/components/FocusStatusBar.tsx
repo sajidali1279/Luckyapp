@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from 'react';
 import { StatusBar, type StatusBarProps } from 'react-native';
-import { NavigationContext } from '@react-navigation/native';
+import { NavigationContext } from 'expo-router/react-navigation';   // expo-router's own navigation (Expo 56+ no longer uses @react-navigation)
 
 // The status bar style (clock, battery) for the screen on top only. A plain <StatusBar> stays in force while its screen
 // sits behind another tab or page, and the last one mounted wins: Labels showed a white clock on its light page because

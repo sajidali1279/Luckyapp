@@ -40,6 +40,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { haptic } from '../utils/haptics';
 import { roleName } from '../utils/roleName';
 import FocusStatusBar from './FocusStatusBar';
+import type { TextInputInstance } from 'react-native';
 
 type Panel = null | 'name' | 'pin' | 'email';
 
@@ -116,8 +117,8 @@ export default function ProfileScreen({ isCustomer = false }: Props) {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   // Change PIN: 4 digits moves on to the next box (on iPhone the confirm box sat under the keypad, 2026-10-16)
-  const newPinRef = useRef<TextInput>(null);
-  const confirmPinRef = useRef<TextInput>(null);
+  const newPinRef = useRef<TextInputInstance>(null);
+  const confirmPinRef = useRef<TextInputInstance>(null);
   const [email, setEmail] = useState((user as any)?.email || '');
   const [loading, setLoading] = useState(false);
 

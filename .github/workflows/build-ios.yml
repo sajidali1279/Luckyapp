@@ -5,7 +5,8 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # Xcode 27 (Apple: iOS 27 SDK required from April 2027, ITMS-90725). Only GitHub's xcode-27 runner has it (preview, 2026-11).
+    runs-on: xcode-27
 
     steps:
       - name: Checkout code
@@ -14,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'   # Expo 58 needs Node 22.13+
           cache: 'npm'
           cache-dependency-path: mobile/package-lock.json
 
@@ -28,8 +29,10 @@ jobs:
       # applied to a protocol conformance), so archive fails with
       # "unknown attribute 'MainActor'". Select 26.2 explicitly before anything
       # touches native tooling.
-      - name: Select Xcode 26.2
-        run: sudo xcode-select -s /Applications/Xcode_26.2.app
+      - name: Select the newest Xcode 27
+        run: |
+          X=$(ls -d /Applications/Xcode_27*.app | sort -V | tail -1)
+          echo "Using $X"; sudo xcode-select -s "$X"; xcodebuild -version
 
       # Decode GoogleService-Info.plist to project root BEFORE prebuild so the
       # @react-native-firebase/app Expo plugin picks it up during prebuild.

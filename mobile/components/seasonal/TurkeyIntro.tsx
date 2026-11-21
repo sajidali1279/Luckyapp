@@ -115,5 +115,5 @@ export default function TurkeyIntro(props: IntroProps) {
 }
 
 const st = StyleSheet.create({
-  center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  center: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
 });

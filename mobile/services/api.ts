@@ -4,10 +4,34 @@ import { API_URL } from '../constants';
 import { useTranslation } from 'react-i18next';
 import i18next from 'i18next';
 
-async function fetchWithAuth(path: string, options: RequestInit = {}) {
+/** A photo or form upload over XMLHttpRequest (2026-11-18, Expo 58). Expo 56+ makes its own fetch the app's fetch, and it cannot send
+ *  React Native's file parts ({ uri, name, type }: "uri is not supported", expo/src/winter/fetch/convertFormData.ts), which every
+ *  upload here uses (receipts, chat, banners, promotions, missing persons). React Native's XMLHttpRequest sends them, as the old fetch
+ *  did underneath. Answers the few things uploadForm reads: status, ok, json(). An abort rejects with an AbortError, like fetch. */
+function xhrSend(url: string, o: { method: string; headers: Record<string, string>; body: any; signal?: AbortSignal }) {
+  return new Promise<{ status: number; ok: boolean; json: () => Promise<any> }>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(o.method, url);
+    for (const [k, v] of Object.entries(o.headers)) xhr.setRequestHeader(k, v);
+    const aborted = () => { const e: any = new Error('Aborted'); e.name = 'AbortError'; reject(e); };
+    if (o.signal) {
+      if (o.signal.aborted) { aborted(); return; }
+      o.signal.addEventListener('abort', () => { xhr.abort(); aborted(); });
+    }
+    xhr.onload = () => resolve({
+      status: xhr.status, ok: xhr.status >= 200 && xhr.status < 300,
+      json: async () => JSON.parse(xhr.responseText),
+    });
+    xhr.onerror = () => reject(new TypeError('Network request failed'));
+    xhr.ontimeout = () => reject(new TypeError('Network request failed'));
+    xhr.send(o.body);
+  });
+}
+
+async function fetchWithAuth(path: string, options: { method: string; body: any; signal?: AbortSignal; headers?: Record<string, string> }) {
   const token = await SecureStore.getItemAsync('jwt_token');
-  return fetch(`${API_URL}${path}`, {
-    ...options,
+  return xhrSend(`${API_URL}${path}`, {
+    method: options.method, body: options.body, signal: options.signal,
     headers: { ...(options.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
 }

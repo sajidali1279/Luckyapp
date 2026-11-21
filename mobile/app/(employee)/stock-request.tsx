@@ -31,6 +31,7 @@ import KeyboardSafe from '../../components/KeyboardSafe';
 import ErrorState from '../../components/ErrorState';
 import FocusStatusBar from '../../components/FocusStatusBar';
 import { usePoll } from '../../hooks/usePoll';
+import type { TextInputInstance } from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ function NewRequestForm({ categories, onSubmitted, storeId }: { categories: stri
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [note,        setNote]        = useState('');
   const [showScanner, setShowScanner] = useState(false);
-  const nameRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputInstance>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebSearch(search), 220);
@@ -436,7 +437,7 @@ function MyRequests({ highlightId }: { highlightId: string | null }) {
       style={{ flex: 1 }}
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={COLORS.secondary} colors={[COLORS.secondary]} />}
     >
       <Text style={m.legend}>On order list → Ordered → Received tracks your item once a manager accepts it.</Text>
 

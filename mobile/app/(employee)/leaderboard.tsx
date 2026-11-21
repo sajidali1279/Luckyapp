@@ -158,7 +158,7 @@ export default function EmployeeLeaderboardScreen() {
                     </View>
                   ))}
                 </View>
-              ) : null
+              ) : undefined
             }
             renderItem={({ item }: { item: any }) => {
               const isMine = item.isCurrentUser;

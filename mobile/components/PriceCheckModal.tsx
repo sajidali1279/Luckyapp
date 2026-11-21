@@ -24,6 +24,7 @@ import { useLabelCart } from '../store/labelCartStore';
 import { cartKey } from '../utils/labelCart';
 import KeyboardSafe from './KeyboardSafe';
 import ModalToastHost from './ModalToastHost';
+import type { TextInputInstance } from 'react-native';
 
 type Phase = 'scanning' | 'loading' | 'result' | 'naming';
 type PrintStatus = 'not_added' | 'new' | 'needs_reprint' | 'needs_price' | 'printed';
@@ -82,7 +83,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
   const [result, setResult] = useState<LookupResult | null>(null);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualBarcode, setManualBarcode] = useState('');
-  const manualInputRef = useRef<TextInput>(null);
+  const manualInputRef = useRef<TextInputInstance>(null);
 
   // Naming/registration phase (unrecognized barcode), same lightweight
   // pattern as BarcodeScannerModal's "name this product" prompt.
@@ -93,7 +94,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
   const [approvedCats, setApprovedCats] = useState<string[]>([]);
   const [registering, setRegistering] = useState(false);
   const [justRegistered, setJustRegistered] = useState(false);
-  const nameRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputInstance>(null);
 
   const pendingCodeRef = useRef<string | null>(null);
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,7 +232,7 @@ export default function PriceCheckModal({ visible, onClose, storeId }: Props) {
         ) : phase === 'scanning' || phase === 'loading' ? (
           <View style={{ flex: 1 }}>
             <CameraView
-              style={StyleSheet.absoluteFillObject}
+              style={StyleSheet.absoluteFill}
               facing="back"
               onBarcodeScanned={phase === 'scanning' ? handleBarcodeDetected : undefined}
               barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'itf14'] }}
@@ -486,7 +487,7 @@ const st = StyleSheet.create({
   overlaySideLeft: { position: 'absolute', top: '25%', left: 0, width: '12%', bottom: '32%', backgroundColor: DARK },
   overlaySideRight: { position: 'absolute', top: '25%', right: 0, width: '12%', bottom: '32%', backgroundColor: DARK },
 
-  frameWrapper: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  frameWrapper: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   frame: { width: FRAME_SIZE, height: FRAME_SIZE, position: 'relative' },
   corner: { position: 'absolute', width: CORNER_SIZE, height: CORNER_SIZE },
   cornerTL: { top: 0, left: 0, borderTopWidth: CORNER_W, borderLeftWidth: CORNER_W, borderColor: '#fff', borderTopLeftRadius: 6 },
@@ -543,7 +544,7 @@ const st = StyleSheet.create({
     color: '#fff', fontSize: 13, fontWeight: '600', textDecorationLine: 'underline',
     textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
   },
-  manualEntryOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  manualEntryOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   manualEntryCard: { width: '100%', maxWidth: 340, backgroundColor: '#fff', borderRadius: 16, padding: 20 },
   manualEntryTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 12 },
   manualEntryInput: {

@@ -1147,14 +1147,14 @@ export default function CustomerHotFoodScreen() {
                     ) : null}
                   </View>
                 }
-                ListEmptyComponent={search.trim() ? <Text style={s.searchEmpty}>{t('customerHotFood.searchNothing', { text: search.trim() })}</Text> : null}
+                ListEmptyComponent={search.trim() ? <Text style={s.searchEmpty}>{t('customerHotFood.searchNothing', { text: search.trim() })}</Text> : undefined}
                 keyboardShouldPersistTaps="handled"
                 keyExtractor={(row: any) => (row.kind === 'header' ? `h:${row.title}` : row.item.id)}
                 contentContainerStyle={s.menuList}
                 onScroll={largeTitle.onScroll}
                 scrollEventThrottle={largeTitle.scrollEventThrottle}
                 refreshControl={
-                  <RefreshControl refreshing={menuRefetching} onRefresh={refetchMenu} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+                  <RefreshControl refreshing={menuRefetching} onRefresh={() => { refetchMenu(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} />
                 }
                 renderItem={({ item: row }: { item: any }) => row.kind === 'header' ? (
                   <Text style={s.catHeader} accessibilityRole="header">{catLabel(row.title)}</Text>
@@ -1214,7 +1214,7 @@ export default function CustomerHotFoodScreen() {
             onScroll={largeTitle.onScroll}
             scrollEventThrottle={largeTitle.scrollEventThrottle}
             refreshControl={
-              <RefreshControl refreshing={ordersRefetching} onRefresh={refetchOrders} tintColor={COLORS.primary} colors={[COLORS.primary]} />
+              <RefreshControl refreshing={ordersRefetching} onRefresh={() => { refetchOrders(); }} tintColor={COLORS.primary} colors={[COLORS.primary]} />
             }
             ListEmptyComponent={
               ordersLoading ? (
@@ -1244,7 +1244,7 @@ export default function CustomerHotFoodScreen() {
             ListHeaderComponent={
               activeOrders.length > 0 ? (
                 <Text style={s.sectionLabel}>{t('customerHotFood.activeOrdersSection')}</Text>
-              ) : null
+              ) : undefined
             }
             renderItem={({ item, index }) => (
               <>

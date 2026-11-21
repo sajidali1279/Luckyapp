@@ -30,6 +30,7 @@ import ErrorState from '../../components/ErrorState';
 import ManagerHeader from '../../components/ManagerHeader';
 import KeyboardSafe from '../../components/KeyboardSafe';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { TextInputInstance } from 'react-native';
 
 type Tab       = 'scan' | 'manual' | 'browse' | 'photo';
 type ScanPhase = 'ready' | 'checking' | 'exists' | 'added' | 'needs_name';
@@ -101,7 +102,7 @@ function ScanTab() {
   const [catInput,   setCatInput]       = useState('');
   const [saving,     setSaving]         = useState(false);
   const lastCode = useRef('');
-  const nameRef  = useRef<TextInput>(null);
+  const nameRef  = useRef<TextInputInstance>(null);
   const qc       = useQueryClient();
 
   const [approvedCats, setApprovedCats] = useState<string[]>([]);
@@ -254,7 +255,7 @@ function ScanTab() {
       {/* Live camera */}
       <View style={s.cameraWrap}>
         <CameraView
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           facing="back"
           onBarcodeScanned={phase === 'ready' ? handleBarcodeDetected : undefined}
           barcodeScannerSettings={{ barcodeTypes: ['ean13','ean8','upc_a','upc_e','code128','code39','itf14'] }}
@@ -390,7 +391,7 @@ function ManualTab() {
   const [recentItems, setRecentItems]= useState<{ name: string; category: string }[]>([]);
   const [catSuggs,    setCatSuggs]   = useState<string[]>([]);
   const [showSuggs,   setShowSuggs]  = useState(false);
-  const nameRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputInstance>(null);
   const qc = useQueryClient();
 
   const { data: catsData } = useQuery({
@@ -646,7 +647,7 @@ function BrowseTab() {
         <ScrollView
           style={s.flex}
           contentContainerStyle={{ paddingBottom: 40 }}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => { refetch(); }} tintColor={COLORS.managerPrimary} colors={[COLORS.managerPrimary]} />}
           showsVerticalScrollIndicator={false}
         >
         <FadeSlideIn>
@@ -897,8 +898,8 @@ function PhotoTab() {
 
   async function pickImage(useCamera: boolean) {
     const result = useCamera
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85 });
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.85 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
 
     if (result.canceled) return;
     const uri = result.assets[0].uri;
@@ -1132,7 +1133,7 @@ const s = StyleSheet.create({
   ovBottom:    { position: 'absolute', bottom: 0, left: 0, right: 0, height: '20%', backgroundColor: DARK },
   ovLeft:      { position: 'absolute', top: '20%', left: 0, width: '12%', bottom: '20%', backgroundColor: DARK },
   ovRight:     { position: 'absolute', top: '20%', right: 0, width: '12%', bottom: '20%', backgroundColor: DARK },
-  frameWrap:   { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  frameWrap:   { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   frame:       { width: FRAME, height: FRAME, position: 'relative' },
   corner:      { position: 'absolute', width: CRN, height: CRN },
   cTL: { top: 0, left: 0,  borderTopWidth: CRN_W, borderLeftWidth: CRN_W,  borderColor: '#fff', borderTopLeftRadius: 5 },

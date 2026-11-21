@@ -42,6 +42,6 @@ export default function Burst({ fire, pieces = PIECES }: { fire: number; pieces?
 }
 
 const s = StyleSheet.create({
-  wrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', zIndex: 5 },
+  wrap: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', zIndex: 5 },
   piece: { fontSize: 20 },
 });

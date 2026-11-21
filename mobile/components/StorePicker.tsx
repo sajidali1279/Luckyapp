@@ -159,7 +159,7 @@ const p = StyleSheet.create({
   btnSub: { fontSize: 12, fontWeight: '600', marginTop: 1 },
   otherPill: { backgroundColor: COLORS.danger, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 4 },
   otherPillText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.45)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.45)' },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: COLORS.white, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 16, paddingTop: 8 },
   handle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: '#D5DBE3', marginBottom: 8 },
   sheetTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },

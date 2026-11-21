@@ -30,6 +30,7 @@ import { referralsApi } from '../../services/api';
 import { PENDING_INVITE_KEY, pendingInvite } from '../invite';
 import FocusStatusBar from '../../components/FocusStatusBar';
 import { offerBiometricAfterSignIn } from '../../components/BiometricOffer';
+import type { TextInputInstance } from 'react-native';
 
 type Screen = 'quick' | 'login' | 'register' | 'verify-phone';
 
@@ -51,8 +52,8 @@ export default function LoginScreen() {
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
   const [tabsWidth, setTabsWidth] = useState(0);
   const tabAnim = useRef(new Animated.Value(screen === 'register' ? 1 : 0)).current;
-  const quickPinRef = useRef<TextInput>(null);
-  const nameRef = useRef<TextInput>(null);
+  const quickPinRef = useRef<TextInputInstance>(null);
+  const nameRef = useRef<TextInputInstance>(null);
   useEffect(() => { AsyncStorage.getItem(PENDING_INVITE_KEY).then((c) => { if (c) setInviteCode((v) => v || c); }).catch(() => {}); }, []);
   useEffect(() => {
     const c = inviteCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -69,9 +70,9 @@ export default function LoginScreen() {
     }, 400);
     return () => { live = false; clearTimeout(timer); };
   }, [inviteCode]);
-  const phoneRef = useRef<TextInput>(null);
-  const mainPinRef = useRef<TextInput>(null);
-  const confirmPinRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInputInstance>(null);
+  const mainPinRef = useRef<TextInputInstance>(null);
+  const confirmPinRef = useRef<TextInputInstance>(null);
   // Phone OTP state
   const [confirmation, setConfirmation] = useState<any>(null);
   const [otp, setOtp] = useState('');
