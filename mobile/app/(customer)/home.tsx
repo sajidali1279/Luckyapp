@@ -220,12 +220,13 @@ function StaggeredFadeIn({ index, children }: { index: number; children: React.R
 // that broken integration entirely. Must live OUTSIDE any ScrollView so
 // "cover the whole screen" isn't relative to scrollable content height.
 function InlineModal({
-  onRequestClose, animation, overlay, children,
+  onRequestClose, animation, overlay, children, backdropLabel,
 }: {
   onRequestClose: () => void;
   animation: 'fade' | 'slide';
   overlay: any;
   children: React.ReactNode;
+  backdropLabel?: string;   // given: a tap on the dimmed area outside the content closes it
 }) {
   const progress = useRef(new Animated.Value(0)).current;
   useGuideCover();   // Cuatro steps away while this is open (he walks on a layer above the screen)
@@ -246,6 +247,10 @@ function InlineModal({
     // instead of full width. Sibling paint order (last in the JSX tree)
     // already puts this on top without it.
     <Animated.View style={[StyleSheet.absoluteFill, overlay, { opacity: progress, zIndex: 60 }]}>
+      {backdropLabel ? (
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onRequestClose} activeOpacity={1}
+          accessibilityRole="button" accessibilityLabel={backdropLabel} />
+      ) : null}
       {/* width:'100%' is required, not decorative - alignSelf:'stretch' silently
           collapses to content width in this same layer, same root cause as above. */}
       <Animated.View style={{ width: '100%', transform }}>
@@ -654,6 +659,7 @@ function CustomerHomeScreen() {
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
 
   const [showQR, setShowQR] = useState(false);
+  const closeQr = useCallback(() => setShowQR(false), []);   // stable: InlineModal re-adds its Back handler when this changes
   useFullBrightness(showQR);   // full brightness for the scanner while My QR is open, the phone's own brightness back after (hooks/useFullBrightness.ts)
 
   // Scroll-to-section support (triggered from notification taps)
@@ -1815,17 +1821,10 @@ function CustomerHomeScreen() {
       )}
 
 
-      {/* ── QR Modal ── */}
-      <Modal visible={showQR} transparent animationType="slide" onRequestClose={() => setShowQR(false)}>
-        <View style={styles.qrModalBackdrop}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            onPress={() => setShowQR(false)}
-            activeOpacity={1}
-            accessibilityRole="button"
-            accessibilityLabel={t('customerHome.dismissQrA11y')}
-          />
-          <View style={styles.qrModalSheet}>
+      {/* ── My QR (in-tree, see InlineModal: the native Modal drew nothing on the Expo 58 Android build, 2026-11-22) ── */}
+      {showQR && (
+        <InlineModal onRequestClose={closeQr} animation="slide" overlay={styles.qrModalBackdrop} backdropLabel={t('customerHome.dismissQrA11y')}>
+          <View style={[styles.qrModalSheet, { paddingBottom: 32 + insets.bottom }]}>
             {/* Handle + header */}
             <View style={styles.qrModalHeader}>
               <View style={styles.qrModalPill} />
@@ -1878,9 +1877,8 @@ function CustomerHomeScreen() {
               <Text style={styles.qrModalCloseText}>{t('customerHome.close')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-        <ModalToastHost />
-      </Modal>
+        </InlineModal>
+      )}
 
     </View>
   );
