@@ -6,6 +6,7 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { code128ToSvg } from './code128';
+import { cleanDesign, designClass, designsCss, designFor, stickerPrice, STICKER_CSS } from './labelDesign';
 import { SheetSettings, DEFAULT_SHEET, A4_PER_SHEET, A4_COLS, A4_ROWS, PAGE_POINTS, tallScale, LETTER_MARGIN_MM, LETTER_PER_SHEET, LETTER_COLS, LETTER_ROWS, PrintMethod, LetterLayout } from './labelSheet';
 
 export interface PrintableLabel {
@@ -15,6 +16,11 @@ export interface PrintableLabel {
   dealText?: string | null;
   barcode?: string | null;
   template: string;
+  // 2026-11-21: an HQ-made design (its settings ride along, from GET /labels/designs), this item's own size nudge, or a deal sticker
+  designId?: string | null;
+  design?: unknown;
+  textScale?: number | null;
+  sticker?: { words: string; sub?: string | null; images: string[] } | null;
 }
 
 export interface PrintableLabelEntry {
@@ -61,10 +67,43 @@ function renderBarcodeSvg(barcode: string): string {
   return `<svg class="label-barcode" viewBox="0 0 ${modules} ${HEIGHT}" fill="#000">${rects}</svg>`;
 }
 
+// How a label looks: its HQ-made design when it has one (2026-11-21), otherwise its built-in template
+function look(label: PrintableLabel): { cssClass: string; icon: string; showBarcode: boolean; watermark: string; style: string } {
+  const scale = typeof label.textScale === 'number' && Number.isFinite(label.textScale) ? Math.min(1.4, Math.max(0.7, label.textScale)) : null;
+  const style = scale && scale !== 1 ? ` style="--ts:${scale}"` : '';
+  const design = label.design ?? designFor(label.designId);
+  if (label.designId && design) {
+    const d = cleanDesign(design);
+    return { cssClass: designClass(label.designId), icon: d.icon ? `${esc(d.icon)} ` : '', showBarcode: d.showBarcode, watermark: d.watermark ? '<div class="watermark">LUCKY STOP</div>' : '', style };
+  }
+  return { cssClass: TEMPLATE_CLASS[label.template] || TEMPLATE_CLASS.CLASSIC_RED_BLACK, icon: TEMPLATE_ICONS[label.template] || '', showBarcode: true, watermark: '<div class="watermark">LUCKY STOP</div>', style };
+}
+
+// A deal sticker (2026-11-21): up to 3 pictures on the left, the deal words, the price and a small line on the right
+function renderSticker(label: PrintableLabel): string {
+  const lk = look(label);
+  const st = label.sticker!;
+  const pics = st.images.slice(0, 3).filter((u) => /^(https:|data:image\/)/.test(u));
+  const price = stickerPrice(label.priceText);
+  return `
+    <div class="label sticker ${lk.cssClass}"${lk.style}>
+      ${lk.watermark}
+      ${pics.length ? `<div class="stk-pics n${pics.length}">${pics.map((u) => `<img src="${esc(u)}" alt="">`).join('')}</div>` : ''}
+      <div class="stk-main">
+        <div class="stk-words">${lk.icon}${esc(st.words)}</div>
+        <div class="price-regular stk-price${price.dollar ? '' : ' text'}">${price.dollar ? '<span class="price-dollar">$</span>' : ''}${esc(price.text)}</div>
+        ${st.sub ? `<div class="stk-sub">${esc(st.sub)}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
 function renderLabel(label: PrintableLabel): string {
-  const cssClass = TEMPLATE_CLASS[label.template] || TEMPLATE_CLASS.CLASSIC_RED_BLACK;
-  const icon = TEMPLATE_ICONS[label.template] || '';
-  const barcode = label.barcode?.trim();
+  if (label.sticker) return renderSticker(label);
+  const lk = look(label);
+  const cssClass = lk.cssClass;
+  const icon = lk.icon;
+  const barcode = lk.showBarcode ? label.barcode?.trim() : '';
   const deal = label.dealText?.trim();
   // A long name gets a smaller font tier instead of being clamped to fewer
   // lines, the name always keeps its full 2 lines, it just shrinks to fit.
@@ -73,8 +112,8 @@ function renderLabel(label: PrintableLabel): string {
     : 'label-name';
   const priceGroupClass = deal ? 'price-group has-deal' : 'price-group';
   return `
-    <div class="label ${cssClass}${barcode ? ' has-barcode' : ''}">
-      <div class="watermark">LUCKY STOP</div>
+    <div class="label ${cssClass}${barcode ? ' has-barcode' : ''}"${lk.style}>
+      ${lk.watermark}
       <div class="label-main">
         <div class="${nameClass}">${icon}${esc(label.productName)}</div>
         <div class="${priceGroupClass}">
@@ -229,7 +268,7 @@ const LABEL_STYLE = `
     }
     .label-name {
       min-width: 0;
-      font-size: 6.5pt;
+      font-size: calc(6.5pt * var(--nk, 1) * var(--ts, 1));
       font-weight: 700;
       line-height: 1.1;
       text-align: left;
@@ -241,8 +280,8 @@ const LABEL_STYLE = `
     }
     /* The name always keeps its full 2 lines, a deal shrinks the font
        instead of cutting a line off, so long names still read in full. */
-    .label-name.has-deal { font-size: 5.5pt; }
-    .label-name.has-deal-long { font-size: 5pt; }
+    .label-name.has-deal { font-size: calc(5.5pt * var(--nk, 1) * var(--ts, 1)); }
+    .label-name.has-deal-long { font-size: calc(5pt * var(--nk, 1) * var(--ts, 1)); }
     .price-group {
       min-width: 0;
       display: flex;
@@ -251,21 +290,21 @@ const LABEL_STYLE = `
     }
     .price-group.has-deal { gap: 0.4mm; }
     .price-regular {
-      font-size: 20pt;
+      font-size: calc(20pt * var(--pk, 1) * var(--ts, 1));
       font-weight: 900;
       line-height: 1;
       text-align: left;
     }
     .price-group.has-deal .price-regular {
-      font-size: 12pt;
+      font-size: calc(12pt * var(--pk, 1) * var(--ts, 1));
     }
     .price-dollar {
-      font-size: 10pt;
+      font-size: calc(10pt * var(--pk, 1) * var(--ts, 1));
       font-weight: 700;
       margin-right: 0.4mm;
     }
     .price-group.has-deal .price-dollar {
-      font-size: 6pt;
+      font-size: calc(6pt * var(--pk, 1) * var(--ts, 1));
     }
     /* Deal text is meant to grab attention on its own, not read like a
        caption under the price, bold, in the template's bright accent
@@ -274,7 +313,7 @@ const LABEL_STYLE = `
     .price-deal {
       min-width: 0;
       max-width: 100%;
-      font-size: 9pt;
+      font-size: calc(9pt * var(--dk, 1) * var(--ts, 1));
       font-weight: 800;
       line-height: 1.1;
       text-align: left;
@@ -329,13 +368,15 @@ const LABEL_STYLE = `
 // The same label read standing up, for tall labels (A4, 18 a sheet): name on top, the price big near the middle, the deal under it, then
 // the barcode at the bottom. Sizes come from tallCss, so they follow the label width.
 function renderUpright(label: PrintableLabel): string {
-  const cssClass = TEMPLATE_CLASS[label.template] || TEMPLATE_CLASS.CLASSIC_RED_BLACK;
-  const icon = TEMPLATE_ICONS[label.template] || '';
-  const barcode = label.barcode?.trim();
+  if (label.sticker) return renderSticker(label);
+  const lk = look(label);
+  const cssClass = lk.cssClass;
+  const icon = lk.icon;
+  const barcode = lk.showBarcode ? label.barcode?.trim() : '';
   const deal = label.dealText?.trim();
   return `
-    <div class="label up ${cssClass}${barcode ? '' : ' no-barcode'}">
-      <div class="watermark">LUCKY STOP</div>
+    <div class="label up ${cssClass}${barcode ? '' : ' no-barcode'}"${lk.style}>
+      ${lk.watermark}
       <div class="label-name up-name${label.productName.length > 24 ? ' long' : ''}">${icon}${esc(label.productName)}</div>
       <div class="up-fill top"></div>
       <div class="price-regular up-price${label.priceText.length >= 6 ? ' long' : ''}"><span class="price-dollar">$</span>${esc(label.priceText)}</div>
@@ -422,14 +463,14 @@ export function buildHtml(entries: PrintableLabelEntry[], sheet: SheetSettings =
     for (let i = 0; i < slots.length; i += LETTER_PER_SHEET) {
       sheets.push(`<div class="lsheet">${slots.slice(i, i + LETTER_PER_SHEET).map(l => (l ? renderLabel(l) : '<div class="label-blank"></div>')).join('')}</div>`);
     }
-    return page(letterLayout(sheet) + LABEL_STYLE, sheets.join(''));
+    return page(letterLayout(sheet) + LABEL_STYLE + STICKER_CSS + designsCss(labels), sheets.join(''));
   }
   const slots: (PrintableLabel | null)[] = [...Array(skip).fill(null), ...labels];
   const sheets: string[] = [];
   for (let i = 0; i < slots.length; i += A4_PER_SHEET) {
     sheets.push(`<div class="sheet">${slots.slice(i, i + A4_PER_SHEET).map(l => (l ? tallCell(l, sheet) : '<div class="cell blank"></div>')).join('')}</div>`);
   }
-  return page(LABEL_STYLE + tallCss(sheet), sheets.join(''));
+  return page(LABEL_STYLE + STICKER_CSS + designsCss(labels) + tallCss(sheet), sheets.join(''));
 }
 
 // A test page: just the outline of each label, numbered, to print on plain paper and hold against a sheet of labels
@@ -481,7 +522,36 @@ export async function printLabels({
   sheet?: SheetSettings;
   skip?: number;
 }): Promise<void> {
-  await output(buildHtml(entries, sheet, skip), PAGE_POINTS[sheet.format], shareAsPdf, sheet.method);
+  await output(buildHtml(await withInlinePictures(entries), sheet, skip), PAGE_POINTS[sheet.format], shareAsPdf, sheet.method);
+}
+
+// A phone's print engine may not wait for pictures to download, so a deal sticker's pictures are fetched first and put inside the page
+// (2026-11-21). One that cannot be fetched keeps its web address (it may still load).
+const pictureCache = new Map<string, string>();
+async function inlinePicture(url: string): Promise<string> {
+  if (!url.startsWith('https://')) return url;
+  const hit = pictureCache.get(url);
+  if (hit) return hit;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return url;
+    const type = res.headers.get('content-type') || 'image/jpeg';
+    if (!type.startsWith('image/')) return url;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    const data = `data:${type};base64,${btoa(bin)}`;
+    pictureCache.set(url, data);
+    return data;
+  } catch {
+    return url;
+  }
+}
+async function withInlinePictures(entries: PrintableLabelEntry[]): Promise<PrintableLabelEntry[]> {
+  if (!entries.some((e) => e.label.sticker?.images.length)) return entries;
+  return Promise.all(entries.map(async (e) => (e.label.sticker
+    ? { ...e, label: { ...e.label, sticker: { ...e.label.sticker, images: await Promise.all(e.label.sticker.images.map(inlinePicture)) } } }
+    : e)));
 }
 
 export async function printTestSheet(sheet: SheetSettings): Promise<void> {

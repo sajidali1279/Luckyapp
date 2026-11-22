@@ -3888,5 +3888,21 @@
     "buttonA11y": "Store: {{store}}. Tap to choose another store.",
     "buttonA11yWaiting_one": "Store: {{store}}. {{count}} thing waits at your other stores. Tap to choose a store.",
     "buttonA11yWaiting_other": "Store: {{store}}. {{count}} things wait at your other stores. Tap to choose a store."
+  },
+  "dealStickers": {
+    "title": "Deal stickers",
+    "hint": "Pick the stickers and how many. They print on the same label sheets.",
+    "close": "Close",
+    "none": "No deal stickers for this store right now.",
+    "chip": "Stickers",
+    "chipA11y": "Deal stickers, {{count}} to print",
+    "less": "One less {{name}}",
+    "more": "One more {{name}}",
+    "howMany": "{{count}} of {{name}}",
+    "print": "Print {{count}} stickers",
+    "printA11y": "Print {{count}} stickers",
+    "printing": "Printing…",
+    "pickFirst": "Pick stickers to print",
+    "printFailed": "Could not print the stickers."
   }
 }

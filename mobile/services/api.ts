@@ -516,6 +516,9 @@ export const scannedProductApi = {
 
 export const labelsApi = {
   getAll: () => api.get('/labels'),
+  // HQ-made label designs and the deal stickers a store can print (2026-11-21)
+  designs: () => api.get('/labels/designs'),
+  stickers: (storeId: string) => api.get(`/labels/stickers?storeId=${encodeURIComponent(storeId)}`),
   getAllWithMyStore: (myStoreId?: string) =>
     api.get(`/labels${myStoreId ? `?myStoreId=${encodeURIComponent(myStoreId)}` : ''}`),
   getStoreLabels: (storeId: string, unprinted?: boolean) =>

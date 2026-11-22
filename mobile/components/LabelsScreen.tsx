@@ -26,6 +26,9 @@ import { sameBarcode } from '../utils/barcode';
 import { suggestFromBarcode, matchNames, CatalogItem } from '../utils/labelSimilar';
 import PriceCheckModal from './PriceCheckModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
+import { rememberDesigns } from '../utils/labelDesign';
+import DealStickersSheet, { DealSticker } from './DealStickersSheet';
+import { useShellCover } from './DrawerShell';
 import { useAuthStore, isStoreManagerOrAbove } from '../store/authStore';
 import { useLabelCart } from '../store/labelCartStore';
 import { useCurrentStoreId } from '../utils/geo';
@@ -47,6 +50,8 @@ interface Label {
   barcode: string | null;
   category: string | null;
   template: string;
+  designId?: string | null;    // an HQ-made design (2026-11-21)
+  textScale?: number | null;   // this item's text smaller or bigger than its design
   createdByStoreId: string | null;
   updatedAt: string;
   // Only present in responses from getAllWithMyStore(storeId) when a
@@ -318,6 +323,23 @@ export default function LabelsScreen() {
     staleTime: 60 * 1000,
   });
   const storePrinter: StorePrinter | null = printerData?.data?.data ?? null;
+  // HQ's own label designs (2026-11-21): loading them lets every print draw them
+  useQuery({
+    queryKey: ['label-designs'],
+    queryFn: async () => { const r = await labelsApi.designs(); const list = Array.isArray(r.data?.data) ? r.data.data : []; rememberDesigns(list); return list; },
+    staleTime: 60 * 1000,
+  });
+  // The deal stickers this store can print (HQ makes them)
+  const { data: stickersData } = useQuery({
+    queryKey: ['deal-stickers', storeId],
+    queryFn: () => labelsApi.stickers(storeId!),
+    enabled: !!storeId,
+    staleTime: 60 * 1000,
+  });
+  const stickers: DealSticker[] = Array.isArray(stickersData?.data?.data) ? stickersData.data.data : [];
+  const [showStickers, setShowStickers] = useState(false);
+  const [stickerPrinting, setStickerPrinting] = useState(false);
+  const cover = useShellCover();
   const printSheet: SheetSettings = useMemo(
     () => ({ ...sheet, letter: storePrinter
       ? { down: storePrinter.down, right: storePrinter.right, labelW: storePrinter.width, labelH: storePrinter.height, gapX: storePrinter.gapX, gapY: storePrinter.gapY, scale: storePrinter.scale ?? 100 }
@@ -898,6 +920,31 @@ export default function LabelsScreen() {
   // right (as the admin site does). Yes records them and empties My Prints; No keeps them for another try and records nothing, so a
   // sheet that printed off the stickers, a jam or a cancelled print never marks anything printed. Cancelling the system print dialog
   // leaves both the list and the server untouched as before.
+  // Deal stickers print straight away on the store's sheet settings; nothing is recorded (they are not in My Prints)
+  async function printStickers(picked: { sticker: DealSticker; quantity: number }[]) {
+    if (stickerPrinting || picked.length === 0) return;
+    setStickerPrinting(true);
+    try {
+      const entries: PrintableLabelEntry[] = picked.map(({ sticker: x, quantity }) => ({
+        label: { id: x.id, productName: x.words, priceText: x.priceText, template: x.template, designId: x.designId, textScale: x.textScale,
+          sticker: { words: x.words, sub: x.subText, images: x.images.map((im) => im.url) } },
+        quantity,
+      }));
+      await printLabels({ entries, sheet: printSheet, skip: 0 });
+      setShowStickers(false);
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: t('dealStickers.printFailed'), text2: err?.message });
+    } finally {
+      setStickerPrinting(false);
+    }
+  }
+  const stickerSheet = showStickers
+    ? <DealStickersSheet stickers={stickers} accentColor={accentColor} printing={stickerPrinting} onPrint={printStickers} onClose={() => setShowStickers(false)} />
+    : null;
+  // only when something it shows changes: the shell redraws this screen when the cover changes, so every-render would never stop
+  useEffect(() => { cover?.(stickerSheet); }, [showStickers, stickerPrinting, stickers, accentColor, printSheet]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => { cover?.(null); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handlePrint(shareAsPdf: boolean) {
     if (!cartId || !storeId || printing || cartRows.length === 0 || unpricedCount > 0) return;
     // A4 sizes that run off the page would print across the seams: fix them first
@@ -914,7 +961,7 @@ export default function LabelsScreen() {
         label: {
           // printPrice is non-null for every row: unpricedCount > 0 returned above.
           id: r.label.id, productName: r.label.productName, priceText: r.printPrice!,
-          dealText: r.label.dealText, barcode: r.label.barcode, template: r.label.template,
+          dealText: r.label.dealText, barcode: r.label.barcode, template: r.label.template, designId: r.label.designId, textScale: r.label.textScale,
         },
         quantity: r.entry.quantity,
       }));
@@ -1366,6 +1413,12 @@ export default function LabelsScreen() {
         >
           <Text style={s.viewToggleText}>{t('sharedLabels.tabMyPrints')}{cartSize > 0 ? ` · ${cartSize}` : ''}</Text>
         </TouchableOpacity>
+        {stickers.length > 0 && (
+          <TouchableOpacity style={s.viewToggleChip} onPress={() => setShowStickers(true)} accessibilityRole="button"
+            accessibilityLabel={t('dealStickers.chipA11y', { count: stickers.length })}>
+            <Text style={s.viewToggleText}>{t('dealStickers.chip')} · {stickers.length}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {!!storeId && viewMode === 'catalog' && (allLabels.length > 0 || productMode) && (

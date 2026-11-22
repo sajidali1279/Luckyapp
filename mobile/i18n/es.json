@@ -3888,5 +3888,21 @@
     "buttonA11y": "Tienda: {{store}}. Toca para elegir otra tienda.",
     "buttonA11yWaiting_one": "Tienda: {{store}}. {{count}} cosa espera en tus otras tiendas. Toca para elegir una tienda.",
     "buttonA11yWaiting_other": "Tienda: {{store}}. {{count}} cosas esperan en tus otras tiendas. Toca para elegir una tienda."
+  },
+  "dealStickers": {
+    "title": "Calcomanías de ofertas",
+    "hint": "Elija las calcomanías y cuántas. Se imprimen en las mismas hojas de etiquetas.",
+    "close": "Cerrar",
+    "none": "No hay calcomanías de ofertas para esta tienda por ahora.",
+    "chip": "Calcomanías",
+    "chipA11y": "Calcomanías de ofertas, {{count}} para imprimir",
+    "less": "Una menos de {{name}}",
+    "more": "Una más de {{name}}",
+    "howMany": "{{count}} de {{name}}",
+    "print": "Imprimir {{count}} calcomanías",
+    "printA11y": "Imprimir {{count}} calcomanías",
+    "printing": "Imprimiendo…",
+    "pickFirst": "Elija calcomanías para imprimir",
+    "printFailed": "No se pudieron imprimir las calcomanías."
   }
 }
