@@ -18,6 +18,7 @@ import { pdiKey } from '../utils/pdiItemList';
 import { appCategoryFor } from '../utils/pdiDepartments';
 import { TX_LIMITS } from '../utils/txLimits';
 import { textScaleField } from '../utils/labelDesign';
+import { categoryKey, followsCategory, loadCategoryDesigns } from '../utils/labelCategoryDesigns';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
 // allStoresAccess or an explicit UserStoreRole for this specific store.
@@ -189,6 +190,11 @@ export async function createLabel(req: AuthRequest, res: Response) {
     res.status(400).json({ success: false, error: 'That design no longer exists. Reload and choose another.' });
     return;
   }
+  // A new item on the standard look takes its category's default design, if HQ set one (2026-11-21)
+  if (!labelData.designId && labelData.template === LabelTemplate.CLASSIC_RED_BLACK && labelData.category) {
+    const fromCategory = (await loadCategoryDesigns())[categoryKey(labelData.category)];
+    if (fromCategory) labelData.designId = fromCategory;
+  }
 
   const creatorStoreId = requestedStoreId ?? req.user!.storeIds?.[0] ?? null;
   let adoptedPlaceholder = false;
@@ -350,6 +356,13 @@ export async function updateLabel(req: AuthRequest, res: Response) {
   if (parsed.data.designId && !(await prisma.labelDesign.findUnique({ where: { id: parsed.data.designId }, select: { id: true } }))) {
     res.status(400).json({ success: false, error: 'That design no longer exists. Reload and choose another.' });
     return;
+  }
+
+  // An item that follows its category's design moves with it to its new category's design (or the standard look) (2026-11-21)
+  if (parsed.data.category !== undefined && categoryKey(parsed.data.category) !== categoryKey(before.category)
+    && parsed.data.designId === undefined && (parsed.data.template === undefined || parsed.data.template === before.template)) {
+    const map = await loadCategoryDesigns();
+    if (followsCategory(before, map[categoryKey(before.category)])) parsed.data.designId = map[categoryKey(parsed.data.category)] ?? null;
   }
 
   const changes = labelChanges(before, parsed.data);

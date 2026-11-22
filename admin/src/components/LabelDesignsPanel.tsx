@@ -1,7 +1,7 @@
 // Labels > Designs (2026-11-21): HQ makes its own label designs. The editor shows every choice beside a live preview of the real label:
 // a long name with a barcode, a deal, and a deal sticker, so a size that cuts text off is seen before saving.
 import { useState, CSSProperties } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { labelsApi } from '../services/api';
@@ -90,6 +90,8 @@ export default function LabelDesignsPanel() {
             })}
           </div>
         )}
+
+      {designs.length > 0 && <CategoryDefaults designs={designs} />}
 
       {editing && <DesignEditor initial={editing} onClose={() => setEditing(null)} />}
       <ConfirmModal headingLevel="h2" open={!!removing} danger busy={del.isPending} confirmLabel="Remove"
@@ -192,6 +194,61 @@ function DesignEditor({ initial, onClose }: { initial: { id: string | null; name
 
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 
+interface CategoryRow { key: string; category: string; count: number; designId: string | null }
+
+/** A default design per category (2026-11-21): its items with no design of their own follow it, and new items in it start in it. */
+function CategoryDefaults({ designs }: { designs: LabelDesign[] }) {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['label-category-designs'], queryFn: async () => ((await labelsApi.categoryDesigns()).data?.data ?? []) as CategoryRow[] });
+  const [filter, setFilter] = useState('');
+  const set = useMutation({
+    mutationFn: (x: { category: string; designId: string | null }) => labelsApi.setCategoryDesign(x.category, x.designId),
+    onSuccess: (r, x) => {
+      const d = r.data?.data ?? {};
+      toast.success(`${x.category}: ${d.moved ?? 0} item${d.moved === 1 ? '' : 's'} moved${d.kept ? `, ${d.kept} with their own design kept it` : ''}${d.reprint ? `; ${d.reprint} store label${d.reprint === 1 ? '' : 's'} to reprint` : ''}.`, { duration: 7000 });
+      qc.invalidateQueries({ queryKey: ['label-category-designs'] });
+      qc.invalidateQueries({ queryKey: ['label-designs'] });
+      qc.invalidateQueries({ queryKey: ['labels'] });
+    },
+    onError: (e) => toast.error(failureMessage(e, 'Could not change the category design.')),
+  });
+  const rows = (q.data ?? []).filter((r) => !filter.trim() || r.category.toLowerCase().includes(filter.trim().toLowerCase()));
+  return (
+    <div style={{ marginTop: 22 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div>
+          <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text }}>Category defaults</div>
+          <div style={{ fontSize: FONT.small, color: TEXT_MUTED, maxWidth: 640 }}>
+            Give a category a design and its items on the standard look move to it, new items in it start in it, and an item moved into
+            it follows. Items you gave a design by hand keep theirs.
+          </div>
+        </div>
+        <input aria-label="Find a category" style={{ ...INPUT, width: 220 }} placeholder="Find a category" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      </div>
+      {q.isError ? <ErrorState message="Could not load the categories." onRetry={() => q.refetch()} compact />
+        : q.isLoading ? <div style={{ color: TEXT_MUTED, fontSize: FONT.small }}>Loading…</div>
+        : rows.length === 0 ? <div style={{ color: TEXT_MUTED, fontSize: FONT.small }}>{q.data?.length ? 'No category matches.' : 'No items have a category yet.'}</div>
+        : (
+          <Card padding={0}>
+            {rows.map((r, i) => (
+              <div key={r.key} style={{ ...st.catRow, ...(i ? { borderTop: `1px solid ${C.border}` } : {}) }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 600, color: C.text, fontSize: FONT.body }}>{r.category}</div>
+                  <div style={{ fontSize: FONT.caption, color: TEXT_MUTED }}>{r.count} item{r.count === 1 ? '' : 's'}</div>
+                </div>
+                <select aria-label={`Default design for ${r.category}`} style={{ ...INPUT, width: 230 }} value={r.designId ?? ''} disabled={set.isPending}
+                  onChange={(e) => set.mutate({ category: r.category, designId: e.target.value || null })}>
+                  <option value="">Standard look (no default)</option>
+                  {designs.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+            ))}
+          </Card>
+        )}
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return <fieldset style={st.section}><legend style={st.legend}>{title}</legend>{children}</fieldset>;
 }
@@ -242,4 +299,5 @@ const st: Record<string, CSSProperties> = {
   previewCol: { position: 'sticky', top: 0, display: 'grid', gap: 8 },
   previewTitle: { fontSize: FONT.caption, fontWeight: 700, color: TEXT_MUTED, textTransform: 'uppercase', letterSpacing: 0.4 },
   preview: { width: '100%', height: 170, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, background: C.subtle },
+  catRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px' },
 };

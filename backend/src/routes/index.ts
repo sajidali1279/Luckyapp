@@ -101,7 +101,7 @@ import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
 import { getGasGroups, putGasGroups } from '../controllers/gasGroups.controller';
-import { listDesigns, createDesign, updateDesign, deleteDesign, listImages, uploadImage, deleteImage, listStickers, createSticker, updateSticker, deleteSticker } from '../controllers/labelDesigns.controller';
+import { listDesigns, createDesign, updateDesign, deleteDesign, listImages, uploadImage, deleteImage, listStickers, createSticker, updateSticker, deleteSticker, getCategoryDesigns, putCategoryDesign } from '../controllers/labelDesigns.controller';
 import { getBarcodeDuplicates, mergeLabels, importLabels, getDealRecommendations, dismissDealRecommendation, restoreDealRecommendations, getDealSettings, updateDealSettings, setDealsBulk, resetDealLearning } from '../controllers/labelCleanup.controller';
 import {
   getStoreSchedule,
@@ -758,6 +758,8 @@ router.get   ('/labels/designs',        authenticate, requireRole(Role.EMPLOYEE)
 router.post  ('/labels/designs',        authenticate, requireRole(Role.SUPER_ADMIN), createDesign);
 router.put   ('/labels/designs/:id',    authenticate, requireRole(Role.SUPER_ADMIN), updateDesign);
 router.delete('/labels/designs/:id',    authenticate, requireRole(Role.SUPER_ADMIN), deleteDesign);
+router.get   ('/labels/category-designs', authenticate, requireRole(Role.SUPER_ADMIN), getCategoryDesigns);   // a default design per category
+router.put   ('/labels/category-designs', authenticate, requireRole(Role.SUPER_ADMIN), putCategoryDesign);
 router.get   ('/labels/images',         authenticate, requireRole(Role.EMPLOYEE), listImages);
 router.post  ('/labels/images',         authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), uploadImage);
 router.delete('/labels/images/:id',     authenticate, requireRole(Role.SUPER_ADMIN), deleteImage);

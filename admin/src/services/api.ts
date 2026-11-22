@@ -228,6 +228,9 @@ export const labelsApi = {
   createDesign: (data: { name: string; settings: object }) => api.post('/labels/designs', data),
   updateDesign: (id: string, data: { name: string; settings: object }) => api.put(`/labels/designs/${id}`, data),
   deleteDesign: (id: string) => api.delete(`/labels/designs/${id}`),
+  /** A default design per category: its items that have no design of their own follow it */
+  categoryDesigns: () => api.get('/labels/category-designs'),
+  setCategoryDesign: (category: string, designId: string | null) => api.put('/labels/category-designs', { category, designId }),
   /** The picture library for deal stickers */
   images: () => api.get('/labels/images'),
   uploadImage: (file: File, name: string) => { const f = new FormData(); f.append('image', file); f.append('name', name); return api.post('/labels/images', f); },

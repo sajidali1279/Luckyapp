@@ -10,6 +10,7 @@ import { audit } from '../utils/audit';
 import { refuse } from '../utils/refusal';
 import { hasMinRole } from '../middleware/auth';
 import { designSchema, textScaleField } from '../utils/labelDesign';
+import { categoryKey, followsCategory, loadCategoryDesigns, saveCategoryDesigns } from '../utils/labelCategoryDesigns';
 
 const actor = (req: AuthRequest) => ({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role });
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -70,6 +71,10 @@ export async function deleteDesign(req: AuthRequest, res: Response) {
   if (!before) { res.status(404).json({ success: false, error: 'That design no longer exists.' }); return; }
   const reprint = await reprintDesign(before.id);
   await prisma.labelDesign.delete({ where: { id: before.id } });   // labels and stickers keep their built-in design (designId set to null)
+  // a category whose default it was has no default any more
+  const map = await loadCategoryDesigns();
+  const left = Object.fromEntries(Object.entries(map).filter(([, d]) => d !== before.id));
+  if (Object.keys(left).length !== Object.keys(map).length) await saveCategoryDesigns(left);
   audit({ ...actor(req), action: 'LABEL_DESIGN', entity: 'label', entityId: before.id,
     details: { summary: `Label design "${before.name}" removed; ${plural(before._count.labels, 'item', 'items')} and ${plural(before._count.stickers, 'sticker', 'stickers')} back on their built-in design; ${plural(reprint, 'store label', 'store labels')} to reprint` }, storeId: null });
   res.json({ success: true, data: { reprint } });
@@ -191,4 +196,59 @@ export async function deleteSticker(req: AuthRequest, res: Response) {
   await prisma.dealSticker.delete({ where: { id: before.id } });
   audit({ ...actor(req), action: 'DEAL_STICKER', entity: 'label', entityId: before.id, details: { summary: `Deal sticker "${before.words}" removed` }, storeId: null });
   res.json({ success: true });
+}
+
+// ─── A default design per category ────────────────────────────────────────
+
+/** GET /labels/category-designs: every category the catalog uses, how many items it has, and its default design (if any). */
+export async function getCategoryDesigns(_req: AuthRequest, res: Response) {
+  const [groups, map] = await Promise.all([
+    prisma.label.groupBy({ by: ['category'], _count: { _all: true }, where: { category: { not: null } } }),
+    loadCategoryDesigns(),
+  ]);
+  const byKey = new Map<string, { category: string; count: number; best: number }>();
+  for (const g of groups) {
+    const key = categoryKey(g.category);
+    if (!key) continue;
+    const n = g._count._all;
+    const cur = byKey.get(key);
+    if (!cur) byKey.set(key, { category: g.category!.trim(), count: n, best: n });
+    else { cur.count += n; if (n > cur.best) { cur.best = n; cur.category = g.category!.trim(); } }   // the spelling most items use
+  }
+  const data = [...byKey.entries()].map(([key, v]) => ({ key, category: v.category, count: v.count, designId: map[key] ?? null }))
+    .sort((a, b) => a.category.localeCompare(b.category));
+  res.json({ success: true, data });
+}
+
+const categoryDesignSchema = z.object({
+  category: z.string({ message: 'Choose a category.' }).trim().min(1, 'Choose a category.').max(100),
+  designId: z.string().uuid().nullable(),
+}).strict();
+
+/** PUT /labels/category-designs { category, designId | null }: the category's items that follow it move to the design (or back to the
+ *  standard look when cleared); items with a design of their own keep it. Stores that printed the moved items are told to reprint. */
+export async function putCategoryDesign(req: AuthRequest, res: Response) {
+  const parsed = categoryDesignSchema.safeParse(req.body);
+  if (!parsed.success) { refuse(res, parsed.error); return; }
+  const { category, designId } = parsed.data;
+  const design = designId ? await prisma.labelDesign.findUnique({ where: { id: designId }, select: { id: true, name: true } }) : null;
+  if (designId && !design) { res.status(400).json({ success: false, error: 'That design no longer exists. Reload and choose another.' }); return; }
+  const map = await loadCategoryDesigns();
+  const key = categoryKey(category);
+  const old = map[key] ?? null;
+  const items = await prisma.label.findMany({ where: { category: { equals: category, mode: 'insensitive' } }, select: { id: true, template: true, designId: true } });
+  const moving = items.filter((l) => followsCategory(l, old) && (l.designId ?? null) !== (designId ?? null)).map((l) => l.id);
+  let reprint = 0;
+  if (moving.length) {
+    const [, flagged] = await prisma.$transaction([
+      prisma.label.updateMany({ where: { id: { in: moving } }, data: { designId: designId ?? null } }),
+      prisma.storeLabel.updateMany({ where: { labelId: { in: moving }, printedAt: { not: null } }, data: { printedAt: null } }),
+    ]);
+    reprint = flagged.count;
+  }
+  if (designId) map[key] = designId; else delete map[key];
+  await saveCategoryDesigns(map);
+  audit({ ...actor(req), action: 'LABEL_DESIGN', entity: 'label', entityId: `category:${key}`,
+    details: { summary: `Category "${category}" ${design ? `now uses the design "${design.name}"` : 'has no default design'}; ${plural(moving.length, 'item', 'items')} moved, ${plural(reprint, 'store label', 'store labels')} to reprint` }, storeId: null });
+  res.json({ success: true, data: { moved: moving.length, reprint, kept: items.length - moving.length } });
 }
