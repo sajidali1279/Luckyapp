@@ -2472,3 +2472,18 @@ model PdiPriceChange {
   @@index([upcKey])
   @@map("pdi_price_changes")
 }
+
+// A Super Admin's time on the HQ website (2026-11-21): started by HQ's first "still here" signal, kept fresh by it every 5 minutes,
+// ended by Sign out or by 30 minutes without one (a closed tab). Each start and end is emailed to the Dev Admin inbox.
+model HqSession {
+  id         String    @id @default(uuid())
+  userId     String
+  startedAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  endedAt    DateTime?
+  endReason  String?   // SIGN_OUT | INACTIVE
+
+  @@index([userId, endedAt])
+  @@index([endedAt, lastSeenAt])
+  @@map("hq_sessions")
+}

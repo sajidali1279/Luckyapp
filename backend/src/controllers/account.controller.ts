@@ -1,5 +1,6 @@
 // The signed-in person's own account page (admin Profile): what the account is, which HQ emails it gets, and ending other sessions.
 import { Response } from 'express';
+import { hqPing, hqSignOut } from '../utils/hqPresence';
 import { Role } from '@prisma/client';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
@@ -15,6 +16,18 @@ function summaryOf(details: string | null): string | null {
 }
 
 // GET /auth/account
+/** POST /auth/hq-ping: HQ's "still here" signal (2026-11-21). Only Super Admins are tracked; others get ok and nothing happens. */
+export async function hqPingRoute(req: AuthRequest, res: Response) {
+  const state = await hqPing({ id: req.user!.id, name: req.user!.name ?? 'A Super Admin', role: req.user!.role });
+  res.json({ success: true, data: { state } });
+}
+
+/** POST /auth/hq-signout: Sign out pressed on HQ (sent just before HQ forgets the sign-in). */
+export async function hqSignOutRoute(req: AuthRequest, res: Response) {
+  await hqSignOut({ id: req.user!.id, name: req.user!.name ?? 'A Super Admin', role: req.user!.role });
+  res.json({ success: true });
+}
+
 export async function getAccount(req: AuthRequest, res: Response) {
   const me = req.user!;
   const user = await prisma.user.findUnique({

@@ -73,6 +73,10 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   TOGGLE_USER:               { label: 'Deactivate / reactivate', color: '#c42130', bg: '#E6394618', icon: '🔒' },
   RESET_PIN:                 { label: 'Reset PIN',              color: '#c42130', bg: '#E6394618', icon: '🔑' },
   SIGN_OUT_EVERYWHERE:       { label: 'Signed out everywhere',  color: '#1D3557', bg: '#1D355718', icon: '🔒' },
+  // A Super Admin on HQ (2026-11-21): emailed to the Dev Admin as well
+  HQ_SIGN_IN:                { label: 'Signed in to HQ',        color: '#17663a', bg: '#17663a18', icon: '🟢' },
+  HQ_SIGN_OUT:               { label: 'Signed out of HQ',       color: '#1D3557', bg: '#1D355718', icon: '⚪' },
+  HQ_INACTIVE:               { label: 'Left HQ (inactive)',     color: '#8a5300', bg: '#8a530018', icon: '🟠' },
   CREATE_SUPER_ADMIN:        { label: 'Create Super Admin',     color: '#4f6d8f', bg: '#9b5de518', icon: '🏢' },
   DELETE_USER:               { label: 'Delete account',         color: '#c42130', bg: '#E6394618', icon: '🗑️' },
   DELETE_USER_REFUSED:       { label: 'Delete refused',         color: '#c42130', bg: '#E6394618', icon: '⛔' },
@@ -198,6 +202,10 @@ const ACTION_META: Record<string, { label: string; color: string; bg: string; ic
   OFFER_AUTOPILOT_RUN:       { label: 'Offers autopilot ran',   color: '#5a6472', bg: '#6c757d18', icon: '🤖' },
   DEAL_RECOMMENDATIONS_RESTORED: { label: 'Deal suggestions shown again', color: PRIMARY, bg: '#1D355718', icon: '💡' },
   DEAL_LIMITS:               { label: 'Deal limits changed',    color: PRIMARY, bg: '#1D355718', icon: '📏' },
+  LABEL_DESIGN:              { label: 'Label design',           color: PRIMARY, bg: '#1D355718', icon: '🎨' },
+  LABEL_IMAGE:               { label: 'Sticker picture',        color: PRIMARY, bg: '#1D355718', icon: '🖼️' },
+  DEAL_STICKER:              { label: 'Deal sticker',           color: '#c2410c', bg: '#c2410c18', icon: '🏷️' },
+  GAS_GROUPS:                { label: 'Gas price groups',       color: PRIMARY, bg: '#1D355718', icon: '⛽' },
   DEALS_BULK:                { label: 'Deals set together',     color: PRIMARY, bg: '#1D355718', icon: '🏷️' },
   DEAL_LEARNING_RESET:       { label: 'Deal suggestions started over', color: PRIMARY, bg: '#1D355718', icon: '🔄' },
 };
@@ -398,12 +406,12 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Staff & access ──">
-            {['CREATE_STAFF','EDIT_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','SET_STORES','DELETE_USER','DELETE_USER_REFUSED','DENIED_ACCOUNT_ACTION','DELETE_OWN_ACCOUNT'].map(k => (
+            {['HQ_SIGN_IN','HQ_SIGN_OUT','HQ_INACTIVE','CREATE_STAFF','EDIT_STAFF','CREATE_SUPER_ADMIN','TOGGLE_USER','RESET_PIN','ADD_STORE','REMOVE_STORE','SET_STORES','DELETE_USER','DELETE_USER_REFUSED','DENIED_ACCOUNT_ACTION','DELETE_OWN_ACCOUNT'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
           <optgroup label="── Stores ──">
-            {['CREATE_STORE','UPDATE_STORE','CLEAR_CHAT','GAS_PRICE_UPDATE','UPDATE_STORE_HOURS','UPDATE_HOT_FOOD_HOURS','ADD_STORE_HOLIDAY','DELETE_STORE_HOLIDAY','ADD_KEYWORD_MAPPING','DELETE_KEYWORD_MAPPING','REGENERATE_API_KEY'].map(k => (
+            {['CREATE_STORE','UPDATE_STORE','CLEAR_CHAT','GAS_PRICE_UPDATE','GAS_GROUPS','UPDATE_STORE_HOURS','UPDATE_HOT_FOOD_HOURS','ADD_STORE_HOLIDAY','DELETE_STORE_HOLIDAY','ADD_KEYWORD_MAPPING','DELETE_KEYWORD_MAPPING','REGENERATE_API_KEY'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>
@@ -428,7 +436,7 @@ export default function ActivityLog() {
             ))}
           </optgroup>
           <optgroup label="── Labels ──">
-            {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','LABEL_CHANGE_REFUSED','PRINT_LABEL','STORE_LABEL_PRICE','STORE_LABEL_REMOVED','PUSH_LABEL_TO_ALL_STORES','LABEL_SALE_ENDED','LABELS_MERGED','LABELS_IMPORTED','DEAL_RECOMMENDATIONS_RESTORED','DEAL_LIMITS','DEALS_BULK','DEAL_LEARNING_RESET'].map(k => (
+            {['CREATE_LABEL','UPDATE_LABEL','DELETE_LABEL','LABEL_CHANGE_REFUSED','PRINT_LABEL','STORE_LABEL_PRICE','STORE_LABEL_REMOVED','PUSH_LABEL_TO_ALL_STORES','LABEL_SALE_ENDED','LABELS_MERGED','LABELS_IMPORTED','DEAL_RECOMMENDATIONS_RESTORED','DEAL_LIMITS','DEALS_BULK','DEAL_LEARNING_RESET','LABEL_DESIGN','LABEL_IMAGE','DEAL_STICKER'].map(k => (
               <option key={k} value={k}>{ACTION_META[k].label}</option>
             ))}
           </optgroup>

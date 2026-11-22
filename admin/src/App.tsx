@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { useHqPresence } from './hooks/useHqPresence';
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -81,6 +82,7 @@ function ProtectedLayout() {
   const { user } = useAuthStore();
   const { pathname } = useLocation();
   usePageTitle();
+  useHqPresence(user?.role);   // a Super Admin's time on HQ, for the Dev Admin's emails (2026-11-21)
   if (!user) return <Navigate to="/login" replace />;
   if (!ADMIN_ROLES.includes(user.role)) return <Navigate to="/login" replace />;
   if (user.role === 'EMPLOYEE') return <Navigate to="/employee-portal" replace />;

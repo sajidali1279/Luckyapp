@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
+import { hqSignOutSignal } from '../hooks/useHqPresence';
 import { useAdminBadges, type BadgeKey } from '../hooks/useAdminBadges';
 import { usePinnedPages } from '../hooks/usePinnedPages';
 import { useRecentPages } from '../lib/recentPages';
@@ -182,7 +183,7 @@ export function AppSidebar() {
   const badgeFor = (key?: BadgeKey) => (key ? (badges[key] as number) : undefined);
 
   // Empty the cache too, so the next person to sign in on this tab never sees the previous session's data
-  function handleLogout() { queryClient.clear(); logout(); navigate('/login'); }
+  async function handleLogout() { await hqSignOutSignal(user?.role); queryClient.clear(); logout(); navigate('/login'); }
 
   return (
     <Sidebar collapsible="icon" variant="sidebar" role="complementary" aria-label="Menu and account">

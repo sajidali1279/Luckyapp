@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Camera, LogOut, Mail, ShieldCheck, Trash2, UserRound, Clock, Store as StoreIcon } from 'lucide-react';
 import { authApi } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { hqSignOutSignal } from '../hooks/useHqPresence';
 import { Page, PageHeader, Card, Button, Field, Notice, Badge, SectionTitle } from '../components/kit';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorState from '../components/ErrorState';
@@ -97,7 +98,7 @@ export default function Profile() {
     try {
       await authApi.changePin(currentPin, newPin);
       toast.success('PIN changed. Please sign in again.');
-      setTimeout(() => { logout(); window.location.href = '/login'; }, 1500);
+      setTimeout(async () => { await hqSignOutSignal(useAuthStore.getState().user?.role); logout(); window.location.href = '/login'; }, 1500);
     } catch (err) { toast.error(failureMessage(err, 'Could not change the PIN')); } finally { setPinBusy(false); }
   }
 
