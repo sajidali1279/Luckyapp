@@ -166,6 +166,9 @@ export default function Labels() {
   const quickPriceRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const [catalogPage, setCatalogPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // One design or text size for every ticked item (2026-11-21): it joins the waiting changes, so the usual check and Save apply
+  const [bulkLook, setBulkLook] = useState('');
+  const [bulkSize, setBulkSize] = useState('');
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [priceOverrides, setPriceOverrides] = useState<Record<string, string>>({});
   const [pendingBulkPrint, setPendingBulkPrint] = useState<PrintableLabelEntry[] | null>(null);
@@ -1395,6 +1398,29 @@ export default function Labels() {
           </div>
 
           {selectedIds.size > 0 && (
+            <div style={s.bulkBar} role="group" aria-label="Design for the ticked items">
+              <span style={s.bulkText}>Design for the {plural(selectedIds.size, 'ticked item', 'ticked items')}:</span>
+              <select style={s.cellSelect} value={bulkLook} onChange={(e) => setBulkLook(e.target.value)} aria-label="Design for the ticked items">
+                <option value="">Keep each design</option>
+                <optgroup label="Built in">{TEMPLATE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</optgroup>
+                {designs.length > 0 && <optgroup label="HQ designs">{designs.map(d => <option key={d.id} value={`design:${d.id}`}>{d.name}</option>)}</optgroup>}
+              </select>
+              <select style={{ ...s.cellSelect, width: 140 }} value={bulkSize} onChange={(e) => setBulkSize(e.target.value)} aria-label="Text size for the ticked items">
+                <option value="">Keep each size</option>
+                {SIZE_OPTIONS.map(v => <option key={v} value={v}>{sizeText(v)}</option>)}
+              </select>
+              <Button size="sm" disabled={(!bulkLook && !bulkSize) || savingAll} onClick={() => {
+                let n = 0;
+                labels.filter(l => selectedIds.has(l.id)).forEach(l => {
+                  if (bulkLook && stage(l, 'look', bulkLook)) n++;
+                  if (bulkSize) stage(l, 'size', bulkSize);
+                });
+                setBulkLook(''); setBulkSize('');
+                toast.success(`Set on ${plural(n || selectedIds.size, 'item', 'items')}. Press Save to keep it (you will see which stores reprint first).`);
+              }}>Apply to ticked</Button>
+            </div>
+          )}
+          {selectedIds.size > 0 && (
             <PrintTray
               items={labels
                 .filter((l): l is Label & { priceText: string } => selectedIds.has(l.id) && l.priceText != null)
@@ -1437,6 +1463,8 @@ export default function Labels() {
 }
 
 const s: Record<string, CSSProperties> = {
+  bulkBar: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 12px', margin: '12px 0 0', border: '1px solid #d3dcea', borderRadius: 10, background: '#eef2f7' },
+  bulkText: { fontSize: 13, fontWeight: 600, color: '#374151' },
   inner: { display: 'flex', flexDirection: 'column', gap: 20 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' },
