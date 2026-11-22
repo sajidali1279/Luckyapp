@@ -8,7 +8,7 @@ import { hotFoodCombosApi, offersApi, type HotFoodComboInput } from '../services
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { Badge, Button, Card, Chip, EmptyState, Field, HowItWorks, Notice } from './kit';
-import TeaserSelect, { teaseFromIso, teaseDaysOf } from './offers/TeaserSelect';
+import TeaserSelect, { teaseFromIso, teaseHoursOf } from './offers/TeaserSelect';
 import { startOfStoreDay, storeToday, storeDayLong, storeTime } from '../lib/storeDates';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
@@ -23,10 +23,10 @@ type Store = { id: string; name: string; hotFoodEnabled?: boolean };
 type Combo = HotFoodComboInput & { id: string; ordered30d: number; catalogItem: CatalogItem; waiting?: number };
 type Form = { name: string; nameEs: string; description: string; catalogItemId: string; itemQuantity: string; drinks: string[]; price: string; regularPrice: string;
   allStores: boolean; storeIds: string[]; hours: boolean; fromTime: string; toTime: string; days: number[]; isFeatured: boolean; isActive: boolean;
-  later: boolean; startDay: string; startTime: string; teaseDays: number };   // starts later (2026-11-22): store date and time, Coming soon days before
+  later: boolean; startDay: string; startTime: string; teaseHours: number };   // starts later (2026-11-22): store date and time, Coming soon hours before
 const EMPTY: Form = { name: '', nameEs: '', description: '', catalogItemId: '', itemQuantity: '1', drinks: ['FOUNTAIN', 'BOTTLE_20'], price: '', regularPrice: '',
   allStores: true, storeIds: [], hours: false, fromTime: '05:00', toTime: '11:00', days: [], isFeatured: true, isActive: true,
-  later: false, startDay: '', startTime: '10:00', teaseDays: 3 };
+  later: false, startDay: '', startTime: '10:00', teaseHours: 72 };
 
 // The store clock's HH:MM of an instant, and an instant from a store date and HH:MM
 const HHMM = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' });
@@ -55,14 +55,14 @@ function toForm(c: Combo): Form {
     regularPrice: c.regularPrice != null ? String(c.regularPrice) : '', allStores: c.storeIds.length === 0, storeIds: c.storeIds,
     hours: !!c.fromTime, fromTime: c.fromTime ?? '05:00', toTime: c.toTime ?? '11:00', days: c.days ?? [], isFeatured: c.isFeatured, isActive: c.isActive,
     later: !!c.startsAt && Date.parse(c.startsAt) > Date.now(), startDay: c.startsAt ? storeToday(new Date(c.startsAt)) : '',
-    startTime: c.startsAt ? storeHhmm(c.startsAt) : '10:00', teaseDays: teaseDaysOf(c.teaseFrom, c.startsAt) };
+    startTime: c.startsAt ? storeHhmm(c.startsAt) : '10:00', teaseHours: teaseHoursOf(c.teaseFrom, c.startsAt) };
 }
 function toInput(f: Form): HotFoodComboInput {
   return { name: f.name.trim(), nameEs: f.nameEs.trim() || null, description: f.description.trim() || null, catalogItemId: f.catalogItemId, itemQuantity: Number(f.itemQuantity), drinks: f.drinks,
     price: Number(f.price), regularPrice: f.regularPrice.trim() ? Number(f.regularPrice) : null, storeIds: f.allStores ? [] : f.storeIds,
     fromTime: f.hours ? f.fromTime : null, toTime: f.hours ? f.toTime : null, days: f.days, isFeatured: f.isFeatured, isActive: f.isActive,
     ...(f.later && f.startDay
-      ? { startsAt: new Date(startMsOf(f.startDay, f.startTime)).toISOString(), teaseFrom: teaseFromIso(startMsOf(f.startDay, f.startTime), f.teaseDays) }
+      ? { startsAt: new Date(startMsOf(f.startDay, f.startTime)).toISOString(), teaseFrom: teaseFromIso(startMsOf(f.startDay, f.startTime), f.teaseHours) }
       : { startsAt: null, teaseFrom: null }) };
 }
 
@@ -323,7 +323,7 @@ function ComboForm({ initial, id, catalog, stores, onClose }: { initial: Form; i
                 <input aria-label="Start time" type="time" style={{ ...INPUT, width: 140 }} value={f.startTime} onChange={(e) => set('startTime', e.target.value)} />
                 <span style={{ fontSize: FONT.caption, color: TEXT_MUTED }}>store time</span>
               </div>
-              <TeaserSelect id="cb-tease" value={f.teaseDays} onChange={(d) => set('teaseDays', d)} show />
+              <TeaserSelect id="cb-tease" value={f.teaseHours} onChange={(d) => set('teaseHours', d)} show />
             </div>
           )}
         </div>
