@@ -4,8 +4,8 @@
 import { useRef, useState, CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Printer, ImagePlus } from 'lucide-react';
-import { labelsApi, storesApi } from '../services/api';
+import { Plus, Pencil, Trash2, Printer, ImagePlus, Flame } from 'lucide-react';
+import { labelsApi, storesApi, hotFoodCombosApi } from '../services/api';
 import { failureMessage } from '../lib/apiError';
 import { C, FONT, INPUT, RADIUS, TEXT_MUTED } from '../lib/theme';
 import { Button, Card, Badge, EmptyState, HowItWorks, SectionTitle } from './kit';
@@ -29,6 +29,8 @@ interface Sticker {
   endsOn: string | null; showEnd: boolean; ended?: boolean;   // the deal's last day (2026-11-21)
 }
 interface Store { id: string; name: string; isActive?: boolean }
+type Prefill = { words: string; priceText: string; subText: string | null; images: LibImage[] };
+interface Combo { id: string; name: string; price: number; isActive: boolean; catalogItem?: { name: string; imageUrl?: string | null } }
 
 /** A sticker as the print code draws it. */
 export function stickerPrintable(x: { id: string; words: string; subText: string | null; priceText: string; designId: string | null; template: string; textScale: number | null; images: { url: string }[]; endsOn?: string | null; showEnd?: boolean }): PrintableLabel {
@@ -47,6 +49,8 @@ export default function DealStickersPanel() {
   const stores = storesQ.data ?? [];
 
   const [editing, setEditing] = useState<Sticker | 'new' | null>(null);
+  const [prefill, setPrefill] = useState<Prefill | null>(null);
+  const [pickingCombo, setPickingCombo] = useState(false);
   const [removing, setRemoving] = useState<Sticker | null>(null);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -82,7 +86,8 @@ export default function DealStickersPanel() {
         </HowItWorks>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button icon={<Printer />} disabled={picked.size === 0} onClick={printPicked}>Print {picked.size ? `${picked.size} picked` : 'picked'}</Button>
-          <Button variant="primary" icon={<Plus />} onClick={() => setEditing('new')} disabled={imagesQ.isLoading}>New sticker</Button>
+          <Button icon={<Flame />} onClick={() => setPickingCombo(true)}>From a hot food combo</Button>
+          <Button variant="primary" icon={<Plus />} onClick={() => { setPrefill(null); setEditing('new'); }} disabled={imagesQ.isLoading}>New sticker</Button>
         </div>
       </div>
 
@@ -126,7 +131,8 @@ export default function DealStickersPanel() {
 
       <PictureLibrary images={images} loading={imagesQ.isLoading} />
 
-      {editing && <StickerEditor sticker={editing === 'new' ? null : editing} images={images} stores={stores} onClose={() => setEditing(null)} />}
+      {editing && <StickerEditor sticker={editing === 'new' ? null : editing} prefill={editing === 'new' ? prefill : null} images={images} stores={stores} onClose={() => { setEditing(null); setPrefill(null); }} />}
+      {pickingCombo && <ComboPicker onClose={() => setPickingCombo(false)} onPicked={(p) => { setPickingCombo(false); setPrefill(p); setEditing('new'); }} />}
       <ConfirmModal headingLevel="h2" open={!!removing} danger busy={del.isPending} confirmLabel="Remove"
         title={`Remove "${removing?.words ?? ''}"?`} message={<p style={{ margin: 0 }}>Stores stop seeing it. Stickers already printed stay on the shelves until taken down. To keep it for later, switch it off instead.</p>}
         onConfirm={() => removing && del.mutate(removing.id)} onCancel={() => setRemoving(null)} />
@@ -187,13 +193,61 @@ function PictureLibrary({ images, loading }: { images: LibImage[]; loading: bool
   );
 }
 
-function StickerEditor({ sticker, images, stores, onClose }: { sticker: Sticker | null; images: LibImage[]; stores: Store[]; onClose: () => void }) {
+/** Pick a hot food combo: its name, price and the item's photo start a new sticker (2026-11-21). */
+function ComboPicker({ onClose, onPicked }: { onClose: () => void; onPicked: (p: Prefill) => void }) {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ['hot-food-combos'], queryFn: () => hotFoodCombosApi.list() });
+  const combos: Combo[] = Array.isArray(q.data?.data?.data) ? q.data!.data.data : [];
+  const [busy, setBusy] = useState<string | null>(null);
+  async function pick(c: Combo) {
+    setBusy(c.id);
+    let images: LibImage[] = [];
+    try {
+      const url = c.catalogItem?.imageUrl;
+      if (url) {
+        const r = await labelsApi.imageFromUrl(c.catalogItem!.name, url);
+        if (r.data?.data) images = [r.data.data as LibImage];
+        qc.invalidateQueries({ queryKey: ['label-images'] });
+      }
+    } catch (e) {
+      toast.error(failureMessage(e, 'The photo could not be added; add a picture yourself.'));
+    }
+    setBusy(null);
+    onPicked({ words: c.name.slice(0, 30), priceText: c.price.toFixed(2), subText: null, images });
+  }
+  return (
+    <Modal title="Sticker from a hot food combo" subtitle="Its name, price and photo fill in a new sticker. You can change anything before saving." onClose={onClose} maxWidth={560}>
+      {q.isError ? <ErrorState message="Could not load the combos." onRetry={() => q.refetch()} compact />
+        : q.isLoading ? <div style={{ color: TEXT_MUTED }}>Loading…</div>
+        : combos.length === 0 ? <EmptyState title="No hot food combos yet" description="Make them in Hot Food > Combos." />
+        : (
+          <div style={{ display: 'grid', gap: 6, maxHeight: '55vh', overflowY: 'auto' }}>
+            {combos.map((c) => (
+              <button key={c.id} type="button" style={st.comboRow} onClick={() => pick(c)} disabled={!!busy} aria-label={`Use ${c.name}, $${c.price.toFixed(2)}`}>
+                {c.catalogItem?.imageUrl ? <img src={c.catalogItem.imageUrl} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8 }} />
+                  : <span style={{ width: 44, height: 44, borderRadius: 8, background: C.hover }} />}
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                  <span style={{ display: 'block', fontWeight: 700, color: C.text }}>{c.name}</span>
+                  <span style={{ display: 'block', fontSize: FONT.caption, color: TEXT_MUTED }}>{c.catalogItem?.name ?? ''}{c.isActive ? '' : ' · switched off'}</span>
+                </span>
+                <span style={{ fontWeight: 800, color: C.text }}>{busy === c.id ? '…' : `$${c.price.toFixed(2)}`}</span>
+              </button>
+            ))}
+          </div>
+        )}
+    </Modal>
+  );
+}
+
+function StickerEditor({ sticker, prefill, images, stores, onClose }: { sticker: Sticker | null; prefill?: Prefill | null; images: LibImage[]; stores: Store[]; onClose: () => void }) {
   const qc = useQueryClient();
   const { designs } = useLabelDesigns();
-  const [words, setWords] = useState(sticker?.words ?? '');
-  const [sub, setSub] = useState(sticker?.subText ?? '');
-  const [price, setPrice] = useState(sticker?.priceText ?? '');
-  const [pics, setPics] = useState<string[]>(sticker?.images.map((i) => i.id) ?? []);
+  const [words, setWords] = useState(sticker?.words ?? prefill?.words ?? '');
+  const [sub, setSub] = useState(sticker?.subText ?? prefill?.subText ?? '');
+  const [price, setPrice] = useState(sticker?.priceText ?? prefill?.priceText ?? '');
+  const [pics, setPics] = useState<string[]>(sticker?.images.map((i) => i.id) ?? prefill?.images.map((i) => i.id) ?? []);
+  // a picture just added from a combo may not be in the library list yet: it is shown from the prefill until the list catches up
+  const allImages = [...images, ...(prefill?.images ?? []).filter((p) => !images.some((i) => i.id === p.id))];
   const [look, setLook] = useState(sticker?.designId ? `design:${sticker.designId}` : sticker?.template ?? 'CLASSIC_RED_BLACK');
   const [size, setSize] = useState(sticker?.textScale && sticker.textScale !== 1 ? String(sticker.textScale) : '1');
   const [allStores, setAllStores] = useState(!sticker || sticker.storeIds.length === 0);
@@ -221,7 +275,7 @@ function StickerEditor({ sticker, images, stores, onClose }: { sticker: Sticker 
   });
   const togglePic = (id: string) => setPics((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 3 ? p : [...p, id]));
   const preview = stickerPrintable({ id: sticker?.id ?? 'new', words: body.words || 'Your deal', subText: body.subText, priceText: body.priceText || '0.00',
-    designId: body.designId, template: body.template, textScale: body.textScale, endsOn: body.endsOn, showEnd, images: pics.map((id) => images.find((i) => i.id === id)).filter(Boolean) as LibImage[] });
+    designId: body.designId, template: body.template, textScale: body.textScale, endsOn: body.endsOn, showEnd, images: pics.map((id) => allImages.find((i) => i.id === id)).filter(Boolean) as LibImage[] });
 
   return (
     <Modal title={sticker ? 'Edit deal sticker' : 'New deal sticker'} subtitle="Up to 3 pictures on the left, the deal and its price on the right." onClose={onClose} busy={save.isPending} maxWidth={920}>
@@ -232,9 +286,9 @@ function StickerEditor({ sticker, images, stores, onClose }: { sticker: Sticker 
           <label style={st.field}>Small line (optional)<input style={INPUT} maxLength={48} placeholder="Any 2.5 oz bag and a 24 oz fountain drink" value={sub} onChange={(e) => setSub(e.target.value)} /></label>
           <div style={st.field}>
             <span>Pictures ({pics.length} of 3, in the order picked)</span>
-            {images.length === 0 ? <span style={{ fontWeight: 400, color: TEXT_MUTED }}>The picture library is empty: add pictures under the stickers first.</span> : (
+            {allImages.length === 0 ? <span style={{ fontWeight: 400, color: TEXT_MUTED }}>The picture library is empty: add pictures under the stickers first.</span> : (
               <div style={st.pickGrid}>
-                {images.map((im) => {
+                {allImages.map((im) => {
                   const n = pics.indexOf(im.id);
                   return (
                     <button key={im.id} type="button" aria-pressed={n >= 0} aria-label={`${n >= 0 ? 'Remove' : 'Use'} picture ${im.name}`} onClick={() => togglePic(im.id)}
@@ -312,4 +366,5 @@ const st: Record<string, CSSProperties> = {
   pickOn: { borderColor: C.primary, boxShadow: `0 0 0 2px ${C.primary}` },
   pickNum: { position: 'absolute', top: 2, right: 2, width: 18, height: 18, borderRadius: 9, background: C.primary, color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   storeGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 4 },
+  comboRow: { display: 'flex', alignItems: 'center', gap: 10, padding: 8, border: `1px solid ${C.border}`, borderRadius: RADIUS.md, background: C.surface, cursor: 'pointer', fontSize: FONT.body, fontFamily: 'inherit' },
 };

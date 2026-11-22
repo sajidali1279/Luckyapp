@@ -235,6 +235,7 @@ export const labelsApi = {
   images: () => api.get('/labels/images'),
   uploadImage: (file: File, name: string) => { const f = new FormData(); f.append('image', file); f.append('name', name); return api.post('/labels/images', f); },
   deleteImage: (id: string) => api.delete(`/labels/images/${id}`),
+  imageFromUrl: (name: string, url: string) => api.post('/labels/images/from-url', { name, url }),   // a hot food photo into the library
   /** Deal stickers */
   stickers: () => api.get('/labels/stickers'),
   createSticker: (data: object) => api.post('/labels/stickers', data),

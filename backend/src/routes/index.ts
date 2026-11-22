@@ -101,7 +101,7 @@ import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
 import { getGasGroups, putGasGroups } from '../controllers/gasGroups.controller';
-import { listDesigns, createDesign, updateDesign, deleteDesign, listImages, uploadImage, deleteImage, listStickers, createSticker, updateSticker, deleteSticker, getCategoryDesigns, putCategoryDesign } from '../controllers/labelDesigns.controller';
+import { listDesigns, createDesign, updateDesign, deleteDesign, listImages, uploadImage, deleteImage, listStickers, createSticker, updateSticker, deleteSticker, getCategoryDesigns, putCategoryDesign, imageFromUrl } from '../controllers/labelDesigns.controller';
 import { getBarcodeDuplicates, mergeLabels, importLabels, getDealRecommendations, dismissDealRecommendation, restoreDealRecommendations, getDealSettings, updateDealSettings, setDealsBulk, resetDealLearning } from '../controllers/labelCleanup.controller';
 import {
   getStoreSchedule,
@@ -762,6 +762,7 @@ router.get   ('/labels/category-designs', authenticate, requireRole(Role.SUPER_A
 router.put   ('/labels/category-designs', authenticate, requireRole(Role.SUPER_ADMIN), putCategoryDesign);
 router.get   ('/labels/images',         authenticate, requireRole(Role.EMPLOYEE), listImages);
 router.post  ('/labels/images',         authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), uploadImage);
+router.post  ('/labels/images/from-url', authenticate, requireRole(Role.SUPER_ADMIN), imageFromUrl);   // a hot food photo into the library
 router.delete('/labels/images/:id',     authenticate, requireRole(Role.SUPER_ADMIN), deleteImage);
 router.get   ('/labels/stickers',       authenticate, requireRole(Role.EMPLOYEE), listStickers);
 router.post  ('/labels/stickers',       authenticate, requireRole(Role.SUPER_ADMIN), createSticker);

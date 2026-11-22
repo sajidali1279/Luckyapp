@@ -111,6 +111,22 @@ export async function uploadImage(req: AuthRequest, res: Response) {
   res.status(201).json({ success: true, data: image });
 }
 
+/** POST /labels/images/from-url { name, url }: a picture already stored with us (a hot food photo) joins the library without a new
+ *  upload (2026-11-21, sticker from a combo). Only our own Cloudinary image addresses are taken; the same address is not added twice. */
+export async function imageFromUrl(req: AuthRequest, res: Response) {
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 40) : '';
+  const url = typeof req.body?.url === 'string' ? req.body.url.trim() : '';
+  if (!name) { res.status(400).json({ success: false, error: 'Give the picture a name.' }); return; }
+  if (!/^https:\/\/res\.cloudinary\.com\/[A-Za-z0-9_-]+\/image\/upload\/[^\s"'<>]+$/.test(url) || url.length > 500) {
+    res.status(400).json({ success: false, error: 'That picture is not one of ours. Upload it instead.' }); return;
+  }
+  const existing = await prisma.labelImage.findFirst({ where: { url } });
+  if (existing) { res.json({ success: true, data: existing }); return; }
+  const image = await prisma.labelImage.create({ data: { name, url, publicId: null } });   // not ours to delete from Cloudinary: the hot food item owns it
+  audit({ ...actor(req), action: 'LABEL_IMAGE', entity: 'label', entityId: image.id, details: { summary: `Sticker picture "${name}" added from a hot food photo` }, storeId: null });
+  res.status(201).json({ success: true, data: image });
+}
+
 /** DELETE /labels/images/:id: stickers using it simply show one picture fewer. */
 export async function deleteImage(req: AuthRequest, res: Response) {
   const image = await prisma.labelImage.findUnique({ where: { id: req.params.id } });
