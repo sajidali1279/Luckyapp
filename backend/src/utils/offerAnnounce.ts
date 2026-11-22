@@ -15,6 +15,7 @@ import { saveNotificationMany } from './push';
 import { sendExpoBatch } from './pushSend';
 import { offerUrl } from './notificationRoutes';
 import { membersInAudience } from './offerAudience';
+import { remindedAlready } from './dealTeasers';
 
 export interface AnnounceableOffer { id: string; title: string; titleEs?: string | null; storeId: string | null; endDate: Date; createdAt: Date; audience?: string | null; audienceTier?: string | null; audienceDays?: number | null }
 
@@ -39,7 +40,10 @@ export async function alreadyAnnounced(offer: AnnounceableOffer): Promise<boolea
 export async function announceOffer(offer: AnnounceableOffer): Promise<number> {
   if (await alreadyAnnounced(offer)) return 0;
   // that store's customers or every customer, and of them only the promotion's audience (a tier and up, a win-back, ...)
-  const members = await membersInAudience(offer, await resolveAudience(offer.storeId ? 'STORE_CUSTOMERS' : 'ALL_CUSTOMERS', offer.storeId ?? undefined));
+  const everyone = await membersInAudience(offer, await resolveAudience(offer.storeId ? 'STORE_CUSTOMERS' : 'ALL_CUSTOMERS', offer.storeId ?? undefined));
+  // people a Remind me already told the moment it started are not told again (2026-11-22)
+  const told = await remindedAlready(offer.id);
+  const members = told.size ? everyone.filter((m) => !told.has(m.id)) : everyone;
   if (members.length === 0) return 0;
   const url = offerUrl(offer.id);
   // In each person's language: Spanish readers get the Spanish title (the English one when the offer has none)

@@ -17,6 +17,7 @@ import { startNotificationRetentionCron } from './utils/notification-retention-c
 import { startChatRetentionCron } from './utils/chat-retention-cron';
 import { startPointsExpiryCron } from './utils/points-expiry-cron';
 import { startHqPresenceCron } from './utils/hq-presence-cron';
+import { startDealReminderCron } from './utils/deal-reminder-cron';
 import { startMissingCheckCron } from './utils/missing-check-cron';
 import { startEngagementCron } from './utils/engagement-cron';
 import { startReceiptRetentionCron } from './utils/receipt-retention-cron';
@@ -155,6 +156,7 @@ app.listen(PORT, () => {
   startMissingCheckCron();          // missing person posters: HQ's 30-day check reminders
   startPointsExpiryCron();          // points expiry and its warning push (nothing while HQ has it off)
   startHqPresenceCron();            // a Super Admin silent on HQ for 30 minutes: marked inactive, Dev Admin emailed
+  startDealReminderCron();          // Coming soon deals that started: tell the people who tapped Remind me
   startChatRetentionCron();          // store chat older than 90 days (the staff privacy notice says 3 months)
   startReceiptRetentionCron();   // receipt photos older than 2 years
   startOfferAnnounceCron();

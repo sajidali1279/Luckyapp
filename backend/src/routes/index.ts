@@ -101,6 +101,7 @@ import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
 import { getGasGroups, putGasGroups } from '../controllers/gasGroups.controller';
+import { getComingSoon, postRemind } from '../controllers/dealTeasers.controller';
 import { listDesigns, createDesign, updateDesign, deleteDesign, listImages, uploadImage, deleteImage, listStickers, createSticker, updateSticker, deleteSticker, getCategoryDesigns, putCategoryDesign, imageFromUrl } from '../controllers/labelDesigns.controller';
 import { getBarcodeDuplicates, mergeLabels, importLabels, getDealRecommendations, dismissDealRecommendation, restoreDealRecommendations, getDealSettings, updateDealSettings, setDealsBulk, resetDealLearning } from '../controllers/labelCleanup.controller';
 import {
@@ -489,6 +490,8 @@ router.get('/stores', authenticate, requireRole(Role.SUPER_ADMIN), getStores);
 router.post('/stores', authenticate, requireRole(Role.DEV_ADMIN), createStore);                          // Add a new store (a system-wide, billing-relevant entity)
 router.get('/stores/accessible', authenticate, requireRole(Role.STORE_MANAGER), getAccessibleStores);    // Manager+: own stores (or all if allStoresAccess)
 router.patch('/stores/:storeId', authenticate, requireRole(Role.SUPER_ADMIN), updateStore);
+router.get('/deals/coming-soon', authenticate, getComingSoon);   // Coming soon offers and hot food combos with their countdown (2026-11-22)
+router.post('/deals/remind', authenticate, postRemind);          // Remind me when it starts
 router.get('/stores/gas-prices', authenticate, getAllGasPrices);                                             // All authenticated (home screen display)
 router.get('/stores/gas-groups', authenticate, requireRole(Role.SUPER_ADMIN), getGasGroups);                 // HQ: stores that share a gas price (above :storeId)
 router.put('/stores/gas-groups', authenticate, requireRole(Role.SUPER_ADMIN), putGasGroups);

@@ -8,6 +8,7 @@ import { AuthRequest } from '../types';
 import { refuse } from '../utils/refusal';
 import { audit } from '../utils/audit';
 import { DRINK_CODES, daysText } from '../utils/hotFoodCombos';
+import { teaserProblem, waitingCounts } from '../utils/dealTeasers';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -31,6 +32,9 @@ const comboSchema = z.object({
   days: z.array(z.number().int().min(0, 'Pick days from the list.').max(6, 'Pick days from the list.')).max(14, 'Pick days from the list.').default([]),   // repeats are dropped below
   isFeatured: z.boolean().default(true),
   isActive: z.boolean().default(true),
+  // its first moment (2026-11-22) and when "Coming soon" with a countdown begins before it (both optional; an older page sends neither)
+  startsAt: z.string().datetime({ message: 'Pick the start date and time.' }).nullish(),
+  teaseFrom: z.string().datetime({ message: 'Pick when Coming soon begins.' }).nullish(),
 });
 const switchSchema = z.object({ isActive: z.boolean().optional(), isFeatured: z.boolean().optional() }).strict();
 
@@ -39,6 +43,8 @@ async function problem(d: z.infer<typeof comboSchema>): Promise<string | null> {
   if (!!d.fromTime !== !!d.toTime) return 'Give both the start and the end time, or neither.';
   if (d.fromTime && d.fromTime === d.toTime) return 'The start and end time are the same.';
   if (d.drinks.length === 0 && d.itemQuantity < 2) return 'Choose at least one drink, or make it 2 or more of the item (like 2 for $3.50).';
+  const tp = teaserProblem(d.teaseFrom ? new Date(d.teaseFrom) : null, d.startsAt ? new Date(d.startsAt) : null);
+  if (tp) return tp;
   const item = await prisma.hotFoodCatalogItem.findUnique({ where: { id: d.catalogItemId }, select: { id: true } });
   if (!item) return 'That hot food item is not in the catalog any more.';
   // HQ sets any combo price (the owner, 2026-11-20): no deal limit and no "less than the item alone" stop. The admin form shows the
@@ -55,6 +61,8 @@ const clean = (d: z.infer<typeof comboSchema>) => ({
   name: d.name, nameEs: d.nameEs || null, description: d.description || null, catalogItemId: d.catalogItemId, itemQuantity: d.itemQuantity,
   drinks: [...new Set(d.drinks)], price: cents(d.price), regularPrice: d.regularPrice != null ? cents(d.regularPrice) : null,
   storeIds: [...new Set(d.storeIds)], fromTime: d.fromTime || null, toTime: d.toTime || null, isFeatured: d.isFeatured, isActive: d.isActive,
+  ...(d.startsAt !== undefined ? { startsAt: d.startsAt ? new Date(d.startsAt) : null } : {}),
+  ...(d.teaseFrom !== undefined ? { teaseFrom: d.teaseFrom ? new Date(d.teaseFrom) : null } : {}),
   days: (() => { const s = [...new Set(d.days)].sort((a, b) => a - b); return s.length === 7 ? [] : s; })(),
 });
 
@@ -66,7 +74,8 @@ export async function listCombos(_req: AuthRequest, res: Response) {
     prisma.hotFoodOrderItem.groupBy({ by: ['comboId'], where: { comboId: { not: null }, order: { createdAt: { gte: since }, status: { not: 'CANCELLED' } } }, _sum: { quantity: true } }),
   ]);
   const count = new Map(sold.map((s) => [s.comboId, s._sum.quantity ?? 0]));
-  res.json({ success: true, data: combos.map((c) => ({ ...c, ordered30d: count.get(c.id) ?? 0 })) });
+  const waiting = await waitingCounts('COMBO', combos.map((c) => c.id));   // Remind me taps on a Coming soon combo (2026-11-22)
+  res.json({ success: true, data: combos.map((c) => ({ ...c, ordered30d: count.get(c.id) ?? 0, waiting: waiting.get(c.id) ?? 0 })) });
 }
 
 /** POST /hot-food/combos */

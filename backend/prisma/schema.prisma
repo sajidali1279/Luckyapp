@@ -696,6 +696,7 @@ model Offer {
   requires21  Boolean     @default(false) // blurred/hidden until the customer self-declares 21+
   startDate   DateTime
   endDate     DateTime
+  teaseFrom   DateTime?   // "Coming soon" with a countdown from here until startDate (2026-11-22); null = no teaser
   isActive    Boolean     @default(true)
   // Happy hours (utils/offerHours.ts): pays only on sales inside them, store time. No times = all day. days 0 = Sun .. 6 = Sat, empty = every day.
   happyDays   Int[]       @default([])
@@ -1899,6 +1900,8 @@ model HotFoodCombo {
   price         Float
   regularPrice  Float?                      // the item and the drink bought apart, for "Save $X" (kept within the deal limit)
   storeIds      String[] @default([])       // empty: every store that has the item on
+  startsAt      DateTime?                   // the first moment it can be ordered (2026-11-22); null = as soon as it is switched on
+  teaseFrom     DateTime?                   // "Coming soon" with a countdown from here until startsAt; null = no teaser
   fromTime      String?                     // "HH:MM" store time; with toTime, only then (e.g. coffee combos 05:00 to 11:00)
   toTime        String?
   // Days of the week it is on (2026-10-16): 0 = Sunday .. 6 = Saturday, store time; empty = every day ("Corn Dog Tuesday" = [2])
@@ -2486,4 +2489,19 @@ model HqSession {
   @@index([userId, endedAt])
   @@index([endedAt, lastSeenAt])
   @@map("hq_sessions")
+}
+
+// "Remind me" on a Coming soon offer or hot food combo (2026-11-22): the customer is told the moment it starts, and the card shows how many
+// are waiting. kind OFFER | COMBO with the deal's id (a plain id: a removed deal leaves an unused row). sentAt: the reminder went out.
+model DealReminder {
+  id        String    @id @default(uuid())
+  userId    String
+  kind      String
+  dealId    String
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@unique([userId, kind, dealId])
+  @@index([kind, dealId, sentAt])
+  @@map("deal_reminders")
 }

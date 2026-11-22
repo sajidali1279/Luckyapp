@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import { teaserProblem, waitingCounts } from '../utils/dealTeasers';
 import { z } from 'zod';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
@@ -74,9 +75,13 @@ export const offerSchema = z.object({
   dailyCapPerCustomer: z.preprocess(blankToUndefined, z.coerce.number().min(0.01, 'A daily limit of at least 1 cent.').max(1_000, 'A daily limit of at most $1,000.').optional()),
   startDate: z.string({ required_error: 'Choose a start date.' }).datetime({ message: 'Choose a start date.' }),
   endDate: z.string({ required_error: 'Choose an end date.' }).datetime({ message: 'Choose an end date.' }),
+  // "Coming soon" with a countdown from here until the start (2026-11-22); optional
+  teaseFrom: z.preprocess(blankToUndefined, z.string().datetime({ message: 'Pick when Coming soon begins.' }).optional()),
 }).superRefine((d, ctx) => {
   const start = new Date(d.startDate).getTime();
   const end = new Date(d.endDate).getTime();
+  const tp = teaserProblem(d.teaseFrom ? new Date(d.teaseFrom) : null, new Date(d.startDate));
+  if (tp) ctx.addIssue({ code: 'custom', path: ['teaseFrom'], message: tp });
   if (!(start < end)) ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'The end date must be after the start date.' });
   else if (end <= Date.now()) ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'That end date has already passed.' });
   if (d.type === OfferType.SPECIFIC_STORE && !d.storeId) ctx.addIssue({ code: 'custom', path: ['storeId'], message: 'Choose which store this is for.' });
@@ -177,7 +182,8 @@ export async function createOffer(req: AuthRequest, res: Response) {
 
   const offer = await prisma.offer.create({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data: { ...parsed.data, ...hours.hours, lastDayReminder, imageUrl, startDate: new Date(parsed.data.startDate), endDate: new Date(parsed.data.endDate) } as any,
+    data: { ...parsed.data, ...hours.hours, lastDayReminder, imageUrl, startDate: new Date(parsed.data.startDate), endDate: new Date(parsed.data.endDate),
+      teaseFrom: parsed.data.teaseFrom ? new Date(parsed.data.teaseFrom) : null } as any,
   });
 
   // Customers hear about it when it STARTS: now if it already has, otherwise the hourly job announces it on its first day. A single-store promotion goes
@@ -244,12 +250,13 @@ export async function getActiveOffers(req: AuthRequest, res: Response) {
   if (req.user!.role === Role.CUSTOMER) offers = await forCustomer(offers, req.user!.id, now);
   // HQ sees what each promotion with a budget has paid so far
   const spent = withScheduled ? await budgetSpentMany(offers.filter((o) => o.budgetCap != null).map((o) => o.id)) : new Map<string, number>();
+  const waiting = withScheduled ? await waitingCounts('OFFER', offers.map((o) => o.id)) : new Map<string, number>();   // Remind me taps (Coming soon)
   // onNow: false only for a happy-hour promotion outside its hours (shown all day, pays in its hours); hoursText says when
   // The autopilot's own notes (why it picked an offer) are HQ's: customers and staff get the offer without them
   const isHQ = hasMinRole(req.user!.role, Role.SUPER_ADMIN);
   const data: Record<string, unknown>[] = offers.map(({ autoIdea, autoWeek, autoNote, quiet, ...o }) => ({
     ...o, ...(isHQ ? { autoIdea, autoWeek, autoNote, quiet } : {}), onNow: offerPaysAt(o, now), hoursText: hoursText(o),
-    ...(withScheduled ? { audienceText: audienceText(o), ...(o.budgetCap != null ? { budgetSpent: spent.get(o.id) ?? 0 } : {}) } : {}),
+    ...(withScheduled ? { audienceText: audienceText(o), waiting: waiting.get(o.id) ?? 0, ...(o.budgetCap != null ? { budgetSpent: spent.get(o.id) ?? 0 } : {}) } : {}),
   }));
   // A customer at a store also sees that store's shelf deals (labels with a deal, e.g. "2 for $5") in Today's Deals, as deals
   if (req.user!.role === Role.CUSTOMER && storeId) {
@@ -278,6 +285,7 @@ const updateOfferSchema = z.object({
   dealTextEs: z.string().trim().max(40, 'The Spanish deal text can be at most 40 characters.').transform((v) => v || null).nullable().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
+  teaseFrom: z.preprocess((v) => (v === '' ? null : v), z.string().datetime({ message: 'Pick when Coming soon begins.' }).nullable().optional()),
   isActive: z.boolean().optional(),
   audience: z.enum(AUDIENCES, { message: 'Choose who the promotion is for.' }).optional(),
   audienceTier: z.nativeEnum(Tier, { message: 'Choose a tier.' }).nullable().optional(),
@@ -381,6 +389,13 @@ export async function updateOffer(req: AuthRequest, res: Response) {
   if (isNaN(nextStart.getTime()) || isNaN(nextEnd.getTime())) { res.status(400).json({ success: false, error: 'Pick real dates.' }); return; }
   if (endDate && nextEnd.getTime() < Date.now() - 5 * 60_000) { res.status(400).json({ success: false, error: 'The last day has already passed. To stop the offer now, use End now.' }); return; }
   if (nextEnd.getTime() < nextStart.getTime()) { res.status(400).json({ success: false, error: 'The last day is before the first day.' }); return; }
+  // Coming soon (2026-11-22): checked when it or the start changes and the offer has not started yet
+  const nextTease = rest.teaseFrom === undefined ? before.teaseFrom : rest.teaseFrom ? new Date(rest.teaseFrom) : null;
+  if ((rest.teaseFrom !== undefined || startDate) && nextStart.getTime() > Date.now()) {
+    const tp = teaserProblem(nextTease, nextStart);
+    if (tp) { res.status(400).json({ success: false, error: tp }); return; }
+  }
+  if (rest.teaseFrom !== undefined) (rest as Record<string, unknown>).teaseFrom = nextTease;
   const offer = await prisma.offer.update({
     where: { id: offerId },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

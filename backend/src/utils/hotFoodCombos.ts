@@ -62,7 +62,8 @@ export async function combosAt(storeId: string, now: Date = new Date(), withoutD
   if (!feature('hotFoodCombos')) return [];   // switched off in Settings
   const [combos, onHere] = await Promise.all([
     prisma.hotFoodCombo.findMany({
-      where: { isActive: true },
+      // not before its start (2026-11-22): until then it is only a "Coming soon" teaser
+      where: { isActive: true, OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
       include: { catalogItem: { select: { id: true, name: true, imageUrl: true, estimatedMinutes: true, daypartIds: true } } },
       orderBy: [{ isFeatured: 'desc' }, { price: 'asc' }],
     }),
