@@ -8,6 +8,8 @@ import { hotFoodCombosApi, offersApi, type HotFoodComboInput } from '../services
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { Badge, Button, Card, Chip, EmptyState, Field, HowItWorks, Notice } from './kit';
+import TeaserSelect, { teaseFromIso, teaseDaysOf } from './offers/TeaserSelect';
+import { startOfStoreDay, storeToday, storeDayLong, storeTime } from '../lib/storeDates';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
 
@@ -18,11 +20,21 @@ const hour = (hhmm: string) => { const [h, m] = hhmm.split(':').map(Number); ret
 
 type CatalogItem = { id: string; name: string; price: number; imageUrl?: string | null };
 type Store = { id: string; name: string; hotFoodEnabled?: boolean };
-type Combo = HotFoodComboInput & { id: string; ordered30d: number; catalogItem: CatalogItem };
+type Combo = HotFoodComboInput & { id: string; ordered30d: number; catalogItem: CatalogItem; waiting?: number };
 type Form = { name: string; nameEs: string; description: string; catalogItemId: string; itemQuantity: string; drinks: string[]; price: string; regularPrice: string;
-  allStores: boolean; storeIds: string[]; hours: boolean; fromTime: string; toTime: string; days: number[]; isFeatured: boolean; isActive: boolean };
+  allStores: boolean; storeIds: string[]; hours: boolean; fromTime: string; toTime: string; days: number[]; isFeatured: boolean; isActive: boolean;
+  later: boolean; startDay: string; startTime: string; teaseDays: number };   // starts later (2026-11-22): store date and time, Coming soon days before
 const EMPTY: Form = { name: '', nameEs: '', description: '', catalogItemId: '', itemQuantity: '1', drinks: ['FOUNTAIN', 'BOTTLE_20'], price: '', regularPrice: '',
-  allStores: true, storeIds: [], hours: false, fromTime: '05:00', toTime: '11:00', days: [], isFeatured: true, isActive: true };
+  allStores: true, storeIds: [], hours: false, fromTime: '05:00', toTime: '11:00', days: [], isFeatured: true, isActive: true,
+  later: false, startDay: '', startTime: '10:00', teaseDays: 3 };
+
+// The store clock's HH:MM of an instant, and an instant from a store date and HH:MM
+const HHMM = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hourCycle: 'h23', hour: '2-digit', minute: '2-digit' });
+const storeHhmm = (iso: string) => HHMM.format(new Date(iso));
+function startMsOf(day: string, time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return startOfStoreDay(day).getTime() + ((h || 0) * 60 + (m || 0)) * 60_000;
+}
 // Days of the week (2026-10-16): 0 = Sunday, store time; none = every day
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DAY_WORDS = ['Sundays', 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays'];
@@ -41,12 +53,17 @@ function contents(c: { itemQuantity?: number; drinks: string[]; catalogItem?: { 
 function toForm(c: Combo): Form {
   return { name: c.name, nameEs: c.nameEs ?? '', description: c.description ?? '', catalogItemId: c.catalogItemId, itemQuantity: String(c.itemQuantity ?? 1), drinks: c.drinks, price: String(c.price),
     regularPrice: c.regularPrice != null ? String(c.regularPrice) : '', allStores: c.storeIds.length === 0, storeIds: c.storeIds,
-    hours: !!c.fromTime, fromTime: c.fromTime ?? '05:00', toTime: c.toTime ?? '11:00', days: c.days ?? [], isFeatured: c.isFeatured, isActive: c.isActive };
+    hours: !!c.fromTime, fromTime: c.fromTime ?? '05:00', toTime: c.toTime ?? '11:00', days: c.days ?? [], isFeatured: c.isFeatured, isActive: c.isActive,
+    later: !!c.startsAt && Date.parse(c.startsAt) > Date.now(), startDay: c.startsAt ? storeToday(new Date(c.startsAt)) : '',
+    startTime: c.startsAt ? storeHhmm(c.startsAt) : '10:00', teaseDays: teaseDaysOf(c.teaseFrom, c.startsAt) };
 }
 function toInput(f: Form): HotFoodComboInput {
   return { name: f.name.trim(), nameEs: f.nameEs.trim() || null, description: f.description.trim() || null, catalogItemId: f.catalogItemId, itemQuantity: Number(f.itemQuantity), drinks: f.drinks,
     price: Number(f.price), regularPrice: f.regularPrice.trim() ? Number(f.regularPrice) : null, storeIds: f.allStores ? [] : f.storeIds,
-    fromTime: f.hours ? f.fromTime : null, toTime: f.hours ? f.toTime : null, days: f.days, isFeatured: f.isFeatured, isActive: f.isActive };
+    fromTime: f.hours ? f.fromTime : null, toTime: f.hours ? f.toTime : null, days: f.days, isFeatured: f.isFeatured, isActive: f.isActive,
+    ...(f.later && f.startDay
+      ? { startsAt: new Date(startMsOf(f.startDay, f.startTime)).toISOString(), teaseFrom: teaseFromIso(startMsOf(f.startDay, f.startTime), f.teaseDays) }
+      : { startsAt: null, teaseFrom: null }) };
 }
 
 export default function HotFoodCombosPanel({ catalog, stores }: { catalog: CatalogItem[]; stores: Store[] }) {
@@ -126,6 +143,12 @@ export default function HotFoodCombosPanel({ catalog, stores }: { catalog: Catal
                       <strong style={{ color: C.text }}>{c.name}</strong>
                       {c.isFeatured && c.isActive && <Badge tone="success">Featured</Badge>}
                       {!c.isActive && <Badge>Off</Badge>}
+                      {c.startsAt && Date.parse(c.startsAt) > Date.now() && (
+                        <Badge tone="info">Starts {storeDayLong(c.startsAt)}, {storeTime(c.startsAt)}</Badge>
+                      )}
+                      {c.startsAt && Date.parse(c.startsAt) > Date.now() && c.teaseFrom && (
+                        <Badge tone="warning">Coming soon{Date.parse(c.teaseFrom) <= Date.now() ? ' now' : ` from ${storeDayLong(c.teaseFrom)}`}{c.waiting ? ` · ${c.waiting} waiting` : ''}</Badge>
+                      )}
                     </div>
                     <div style={{ fontSize: FONT.small, color: C.text2, marginTop: 2 }}>
                       {contents(c)}
@@ -185,7 +208,9 @@ function ComboForm({ initial, id, catalog, stores, onClose }: { initial: Form; i
     : !(price > 0) ? 'Give the combo price.'
     : hasRegular && price >= regular ? 'The combo price must be below the regular price.'
     : !f.allStores && f.storeIds.length === 0 ? 'Pick at least one store, or choose every store.'
-    : f.hours && f.fromTime === f.toTime ? 'The start and end time are the same.' : null;
+    : f.hours && f.fromTime === f.toTime ? 'The start and end time are the same.'
+    : f.later && !f.startDay ? 'Pick the day it starts.'
+    : f.later && startMsOf(f.startDay, f.startTime) <= Date.now() ? 'That start is already past. Pick a later day or time, or untick Starts later.' : null;
 
   const save = useMutation({
     mutationFn: async (): Promise<unknown> => (id ? hotFoodCombosApi.update(id, toInput(f)) : hotFoodCombosApi.create(toInput(f))),
@@ -283,6 +308,22 @@ function ComboForm({ initial, id, catalog, stores, onClose }: { initial: Form; i
           {f.days.length > 0 && f.days.length < 7 && (
             <div style={{ fontSize: FONT.caption, color: TEXT_MUTED, marginTop: 6 }}>
               Shown in the app on {daysWords(f.days)?.replace(' only', '')} only (store time){f.hours ? '; hours past midnight count for the day they start' : ''}.
+            </div>
+          )}
+        </div>
+        <div>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: FONT.body }}>
+            <input type="checkbox" checked={f.later} onChange={(e) => set('later', e.target.checked)} /> Starts later (can't be ordered before)
+          </label>
+          {f.later && (
+            <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input aria-label="Start day" type="date" style={{ ...INPUT, width: 170 }} min={storeToday()} value={f.startDay} onChange={(e) => set('startDay', e.target.value)} />
+                <span style={{ color: TEXT_MUTED }}>at</span>
+                <input aria-label="Start time" type="time" style={{ ...INPUT, width: 140 }} value={f.startTime} onChange={(e) => set('startTime', e.target.value)} />
+                <span style={{ fontSize: FONT.caption, color: TEXT_MUTED }}>store time</span>
+              </div>
+              <TeaserSelect id="cb-tease" value={f.teaseDays} onChange={(d) => set('teaseDays', d)} show />
             </div>
           )}
         </div>

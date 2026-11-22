@@ -658,6 +658,7 @@ export const hotFoodApi = {
 export type HotFoodComboInput = {
   name: string; nameEs?: string | null; description?: string | null; catalogItemId: string; itemQuantity: number; drinks: string[]; price: number;
   regularPrice?: number | null; storeIds: string[]; fromTime?: string | null; toTime?: string | null; days?: number[]; isFeatured: boolean; isActive: boolean;
+  startsAt?: string | null; teaseFrom?: string | null;   // its first moment, and when Coming soon begins before it (2026-11-22)
 };
 export const hotFoodCombosApi = {
   list: () => api.get('/hot-food/combos'),

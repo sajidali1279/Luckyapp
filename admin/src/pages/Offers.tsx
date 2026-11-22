@@ -29,6 +29,7 @@ import DealPriceCheck from '../components/offers/DealPriceCheck';
 import ComboIdeasPanel, { type ComboOffer } from '../components/offers/ComboIdeasPanel';
 import { HappyHoursField, LastDayToggle, NO_HOURS, ALL_DAY, hoursFrom, hoursPayload, hoursProblem, hoursLabel, type HappyHours } from '../components/offers/HappyHours';
 import { ImagePick } from '../components/offers/ImagePick';
+import TeaserSelect, { teaseFromIso, teaseDaysOf } from '../components/offers/TeaserSelect';
 import { SpanishFields, NO_SPANISH, spanishFrom, type SpanishWords } from '../components/offers/SpanishFields';
 import { PhonePreview, type PreviewOffer } from '../components/offers/PhonePreview';
 import { AudienceLimitsField, NO_AUDIENCE, audienceFrom, audiencePayload, audienceProblem, audienceLabel, type AudienceLimitsValue } from '../components/offers/AudienceLimits';
@@ -224,6 +225,7 @@ export default function Offers() {
   const [dealType, setDealType] = useState<'ALL_STORES' | 'SPECIFIC_STORE'>('ALL_STORES');
   const [dealStoreId, setDealStoreId] = useState('');
   const [dealStartDate, setDealStartDate] = useState(todayStr());
+  const [dealTeaseDays, setDealTeaseDays] = useState(0);
   const [dealEndDate, setDealEndDate] = useState(defaultEndStr());
   const [dealImageFile, setDealImageFile] = useState<File | null>(null);
   const [dealRequires21, setDealRequires21] = useState(false);
@@ -240,6 +242,7 @@ export default function Offers() {
   const [gasBonusCpg, setGasBonusCpg] = useState(''); // ¢/gallon bonus for GAS/DIESEL offers
   const [gasBonusType, setGasBonusType] = useState<'cpg' | 'pct'>('cpg'); // gas offer bonus mode
   const [startDate, setStartDate] = useState(todayStr());
+  const [teaseDays, setTeaseDays] = useState(0);   // Coming soon countdown, days before the start (2026-11-22)
   const [endDate, setEndDate] = useState(defaultEndStr());
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [hours, setHours] = useState<HappyHours>(NO_HOURS);
@@ -527,6 +530,8 @@ export default function Offers() {
     fd.append('type', type);
     fd.append('startDate', new Date(startMs).toISOString());
     fd.append('endDate', new Date(endMs).toISOString());
+    const tease = teaseFromIso(startMs, teaseDays);
+    if (tease) fd.append('teaseFrom', tease);
     if (tierMap) {
       fd.append('tierBonusRates', JSON.stringify(tierMap));
       // bonusRate = max tier bonus (for server ordering)
@@ -712,6 +717,8 @@ export default function Offers() {
     fd.append('type', dealType);
     fd.append('startDate', new Date(startMs).toISOString());
     fd.append('endDate', new Date(endMs).toISOString());
+    const dealTease = teaseFromIso(startMs, dealTeaseDays);
+    if (dealTease) fd.append('teaseFrom', dealTease);
     if (dealType === 'SPECIFIC_STORE' && dealStoreId) fd.append('storeId', dealStoreId);
     if (dealCategory) fd.append('category', dealCategory);
     if (dealImageFile) fd.append('image', dealImageFile);
@@ -1080,6 +1087,7 @@ export default function Offers() {
                     <input id="offer-end" className="ui-input" style={INPUT} type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                   </Field>
                 </div>
+                <TeaserSelect id="offer-tease" value={teaseDays} onChange={setTeaseDays} show={!!startDate && startDate > storeToday()} />
                 {isStoreManager ? (
                   <Notice icon={<MapPin size={15} />}>This promotion will apply to your store only.</Notice>
                 ) : (
@@ -1250,6 +1258,7 @@ export default function Offers() {
                     <input id="deal-end" className="ui-input" style={INPUT} type="date" value={dealEndDate} onChange={(e) => setDealEndDate(e.target.value)} />
                   </Field>
                 </div>
+                <TeaserSelect id="deal-tease" value={dealTeaseDays} onChange={setDealTeaseDays} show={!!dealStartDate && dealStartDate > storeToday()} />
                 {isStoreManager ? (
                   <Notice icon={<MapPin size={15} />}>This deal will apply to your store only.</Notice>
                 ) : (
@@ -1398,6 +1407,11 @@ function OfferTags({ offer, isPast, isScheduled }: { offer: any; isPast?: boolea
         {offer.type === 'ALL_STORES' ? 'All stores' : (offer.store?.name ?? 'Store')}
       </Badge>
       {offer.category && <Badge>{categoryLabel(offer.category)}</Badge>}
+      {isScheduled && offer.teaseFrom && (
+        <Badge tone="warning" title={`Shown as Coming soon from ${storeDayLong(offer.teaseFrom)}`}>
+          Coming soon{Date.parse(offer.teaseFrom) <= Date.now() ? ' now' : ` from ${storeDayLong(offer.teaseFrom)}`}{offer.waiting ? ` · ${offer.waiting} waiting` : ''}
+        </Badge>
+      )}
       {!offer.category && !offer.dealText && (offer.bonusRate != null || offer.tierBonusRates != null) && <Badge tone={offer.includeFuel ? 'warning' : undefined}>{offer.includeFuel ? 'Gas and diesel too' : 'Not on gas or diesel'}</Badge>}
       {offer.requires21 && <Badge tone="warning">21+</Badge>}
       {offer.titleEs && <Badge title={`In Spanish: ${offer.titleEs}`}>ES</Badge>}
@@ -1484,6 +1498,8 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
   const [description, setDescription] = useState<string>(offer.description ?? '');
   const [start, setStart] = useState<string>(storeToday(new Date(offer.startDate)));
   const [end, setEnd] = useState<string>(storeToday(new Date(offer.endDate)));
+  const teaseBefore = teaseDaysOf(offer.teaseFrom, offer.startDate);
+  const [tease, setTease] = useState<number>(teaseBefore);
   const [hours, setHours] = useState<HappyHours>(hoursFrom(offer));
   const [lastDay, setLastDay] = useState<boolean>(offer.lastDayReminder !== false);
   const [picture, setPicture] = useState<File | null>(null);
@@ -1534,6 +1550,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
             : { bonusRate: frac(parseFloat(pct)) }) : {}),
           ...(offer.dealText ? { dealTextEs: spanish.dealTextEs.trim() } : {}),
           ...(!started ? { startDate: startOfStoreDay(start).toISOString() } : {}),
+          ...(!started && (tease !== teaseBefore || start !== storeToday(new Date(offer.startDate))) ? { teaseFrom: teaseFromIso(startOfStoreDay(start).getTime(), tease) } : {}),
           endDate: endOfStoreDay(end).toISOString(),
           ...(hoursChanged ? hoursPayload(hours) : {}),
           ...(canEditHours && lastDay !== (offer.lastDayReminder !== false) ? { lastDayReminder: lastDay } : {}),
@@ -1585,6 +1602,7 @@ function OfferEditModal({ offer, saving, onClose, onSave, canEditHours }: { offe
             <input id="edit-offer-end" className="ui-input" style={INPUT} type="date" value={end} min={start > today ? start : today} onChange={(e) => setEnd(e.target.value)} />
           </Field>
         </div>
+        <TeaserSelect id="edit-offer-tease" value={tease} onChange={setTease} show={!started && start > today} />
         {canEditHours && (
           <>
             <Field label="Happy hours">
