@@ -3908,5 +3908,26 @@
     "endedOn": "ended {{date}}",
     "takeDownTitle": "Take these down ({{count}})",
     "takeDownHint": "These deals have ended. Take their stickers off the shelves so customers do not see an old price."
+  },
+  "comingSoon": {
+    "kicker": "Coming soon",
+    "startsAt": "Starts {{day}} at {{time}}",
+    "days": "days",
+    "hrs": "hrs",
+    "min": "min",
+    "sec": "sec",
+    "remindMe": "Remind me",
+    "reminding": "We'll remind you",
+    "remindA11y": "Remind me when it starts",
+    "remindOnA11y": "Reminder on. Tap to turn it off.",
+    "remindSet": "We'll tell you the moment it starts.",
+    "remindFailed": "Could not set the reminder. Try again.",
+    "waiting_one": "{{count}} waiting",
+    "waiting_other": "{{count}} waiting",
+    "save": "save {{amount}}",
+    "startsIn": "Starts in {{left}}",
+    "inDh": "{{d}}d {{h}}h",
+    "remindShort": "Remind me",
+    "remindOnShort": "On"
   }
 }

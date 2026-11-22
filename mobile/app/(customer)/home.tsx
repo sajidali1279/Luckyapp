@@ -31,6 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { ratingsApi } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { offerBonusText } from '../../utils/offerRate';
+import { ComingSoonCards } from '../../components/ComingSoon';
 import { spanishOffer } from '../../utils/offerText';
 import ChallengesSection from '../../components/ChallengesSection';
 import EngagementHome from '../../components/engagement/EngagementHome';
@@ -1071,6 +1072,8 @@ function CustomerHomeScreen() {
       <Animated.View style={{ opacity: fadeAnims[2], transform: [{ translateY: slideAnims[2] }] }}>
         {/* "Scan a receipt" sits first under the points card (the owner, 2026-11-15); it was low, below challenges */}
         <ReceiptPhotoCard />
+        {/* Coming soon offers and combos with a live countdown (2026-11-22) */}
+        <ComingSoonCards storeId={nearestStore?.id} />
         <AnnouncementCard />
         <FlashDealBanner storeId={nearestStore?.id} enabled={locationReady} />
         <CuatroCard userPts={userPts} rewards={catalogItems} firstName={user?.name?.trim().split(/\s+/)[0] || null}

@@ -35,6 +35,7 @@ import { sized } from '../../utils/imageUrl';
 import { byDistance, choosePickup, closerStore, locationQuality, loadSavedPickup, savePickup, addressLine, openDirections, milesText, FAR_MILES, type Here, type PickupStore } from '../../utils/pickupStore';
 import { LocationLine, PickupBar, AskCard, PickupStoreSheet, PickupSummary } from '../../components/HotFoodPickup';
 import { ComboStrip, comboCartId, useComboWords, type Combo } from '../../components/HotFoodCombos';
+import { ComingSoonCombos } from '../../components/ComingSoon';
 import { useEngagementFlags } from '../../hooks/useEngagement';
 import OrderSteps from '../../components/OrderSteps';
 import HotFoodHereSheet from '../../components/HotFoodHereSheet';
@@ -1113,6 +1114,7 @@ export default function CustomerHotFoodScreen() {
                       <MenuTimeTabs menus={menuTimes} hasAllDay={hasAllDay} value={menuTab} onChange={setMenuTab} />
                     )}
                     {!search.trim() && <LastCallStrip menu={menuTimes.find((m) => m.id === menuTab)} ahead={orderAhead.on} />}
+                    {!search.trim() && <ComingSoonCombos storeId={effectiveStore || undefined} />}
                     {!search.trim() && (
                       <ComboStrip
                         combos={combos} closed={closed} countOf={comboCount} onAdd={addCombo}

@@ -237,6 +237,12 @@ export const receiptApi = {
 };
 
 /** Challenges: the customer's own, with their progress (spend or visit targets that pay a reward). */
+// Coming soon offers and hot food combos with their countdown, and Remind me (2026-11-22)
+export const dealsApi = {
+  comingSoon: (storeId?: string) => api.get('/deals/coming-soon', { params: storeId ? { storeId } : {} }),
+  remind: (kind: 'OFFER' | 'COMBO', id: string, on: boolean) => api.post('/deals/remind', { kind, id, on }),
+};
+
 export const engagementApi = {
   config: () => api.get('/engagement/config'),
   me: (storeId?: string) => api.get(`/engagement/me${storeId ? `?storeId=${storeId}` : ''}`),

@@ -3908,5 +3908,26 @@
     "endedOn": "terminó {{date}}",
     "takeDownTitle": "Quite estas ({{count}})",
     "takeDownHint": "Estas ofertas terminaron. Quite sus calcomanías de los estantes para que los clientes no vean un precio viejo."
+  },
+  "comingSoon": {
+    "kicker": "Muy pronto",
+    "startsAt": "Empieza el {{day}} a las {{time}}",
+    "days": "días",
+    "hrs": "hrs",
+    "min": "min",
+    "sec": "seg",
+    "remindMe": "Avísame",
+    "reminding": "Te avisaremos",
+    "remindA11y": "Avísame cuando empiece",
+    "remindOnA11y": "Aviso activado. Toque para quitarlo.",
+    "remindSet": "Te avisaremos en cuanto empiece.",
+    "remindFailed": "No se pudo poner el aviso. Inténtelo de nuevo.",
+    "waiting_one": "{{count}} esperando",
+    "waiting_other": "{{count}} esperando",
+    "save": "ahorra {{amount}}",
+    "startsIn": "Empieza en {{left}}",
+    "inDh": "{{d}}d {{h}}h",
+    "remindShort": "Avísame",
+    "remindOnShort": "Activo"
   }
 }
