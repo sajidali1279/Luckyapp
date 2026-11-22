@@ -1,6 +1,6 @@
 // The signed-in person's own account page (admin Profile): what the account is, which HQ emails it gets, and ending other sessions.
 import { Response } from 'express';
-import { hqPing, hqSignOut } from '../utils/hqPresence';
+import { hqPing, hqSignOut, hqPresence } from '../utils/hqPresence';
 import { Role } from '@prisma/client';
 import prisma from '../config/prisma';
 import { AuthRequest } from '../types';
@@ -20,6 +20,11 @@ function summaryOf(details: string | null): string | null {
 export async function hqPingRoute(req: AuthRequest, res: Response) {
   const state = await hqPing({ id: req.user!.id, name: req.user!.name ?? 'A Super Admin', role: req.user!.role });
   res.json({ success: true, data: { state } });
+}
+
+/** GET /auth/hq-presence: each Super Admin's HQ status, for the Dev Admin's Staff page (green dot). */
+export async function hqPresenceRoute(_req: AuthRequest, res: Response) {
+  res.json({ success: true, data: await hqPresence() });
 }
 
 /** POST /auth/hq-signout: Sign out pressed on HQ (sent just before HQ forgets the sign-in). */

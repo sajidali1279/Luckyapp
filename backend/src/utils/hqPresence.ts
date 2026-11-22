@@ -61,6 +61,30 @@ export async function hqSignOut(user: Who, now = new Date()): Promise<boolean> {
   return true;
 }
 
+/** Each Super Admin's HQ status for the Dev Admin's Staff page (2026-11-21): on HQ now (an open session with a signal in the last 30
+ *  minutes) and since when, or when they were last on and how they left. */
+export async function hqPresence(now = new Date()) {
+  const admins = await prisma.user.findMany({ where: { role: Role.SUPER_ADMIN }, select: { id: true } });
+  if (admins.length === 0) return {};
+  const ids = admins.map((a) => a.id);
+  const rows = await prisma.hqSession.findMany({ where: { userId: { in: ids } }, orderBy: { startedAt: 'desc' }, take: ids.length * 20 });
+  const cutoff = now.getTime() - INACTIVE_MINUTES * 60_000;
+  const out: Record<string, { online: boolean; since: string | null; lastSeenAt: string | null; leftAt: string | null; leftHow: string | null }> = {};
+  for (const id of ids) {
+    const latest = rows.find((r) => r.userId === id);
+    if (!latest) { out[id] = { online: false, since: null, lastSeenAt: null, leftAt: null, leftHow: null }; continue; }
+    const online = !latest.endedAt && latest.lastSeenAt.getTime() >= cutoff;
+    out[id] = {
+      online,
+      since: online ? latest.startedAt.toISOString() : null,
+      lastSeenAt: latest.lastSeenAt.toISOString(),
+      leftAt: online ? null : (latest.endedAt ?? latest.lastSeenAt).toISOString(),
+      leftHow: online ? null : latest.endReason ?? 'INACTIVE',
+    };
+  }
+  return out;
+}
+
 /** Every few minutes: sessions with no signal for 30 minutes end as inactive, dated from their last signal. */
 export async function closeInactiveHqSessions(now = new Date()): Promise<number> {
   const cutoff = new Date(now.getTime() - INACTIVE_MINUTES * 60_000);

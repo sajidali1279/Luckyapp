@@ -217,7 +217,7 @@ import { getLabelPrinter, updateLabelPrinter, applyLabelPrinterToAllStores } fro
 import { getLaunchStats } from '../controllers/launch.controller';
 import { createReport, getTodayReports, getReportsByDate } from '../controllers/dailyReport.controller';
 import { getTasks, adminGetTasks, createTask, updateTask, deleteTask, seedDefaultTasks, copyMiddleTasks } from '../controllers/dailyTask.controller';
-import { getAccount, updateEmailAlerts, signOutOthers, hqPingRoute, hqSignOutRoute } from '../controllers/account.controller';
+import { getAccount, updateEmailAlerts, signOutOthers, hqPingRoute, hqSignOutRoute, hqPresenceRoute } from '../controllers/account.controller';
 import { createNotice, getAllNotices, deactivateNotice, updateNotice, deleteNotice, getActiveNotices } from '../controllers/adminNotice.controller';
 import {
   updateStoreBilling,
@@ -283,7 +283,8 @@ router.get('/app/version', getAppVersion);                                      
 router.post('/auth/register', register);                                          // New customer signup
 router.post('/auth/login', login);
 router.post('/auth/hq-ping', authenticate, requireRole(Role.STORE_MANAGER), hqPingRoute);        // HQ's "still here" signal (only Super Admins tracked)
-router.post('/auth/hq-signout', authenticate, requireRole(Role.STORE_MANAGER), hqSignOutRoute);  // Sign out pressed on HQ                                                // Phone + PIN login
+router.post('/auth/hq-signout', authenticate, requireRole(Role.STORE_MANAGER), hqSignOutRoute);  // Sign out pressed on HQ
+router.get('/auth/hq-presence', authenticate, requireRole(Role.DEV_ADMIN), hqPresenceRoute);    // Dev Admin: which Super Admins are on HQ (Staff page)                                                // Phone + PIN login
 router.patch('/auth/pin', authenticate, changePin);                               // Change PIN
 router.patch('/auth/profile', authenticate, updateProfile);                       // Update name
 router.post('/auth/profile/avatar', authenticate, upload.single('avatar'), uploadAvatar); // Upload profile picture

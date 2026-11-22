@@ -18,6 +18,7 @@ import { Page, PageHeader, HeaderStat, Button, Chip, MenuButton } from '../compo
 import { Plus, Search } from 'lucide-react';
 import { INPUT } from '../lib/theme';
 import Glyph from '../components/Glyph';
+import HqPresenceDot, { HqPresence } from '../components/HqPresenceDot';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { readSetting, writeSetting } from './dashboard/shared';
 
@@ -66,6 +67,9 @@ export default function Staff() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const isDevAdmin = user?.role === 'DEV_ADMIN';
+  // Dev Admin only: which Super Admins are on HQ right now (2026-11-21), refreshed every minute
+  const presenceQ = useQuery({ queryKey: ['hq-presence'], queryFn: () => authApi.hqPresence(), enabled: isDevAdmin, refetchInterval: 60_000 });
+  const presence: Record<string, HqPresence> = presenceQ.data?.data?.data ?? {};
   const isSuperAdmin = ['DEV_ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>('list');
@@ -403,6 +407,7 @@ export default function Staff() {
                                 <TableCell>
                                   <div style={{ fontWeight: 600, color: '#111827' }}>{member.name || ''}{isMe && <span style={{ ...s.youBadge, marginLeft: 6 }}>You</span>}{!member.isActive && <span style={{ ...s.offBadge, marginLeft: 6 }}>Deactivated</span>}</div>
                                   <div style={{ fontSize: 13, color: '#5a6472' }}>{showPhone(member.phone)}</div>
+                                  {isDevAdmin && member.role === 'SUPER_ADMIN' && <HqPresenceDot p={presence[member.id]} />}
                                 </TableCell>
                                 <TableCell style={{ fontSize: 13, color: '#374151', maxWidth: 360, whiteSpace: 'normal' }}>
                                   {member.storeRoles.length > 0
@@ -441,6 +446,7 @@ export default function Staff() {
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={s.memberName}>{member.name || ''}</div>
                               <div style={s.memberPhone}>{showPhone(member.phone)}</div>
+                              {isDevAdmin && member.role === 'SUPER_ADMIN' && <HqPresenceDot p={presence[member.id]} />}
                             </div>
                             <div style={{ ...s.activeDot, background: member.isActive ? '#1a7f45' : '#c42130' }} aria-hidden="true" />
                           </div>

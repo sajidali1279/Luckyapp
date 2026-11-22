@@ -45,6 +45,7 @@ export const authApi = {
   // HQ presence (2026-11-21): "still here" and Sign out, so the Dev Admin hears when a Super Admin signs in or out
   hqPing: () => api.post('/auth/hq-ping'),
   hqSignOut: () => api.post('/auth/hq-signout'),
+  hqPresence: () => api.get('/auth/hq-presence'),   // Dev Admin only: each Super Admin's HQ status
   createSuperAdmin: (phone: string, name: string, pin: string) =>
     api.post('/auth/super-admin', { phone, name, pin }),
   createStaff: (phone: string, name: string, pin: string, role: string, storeId: string) =>
