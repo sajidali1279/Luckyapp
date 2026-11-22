@@ -101,6 +101,7 @@ import { extractFromPhoto } from '../controllers/catalogImport.controller';
 import { getAllLabels, createLabel, updateLabel, deleteLabel, markLabelsPrinted, getStoreLabels, upsertStoreLabel, updateStoreLabel, removeStoreLabel, getLabelImpact, getLabelsCoverage, pushLabelToAllStores, lookupStoreLabelByBarcode, getLabelsHealthSummary } from '../controllers/labels.controller';
 import { setAdminNotificationsRead } from '../controllers/adminNotificationReads.controller';
 import { getGasGroups, putGasGroups } from '../controllers/gasGroups.controller';
+import { listDesigns, createDesign, updateDesign, deleteDesign, listImages, uploadImage, deleteImage, listStickers, createSticker, updateSticker, deleteSticker } from '../controllers/labelDesigns.controller';
 import { getBarcodeDuplicates, mergeLabels, importLabels, getDealRecommendations, dismissDealRecommendation, restoreDealRecommendations, getDealSettings, updateDealSettings, setDealsBulk, resetDealLearning } from '../controllers/labelCleanup.controller';
 import {
   getStoreSchedule,
@@ -752,6 +753,18 @@ router.post  ('/scanned-products/from-pdi',          authenticate, requireRole(R
 router.post  ('/scanned-products/extract-from-photo', authenticate, requireRole(Role.STORE_MANAGER), upload.single('image'), extractFromPhoto); // AI photo import
 
 // ─── Labels (printable shelf/price tags, chain-wide catalog) ────────────────────
+// Label designs, the sticker picture library and deal stickers (2026-11-21): everyone who prints reads them, HQ makes them
+router.get   ('/labels/designs',        authenticate, requireRole(Role.EMPLOYEE), listDesigns);
+router.post  ('/labels/designs',        authenticate, requireRole(Role.SUPER_ADMIN), createDesign);
+router.put   ('/labels/designs/:id',    authenticate, requireRole(Role.SUPER_ADMIN), updateDesign);
+router.delete('/labels/designs/:id',    authenticate, requireRole(Role.SUPER_ADMIN), deleteDesign);
+router.get   ('/labels/images',         authenticate, requireRole(Role.EMPLOYEE), listImages);
+router.post  ('/labels/images',         authenticate, requireRole(Role.SUPER_ADMIN), upload.single('image'), uploadImage);
+router.delete('/labels/images/:id',     authenticate, requireRole(Role.SUPER_ADMIN), deleteImage);
+router.get   ('/labels/stickers',       authenticate, requireRole(Role.EMPLOYEE), listStickers);
+router.post  ('/labels/stickers',       authenticate, requireRole(Role.SUPER_ADMIN), createSticker);
+router.put   ('/labels/stickers/:id',   authenticate, requireRole(Role.SUPER_ADMIN), updateSticker);
+router.delete('/labels/stickers/:id',   authenticate, requireRole(Role.SUPER_ADMIN), deleteSticker);
 router.get   ('/labels',                authenticate, requireRole(Role.EMPLOYEE), getAllLabels);
 router.get   ('/labels/lookup',         authenticate, requireRole(Role.EMPLOYEE), lookupStoreLabelByBarcode);
 router.get   ('/labels/coverage',       authenticate, requireRole(Role.SUPER_ADMIN), getLabelsCoverage);

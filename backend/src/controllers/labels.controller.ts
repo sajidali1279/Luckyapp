@@ -17,6 +17,7 @@ import { endedSaleView, saleEnded, parseSaleEnd, planPriceSave, describeStorePri
 import { pdiKey } from '../utils/pdiItemList';
 import { appCategoryFor } from '../utils/pdiDepartments';
 import { TX_LIMITS } from '../utils/txLimits';
+import { textScaleField } from '../utils/labelDesign';
 
 // SUPER_ADMIN+ always has access; below that, a StoreManager needs either
 // allStoresAccess or an explicit UserStoreRole for this specific store.
@@ -137,6 +138,8 @@ export async function getStoreLabels(req: AuthRequest, res: Response) {
       barcode: label.barcode,
       category: label.category,
       template: label.template,
+      designId: label.designId,
+      textScale: label.textScale,
       basePriceText: label.priceText,
       dealText: label.dealText,
       storeLabelId: storeLabel?.id ?? null,
@@ -288,6 +291,8 @@ const updateLabelSchema = z.object({
   barcode: textField('barcode', 40).optional().nullable(),
   category: textField('category', 100).optional().nullable(),
   template: z.nativeEnum(LabelTemplate, { message: 'Choose one of the label designs.' }).optional(),
+  designId: z.string().uuid('Choose one of the label designs.').nullable().optional(),   // an HQ-made design, or null for the built-in one
+  textScale: textScaleField.optional(),
 });
 
 // How many stores hold an item, and in what state: what a change or a delete would touch.
@@ -336,6 +341,10 @@ export async function updateLabel(req: AuthRequest, res: Response) {
     res.status(404).json({ success: false, error: ITEM_GONE_MESSAGE });
     return;
   }
+  if (parsed.data.designId && !(await prisma.labelDesign.findUnique({ where: { id: parsed.data.designId }, select: { id: true } }))) {
+    res.status(400).json({ success: false, error: 'That design no longer exists. Reload and choose another.' });
+    return;
+  }
 
   const changes = labelChanges(before, parsed.data);
   const refusal = refusalFor(req.user!.role, changes);
@@ -356,10 +365,10 @@ export async function updateLabel(req: AuthRequest, res: Response) {
 
   // A barcode sent back in another form of the same product stays as stored (the printed bars are not quietly changed)
   if (!changes.barcode) delete parsed.data.barcode;
-  if (changes.barcode?.to) {
-    const taken = await prisma.label.findFirst({ where: { barcode: { in: barcodeVariants(changes.barcode.to) }, id: { not: labelId } }, select: { id: true, productName: true } });
+  if (typeof changes.barcode?.to === 'string') {
+    const taken = await prisma.label.findFirst({ where: { barcode: { in: barcodeVariants(changes.barcode.to as string) }, id: { not: labelId } }, select: { id: true, productName: true } });
     if (taken) {
-      res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(changes.barcode.to, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
+      res.status(409).json({ success: false, code: 'BARCODE_TAKEN', error: barcodeTakenText(changes.barcode.to as string, taken.productName), data: { existingId: taken.id, existingName: taken.productName } });
       return;
     }
   }
@@ -806,7 +815,7 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
     // a label this store has no price on: the register's price, and the label can still go on My Prints
     res.json({ success: true, data: {
       found: true, id: label.id, productName: label.productName, barcode: label.barcode, category: label.category, template: label.template,
-      basePriceText: label.priceText, dealText: null, storeLabelId: storeLabel?.id ?? null, priceText: register.priceText, hasOverride: false,
+      designId: label.designId, textScale: label.textScale, basePriceText: label.priceText, dealText: null, storeLabelId: storeLabel?.id ?? null, priceText: register.priceText, hasOverride: false,
       printedAt: storeLabel?.printedAt ?? null, source: 'PDI', labelStatus: status, ...fromRegister,
     } });
     return;
@@ -820,6 +829,8 @@ export async function lookupStoreLabelByBarcode(req: AuthRequest, res: Response)
       barcode: label.barcode,
       category: label.category,
       template: label.template,
+      designId: label.designId,
+      textScale: label.textScale,
       basePriceText: label.priceText,
       dealText: label.dealText,
       storeLabelId: storeLabel?.id ?? null,
@@ -878,6 +889,8 @@ export async function getLabelsCoverage(req: AuthRequest, res: Response) {
       basePriceText: label.priceText,
       dealText: label.dealText,
       template: label.template,
+      designId: label.designId,
+      textScale: label.textScale,
       addedCount: coverage.filter((c) => c.status !== 'not_added').length,
       coverage,
     };

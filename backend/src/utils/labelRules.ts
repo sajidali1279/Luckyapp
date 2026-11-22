@@ -18,9 +18,11 @@ export type LabelFields = {
   barcode: string | null;
   category: string | null;
   template: string;
+  designId: string | null;     // an HQ-made design (2026-11-21)
+  textScale: number | null;    // this item's text smaller or bigger than its design
 };
 
-export type LabelChanges = Partial<Record<keyof LabelFields, { from: string | null; to: string | null }>>;
+export type LabelChanges = Partial<Record<keyof LabelFields, { from: string | number | null; to: string | number | null }>>;
 
 const blank = (v: string | null | undefined) => (v == null || v === '' ? null : v);
 
@@ -28,13 +30,14 @@ const blank = (v: string | null | undefined) => (v == null || v === '' ? null : 
 export function labelChanges(before: LabelFields, next: Partial<LabelFields>): LabelChanges {
   const changes: LabelChanges = {};
   if (next.priceText !== undefined && !samePrice(before.priceText, next.priceText)) changes.priceText = { from: before.priceText, to: next.priceText };
-  for (const field of ['productName', 'barcode', 'category', 'dealText', 'template'] as const) {
+  for (const field of ['productName', 'barcode', 'category', 'dealText', 'template', 'designId'] as const) {
     if (next[field] === undefined) continue;
     if (blank(before[field]) === blank(next[field])) continue;
     // The same barcode in another form (with or without the leading 0) is the same product, not a change
     if (field === 'barcode' && sameBarcode(before.barcode, next.barcode)) continue;
     changes[field] = { from: before[field], to: next[field] };
   }
+  if (next.textScale !== undefined && (before.textScale ?? 1) !== (next.textScale ?? 1)) changes.textScale = { from: before.textScale, to: next.textScale };
   return changes;
 }
 
@@ -48,8 +51,11 @@ export function refusalFor(role: Role, changes: LabelChanges): string | null {
 
 const FIELD_WORDS: Record<keyof LabelFields, string> = {
   productName: 'name', priceText: 'price', dealText: 'deal', barcode: 'barcode', category: 'category', template: 'design',
+  designId: 'own design', textScale: 'text size',
 };
-const show = (field: keyof LabelFields, v: string | null) => (v == null || v === '' ? 'none' : field === 'priceText' ? `$${v}` : field === 'template' ? v.toLowerCase().replace(/_/g, ' ') : `"${v}"`);
+const show = (field: keyof LabelFields, v: string | number | null) => (v == null || v === '' ? (field === 'textScale' ? '100%' : 'none')
+  : typeof v === 'number' ? `${Math.round(v * 100)}%`
+  : field === 'priceText' ? `$${v}` : field === 'template' ? v.toLowerCase().replace(/_/g, ' ') : field === 'designId' ? 'chosen' : `"${v}"`);
 
 /** "price $2.79 to $3.19; name "A" to "B"" for the Activity Log. */
 export function describeChanges(changes: LabelChanges): string {

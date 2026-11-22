@@ -816,6 +816,8 @@ model Label {
   barcode          String?       // the physical product's own barcode (UPC/EAN/etc) for order lookups — independent of priceText/dealText
   category         String?       // freeform, same approval pipeline as Order List/Stock Request (OrderCategory) — not constrained by an enum here
   template         LabelTemplate @default(CLASSIC_RED_BLACK)
+  designId         String?       // an HQ-made design (2026-11-21, LabelDesign); when set it is used instead of template
+  textScale        Float?        // this item's text a bit smaller or bigger than its design says (0.7 to 1.4; null = as the design)
   dealHiddenInApp  Boolean       @default(false) // a label's deal shows in the customer app's Today's Deals at stores that carry it, unless HQ hides it
   createdByStoreId String?       // which store first created this catalog entry — history only, no longer drives print-queue membership
   createdById      String?       // which user created this. Set once at creation, never changed by edits.
@@ -824,9 +826,59 @@ model Label {
 
   storeLabels StoreLabel[]
   rewards     RedemptionCatalogItem[]   // rewards whose points follow this item's price
+  design      LabelDesign?  @relation(fields: [designId], references: [id], onDelete: SetNull)
 
   @@index([createdByStoreId])
   @@map("labels")
+}
+
+// A label design HQ makes (2026-11-21, admin Labels > Designs): frame shape, colour and thickness, a stripe, text colours and sizes, an
+// icon, barcode on or off. `settings` is checked on the server (utils/labelDesign.ts) and turned into the label's look by the print code
+// of the HQ website and the app. The 7 built-in templates (LabelTemplate) stay as they are.
+model LabelDesign {
+  id          String   @id @default(uuid())
+  name        String
+  settings    Json
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  labels   Label[]
+  stickers DealSticker[]
+
+  @@map("label_designs")
+}
+
+// The picture library for deal stickers (2026-11-21): HQ uploads a product picture once and uses it on any sticker.
+model LabelImage {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  publicId  String?
+  createdAt DateTime @default(now())
+
+  @@map("label_images")
+}
+
+// A deal sticker (2026-11-21): the same 2-5/8 x 1 in label as a shelf label, with up to 3 pictures on the left and the deal words and
+// price on the right ("Chips + 24oz", $5.00). Not tied to one item or barcode. Stores print them with their labels.
+model DealSticker {
+  id        String        @id @default(uuid())
+  words     String        // the deal in a few words: "Chips + 24oz"
+  subText   String?       // an optional small line: "Any 2.5 oz bag and a 24 oz fountain drink"
+  priceText String        // "5.00" (shown $5.00) or free text like "2/$5"
+  imageIds  String[]      // up to 3 LabelImage ids, in order (plain ids: a removed picture is just skipped)
+  designId  String?
+  template  LabelTemplate @default(CLASSIC_RED_BLACK)
+  textScale Float?
+  storeIds  String[]      // empty = every store
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  design LabelDesign? @relation(fields: [designId], references: [id], onDelete: SetNull)
+
+  @@map("deal_stickers")
 }
 
 // One store's own copy of a catalog Label — an optional price override and
