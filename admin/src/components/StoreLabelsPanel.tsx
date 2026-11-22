@@ -40,6 +40,8 @@ interface StoreLabel {
   barcode: string | null;
   category: string | null;
   template: string;
+  designId?: string | null;   // an HQ-made design (2026-11-21)
+  textScale?: number | null;
   basePriceText: string | null;
   dealText: string | null;
   priceText: string | null;
@@ -356,7 +358,7 @@ export default function StoreLabelsPanel() {
       .map(i => ({
         label: {
           id: i.id, productName: i.productName, priceText: printPrices[i.storeLabelId!] ?? i.priceText,
-          dealText: i.dealText, barcode: i.barcode, template: i.template,
+          dealText: i.dealText, barcode: i.barcode, template: i.template, designId: i.designId, textScale: i.textScale,
         },
         quantity: quantities[i.storeLabelId!] ?? 1,
       }));

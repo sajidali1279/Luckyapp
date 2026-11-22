@@ -189,9 +189,9 @@ export const bannersApi = {
 
 export const labelsApi = {
   getAll: () => api.get('/labels'),
-  create: (data: { productName: string; priceText: string; dealText?: string | null; dealSuggested?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
+  create: (data: { productName: string; priceText: string; dealText?: string | null; dealSuggested?: string | null; barcode?: string | null; category?: string | null; template?: string; designId?: string | null }) =>
     api.post('/labels', data),
-  update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; dealSuggested?: string | null; barcode?: string | null; category?: string | null; template?: string }) =>
+  update: (labelId: string, data: { productName?: string; priceText?: string; dealText?: string | null; dealSuggested?: string | null; barcode?: string | null; category?: string | null; template?: string; designId?: string | null; textScale?: number | null }) =>
     api.patch(`/labels/${labelId}`, data),
   // printedPrice is the price on the paper: a label counts as printed only if it is still the store's price
   print: (items: { storeLabelId: string; quantity: number; printedPrice?: string }[]) => api.post('/labels/print', { items }),
@@ -223,6 +223,20 @@ export const labelsApi = {
   updateDealSettings: (limits: { defaultPct: number; categories: Record<string, number>; excluded: string[] }) => api.put('/labels/deal-settings', limits),
   setDealsBulk: (items: { labelId: string; dealText: string; suggested?: string | null }[]) => api.post('/labels/deals/bulk', { items }),
   resetDealLearning: (category: string) => api.post('/labels/deal-learning/reset', { category }),
+  /** HQ-made label designs (2026-11-21): everyone reads them, HQ makes, changes and removes them. */
+  designs: () => api.get('/labels/designs'),
+  createDesign: (data: { name: string; settings: object }) => api.post('/labels/designs', data),
+  updateDesign: (id: string, data: { name: string; settings: object }) => api.put(`/labels/designs/${id}`, data),
+  deleteDesign: (id: string) => api.delete(`/labels/designs/${id}`),
+  /** The picture library for deal stickers */
+  images: () => api.get('/labels/images'),
+  uploadImage: (file: File, name: string) => { const f = new FormData(); f.append('image', file); f.append('name', name); return api.post('/labels/images', f); },
+  deleteImage: (id: string) => api.delete(`/labels/images/${id}`),
+  /** Deal stickers */
+  stickers: () => api.get('/labels/stickers'),
+  createSticker: (data: object) => api.post('/labels/stickers', data),
+  updateSticker: (id: string, data: object) => api.put(`/labels/stickers/${id}`, data),
+  deleteSticker: (id: string) => api.delete(`/labels/stickers/${id}`),
 };
 
 export interface NoticeInput {

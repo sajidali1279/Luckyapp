@@ -19,7 +19,7 @@ interface CoverageStore { id: string; name: string; }
 interface CoverageEntry { storeId: string; storeLabelId: string | null; status: LabelPrintStatus; priceText: string | null; hasOverride: boolean; }
 interface CoverageLabel {
   id: string; productName: string; barcode: string | null; category: string | null; basePriceText: string | null; dealText: string | null;
-  template: string; addedCount: number; coverage: CoverageEntry[];
+  template: string; designId?: string | null; textScale?: number | null; addedCount: number; coverage: CoverageEntry[];
 }
 
 // Cross-store view: one row per catalog item, showing how many of the chain's
@@ -147,7 +147,7 @@ export default function CoverageView() {
         groups.get(store.id)!.items.push({
           storeLabelId: c.storeLabelId,
           entry: {
-            label: { id: label.id, productName: label.productName, priceText: c.priceText, dealText: label.dealText, barcode: label.barcode, template: label.template },
+            label: { id: label.id, productName: label.productName, priceText: c.priceText, dealText: label.dealText, barcode: label.barcode, template: label.template, designId: label.designId, textScale: label.textScale },
             quantity: 1,
           },
         });

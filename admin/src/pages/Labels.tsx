@@ -32,6 +32,10 @@ import { labelsCsv, downloadCsv, CsvCoverage } from '../utils/labelsCsv';
 import { Page, PageHeader, Button, Tabs } from '../components/kit';
 import { Plus } from 'lucide-react';
 import Glyph from '../components/Glyph';
+import LabelDesignsPanel from '../components/LabelDesignsPanel';
+import DealStickersPanel from '../components/DealStickersPanel';
+import { useLabelDesigns } from '../hooks/useLabelDesigns';
+import { cleanDesign } from '../utils/labelDesign';
 
 const CATALOG_PAGE_SIZE = 50;
 
@@ -44,9 +48,24 @@ interface Label {
   category: string | null;
   brand?: string | null;
   template: string;
+  designId?: string | null;    // an HQ-made design (2026-11-21)
+  textScale?: number | null;   // this item's text smaller or bigger than its design
+  look: string;                // what the Design box shows: a built-in template, or "design:<id>"
+  size: string;                // what the Text size box shows: "1" is as the design, "1.1" is 10% bigger
   createdByStoreId: string | null;
   updatedAt: string;
 }
+
+// A label as the server sends it, with its look and size filled in for the table and the form
+function withLook(l: Omit<Label, 'look' | 'size'>): Label {
+  return { ...l, look: l.designId ? `design:${l.designId}` : l.template, size: l.textScale && l.textScale !== 1 ? String(l.textScale) : '1' };
+}
+// What a look means to the server: a built-in template (and no own design), or an own design
+function lookBody(look: string): { template?: string; designId: string | null } {
+  return look.startsWith('design:') ? { designId: look.slice(7) } : { template: look, designId: null };
+}
+const SIZE_OPTIONS = ['0.7', '0.8', '0.9', '1', '1.1', '1.2', '1.3', '1.4'];
+const sizeText = (v: string | null) => `${Math.round(Number(v || 1) * 100)}%`;
 
 interface LabelImpact { storeCopies: number; inheritingBase: number; ownPrice: number; salePrice: number; printed: number }
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -72,11 +91,14 @@ const TEMPLATE_LABELS: Record<string, string> = Object.fromEntries(
 export default function Labels() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
-  type ViewMode = 'catalog' | 'store' | 'coverage' | 'health' | 'same' | 'deals';
+  type ViewMode = 'catalog' | 'store' | 'coverage' | 'health' | 'same' | 'deals' | 'designs' | 'stickers';
   // A store manager uses this page too (on a PC). What the server keeps for HQ (a price for every store, removing an item, Coverage,
   // Health, Same barcode, Deals, Import) is not offered to them: they get the Catalog (names, deals, designs) and By store (their prices).
   const isHQ = ['SUPER_ADMIN', 'DEV_ADMIN'].includes(useAuthStore(st => st.user?.role ?? ''));
-  const validTabs: ViewMode[] = isHQ ? ['catalog', 'store', 'coverage', 'health', 'same', 'deals'] : ['catalog', 'store'];
+  const validTabs: ViewMode[] = isHQ ? ['catalog', 'store', 'coverage', 'health', 'same', 'deals', 'designs', 'stickers'] : ['catalog', 'store'];
+  // HQ's own designs (2026-11-21): loading them here also lets every print on this page draw them
+  const { designs } = useLabelDesigns();
+  const lookName = (v: string | null) => (!v ? 'none' : v.startsWith('design:') ? (designs.find((d) => `design:${d.id}` === v)?.name ?? 'Own design') : (TEMPLATE_LABELS[v] || v));
   const initialTab = searchParams.get('tab') as ViewMode | null;
   const [viewMode, setViewMode] = useState<ViewMode>(initialTab && validTabs.includes(initialTab) ? initialTab : 'catalog');
 
@@ -187,7 +209,7 @@ export default function Labels() {
     queryFn: labelsApi.getAll,
     enabled: viewMode === 'catalog' || viewMode === 'deals',   // the Deals tab lists and prints the catalog's deals
   });
-  const labels: Label[] = data?.data?.data || [];
+  const labels: Label[] = useMemo(() => ((data?.data?.data || []) as Omit<Label, 'look' | 'size'>[]).map(withLook), [data]);
   const catalogItems: CatalogItem[] = useMemo(() => labels.map(l => ({
     id: l.id, productName: l.productName, barcode: l.barcode, category: l.category, dealText: l.dealText, price: l.priceText,
   })), [data]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -532,11 +554,16 @@ export default function Labels() {
 
   async function saveAll(items: ReviewItem[]) {
     setSavingAll(true);
-    const saved = new Map<string, Draft>();
+    const saved = new Map<string, Record<string, unknown>>();
     const errors: Record<string, string> = {};
     let reprinted = 0;
     await mapLimit(items, 4, async (it) => {
-      const body: Draft = Object.fromEntries(it.changes.map(c => [c.field, c.to]));
+      const body: Record<string, unknown> = {};
+      it.changes.forEach((c) => {
+        if (c.field === 'look') Object.assign(body, lookBody(c.to ?? 'CLASSIC_RED_BLACK'));
+        else if (c.field === 'size') body.textScale = !c.to || c.to === '1' ? null : Number(c.to);
+        else body[c.field] = c.to;
+      });
       try {
         const res = await labelsApi.update(it.label.id, body as Parameters<typeof labelsApi.update>[1]);
         reprinted += res.data?.reprint?.stores ?? 0;
@@ -591,7 +618,7 @@ export default function Labels() {
     return () => window.removeEventListener('keydown', onKey);
   }, [viewMode]);
 
-  const showCell = (field: InlineField, v: string | null) => (v == null || v === '' ? 'none' : field === 'priceText' ? `$${v}` : field === 'template' ? (TEMPLATE_LABELS[v] || v) : v);
+  const showCell = (field: InlineField, v: string | null) => (field === 'size' ? sizeText(v) : v == null || v === '' ? 'none' : field === 'priceText' ? `$${v}` : field === 'look' ? lookName(v) : v);
   const reviewCount = review ? review.reduce((n, it) => n + it.changes.length, 0) : 0;
   const reviewReprints = review ? review.reduce((n, it) => n + reprintsFor(it), 0) : 0;
   const reviewBig = review ? review.filter(bigPriceIn).length : 0;
@@ -624,7 +651,7 @@ export default function Labels() {
     if ((formDealText.trim() || null) !== (editingLabel.dealText || null)) formChanges.push({ field: 'Deal', from: editingLabel.dealText || 'none', to: formDealText.trim() || 'none' });
     if ((formBarcode.trim() || null) !== (editingLabel.barcode || null)) formChanges.push({ field: 'Barcode', from: editingLabel.barcode || 'none', to: formBarcode.trim() || 'none' });
     if ((formCategory.trim() || null) !== (editingLabel.category || null)) formChanges.push({ field: 'Category', from: editingLabel.category || 'none', to: formCategory.trim() || 'none' });
-    if (formTemplate !== editingLabel.template) formChanges.push({ field: 'Design', from: TEMPLATE_LABELS[editingLabel.template] || editingLabel.template, to: TEMPLATE_LABELS[formTemplate] || formTemplate });
+    if (formTemplate !== editingLabel.look) formChanges.push({ field: 'Design', from: lookName(editingLabel.look), to: lookName(formTemplate) });
   }
   const pricePct = editingLabel ? priceChangePercent(editingLabel.priceText, formPriceText) : null;
   const bigChange = pricePct !== null && Math.abs(pricePct) > BIG_PRICE_CHANGE_PERCENT;
@@ -637,7 +664,7 @@ export default function Labels() {
       if (category && !approvedCats.some(c => c.toLowerCase() === category.toLowerCase())) {
         orderCategoriesApi.submitNew(category).catch(() => {});
       }
-      const body = { productName: formProductName.trim(), priceText: canonicalPrice(formPriceText) ?? formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, template: formTemplate,
+      const body = { productName: formProductName.trim(), priceText: canonicalPrice(formPriceText) ?? formPriceText.trim(), dealText: formDealText.trim() || null, barcode, category, ...lookBody(formTemplate),
         dealSuggested: suggestionShown.current && formDealText.trim() && suggestionNow ? suggestionNow.text : null };
       return editingLabel ? labelsApi.update(editingLabel.id, body) : labelsApi.create(body);
     },
@@ -725,7 +752,7 @@ export default function Labels() {
     setFormDealText(label.dealText || '');
     setFormBarcode('');
     setFormCategory(label.category || '');
-    setFormTemplate(label.template);
+    setFormTemplate(label.look);
     setFormError('');
     setDupHint(!!label.barcode);
     setShowModal(true);
@@ -1037,7 +1064,7 @@ export default function Labels() {
             </div>
             <div style={m.label} id="lbl-template-label">Template</div>
             <div style={m.templateRow} role="group" aria-labelledby="lbl-template-label">
-              {TEMPLATE_OPTIONS.map(t => (
+              {[...TEMPLATE_OPTIONS, ...designs.map((d) => ({ value: `design:${d.id}`, label: d.name, accent: cleanDesign(d.settings).frame.color }))].map(t => (
                 <button
                   key={t.value}
                   type="button"
@@ -1062,7 +1089,8 @@ export default function Labels() {
                 priceText: canonicalPrice(formPriceText) ?? '0.00',
                 dealText: formDealText.trim() || null,
                 barcode: formBarcode.trim() || null,
-                template: formTemplate,
+                template: formTemplate.startsWith('design:') ? 'CLASSIC_RED_BLACK' : formTemplate,
+                designId: formTemplate.startsWith('design:') ? formTemplate.slice(7) : null,
               })}
             />
             {formError && <div role="alert" style={m.err}>{formError}</div>}
@@ -1103,6 +1131,10 @@ export default function Labels() {
             ? 'Items that share a barcode: keep one, with one price.'
             : viewMode === 'deals'
             ? 'Deal recommendations, and the deal list to print for the staff.'
+            : viewMode === 'designs'
+            ? 'Make your own label designs: frame, colours, stripe and text sizes.'
+            : viewMode === 'stickers'
+            ? 'Deal stickers with pictures, on the same label sheets.'
             : 'How many labels need printing right now, by store.'}
           actions={viewMode === 'catalog' && (
             <>
@@ -1128,6 +1160,8 @@ export default function Labels() {
             { value: 'health', label: 'Health' },
             { value: 'same', label: 'Same barcode', ...(sameCount ? { count: sameCount } : {}) },
             { value: 'deals', label: 'Deals' },
+            { value: 'designs', label: 'Designs' },
+            { value: 'stickers', label: 'Deal stickers' },
           ] as { value: ViewMode; label: string; count?: number }[]).filter(tb => validTabs.includes(tb.value))}
         />
 
@@ -1141,6 +1175,10 @@ export default function Labels() {
           <SameBarcodePanel />
         ) : viewMode === 'deals' ? (
           <DealsPanel labels={labels} />
+        ) : viewMode === 'designs' ? (
+          <LabelDesignsPanel />
+        ) : viewMode === 'stickers' ? (
+          <DealStickersPanel />
         ) : (
           <div style={s.catalogLayout}>
           <div style={s.catalogMain}>
@@ -1291,18 +1329,36 @@ export default function Labels() {
                           <TableCell style={s.td}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                               <select
-                                style={{ ...s.cellSelect, ...(isChanged(label, 'template') ? s.cellChanged : {}) }}
-                                value={cellValue(label, 'template') ?? label.template}
+                                style={{ ...s.cellSelect, ...(isChanged(label, 'look') ? s.cellChanged : {}) }}
+                                value={cellValue(label, 'look') ?? label.look}
                                 disabled={savingAll}
-                                onChange={e => { stage(label, 'template', e.target.value); }}
+                                onChange={e => { stage(label, 'look', e.target.value); }}
                                 aria-label={`Design for ${label.productName}`}
-                                title={isChanged(label, 'template') ? `Not saved yet. Saved: ${showCell('template', label.template)}` : undefined}
+                                title={isChanged(label, 'look') ? `Not saved yet. Saved: ${showCell('look', label.look)}` : undefined}
                               >
-                                {TEMPLATE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                <optgroup label="Built in">
+                                  {TEMPLATE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                </optgroup>
+                                {designs.length > 0 && (
+                                  <optgroup label="HQ designs">
+                                    {designs.map(d => <option key={d.id} value={`design:${d.id}`}>{d.name}</option>)}
+                                  </optgroup>
+                                )}
+                                {label.look.startsWith('design:') && !designs.some(d => `design:${d.id}` === label.look) && <option value={label.look}>Own design</option>}
                               </select>
-                              {isChanged(label, 'template') && (
-                                <button type="button" style={{ ...s.undoBtn, position: 'static', transform: 'none' }} onClick={() => revert(label, 'template')} disabled={savingAll}
-                                  title={`Put back: ${showCell('template', label.template)}`} aria-label={`Undo: Design for ${label.productName}`}>
+                              <select
+                                style={{ ...s.cellSelect, width: 66, ...(isChanged(label, 'size') ? s.cellChanged : {}) }}
+                                value={cellValue(label, 'size') ?? label.size}
+                                disabled={savingAll}
+                                onChange={e => { stage(label, 'size', e.target.value); }}
+                                aria-label={`Text size for ${label.productName}`}
+                                title={isChanged(label, 'size') ? `Not saved yet. Saved: ${sizeText(label.size)}` : 'Text size on this label (100% is as its design)'}
+                              >
+                                {[...new Set([...SIZE_OPTIONS, label.size])].sort((a, b) => Number(a) - Number(b)).map(v => <option key={v} value={v}>{sizeText(v)}</option>)}
+                              </select>
+                              {(isChanged(label, 'look') || isChanged(label, 'size')) && (
+                                <button type="button" style={{ ...s.undoBtn, position: 'static', transform: 'none' }} onClick={() => { revert(label, 'look'); revert(label, 'size'); }} disabled={savingAll}
+                                  title={`Put back: ${showCell('look', label.look)}, ${sizeText(label.size)}`} aria-label={`Undo: Design for ${label.productName}`}>
                                   <RotateCcw size={12} strokeWidth={2.5} />
                                 </button>
                               )}
@@ -1615,11 +1671,11 @@ function QuickPrice({ label, staged, disabled, onStage, onNext, inputRef }: {
   );
 }
 
-type InlineField = 'productName' | 'priceText' | 'dealText' | 'barcode' | 'category' | 'template';
+type InlineField = 'productName' | 'priceText' | 'dealText' | 'barcode' | 'category' | 'look' | 'size';
 const FIELD_NAMES: Record<InlineField, string> = {
-  productName: 'Name', priceText: 'Price', dealText: 'Deal', barcode: 'Barcode', category: 'Category', template: 'Design',
+  productName: 'Name', priceText: 'Price', dealText: 'Deal', barcode: 'Barcode', category: 'Category', look: 'Design', size: 'Text size',
 };
-const FIELD_ORDER: InlineField[] = ['productName', 'barcode', 'category', 'priceText', 'dealText', 'template'];
+const FIELD_ORDER: InlineField[] = ['productName', 'barcode', 'category', 'priceText', 'dealText', 'look', 'size'];
 
 type Draft = Partial<Record<InlineField, string | null>>;
 type PendingEdits = Record<string, Draft>;
