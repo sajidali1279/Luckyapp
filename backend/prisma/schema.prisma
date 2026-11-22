@@ -872,6 +872,8 @@ model DealSticker {
   template  LabelTemplate @default(CLASSIC_RED_BLACK)
   textScale Float?
   storeIds  String[]      // empty = every store
+  endsOn    String?       // the last day of the deal, store date YYYY-MM-DD (2026-11-21); after it stores stop seeing it and are told to take it down
+  showEnd   Boolean       @default(true)   // print "Ends Sun 11/30" on the sticker
   isActive  Boolean       @default(true)
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt

@@ -94,7 +94,7 @@ export function designCss(id: string, raw: unknown): string {
     ${c} .label-name, ${c} .stk-words { color: ${s.colors.name}; font-weight: ${s.nameBold ? 800 : 500}; }
     ${c} .price-regular, ${c} .price-dollar { color: ${s.colors.price}; }
     ${c} .price-deal { color: ${s.colors.deal}; border-color: ${s.colors.deal}; }
-    ${c} .stk-sub { color: ${s.colors.deal}; }
+    ${c} .stk-sub, ${c} .stk-ends { color: ${s.colors.deal}; }
   `;
 }
 
@@ -116,6 +116,15 @@ export function stickerPrice(text: string): { dollar: boolean; text: string } {
   return /^\d+(\.\d{1,2})?$/.test(t) ? { dollar: true, text: t } : { dollar: false, text: t };
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** A sticker's last day as printed: "Ends Sun 11/30" (from the store date YYYY-MM-DD); '' when there is none or it is not a date. */
+export function endsText(endsOn: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(endsOn ?? '');
+  if (!m) return '';
+  const day = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return Number.isNaN(day.getTime()) ? '' : `Ends ${WEEKDAYS[day.getUTCDay()]} ${Number(m[2])}/${Number(m[3])}`;
+}
+
 /** The extra CSS a deal sticker needs on top of the label's own: pictures on the left, words and price on the right. */
 export const STICKER_CSS = `
     .label.sticker { gap: 1.2mm; align-items: center; }
@@ -129,6 +138,7 @@ export const STICKER_CSS = `
     .stk-price { font-size: calc(20pt * var(--pk, 1) * var(--ts, 1)); font-weight: 900; line-height: 1; white-space: nowrap; }
     .stk-price .price-dollar { font-size: calc(10pt * var(--pk, 1) * var(--ts, 1)); }
     .stk-price.text { font-size: calc(15pt * var(--pk, 1) * var(--ts, 1)); }
+    .stk-ends { font-size: calc(6pt * var(--dk, 1) * var(--ts, 1)); font-weight: 800; letter-spacing: 0.2px; white-space: nowrap; }
     .stk-sub { font-size: calc(5.5pt * var(--dk, 1) * var(--ts, 1)); font-weight: 600; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 2;
       -webkit-box-orient: vertical; overflow: hidden; }
 `;

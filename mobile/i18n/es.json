@@ -3903,6 +3903,10 @@
     "printA11y": "Imprimir {{count}} calcomanías",
     "printing": "Imprimiendo…",
     "pickFirst": "Elija calcomanías para imprimir",
-    "printFailed": "No se pudieron imprimir las calcomanías."
+    "printFailed": "No se pudieron imprimir las calcomanías.",
+    "ends": "Termina {{date}}",
+    "endedOn": "terminó {{date}}",
+    "takeDownTitle": "Quite estas ({{count}})",
+    "takeDownHint": "Estas ofertas terminaron. Quite sus calcomanías de los estantes para que los clientes no vean un precio viejo."
   }
 }

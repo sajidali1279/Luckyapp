@@ -7,17 +7,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Text } from './ScaledText';
 import { COLORS } from '../constants';
-import { XIcon, PlusIcon, PrinterIcon, CheckCircleIcon, CircleIcon } from './Icons';
+import { XIcon, PlusIcon, PrinterIcon, CheckCircleIcon, CircleIcon, AlertTriangleIcon } from './Icons';
+import { endsText } from '../utils/labelDesign';
 
 export interface DealSticker {
   id: string; words: string; subText: string | null; priceText: string; designId: string | null; template: string; textScale: number | null;
   images: { id: string; name: string; url: string }[];
+  endsOn?: string | null; showEnd?: boolean;   // the deal's last day (2026-11-21)
 }
+/** A sticker whose deal ended in the last week: staff take it down */
+export interface EndedSticker { id: string; words: string; priceText: string; endsOn: string | null; images: { id: string; name: string; url: string }[] }
 
 const priceShown = (p: string) => (/^\d+(\.\d{1,2})?$/.test(p.trim()) ? `$${p.trim()}` : p.trim());
 
-export default function DealStickersSheet({ stickers, accentColor, printing, onPrint, onClose }: {
-  stickers: DealSticker[]; accentColor: string; printing: boolean;
+export default function DealStickersSheet({ stickers, ended = [], accentColor, printing, onPrint, onClose }: {
+  stickers: DealSticker[]; ended?: EndedSticker[]; accentColor: string; printing: boolean;
   onPrint: (picked: { sticker: DealSticker; quantity: number }[]) => void; onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -42,6 +46,18 @@ export default function DealStickersSheet({ stickers, accentColor, printing, onP
           </TouchableOpacity>
         </View>
         <ScrollView style={{ maxHeight: 440 }}>
+          {ended.length > 0 && (
+            <View style={st.takeDown} accessibilityRole="summary">
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <AlertTriangleIcon size={18} color="#B45309" />
+                <Text style={st.takeDownTitle}>{t('dealStickers.takeDownTitle', { count: ended.length })}</Text>
+              </View>
+              <Text style={st.takeDownHint}>{t('dealStickers.takeDownHint')}</Text>
+              {ended.map((x) => (
+                <Text key={x.id} style={st.takeDownRow}>• {x.words} ({priceShown(x.priceText)}) · {t('dealStickers.endedOn', { date: endsText(x.endsOn).replace('Ends ', '') })}</Text>
+              ))}
+            </View>
+          )}
           {stickers.length === 0 && <Text style={st.none}>{t('dealStickers.none')}</Text>}
           {stickers.map((x) => {
             const n = qty[x.id] ?? 0;
@@ -56,6 +72,7 @@ export default function DealStickersSheet({ stickers, accentColor, printing, onP
                   <View style={{ flex: 1 }}>
                     <Text style={st.words} numberOfLines={2}>{x.words}</Text>
                     <Text style={[st.price, { color: accentColor }]}>{priceShown(x.priceText)}</Text>
+                    {!!x.endsOn && <Text style={st.ends}>{t('dealStickers.ends', { date: endsText(x.endsOn).replace('Ends ', '') })}</Text>}
                   </View>
                 </TouchableOpacity>
                 <View style={st.stepper}>
@@ -100,6 +117,11 @@ const st = StyleSheet.create({
   stepBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F4F8', alignItems: 'center', justifyContent: 'center' },
   stepText: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginTop: -2 },
   qty: { minWidth: 22, textAlign: 'center', fontSize: 16, fontWeight: '800', color: COLORS.text },
+  ends: { fontSize: 12, fontWeight: '700', color: '#B45309', marginTop: 1 },
+  takeDown: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A', borderWidth: 1, borderRadius: 14, padding: 12, marginBottom: 10, gap: 4 },
+  takeDownTitle: { fontSize: 15, fontWeight: '800', color: '#92400E' },
+  takeDownHint: { fontSize: 13, color: '#92400E' },
+  takeDownRow: { fontSize: 14, color: COLORS.text, fontWeight: '600' },
   printBtn: { marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 14 },
   printText: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
 });

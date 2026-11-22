@@ -18,7 +18,7 @@ export interface PrintableLabel {
   designId?: string | null;
   design?: unknown;
   textScale?: number | null;
-  sticker?: { words: string; sub?: string | null; images: string[] } | null;
+  sticker?: { words: string; sub?: string | null; images: string[]; ends?: string | null } | null;
 }
 
 export interface PrintableLabelEntry {
@@ -90,6 +90,7 @@ function renderSticker(label: PrintableLabel): string {
       <div class="stk-main">
         <div class="stk-words">${lk.icon}${esc(st.words)}</div>
         <div class="price-regular stk-price${price.dollar ? '' : ' text'}">${price.dollar ? '<span class="price-dollar">$</span>' : ''}${esc(price.text)}</div>
+        ${st.ends ? `<div class="stk-ends">${esc(st.ends)}</div>` : ''}
         ${st.sub ? `<div class="stk-sub">${esc(st.sub)}</div>` : ''}
       </div>
     </div>

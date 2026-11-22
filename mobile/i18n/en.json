@@ -3903,6 +3903,10 @@
     "printA11y": "Print {{count}} stickers",
     "printing": "Printing…",
     "pickFirst": "Pick stickers to print",
-    "printFailed": "Could not print the stickers."
+    "printFailed": "Could not print the stickers.",
+    "ends": "Ends {{date}}",
+    "endedOn": "ended {{date}}",
+    "takeDownTitle": "Take these down ({{count}})",
+    "takeDownHint": "These deals have ended. Take their stickers off the shelves so customers do not see an old price."
   }
 }

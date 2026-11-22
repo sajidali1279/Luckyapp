@@ -11,6 +11,7 @@ import { refuse } from '../utils/refusal';
 import { hasMinRole } from '../middleware/auth';
 import { designSchema, textScaleField } from '../utils/labelDesign';
 import { categoryKey, followsCategory, loadCategoryDesigns, saveCategoryDesigns } from '../utils/labelCategoryDesigns';
+import { storeDateKey, addStoreDays, isRealDateKey } from '../utils/storeTime';
 
 const actor = (req: AuthRequest) => ({ actorId: req.user!.id, actorName: req.user!.name, actorRole: req.user!.role });
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -133,10 +134,17 @@ const stickerSchema = z.object({
   template: z.nativeEnum(LabelTemplate).default(LabelTemplate.CLASSIC_RED_BLACK),
   textScale: textScaleField.optional().transform((v) => v ?? null),
   storeIds: z.array(z.string().uuid()).max(100).default([]),
+  // the last day of the deal (store date); after it stores stop seeing the sticker and are told to take it down (2026-11-21)
+  endsOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick the last day of the deal.').refine(isRealDateKey, 'Pick the last day of the deal.').nullish().transform((v) => v ?? null),
+  showEnd: z.boolean().default(true),
   isActive: z.boolean().default(true),
 }).strict();
 
-async function stickerProblem(d: z.infer<typeof stickerSchema>): Promise<string | null> {
+/** How many days after its last day an ended sticker is still listed for the stores to take down. */
+const TAKE_DOWN_DAYS = 7;
+
+async function stickerProblem(d: z.infer<typeof stickerSchema>, beforeEndsOn?: string | null): Promise<string | null> {
+  if (d.endsOn && d.endsOn !== beforeEndsOn && d.endsOn < storeDateKey()) return 'The last day of the deal has already passed. Pick today or a later day.';
   if (d.imageIds.length && (await prisma.labelImage.count({ where: { id: { in: d.imageIds } } })) !== new Set(d.imageIds).size) return 'One of the pictures is no longer in the library.';
   if (d.designId && !(await prisma.labelDesign.findUnique({ where: { id: d.designId }, select: { id: true } }))) return 'That design no longer exists.';
   if (d.storeIds.length && (await prisma.store.count({ where: { id: { in: d.storeIds } } })) !== new Set(d.storeIds).size) return 'One of the stores does not exist.';
@@ -158,9 +166,24 @@ export async function listStickers(req: AuthRequest, res: Response) {
     if (!storeId) { res.status(400).json({ success: false, error: 'Choose a store.' }); return; }
     if (!(await canTouchStore(req.user!.id, req.user!.role, storeId))) { res.status(403).json({ success: false, error: "You don't have access to that store" }); return; }
   }
-  const where = hq && !storeId ? {} : { isActive: true, OR: [{ storeIds: { isEmpty: true } }, { storeIds: { has: storeId } }] };
-  const rows = await prisma.dealSticker.findMany({ where, orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }] });
-  res.json({ success: true, data: await withImages(rows) });
+  const today = storeDateKey();
+  if (hq && !storeId) {
+    const rows = await prisma.dealSticker.findMany({ orderBy: [{ isActive: 'desc' }, { updatedAt: 'desc' }] });
+    res.json({ success: true, data: (await withImages(rows)).map((r) => ({ ...r, ended: !!r.endsOn && r.endsOn < today })) });
+    return;
+  }
+  // A store sees the switched-on stickers that have not ended; and, apart, to take down: the ones that ended in the last week, and the
+  // ones HQ switched off in the last week (a deal stopped early)
+  const rows = await prisma.dealSticker.findMany({
+    where: { OR: [{ storeIds: { isEmpty: true } }, { storeIds: { has: storeId } }] },
+    orderBy: { updatedAt: 'desc' },
+  });
+  const weekAgo = addStoreDays(today, -TAKE_DOWN_DAYS);
+  const current = rows.filter((r) => r.isActive && (!r.endsOn || r.endsOn >= today));
+  const ended = rows.filter((r) => (r.isActive
+    ? !!r.endsOn && r.endsOn < today && r.endsOn >= weekAgo
+    : storeDateKey(r.updatedAt) >= weekAgo && (!r.endsOn || r.endsOn >= weekAgo)));
+  res.json({ success: true, data: await withImages(current), ended: (await withImages(ended)).map((r) => ({ id: r.id, words: r.words, priceText: r.priceText, endsOn: r.endsOn, images: r.images })) });
 }
 
 /** POST /labels/stickers */
@@ -182,7 +205,7 @@ export async function updateSticker(req: AuthRequest, res: Response) {
   const before = await prisma.dealSticker.findUnique({ where: { id: req.params.id } });
   if (!before) { res.status(404).json({ success: false, error: 'That sticker no longer exists.' }); return; }
   const d = { ...parsed.data, imageIds: [...new Set(parsed.data.imageIds)], storeIds: [...new Set(parsed.data.storeIds)] };
-  const problem = await stickerProblem(d);
+  const problem = await stickerProblem(d, before.endsOn);
   if (problem) { res.status(400).json({ success: false, error: problem }); return; }
   const sticker = await prisma.dealSticker.update({ where: { id: before.id }, data: d });
   audit({ ...actor(req), action: 'DEAL_STICKER', entity: 'label', entityId: sticker.id, details: { summary: `Deal sticker "${before.words}" changed`, before, after: sticker }, storeId: null });

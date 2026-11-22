@@ -27,7 +27,8 @@ import { suggestFromBarcode, matchNames, CatalogItem } from '../utils/labelSimil
 import PriceCheckModal from './PriceCheckModal';
 import { printLabels, PrintableLabelEntry } from '../utils/printLabels';
 import { rememberDesigns } from '../utils/labelDesign';
-import DealStickersSheet, { DealSticker } from './DealStickersSheet';
+import DealStickersSheet, { DealSticker, EndedSticker } from './DealStickersSheet';
+import { endsText } from '../utils/labelDesign';
 import { useShellCover } from './DrawerShell';
 import { useAuthStore, isStoreManagerOrAbove } from '../store/authStore';
 import { useLabelCart } from '../store/labelCartStore';
@@ -337,6 +338,7 @@ export default function LabelsScreen() {
     staleTime: 60 * 1000,
   });
   const stickers: DealSticker[] = Array.isArray(stickersData?.data?.data) ? stickersData.data.data : [];
+  const endedStickers: EndedSticker[] = Array.isArray(stickersData?.data?.ended) ? stickersData.data.ended : [];
   const [showStickers, setShowStickers] = useState(false);
   const [stickerPrinting, setStickerPrinting] = useState(false);
   const cover = useShellCover();
@@ -927,7 +929,7 @@ export default function LabelsScreen() {
     try {
       const entries: PrintableLabelEntry[] = picked.map(({ sticker: x, quantity }) => ({
         label: { id: x.id, productName: x.words, priceText: x.priceText, template: x.template, designId: x.designId, textScale: x.textScale,
-          sticker: { words: x.words, sub: x.subText, images: x.images.map((im) => im.url) } },
+          sticker: { words: x.words, sub: x.subText, images: x.images.map((im) => im.url), ends: x.showEnd !== false ? endsText(x.endsOn) : null } },
         quantity,
       }));
       await printLabels({ entries, sheet: printSheet, skip: 0 });
@@ -939,10 +941,10 @@ export default function LabelsScreen() {
     }
   }
   const stickerSheet = showStickers
-    ? <DealStickersSheet stickers={stickers} accentColor={accentColor} printing={stickerPrinting} onPrint={printStickers} onClose={() => setShowStickers(false)} />
+    ? <DealStickersSheet stickers={stickers} ended={endedStickers} accentColor={accentColor} printing={stickerPrinting} onPrint={printStickers} onClose={() => setShowStickers(false)} />
     : null;
   // only when something it shows changes: the shell redraws this screen when the cover changes, so every-render would never stop
-  useEffect(() => { cover?.(stickerSheet); }, [showStickers, stickerPrinting, stickers, accentColor, printSheet]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { cover?.(stickerSheet); }, [showStickers, stickerPrinting, stickers, endedStickers, accentColor, printSheet]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { cover?.(null); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handlePrint(shareAsPdf: boolean) {
@@ -1413,10 +1415,10 @@ export default function LabelsScreen() {
         >
           <Text style={s.viewToggleText}>{t('sharedLabels.tabMyPrints')}{cartSize > 0 ? ` · ${cartSize}` : ''}</Text>
         </TouchableOpacity>
-        {stickers.length > 0 && (
-          <TouchableOpacity style={s.viewToggleChip} onPress={() => setShowStickers(true)} accessibilityRole="button"
-            accessibilityLabel={t('dealStickers.chipA11y', { count: stickers.length })}>
-            <Text style={s.viewToggleText}>{t('dealStickers.chip')} · {stickers.length}</Text>
+        {(stickers.length > 0 || endedStickers.length > 0) && (
+          <TouchableOpacity style={[s.viewToggleChip, endedStickers.length > 0 && { borderColor: '#F59E0B', backgroundColor: '#FFFBEB' }]} onPress={() => setShowStickers(true)} accessibilityRole="button"
+            accessibilityLabel={[t('dealStickers.chipA11y', { count: stickers.length }), endedStickers.length ? t('dealStickers.takeDownTitle', { count: endedStickers.length }) : ''].filter(Boolean).join('. ')}>
+            <Text style={s.viewToggleText}>{t('dealStickers.chip')} · {stickers.length}{endedStickers.length ? ` · ⚠ ${endedStickers.length}` : ''}</Text>
           </TouchableOpacity>
         )}
       </View>

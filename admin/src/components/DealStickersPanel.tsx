@@ -14,6 +14,7 @@ import ConfirmModal from './ConfirmModal';
 import ErrorState from './ErrorState';
 import { useLabelDesigns } from '../hooks/useLabelDesigns';
 import { labelPreviewHtml, printLabels, PrintableLabel } from '../utils/printLabels';
+import { endsText } from '../utils/labelDesign';
 
 const TEMPLATES: { value: string; label: string }[] = [
   { value: 'CLASSIC_RED_BLACK', label: 'Classic Red & Black' }, { value: 'CHRISTMAS_WINTER', label: 'Christmas / Winter' }, { value: 'SUMMER', label: 'Summer' },
@@ -25,13 +26,14 @@ interface LibImage { id: string; name: string; url: string }
 interface Sticker {
   id: string; words: string; subText: string | null; priceText: string; imageIds: string[]; designId: string | null; template: string;
   textScale: number | null; storeIds: string[]; isActive: boolean; images: LibImage[];
+  endsOn: string | null; showEnd: boolean; ended?: boolean;   // the deal's last day (2026-11-21)
 }
 interface Store { id: string; name: string; isActive?: boolean }
 
 /** A sticker as the print code draws it. */
-export function stickerPrintable(x: { id: string; words: string; subText: string | null; priceText: string; designId: string | null; template: string; textScale: number | null; images: { url: string }[] }): PrintableLabel {
+export function stickerPrintable(x: { id: string; words: string; subText: string | null; priceText: string; designId: string | null; template: string; textScale: number | null; images: { url: string }[]; endsOn?: string | null; showEnd?: boolean }): PrintableLabel {
   return { id: x.id, productName: x.words, priceText: x.priceText, template: x.template, designId: x.designId, textScale: x.textScale,
-    sticker: { words: x.words, sub: x.subText, images: x.images.map((i) => i.url) } };
+    sticker: { words: x.words, sub: x.subText, images: x.images.map((i) => i.url), ends: x.showEnd !== false ? endsText(x.endsOn) : null } };
 }
 
 export default function DealStickersPanel() {
@@ -56,7 +58,7 @@ export default function DealStickersPanel() {
   });
   const flip = useMutation({
     mutationFn: (x: Sticker) => labelsApi.updateSticker(x.id, { words: x.words, subText: x.subText, priceText: x.priceText, imageIds: x.imageIds, designId: x.designId,
-      template: x.template, textScale: x.textScale, storeIds: x.storeIds, isActive: !x.isActive }),
+      template: x.template, textScale: x.textScale, storeIds: x.storeIds, endsOn: x.endsOn, showEnd: x.showEnd, isActive: !x.isActive }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['deal-stickers'] }),
     onError: (e) => toast.error(failureMessage(e, 'Could not change the sticker.')),
   });
@@ -75,7 +77,8 @@ export default function DealStickersPanel() {
         <HowItWorks style={{ flex: '1 1 320px' }}>
           A deal sticker shows up to 3 pictures on the left and the deal with its price on the right, on the same label sheets as the shelf
           labels. Add your product pictures to the library below once, then use them on any sticker. A sticker can be for every store or only
-          some; switched-off stickers are kept but stores do not see them. Simple pictures on a plain background print best at this size.
+          some, and can have a last day ("Ends Sun 11/30" can print on it). After its last day, or once you switch it off, stores stop seeing
+          it, and for a week their app lists it under "Take these down". Simple pictures on a plain background print best at this size.
         </HowItWorks>
         <div style={{ display: 'flex', gap: 8 }}>
           <Button icon={<Printer />} disabled={picked.size === 0} onClick={printPicked}>Print {picked.size ? `${picked.size} picked` : 'picked'}</Button>
@@ -103,7 +106,10 @@ export default function DealStickersPanel() {
                       </span>
                     </span>
                   </label>
-                  {!x.isActive && <Badge>Switched off</Badge>}
+                  <span style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {x.ended ? <Badge tone="danger">Ended {endsText(x.endsOn).replace('Ends ', '')}</Badge> : x.endsOn ? <Badge tone="warning">{endsText(x.endsOn)}</Badge> : null}
+                    {!x.isActive && <Badge>Switched off</Badge>}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   <input type="number" min={1} max={300} aria-label={`How many of ${x.words}`} style={{ ...INPUT, width: 70, padding: '4px 8px' }}
@@ -193,16 +199,21 @@ function StickerEditor({ sticker, images, stores, onClose }: { sticker: Sticker 
   const [allStores, setAllStores] = useState(!sticker || sticker.storeIds.length === 0);
   const [storeIds, setStoreIds] = useState<string[]>(sticker?.storeIds ?? []);
   const [isActive, setIsActive] = useState(sticker?.isActive ?? true);
+  const [endsOn, setEndsOn] = useState(sticker?.endsOn ?? '');
+  const [showEnd, setShowEnd] = useState(sticker?.showEnd ?? true);
   const [error, setError] = useState('');
 
   const body = {
     words: words.trim(), subText: sub.trim() || null, priceText: price.trim().replace(/^\$/, ''), imageIds: pics,
     designId: look.startsWith('design:') ? look.slice(7) : null, template: look.startsWith('design:') ? (sticker?.template ?? 'CLASSIC_RED_BLACK') : look,
     textScale: size === '1' ? null : Number(size), storeIds: allStores ? [] : storeIds, isActive,
+    endsOn: endsOn || null, showEnd,
   };
+  const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const problem = !body.words ? 'Write the deal, like "Chips + 24oz".' : !body.priceText ? 'Give the price, like 5.00.'
     : !/^[0-9A-Za-z$./ ]+$/.test(body.priceText) ? 'The price can have numbers, letters, $, . and / (like 5.00 or 2/$5).'
-    : !allStores && storeIds.length === 0 ? 'Pick at least one store, or choose every store.' : null;
+    : !allStores && storeIds.length === 0 ? 'Pick at least one store, or choose every store.'
+    : endsOn && endsOn !== (sticker?.endsOn ?? '') && endsOn < todayKey ? 'The last day of the deal has already passed. Pick today or a later day.' : null;
   const save = useMutation({
     mutationFn: () => (sticker ? labelsApi.updateSticker(sticker.id, body) : labelsApi.createSticker(body)),
     onSuccess: () => { toast.success(sticker ? 'Sticker saved' : 'Sticker made'); qc.invalidateQueries({ queryKey: ['deal-stickers'] }); onClose(); },
@@ -210,7 +221,7 @@ function StickerEditor({ sticker, images, stores, onClose }: { sticker: Sticker 
   });
   const togglePic = (id: string) => setPics((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= 3 ? p : [...p, id]));
   const preview = stickerPrintable({ id: sticker?.id ?? 'new', words: body.words || 'Your deal', subText: body.subText, priceText: body.priceText || '0.00',
-    designId: body.designId, template: body.template, textScale: body.textScale, images: pics.map((id) => images.find((i) => i.id === id)).filter(Boolean) as LibImage[] });
+    designId: body.designId, template: body.template, textScale: body.textScale, endsOn: body.endsOn, showEnd, images: pics.map((id) => images.find((i) => i.id === id)).filter(Boolean) as LibImage[] });
 
   return (
     <Modal title={sticker ? 'Edit deal sticker' : 'New deal sticker'} subtitle="Up to 3 pictures on the left, the deal and its price on the right." onClose={onClose} busy={save.isPending} maxWidth={920}>
@@ -264,6 +275,13 @@ function StickerEditor({ sticker, images, stores, onClose }: { sticker: Sticker 
               </div>
             )}
           </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <label style={st.field}>Last day of the deal (optional)
+              <input type="date" style={{ ...INPUT, width: 170 }} min={todayKey} value={endsOn} onChange={(e) => { setEndsOn(e.target.value); setError(''); }} />
+            </label>
+            {endsOn && <label style={{ ...st.check, paddingBottom: 8 }}><input type="checkbox" checked={showEnd} onChange={(e) => setShowEnd(e.target.checked)} /> Print "{endsText(endsOn)}" on it</label>}
+          </div>
+          {endsOn && <div style={{ fontSize: FONT.caption, color: TEXT_MUTED, marginTop: -6 }}>After that day stores stop seeing it, and for a week their app lists it under "Take these down".</div>}
           <label style={st.check}><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} /> Switched on (stores can print it)</label>
         </div>
         <div style={{ position: 'sticky', top: 0, display: 'grid', gap: 8 }}>
