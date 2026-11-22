@@ -59,6 +59,7 @@ const createLabelSchema = z.object({
   barcode: textField('barcode', 40).optional().nullable(),
   category: textField('category', 100).optional().nullable(),
   template: z.nativeEnum(LabelTemplate, { message: 'Choose one of the label designs.' }).default(LabelTemplate.CLASSIC_RED_BLACK),
+  designId: z.string().uuid('Choose one of the label designs.').nullable().optional(),   // an HQ-made design (2026-11-21)
   storeId: z.string().uuid('That store is not valid.').optional(),
 });
 
@@ -184,6 +185,10 @@ export async function createLabel(req: AuthRequest, res: Response) {
     res.status(403).json({ success: false, error: "You don't have access to that store" });
     return;
   }
+  if (labelData.designId && !(await prisma.labelDesign.findUnique({ where: { id: labelData.designId }, select: { id: true } }))) {
+    res.status(400).json({ success: false, error: 'That design no longer exists. Reload and choose another.' });
+    return;
+  }
 
   const creatorStoreId = requestedStoreId ?? req.user!.storeIds?.[0] ?? null;
   let adoptedPlaceholder = false;
@@ -221,6 +226,7 @@ export async function createLabel(req: AuthRequest, res: Response) {
           priceText: labelData.priceText ?? null,
           dealText: labelData.dealText ?? null,
           template: labelData.template,
+          designId: labelData.designId ?? null,
           ...(labelData.category ? { category: labelData.category } : {}),   // a blank category keeps the one the scan found
         },
       });
