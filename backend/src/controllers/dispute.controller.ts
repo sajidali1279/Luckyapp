@@ -251,7 +251,7 @@ const creditHelp = () => `Enter the amount to credit (from $0.01 to $${rule('dis
 
 const resolveSchema = z.object({
   action:       z.enum(['APPROVED', 'REJECTED'], { message: 'Choose Approve or Reject.' }),
-  resolvedNote: z.string({ message: 'The note must be text.' }).max(300, 'The note is too long (300 characters at most).').optional(),
+  resolvedNote: z.string({ message: 'The note must be text.' }).max(1500, 'The note is too long (1500 characters at most).').optional(),
   creditedAmt:  z.number({ message: 'The credit must be a number.' })
     .positive('The credit must be more than $0. To turn the report down, choose Reject.')
     .refine((v) => v <= rule('disputeCreditMax'), () => ({ message: `The most one report can credit is $${rule('disputeCreditMax')}.` }))
@@ -362,7 +362,8 @@ export async function resolveDispute(req: AuthRequest, res: Response) {
   const pushTitle = action === 'APPROVED' ? 'Missing Points Approved!' : 'Missing Points Report Update';
   const pushBody  = action === 'APPROVED'
     ? `Your report was reviewed and $${finalCreditedAmt!.toFixed(2)} in credits has been added to your account.`
-    : `Your missing-points report has been reviewed. ${note ? note : 'No additional credits were added.'}`;
+    // A long note (up to 1500 characters, 2026-11-23) is read in full on the My reports screen; the push carries only its start
+    : `Your missing-points report has been reviewed. ${note ? (note.length > 160 ? `${note.slice(0, 157).trimEnd()}...` : note) : 'No additional credits were added.'}`;
 
   sendPushToUser(dispute.customerId, pushTitle, pushBody, 'DISPUTE_RESOLVED', disputeResolvedUrl(dispute.id)).catch(() => {});
 

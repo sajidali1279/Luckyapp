@@ -344,7 +344,7 @@ export default function ManagerDisputesScreen() {
             <TextInput
               style={s.noteInput} value={resolveNote} onChangeText={setResolveNote}
               placeholder={t('managerDisputes.notePlaceholder')}
-              placeholderTextColor="#9ca3af" multiline maxLength={300} numberOfLines={3} textAlignVertical="top"
+              placeholderTextColor="#9ca3af" multiline maxLength={1500} numberOfLines={3} textAlignVertical="top"
             />
 
             <View style={s.sheetActions}>

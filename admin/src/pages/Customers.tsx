@@ -658,14 +658,16 @@ export default function Customers() {
             </div>
             <div>
               <label style={s.fieldLabel} htmlFor="dispute-note">Note to customer (optional)</label>
-              <input
+              <textarea
                 id="dispute-note"
-                style={s.fieldInput}
+                style={{ ...s.fieldInput, minHeight: 150, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.4 }}
                 value={resolveNote}
-                maxLength={300}
+                maxLength={1500}
                 onChange={e => { setResolveNote(e.target.value); setResolveError(''); }}
                 placeholder="Explanation for your decision"
+                aria-describedby="dispute-note-count"
               />
+              <div id="dispute-note-count" style={{ fontSize: 11, color: '#6b7280', textAlign: 'right', marginTop: 2 }}>{resolveNote.length} / 1500</div>
             </div>
             {resolveError && <div role="alert" style={s.errorBox}>{resolveError}</div>}
             <div style={s.modalActions}>
