@@ -13,6 +13,7 @@ export const PDI_READ_MODELS = ['claude-opus-5-5', 'claude-opus-4-8'];
 export const MAX_PHOTOS = 12;
 const MAX_PIXELS_CUT = 1_150_000; // the reader's whole limit for the cut-out paper: invoice print is small
 const MAX_OUTPUT = 64_000;
+const SMALL_PHOTO_PIXELS = 1_000_000; // a phone photo is 3 to 12 million; under 1 million is a shrunk copy (a chat app's)
 
 /** Dollars per million tokens (input, output), for the cost shown with each reading; a model not listed shows no cost. */
 const PRICES: Record<string, [number, number]> = { 'claude-opus-4-8': [5, 25], 'claude-sonnet-5': [3, 15] };
@@ -38,6 +39,12 @@ const GENERAL = `These photos show ONE paper invoice from a vendor (a supplier) 
 parts that overlap; the photos may come in any order. Put the invoice back together top to bottom and give every printed item line exactly
 once: where two photos show the same lines, use them once; never drop a line that only one photo shows.
 
+Where two photos meet, check the join with care. A line is the same line in both photos only when its name AND its numbers match. A row
+of numbers at the edge of a photo whose name is not visible is its own line unless the very same line (same name, same numbers) is in the
+other photo; the subtotals and line counts printed for a section tell you how many lines it has. Give every line the paper has, even one
+whose name or barcode cannot be seen (it falls between two photos, or is cut off at an edge): give what is visible (quantity, price,
+amount), "" for the rest, and say in "unreadable" which line it is. Never leave a line out because part of it is hidden.
+
 Copy what is printed, character for character, digit for digit. Do not correct, round, add up or guess anything: the numbers are checked
 afterwards against each other. Thermal paper fades; read small digits with care (0 and 8, 1 and 7, 3 and 8, 5 and 6 look alike) and compare
 with the same digit elsewhere on the paper. Every value is text: when a value is not printed, give an empty string ""; when it is printed
@@ -50,7 +57,9 @@ const FIELDS = `What to give:
 - invoiceNumber, date, total: the invoice's number, its date and the amount due.
 - lines: every item line, top to bottom, each once:
   - upc: the UPC or barcode number as printed, with its dashes, digit for digit: never add zeros in front or drop any, even when it
-    looks shorter than a UPC (some vendors print 10 or 11 digits). Some vendors print only the last few digits of each UPC under a heading
+    looks shorter than a UPC (some vendors print 10 or 11 digits). Count the digits: every digit printed is given. When a digit is faded,
+    covered by a mark or cut off at the edge, put ? in its place (611269991?00) and say so in "unreadable": never guess it, and never use
+    a barcode you know for that product or that appears on another line. Some vendors print only the last few digits of each UPC under a heading
     such as "MANUFACTURER: 28400" that gives the rest: copy the digits as printed and give that heading's number as manufacturer on every
     line under it.
   - description: the product name as printed.
@@ -273,7 +282,12 @@ export async function readInvoice(photos: InvoicePhoto[], vendorNotes: VendorNot
   const answer = message.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
   const raw = jsonIn(answer);
   if (raw === undefined) throw new PdiReadError('The answer from the reader could not be understood. Try again.');
-  const { paper, vendor, unreadable } = paperFromRead(raw);
+  const { paper, vendor, unreadable: notRead } = paperFromRead(raw);
+  // a photo too small for invoice print (2026-11-26: a 351 x 1599 copy from a chat app; its faint barcodes could not be checked even by
+  // eye): said beside what the reader could not make out, so a sharper photo is added before the numbers are trusted
+  const small = cut.map((c, i) => ({ ...c.from, n: i + 1 })).filter((f) => f.w > 0 && f.h > 0 && f.w * f.h < SMALL_PHOTO_PIXELS)
+    .map((f) => `Photo ${f.n} is small (${f.w} x ${f.h} pixels), so small digits may be misread: add the phone's original photo, not a copy sent through a chat app`);
+  const unreadable = [...small, ...notRead];
   const inputTokens = message.usage.input_tokens + (message.usage.cache_read_input_tokens ?? 0) + (message.usage.cache_creation_input_tokens ?? 0);
   const outputTokens = message.usage.output_tokens;
   const price = PRICES[message.model] ?? PRICES[model];

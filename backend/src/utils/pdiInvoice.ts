@@ -431,6 +431,25 @@ export interface ConvertContext {
   today?: string;                                        // YYYY-MM-DD, to question a date far from it
   pdiCostCents?: (upc: string) => number | undefined;   // what one unit costs in the store's PDI item list, by the 11 file digits
   caseItemName?: (upc11: string) => string | undefined;  // the store's PDI item with these 11 file digits, by name (a case code's item, 2026-11-18)
+  // the store's PDI items that fit a UPC read with ? for its unreadable digits (2026-11-26), from partialUpcCodes: 11 file digits and name
+  partialUpcItems?: (pattern: string) => { upc: string; name: string }[];
+}
+
+/** A UPC read with ? in place of digits that are faded, covered or cut off (2026-11-26: a Red Bull 611269991?00 went into PDI as
+ *  61126900100, a Celsius whose last digit was cut off was read as another flavour's UPC). The digits as printed with the ?s, or null
+ *  when there is none or too many to try (at most 2). */
+export function partialUpc(upc: string | null | undefined): string | null {
+  if (typeof upc !== 'string') return null;
+  const d = upc.replace(SEPARATORS, '');
+  const holes = (d.match(/\?/g) ?? []).length;
+  return holes >= 1 && holes <= 2 && /^[\d?]{11,12}$/.test(d) ? d : null;
+}
+
+/** The 11 file digits each fill of a partial UPC could be: for a 12-digit one only the fills whose check digit checks out (at most 100). */
+export function partialUpcCodes(pattern: string): string[] {
+  let fills = [''];
+  for (const ch of pattern) fills = ch === '?' ? fills.flatMap((f) => '0123456789'.split('').map((n) => f + n)) : fills.map((f) => f + ch);
+  return [...new Set(pattern.length === 12 ? fills.filter((f) => gs1CheckDigit(f.slice(0, 11)) === Number(f[11])).map((f) => f.slice(0, 11)) : fills)];
 }
 
 // The pack sizes a case is checked against. Bag-in-box fountain syrup (PDI's cost is per serving, so a box comes out near 50) and the
@@ -508,7 +527,11 @@ export function tenDigitUpcs(paper: PaperInvoice): PaperInvoice {
   }
   const tenDigit = new Set([...makers].filter(([, m]) => m.n > 1 && m.failing * 2 > m.n).map(([k]) => k));
   if (!tenDigit.size) return paper;
-  return { ...paper, lines: paper.lines.map((p) => (padded(p) && tenDigit.has(digits(p).slice(2, 7)) ? { ...p, upc: digits(p).slice(2) } : p)) };
+  // once the invoice shows the vendor prints them so, another maker's product printed the same way is too (2026-11-26: a Blue Bell
+  // invoice's one Snickers bar, 004767748248, stopped, was left out of the file, and $36.48 never reached PDI); one that checks out is
+  // a real UPC that starts with 00 and stays as it is
+  const fails = (p: PaperLine) => gs1CheckDigit(digits(p).slice(0, 11)) !== Number(digits(p)[11]);
+  return { ...paper, lines: paper.lines.map((p) => (padded(p) && (tenDigit.has(digits(p).slice(2, 7)) || fails(p)) ? { ...p, upc: digits(p).slice(2) } : p)) };
 }
 
 /** The reading as the page shows it and the file uses it: the vendor's own codes moved out of the UPC column, and 10-digit UPCs read with
@@ -525,6 +548,14 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   // time). One column holding a UPC on some lines and the vendor's own code on others (AMS Wholesale, 2026-11-03): a code there is a UPC
   // only when it is a whole barcode that checks out (skuFromUpcColumn moves the others to sku).
   let checked = fileUpc(p.upc, p.manufacturer);
+  // digits the reader could not make out (?): the one UPC that fits and is in the store's PDI list, or a stop to type it from the product
+  const holes = partialUpc(p.upc);
+  if (holes) {
+    const fits = ctx.partialUpcItems?.(holes) ?? [];
+    checked = fits.length === 1
+      ? { upc: fits[0].upc, problems: [{ field: 'upc', message: `Part of the UPC could not be read on the paper (${p.upc}). The only UPC that fits it and is in this store's PDI list is ${fits[0].upc}${gs1CheckDigit(fits[0].upc)} ("${fits[0].name}"), so the file uses it: compare it with the product.` }] }
+      : { upc: null, problems: [{ field: 'upc', blocking: true, message: `Part of the UPC could not be read on the paper (${p.upc}): type it from the product.${fits.length > 1 ? ` It could be ${fits.slice(0, 3).map((f) => `${f.upc}${gs1CheckDigit(f.upc)} ("${f.name}")`).join(' or ')}.` : ''}` }] };
+  }
   // A 14-digit case code (AMS prints some, 2026-11-18): the packing digit, the 0 of a 12-digit UPC, the item's 11 file digits and the
   // case's own check digit. When the store's PDI list has that item, the file uses it (it was a stop that asked for the UPC to be typed).
   const caseDigits = typeof p.upc === 'string' ? p.upc.replace(SEPARATORS, '') : '';
@@ -786,9 +817,17 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
         : `${which} ${has} no package header: which package ${r.end - r.start === 1 ? 'is it' : 'are they'} under?`);
     };
     let at = 0;
+    // the printed subtotals with the sign of their lines (credits print theirs without a minus), and the groups whose lines come short
+    let groupsCents: number | null = 0;
+    const short: { name: string; read: number; printed: number }[] = [];
     for (const g of paper.groups) {
       const k = runs.findIndex((r, i) => i >= at && r.name === g.name.trim());
-      if (k < 0) { say('group', `${g.name}: no lines were read under this package header.`); continue; }
+      if (k < 0) {
+        say('group', `${g.name}: no lines were read under this package header.`);
+        const whole = g.amount === undefined ? null : printedCents(g.amount);
+        if (whole === null || groupsCents === null) groupsCents = null; else { groupsCents += whole; if (whole) short.push({ name: g.name, read: 0, printed: Math.abs(whole) }); }
+        continue;
+      }
       runs.slice(at, k).forEach(unmatched);
       at = k + 1;
       const run = fileLines.slice(runs[k].start, runs[k].end);
@@ -798,6 +837,12 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
       const cents = printedRun.every((c) => typeof c.amountCents === 'number') ? printedRun.reduce((n, c) => n + (c.amountCents as number), 0) : linesTotalCents(run);
       const amount = g.amount === undefined ? null : printedCents(g.amount);
       if (g.amount !== undefined && amount === null) say('group', `${g.name}: the subtotal "${g.amount}" could not be read.`);
+      if (amount === null || groupsCents === null) groupsCents = null;
+      else {
+        groupsCents += cents < 0 ? -Math.abs(amount) : Math.abs(amount);
+        // only when every line under it was read with its total: a line read without one is not a missing line
+        if (Math.abs(cents) < Math.abs(amount) && printedRun.every((c) => typeof c.amountCents === 'number')) short.push({ name: g.name, read: Math.abs(cents), printed: Math.abs(amount) });
+      }
       const off: string[] = [];
       // a Cases column printed as 0 on every line (Hiland Dairy counts single items in Units): nothing to check it against
       if (g.cases !== undefined && g.cases !== 0 && cases !== g.cases) off.push(`${count(cases, 'case', 'cases')} where the subtotal says ${g.cases}`);
@@ -806,6 +851,15 @@ export function convertInvoice(vendor: VendorRules | null, paper: PaperInvoice, 
       if (off.length) say('group', `${g.name}: the lines come to ${off.join(', and ')}.`);
     }
     runs.slice(at).forEach(unmatched);
+    // The paper's own subtotals make its total, yet the lines read under one of them come short: a line was not read (2026-11-26, a
+    // PepsiCo invoice's third Naked Juice line sat where two photos met; the total note was ticked and the file went 29.40 short). A stop,
+    // not a tick: add the line (or read the photos again); a line added and left out of the file also settles it.
+    if (short.length && groupsCents !== null && totalCents !== null && groupsCents + chargeCents === totalCents) {
+      for (const g of short) {
+        say('lines', `A line is missing under "${g.name}": its printed subtotal is ${money(g.printed)}, but the lines read under it come to ${money(g.read)}, so ${money(g.printed - g.read)} is not in the file. It may be where two photos meet: add the line from the paper (or read sharper, overlapping photos again).`, true);
+      }
+      for (let i = problems.length - 1; i >= 0; i--) if (problems[i].field === 'total' && problems[i].confirm) problems.splice(i, 1);   // the same gap, said better above
+    }
   } else if (grouped) {
     say('group', 'Package headers were read but no subtotals, so the lines cannot be checked against them: compare a few lines with the paper.');
   }

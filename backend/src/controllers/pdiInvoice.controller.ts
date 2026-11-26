@@ -15,7 +15,7 @@ import { feature } from '../utils/appSettings';
 import { audit } from '../utils/audit';
 import { isRealDateKey, storeDateKey } from '../utils/storeTime';
 import {
-  convertInvoice, pdiFile, pdiFileName, fullUpc, headerProblems, lineProblems, linesTotalCents, printedCents, lineKey, tidyPaper,
+  convertInvoice, pdiFile, pdiFileName, fullUpc, headerProblems, lineProblems, linesTotalCents, printedCents, lineKey, tidyPaper, partialUpc, partialUpcCodes,
   KnownUnits, PaperInvoice, PdiFileError, Problem, VendorRules,
 } from '../utils/pdiInvoice';
 import { readInvoice, paperFromRead, InvoicePhoto, PdiReadError, MAX_PHOTOS } from '../utils/pdiRead';
@@ -170,7 +170,15 @@ async function reviewOf(row: Row, known: (upc: string) => KnownUnits | undefined
   const caseNames = new Map(caseCodes.length
     ? (await prisma.pdiItem.findMany({ where: { storeId: row.storeId, code: { in: caseCodes } }, select: { code: true, name: true } })).map((r) => [r.code, r.name] as const)
     : []);
-  const ctx = { knownUnits: known, knownUpc, today: storeDateKey(), caseItemName: (code: string) => caseNames.get(code) };
+  // a UPC read with ? for digits the paper does not show (2026-11-26): the store's PDI items any fill of it matches (at most 100 a UPC)
+  const partials = [...new Set(tidyPaper(paper).lines.map((l) => partialUpc(l.upc)).filter((x): x is string => !!x))].slice(0, 20);
+  const fills = new Map(partials.map((pt) => [pt, partialUpcCodes(pt)] as const));
+  const allFills = [...new Set([...fills.values()].flat())];
+  const fitNames = new Map(allFills.length
+    ? (await prisma.pdiItem.findMany({ where: { storeId: row.storeId, code: { in: allFills } }, select: { code: true, name: true } })).map((r) => [r.code, r.name] as const)
+    : []);
+  const partialUpcItems = (pt: string) => (fills.get(pt) ?? []).filter((c) => fitNames.has(c)).map((c) => ({ upc: c, name: fitNames.get(c)! }));
+  const ctx = { knownUnits: known, knownUpc, today: storeDateKey(), caseItemName: (code: string) => caseNames.get(code), partialUpcItems };
   const first = convertInvoice(vendorRules(row.vendor), paper, ctx);
   const pdi = await pdiCheckFor(row.storeId, first);
   if (!pdi) return review(row, first, null);
