@@ -566,9 +566,19 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   const isReturn = !!p.isReturn || (signedPrice !== null && signedPrice < 0) || (signedAmount !== null && signedAmount < 0) || (rawQty !== null && rawQty < 0);
   const price = signedPrice === null ? null : Math.abs(signedPrice);
   if (price === null) say('price', `The price "${p.price ?? ''}" could not be read: type it in.`, true);
-  const qty = rawQty === null ? null : Math.abs(rawQty);
+  let qty = rawQty === null ? null : Math.abs(rawQty);
   if (qty === null) say('quantity', `The quantity "${p.quantity ?? ''}" should be a whole number above 0.`, true);
   else if (qtyFromAmount !== null) say('quantity', `The quantity was not read, so it comes from the line total over the price: ${qtyFromAmount}. Compare it with the paper.`);
+  // A line of single items on a case vendor's invoice (PepsiCo's "CREDITS (Single Units)", 2026-11-26: PEPSI 2L, 7 units, -19.95, read
+  // as 1 case at 2.85 with 7 units, so the file took off $2.85 instead of $19.95): when the units, not the cases, times the price make
+  // the line total, the line is that many single items at 1 a case.
+  const singles = vendor.sellsBy !== 'EACH' && fine === null && price !== null && qty !== null && signedAmount !== null
+    && typeof p.units === 'number' && Number.isSafeInteger(p.units) && p.units > qty
+    && price * qty !== Math.abs(signedAmount) && price * p.units === Math.abs(signedAmount);
+  if (singles) {
+    qty = p.units as number;
+    say('quantity', `Single items: ${qty} at ${money(price!)} make the line total ${money(Math.abs(signedAmount!))}, so the file has ${qty} at 1 a case.`);
+  }
 
   // the vendor's item number, in the file's 6 places. PDI does not need it (Deep Water left it blank for PepsiCo), so one that is not
   // printed, has letters, or has the wrong length is left blank, never a stop (2026-11-03: every AMS line waited for an item number). A
@@ -587,7 +597,8 @@ export function convertPaperLine(vendor: VendorRules, p: PaperLine, ctx: Convert
   // "case" in the file, and a case line of a single-item vendor is pointed out (2026-11-03)
   const per = perKind(p.per);
   if (vendor.sellsBy === 'EACH' && per === 'case') say('units', `This line is counted in ${String(p.per).trim()} (cases), but ${who} is set up to count single items: is the quantity right, and should the vendor count cases?`);
-  if (vendor.sellsBy === 'EACH' || per === 'each') { units = 1; unitsFrom = vendor.sellsBy === 'EACH' ? 'each' : 'paper'; }
+  if (singles) { units = 1; unitsFrom = 'paper'; }
+  else if (vendor.sellsBy === 'EACH' || per === 'each') { units = 1; unitsFrom = vendor.sellsBy === 'EACH' ? 'each' : 'paper'; }
   else {
     const pack = unitsFromPackage(p.group);
     const remembered = u.upc && /^\d{11}$/.test(u.upc) ? ctx.knownUnits?.(u.upc) : undefined;
