@@ -1,8 +1,8 @@
 // The receipt cut out of its photo before the AI reads it (2026-10-16). A receipt is a narrow strip of paper in the middle of a photo of
 // the counter: the empty counter either side was most of what the AI was sent (and paid for). Paper is smooth and grey, in the light or in
 // a shadow (blank paper between the printed lines), while a counter, a floor or a car seat is speckled or coloured: the photo is cut into
-// small blocks and the columns (then rows) that have smooth grey blocks are kept, with a margin. Brightness is NOT used: a shadow across
-// the receipt made half of it look like counter and it was cut off (the owner's photos). Nothing is cut when it is not clear (paper
+// small blocks and the columns (then rows) that have smooth grey blocks are kept, with a margin. Brightness is NOT used beyond leaving out
+// near-black blocks (DARK_MAX): a shadow across the receipt made half of it look like counter and it was cut off (the owner's photos). Nothing is cut when it is not clear (paper
 // everywhere, a strip too thin). Only the copy for the AI is cut: the photo kept with the sale is the original. Any failure sends the
 // photo as it came.
 import sharp from 'sharp';
@@ -10,7 +10,15 @@ import sharp from 'sharp';
 const ANALYSE_WIDTH = 320;        // the photo is studied at this width (fast); the cut is made on the full photo
 const BLOCK = 8;                  // pixels per block side at that width
 const SMOOTH_SD = 6;              // a block this even (brightness spread) is blank paper; the counter's speckle is far above
-const GREY_SAT = 22;              // ...and this grey (paper in any light; a beige counter or a coloured seat is not)
+// ...and this grey (paper in any light; a beige counter or a coloured seat is not). 30, not 22 (2026-11-26): cream paper under warm light
+// measured 22 to 30 on most of a Frito-Lay invoice, which then counted as counter; wood counters measure 50 and up
+const GREY_SAT = 30;
+// ...and not near black (2026-11-26): smooth black leather, a black keyboard or a dark seat is as even and as grey as paper, and a
+// Frito-Lay invoice on a black bag was cut down to the bag and the right half of the paper (25 of 45 lines never reached the reader).
+// Paper in a shadow stays well above this (26 invoice photos: paper blocks 96 and up, those backgrounds under 64).
+const DARK_MAX = 64;
+const LIGHT_MIN = 110;            // a block this bright and grey is paper-like, printed or blank (for moving the edges out)
+const GROW_SHARE = 0.5;           // an edge moves out while at least this share of the strip beyond it is paper-like
 const MIN_SHARE = 0.04;           // a column (row) with this share of smooth grey blocks has paper in it
 const BRIDGE = 2;                 // a gap of up to this many blocks inside the paper (a dark stripe of shadow) does not split it
 const MARGIN = 0.04;              // kept either side of the paper, as a share of the photo
@@ -49,6 +57,7 @@ export function findPaper(rgb: Buffer, w: number, h: number): { l: number; t: nu
   const bw = Math.floor(w / BLOCK), bh = Math.floor(h / BLOCK);
   if (bw < 8 || bh < 8) return null;
   const smooth = new Uint8Array(bw * bh);
+  const light = new Uint8Array(bw * bh);   // light and neutral, printed or blank: paper, or something as pale as paper
   for (let by = 0; by < bh; by++) for (let bx = 0; bx < bw; bx++) {
     let s = 0, s2 = 0, sat = 0;
     for (let y = by * BLOCK; y < by * BLOCK + BLOCK; y++) for (let x = bx * BLOCK; x < bx * BLOCK + BLOCK; x++) {
@@ -56,15 +65,30 @@ export function findPaper(rgb: Buffer, w: number, h: number): { l: number; t: nu
       const v = (r + g + b) / 3; s += v; s2 += v * v; sat += Math.max(r, g, b) - Math.min(r, g, b);
     }
     const n = BLOCK * BLOCK, m = s / n;
-    smooth[by * bw + bx] = Math.sqrt(Math.max(0, s2 / n - m * m)) < SMOOTH_SD && sat / n < GREY_SAT ? 1 : 0;
+    smooth[by * bw + bx] = Math.sqrt(Math.max(0, s2 / n - m * m)) < SMOOTH_SD && sat / n < GREY_SAT && m >= DARK_MAX ? 1 : 0;
+    light[by * bw + bx] = m >= LIGHT_MIN && sat / n < GREY_SAT ? 1 : 0;
   }
   const colShare = Array.from({ length: bw }, (_, x) => { let c = 0; for (let y = 0; y < bh; y++) c += smooth[y * bw + x]; return c / bh; });
   const across = paperRun(colShare.map((v) => v >= MIN_SHARE));
   if (!across) return null;
-  const [x0, x1] = across;
+  let [x0, x1] = across;
   const rowShare = Array.from({ length: bh }, (_, y) => { let c = 0; for (let x = x0; x <= x1; x++) c += smooth[y * bw + x]; return c / (x1 - x0 + 1); });
-  const down = paperRun(rowShare.map((v) => v >= MIN_SHARE)) ?? [0, bh - 1];
-  const box = { l: x0 / bw, r: (x1 + 1) / bw, t: down[0] / bh, b: (down[1] + 1) / bh };
+  let [y0, y1] = paperRun(rowShare.map((v) => v >= MIN_SHARE)) ?? [0, bh - 1];
+  // The edges never stop inside the paper (2026-11-26): the smooth blank paper can be only part of it (a dense printed half, a cream half
+  // under warm light), and a box around that part cut lines off before the reader saw them (a Frito-Lay invoice: 25 of 45 lines; an AMS
+  // receipt: its left half). Each edge moves out while the strip just outside it is mostly light and neutral, as paper is, printed or not.
+  // Moving out only costs sharpness; a pale table around the paper just means less is cut.
+  const lightShare = (cells: Array<[number, number]>) => cells.reduce((c, [x, y]) => c + light[y * bw + x], 0) / Math.max(1, cells.length);
+  const col = (x: number) => Array.from({ length: y1 - y0 + 1 }, (_, i) => [x, y0 + i] as [number, number]);
+  const row = (y: number) => Array.from({ length: x1 - x0 + 1 }, (_, i) => [x0 + i, y] as [number, number]);
+  for (let moved = true; moved;) {
+    moved = false;
+    if (x0 > 0 && lightShare(col(x0 - 1)) >= GROW_SHARE) { x0--; moved = true; }
+    if (x1 < bw - 1 && lightShare(col(x1 + 1)) >= GROW_SHARE) { x1++; moved = true; }
+    if (y0 > 0 && lightShare(row(y0 - 1)) >= GROW_SHARE) { y0--; moved = true; }
+    if (y1 < bh - 1 && lightShare(row(y1 + 1)) >= GROW_SHARE) { y1++; moved = true; }
+  }
+  const box = { l: x0 / bw, r: (x1 + 1) / bw, t: y0 / bh, b: (y1 + 1) / bh };
   // Not clear enough to cut: a strip too thin to be a receipt, or smooth paper nearly everywhere (already tight, or a plain white table)
   if (box.r - box.l < 0.12 || box.b - box.t < 0.2) return null;
   if (box.r - box.l > 0.9 && box.b - box.t > 0.9) return null;
