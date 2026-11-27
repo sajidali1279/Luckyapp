@@ -23,6 +23,7 @@ import OfferCalendar from '../components/offers/OfferCalendar';
 import ShelfDealsSection from '../components/offers/ShelfDealsSection';
 import ChallengesPanel from '../components/offers/ChallengesPanel';
 import WelcomeBonusSettings from '../components/WelcomeBonusSettings';
+import { EngagementCards } from './Engagement';
 import IdeasPanel, { type IdeaOffer } from '../components/offers/IdeasPanel';
 import AutopilotCard from '../components/offers/AutopilotCard';
 import DealPriceCheck from '../components/offers/DealPriceCheck';
@@ -166,8 +167,8 @@ type PostKind = 'promo' | 'quick' | 'deal';
 type QuickDuration = 'today' | '3d' | '1w' | '2w' | '1m';
 /** Everything the "are you sure" box shows before a post goes to customers. */
 type Pending = { kind: PostKind; fd: FormData; title: string; what: string; where: string; when: string; example: string | null; notes: string[]; clashes: Clash[]; notify: string; estimate: EstimateInput; preview: PreviewOffer };
-type MainTab = 'promotions' | 'deals' | 'challenges' | 'welcome' | 'requests' | 'calendar';
-const MAIN_TABS: MainTab[] = ['promotions', 'deals', 'challenges', 'welcome', 'requests', 'calendar'];
+type MainTab = 'promotions' | 'deals' | 'challenges' | 'flash' | 'welcome' | 'requests' | 'calendar';
+const MAIN_TABS: MainTab[] = ['promotions', 'deals', 'challenges', 'flash', 'welcome', 'requests', 'calendar'];
 
 const BONUS_TOO_BIG = `A bonus can be at most ${CASHBACK_CAP * 100}%, because total cashback is capped at ${CASHBACK_CAP * 100}% of a sale.`;
 /** A percentage typed as 7.5 as the fraction the server stores (0.075), without 0.07500000000000001. */
@@ -817,7 +818,7 @@ export default function Offers() {
       <PageHeader
         title="Offers"
         description="Promotions add cashback automatically. Deals show price specials in the app."
-        actions={mainTab === 'requests' || mainTab === 'calendar' || mainTab === 'challenges' || mainTab === 'welcome' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
+        actions={mainTab === 'requests' || mainTab === 'calendar' || mainTab === 'challenges' || mainTab === 'flash' || mainTab === 'welcome' ? undefined : mainTab === 'promotions' ? (isStoreManager ? undefined :
           <>
             {(showQuick || showTemplates || showIdeas) && (
               <Button icon={<X />} onClick={() => openPanel(null)}>Close {showQuick ? 'quick post' : showTemplates ? 'templates' : 'ideas'}</Button>
@@ -847,7 +848,8 @@ export default function Offers() {
           { value: 'promotions', label: 'Promotions', count: promotionOffers.length },
           { value: 'deals', label: 'Deals', count: dealOffers.length },
           ...(isHQ ? [{ value: 'challenges' as const, label: 'Challenges' }] : []),
-          ...(isHQ ? [{ value: 'welcome' as const, label: 'Joining bonus' }] : []),
+          ...(isHQ ? [{ value: 'flash' as const, label: 'Flash deals' }] : []),
+          ...(isHQ ? [{ value: 'welcome' as const, label: 'Joining & birthday' }] : []),
           ...(isHQ ? [{ value: 'requests' as const, label: 'Promotion requests', count: waitingRequests || undefined }] : []),
           { value: 'calendar', label: 'Calendar' },
         ]}
@@ -1166,9 +1168,13 @@ export default function Offers() {
       )}
 
       {mainTab === 'requests' && isHQ && <OfferRequestsPanel />}
+      {/* HQ menu reorganised 2026-11-27: the challenge of the week, flash deals and the birthday gift moved here from Engagement, with the
+          other things that give customers points (same settings, same saves) */}
+      {mainTab === 'challenges' && isHQ && <div style={{ marginBottom: 18 }}><EngagementCards ids={['weeklyChallenge']} /></div>}
       {mainTab === 'challenges' && isHQ && <ChallengesPanel />}
+      {mainTab === 'flash' && isHQ && <EngagementCards ids={['flashDeals']} />}
       {/* The joining bonus (2026-10-17): with the other customer perks; it was first on Settings > Rewards & offers */}
-      {mainTab === 'welcome' && isHQ && <div style={{ maxWidth: 880 }}><WelcomeBonusSettings /></div>}
+      {mainTab === 'welcome' && isHQ && <div style={{ maxWidth: 940, display: 'grid', gap: 14 }}><WelcomeBonusSettings /><EngagementCards ids={['birthday']} /></div>}
       {mainTab === 'calendar' && <OfferCalendar offers={offers} past={pastOffers} stores={stores} />}
 
       {/* Promotions */}

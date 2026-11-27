@@ -1,14 +1,15 @@
 // Engagement (2026-10-23, HQ): switch on and tune the things that bring customers back: visit streaks, punch cards, a daily check-in, badges,
 // store goals, "order your usual", gas price alerts, sharing and smart nudges. EVERYTHING IS OFF until switched on here, and every number has
 // a safe limit on the server. Suggestions at the top come from real data (who is close to a reward, who has gone quiet, which store is behind).
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { engagementApi, challengesApi, storesApi, offersApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
 import { addDays, dayLabel, endOfStoreDay, startOfStoreDay, storeToday } from '../lib/storeDates';
-import { Page, PageHeader, Card, Button, Badge, Notice, Field, FieldRow, FieldAction, StatTile, SectionTitle } from '../components/kit';
+import { Page, PageHeader, Card, Button, Badge, Notice, Field, FieldRow, FieldAction, StatTile, SectionTitle, Tabs } from '../components/kit';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 
@@ -18,7 +19,7 @@ type WelcomeText = { titleEn: string; bodyEn: string; titleEs: string; bodyEs: s
 type WelcomeStep = { day: number; enabled: boolean };
 type Prize = { pts: number; weight: number };
 // "Cuatro says" lines HQ writes (2026-11-17): he says them on customers' screens like his own tips, no new app version needed
-interface CuatroLine { id: string; on: boolean; text: string; textEs: string; target: string; start: string | null; end: string | null; stores: string[]; urgent: boolean }
+export interface CuatroLine { id: string; on: boolean; text: string; textEs: string; target: string; start: string | null; end: string | null; stores: string[]; urgent: boolean }
 const LINE_TARGETS: [string, string][] = [
   ['NONE', 'No button'], ['HOME', 'Home'], ['DEALS', 'Deals and promotions on Home'], ['GAS', 'Gas prices on Home'], ['CHALLENGES', 'Challenges on Home'],
   ['REWARDS', 'Rewards'], ['HOT_FOOD', 'Hot food'], ['CAREERS', 'Careers'], ['REQUEST_PRODUCT', 'Request a product'], ['LOCAL_BUSINESSES', 'Local businesses'],
@@ -26,7 +27,7 @@ const LINE_TARGETS: [string, string][] = [
 ];
 const LINE_MAX = 160, LINES_MAX = 20;
 
-interface Config {
+export interface Config {
   streaks: { enabled: boolean; minPurchase: number; milestones: Milestone[] };
   punchCards: { enabled: boolean };
   checkIn: { enabled: boolean; mode: 'FIXED' | 'MYSTERY'; pts: number; weekBonusPts: number; mystery: Prize[]; monthlyCapPts: number; needVisitDays: number };
@@ -54,7 +55,7 @@ type GameKind = 'SPIN' | 'SCRATCH' | 'LUCKY';
 const GAME_NAMES: Record<GameKind, string> = { SPIN: 'Spin the wheel', SCRATCH: 'Scratch card', LUCKY: 'Lucky number' };
 interface Goal { id: string; title: string; metric: string; target: number; rewardPoints: number; startDate: string; endDate: string; isActive: boolean; paidAt: string | null; store: string | null; storeId: string | null; leading: { value: number; store: string } }
 interface Suggestion { id: string; tone: 'tip' | 'info'; title: string; detail: string; feature: string }
-interface Hq {
+export interface Hq {
   config: Config; defaults: Config;
   badges: { key: string; emoji: string; name: string; desc: string }[];
   stores: { id: string; name: string }[];
@@ -73,7 +74,7 @@ const whole = (v: string) => v.replace(/\D/g, '').slice(0, 5);
 const hourLabel = (h: number) => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
+export function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}
       style={{ width: 46, height: 26, borderRadius: 13, border: 'none', padding: 3, cursor: disabled ? 'default' : 'pointer', background: on ? C.success : '#cbd2db', transition: 'background .15s', flex: 'none', opacity: disabled ? 0.6 : 1 }}>
@@ -121,33 +122,191 @@ const FEATURE_NAMES: Record<string, string> = {
   mascot: 'the mascot', games: 'the prize game', nudges: 'smart nudges', events: 'the event kit',
 };
 
+const LINK: React.CSSProperties = { color: C.primary, fontWeight: 700 };
 const row: React.CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' };
 const smallInput: React.CSSProperties = { ...INPUT, width: 96 };
 
-export default function Engagement() {
+/** Which tab of this page each feature is on, and the other pages some moved to (HQ menu reorganised 2026-11-27, owner): the
+ *  suggestions, the "Open ..." buttons and old links all go to the right place, so nothing is lost. */
+export type EngagementTab = 'habits' | 'messages' | 'games';
+export const ENGAGEMENT_TABS: { value: EngagementTab; label: string; ids: string[] }[] = [
+  { value: 'habits', label: 'Visits & habits', ids: ['streaks', 'punchCards', 'checkIn', 'badges', 'storeGoals', 'reorder'] },
+  { value: 'messages', label: 'Messages', ids: ['nudges', 'welcome', 'tierUp', 'ratePrompt', 'gasAlerts', 'sharing', 'friendsBoard'] },
+  { value: 'games', label: 'Games & events', ids: ['games', 'events'] },
+];
+export const FEATURE_PLACE: Record<string, string> = {
+  ...Object.fromEntries(ENGAGEMENT_TABS.flatMap((t) => t.ids.map((id) => [id, `/engagement?tab=${t.value}`]))),
+  flashDeals: '/offers?tab=flash', weeklyChallenge: '/offers?tab=challenges', birthday: '/offers?tab=welcome', mascot: '/cuatro',
+};
+/** The address that opens a feature's card, wherever it now lives. */
+export const featureLink = (feature: string) => { const to = FEATURE_PLACE[feature] ?? '/engagement'; return `${to}${to.includes('?') ? '&' : '?'}open=${feature}`; };
+
+/** The page's data and its one Save, shared by every page that shows engagement settings (Engagement, Offers, Cuatro). */
+export function useEngagementHq() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ['engagement-hq'], queryFn: () => engagementApi.hq().then((r) => r.data.data as Hq) });
-  const [open, setOpen] = useState<Record<string, boolean>>({});
   const save = useMutation({
     mutationFn: (patch: object) => engagementApi.save(patch),
-    onSuccess: (_r, _p) => { toast.success('Saved. Phones pick it up the next time they open.'); qc.invalidateQueries({ queryKey: ['engagement-hq'] }); qc.invalidateQueries({ queryKey: ['settings-history'] }); },
+    onSuccess: () => { toast.success('Saved. Phones pick it up the next time they open.'); qc.invalidateQueries({ queryKey: ['engagement-hq'] }); qc.invalidateQueries({ queryKey: ['settings-history'] }); },
     onError: (e) => toast.error(serverMessage(e, 'Could not save.')),
   });
-  const go = (feature: string) => {
-    const id = feature === 'events' ? 'events' : feature;
-    setOpen((o) => ({ ...o, [id]: true }));
-    setTimeout(() => document.getElementById(`eng-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  return { q, save };
+}
+
+/** The feature cards asked for, in that order. An address with ?open=<feature> opens that card and scrolls to it. */
+export function EngagementCards({ ids }: { ids: string[] }) {
+  const { q, save } = useEngagementHq();
+  const [params] = useSearchParams();
+  const asked = params.get('open');
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (!asked || !ids.includes(asked) || !q.data) return;
+    setOpen((o) => ({ ...o, [asked]: true }));
+    const t = setTimeout(() => document.getElementById(`eng-${asked}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+    return () => clearTimeout(t);
+  }, [asked, !!q.data]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (q.isLoading) return <CardSkeleton count={Math.min(ids.length, 3)} />;
+  if (q.isError || !q.data) return <ErrorState onRetry={() => q.refetch()} />;
+  const d = q.data, c = d.config;
+  const toggle = (section: keyof Config) => (v: boolean) => save.mutate({ [section]: { enabled: v } });
+  const R = d.results;
+  const card: Record<string, () => React.ReactNode> = {
+    streaks: () => (
+          <Feature id="streaks" emoji="🔥" title="Visit streaks" blurb="A bonus for visiting every week: 3 weeks in a row, 6, 12. Customers see their streak on Home, and a nudge warns them before it ends. Weeks before you switch it on do not count, so nobody is paid for old history." on={c.streaks.enabled} onToggle={toggle('streaks')} busy={save.isPending} money
+            open={!!open.streaks} setOpen={(v) => setOpen((o) => ({ ...o, streaks: v }))} summary={c.streaks.milestones.map((m) => `${m.weeks} weeks: ${m.pts} pts`).join(' · ')}>
+            <StreaksEditor value={c.streaks} defaults={d.defaults.streaks} onSave={(v) => save.mutate({ streaks: v })} busy={save.isPending} />
+          </Feature>
+    ),
+    punchCards: () => (
+          <Feature id="punchCards" emoji="🎟️" title="Punch cards" blurb="Shows a repeating 'every Nth purchase earns points' challenge as a card of stamps ('buy 8, the 9th pays'). Create one below, or on Offers, Challenges." on={c.punchCards.enabled} onToggle={toggle('punchCards')} busy={save.isPending}
+            open={!!open.punchCards} setOpen={(v) => setOpen((o) => ({ ...o, punchCards: v }))}>
+            <PunchCardMaker />
+          </Feature>
+    ),
+    checkIn: () => (
+          <Feature id="checkIn" emoji="📅" title="Daily check-in" blurb="A small daily reward for opening the app, with a bonus on day 7. A customer must have bought recently to check in, and a monthly cap keeps the cost fixed." on={c.checkIn.enabled} onToggle={toggle('checkIn')} busy={save.isPending} money
+            open={!!open.checkIn} setOpen={(v) => setOpen((o) => ({ ...o, checkIn: v }))} summary={`${c.checkIn.mode === 'FIXED' ? `${c.checkIn.pts} pts a day` : 'A mystery prize each day'}, day 7 bonus ${c.checkIn.weekBonusPts} pts, at most ${usd(c.checkIn.monthlyCapPts)} per customer a month`}>
+            <CheckInEditor value={c.checkIn} defaults={d.defaults.checkIn} onSave={(v) => save.mutate({ checkIn: v })} busy={save.isPending} />
+          </Feature>
+    ),
+    badges: () => (
+          <Feature id="badges" emoji="🏅" title="Badges" blurb="Things to earn: First stop, Hot food fan, Early bird, Explorer and more. They cost nothing and nobody is paid for a badge." on={c.badges.enabled} onToggle={toggle('badges')} busy={save.isPending}
+            open={!!open.badges} setOpen={(v) => setOpen((o) => ({ ...o, badges: v }))} summary={`${d.badges.length - c.badges.off.length} of ${d.badges.length} badges shown`}>
+            <BadgesEditor value={c.badges} all={d.badges} onSave={(off) => save.mutate({ badges: { off } })} busy={save.isPending} />
+          </Feature>
+    ),
+    storeGoals: () => (
+          <Feature id="storeGoals" emoji="🏪" title="Store goals" blurb="'If Katy makes 200 sales this week, everyone who bought there gets 50 pts.' Customers see the store's progress. The reward is paid once, after the goal ends, only if it was reached. Only sales of $2 or more count, and customers whose account is closed or restricted are not paid." on={c.storeGoals.enabled} onToggle={toggle('storeGoals')} busy={save.isPending} money
+            open={!!open.storeGoals} setOpen={(v) => setOpen((o) => ({ ...o, storeGoals: v }))} summary={`${d.goals.filter((g) => g.isActive && !g.paidAt && new Date(g.endDate) > new Date()).length} running`}>
+            <GoalsEditor goals={d.goals} stores={d.stores} />
+          </Feature>
+    ),
+    reorder: () => (
+          <Feature id="reorder" emoji="🍗" title="Order your usual" blurb="A one-tap 'Your usual' row on Hot Food, built from each customer's own past orders. It costs nothing." on={c.reorder.enabled} onToggle={toggle('reorder')} busy={save.isPending} open={false} setOpen={() => {}} />
+    ),
+    gasAlerts: () => (
+          <Feature id="gasAlerts" emoji="⛽" title="Gas price alerts" blurb="Customers pick a store and a price ('tell me when regular is $2.89 or less'). They are told when the price you enter at that store reaches it, at most once a day." on={c.gasAlerts.enabled} onToggle={toggle('gasAlerts')} busy={save.isPending} open={false} setOpen={() => {}} summary={`${R.gasAlerts} alerts set`} />
+    ),
+    sharing: () => (
+          <Feature id="sharing" emoji="📣" title="Sharing" blurb="A 'Share' button on a streak or badge sends a friendly message with the app link. Free word of mouth." on={c.sharing.enabled} onToggle={toggle('sharing')} busy={save.isPending}
+            open={!!open.sharing} setOpen={(v) => setOpen((o) => ({ ...o, sharing: v }))}>
+            <SharingEditor value={c.sharing} onSave={(message) => save.mutate({ sharing: { message } })} busy={save.isPending} />
+          </Feature>
+    ),
+    ratePrompt: () => (
+          <Feature id="ratePrompt" emoji="⭐" title="Rate the app" blurb="Asks a customer, once ever, to rate the app, with the phone's own rating sheet. It only comes right after a good moment (a reward redeemed or a check-in paid), never at launch, and only once they have bought a few times. Free, and the best way to get real reviews." on={c.ratePrompt.enabled} onToggle={toggle('ratePrompt')} busy={save.isPending}
+            open={!!open.ratePrompt} setOpen={(v) => setOpen((o) => ({ ...o, ratePrompt: v }))} summary={`After ${c.ratePrompt.minPurchases} purchases and ${c.ratePrompt.minDays} days, asked ${R.ratePrompt} so far`}>
+            <RateEditor value={c.ratePrompt} onSave={(v) => save.mutate({ ratePrompt: v })} busy={save.isPending} />
+          </Feature>
+    ),
+    welcome: () => (
+          <Feature id="welcome" emoji="👋" title="Welcome series" blurb="Up to three friendly pushes in a new customer's first days: how to earn at the register (and their welcome treats), then order ahead or check in daily, then invite a friend or see their tier. Each one is skipped when they have already done it, and only people who join after you switch it on get it. Never in quiet hours." on={c.welcome.enabled} onToggle={toggle('welcome')} busy={save.isPending}
+            open={!!open.welcome} setOpen={(v) => setOpen((o) => ({ ...o, welcome: v }))} summary={`${c.welcome.steps.filter((s) => s.enabled).map((s) => `day ${s.day}`).join(', ') || 'No steps on'}${c.welcome.since ? `, for people who joined from ${day(`${c.welcome.since}T12:00:00`)}` : ''}. Sent in the last 30 days: ${R.welcome.sent}`}>
+            <WelcomeEditor value={c.welcome} defaults={d.defaults.welcome} onSave={(v) => save.mutate({ welcome: v })} busy={save.isPending} sent={R.welcome.byStep} />
+          </Feature>
+    ),
+    flashDeals: () => (
+          <Feature id="flashDeals" emoji="⚡" title="Flash deals" blurb="A short message with a countdown ('Double points on hot food until 2 PM'), pushed once to the people you pick and shown at the top of their Home until it ends. It changes no prices or points by itself: make the offer first, then point the flash deal to the offers. Quiet hours and each person's weekly nudge limit apply to the push." on={c.flashDeals.enabled} onToggle={toggle('flashDeals')} busy={save.isPending}
+            open={!!open.flashDeals} setOpen={(v) => setOpen((o) => ({ ...o, flashDeals: v }))} summary={`At most ${c.flashDeals.maxPerWeek} a week, one at a time. Pushes sent in the last 30 days: ${R.nudges.flash ?? 0}`}>
+            <FlashEditor value={c.flashDeals} stores={d.stores} onSave={(v) => save.mutate({ flashDeals: v })} busy={save.isPending} />
+          </Feature>
+    ),
+    weeklyChallenge: () => (
+          <Feature id="weeklyChallenge" emoji="🏆" title="Challenge of the week" blurb="Feature one challenge each week (Monday to Sunday). It shows first in the app with a countdown to the end of the week, and a Monday morning push tells customers about it (a smart nudge: quiet hours and the weekly limit apply). Featuring pays nothing extra: the challenge pays its own reward." on={c.weeklyChallenge.enabled} onToggle={toggle('weeklyChallenge')} busy={save.isPending}
+            open={!!open.weeklyChallenge} setOpen={(v) => setOpen((o) => ({ ...o, weeklyChallenge: v }))}
+            summary={(() => { const now = d.weekly.schedule.find((e) => e.weekOf === d.weekly.thisWeek); const st = d.weekly.thisWeekStats; return now?.title ? `This week: ${now.title}${st ? `, ${st.customers} taking part, earned ${st.earned} times` : ''}` : 'Nothing is featured this week.'; })()}>
+            <WeeklyEditor value={c.weeklyChallenge} weekly={d.weekly} stores={d.stores} onSave={(schedule) => save.mutate({ weeklyChallenge: { schedule } })} busy={save.isPending} />
+          </Feature>
+    ),
+    tierUp: () => (
+          <Feature id="tierUp" emoji="🏆" title="Tier celebration" blurb="When a customer reaches a higher tier, the app shows a short celebration with the perks they unlocked and a button to Rewards, once per tier per half year, on whichever phone they use. The tier-up push always goes out, in their language, and opens Rewards. It costs nothing." on={c.tierUp.enabled} onToggle={toggle('tierUp')} busy={save.isPending} open={false} setOpen={() => {}}
+            summary={`Last 30 days: ${R.tierUp.reached} reached a higher tier, ${R.tierUp.celebrated} saw the celebration`} />
+    ),
+    friendsBoard: () => (
+          <Feature id="friendsBoard" emoji="🏁" title="Friends leaderboard" blurb="A private race inside each invite circle (a customer, the friends who joined with their code, and the friend who invited them), on the app's Leaderboard. Only people who tap Join show up. Names show only along invite lines, as 'Maria G.'; friends of the same inviter see each other as 'A friend'. A circle opens once enough people joined, which nudges people to invite more. It pays nothing." on={c.friendsBoard.enabled}
+            onToggle={(v) => { if (v && !window.confirm('Turn on the friends leaderboard? It shows first names and last initials to friends, so update the privacy policy first.')) return; toggle('friendsBoard')(v); }} busy={save.isPending}
+            open={!!open.friendsBoard} setOpen={(v) => setOpen((o) => ({ ...o, friendsBoard: v }))} summary={`${c.friendsBoard.metric === 'POINTS' ? 'Points from purchases' : 'Days with a purchase'}, ${c.friendsBoard.period === 'MONTH' ? 'by month' : 'by week'}, opens at ${c.friendsBoard.minMembers} joined. ${R.friendsBoard.joined} ${R.friendsBoard.joined === 1 ? 'customer has' : 'customers have'} joined.`}>
+            <FriendsEditor value={c.friendsBoard} onSave={(v) => save.mutate({ friendsBoard: v })} busy={save.isPending} />
+          </Feature>
+    ),
+    mascot: () => (
+          <Feature id="mascot" emoji="🍀" title={`${c.mascot.name}, the mascot`} blurb={`Lucky Stop's clover mascot in the app: a short tip of the day on customers' Home (a reward that is ready, one nearly there, or an everyday tip), ${c.mascot.name} in place of the plain icon on empty screens, and if you like, ${c.mascot.name}'s name in front of the automated pushes. It costs nothing.`}
+            on={c.mascot.enabled} onToggle={toggle('mascot')} busy={save.isPending} open={!!open.mascot} setOpen={(v) => setOpen((o) => ({ ...o, mascot: v }))}
+            summary={[c.mascot.guide !== false && 'On-screen guide', c.mascot.homeCard && 'a tip on Home', c.mascot.emptyStates && 'empty screens', c.mascot.pushVoice && 'signs the automated pushes'].filter(Boolean).join(', ') || 'Nothing picked: open Settings'}>
+            <MascotEditor value={c.mascot} onSave={(v) => save.mutate({ mascot: v })} busy={save.isPending} />
+            <LinesEditor value={c.mascot.lines ?? []} who={c.mascot.name || 'Cuatro'} guideOn={c.mascot.guide !== false} onSave={(lines) => save.mutate({ mascot: { lines } })} busy={save.isPending} />
+          </Feature>
+    ),
+    games: () => (
+          <Feature id="games" emoji="🎡" title="Prize game" blurb="Spin the wheel, a scratch card or a lucky number: one free play a day for every customer, with no purchase needed and the same odds for everyone. Prizes are points, drawn by the server, inside a hard monthly budget. The app shows the official rules." money
+            confirmOn="Turn on the prize game? It pays real points. Before you do, have a lawyer review the official rules the app shows (game promotions have their own rules in Texas)."
+            on={c.games.enabled} onToggle={toggle('games')} busy={save.isPending} open={!!open.games} setOpen={(v) => setOpen((o) => ({ ...o, games: v }))}
+            summary={`${GAME_NAMES[c.games.game]}${c.games.since ? ` since ${day(`${c.games.since}T12:00:00`)}` : ''}${c.games.endsOn ? `, until ${day(`${c.games.endsOn}T12:00:00`)}` : ''}. Last 30 days: ${R.games.plays} plays, ${R.games.wins} won, ${usd(R.games.pts)} paid. This month ${usd(R.games.spentThisMonth)} of ${usd(c.games.monthlyBudgetPts)}.`}>
+            <GamesEditor value={c.games} onSave={(v) => save.mutate({ games: v })} busy={save.isPending} />
+          </Feature>
+    ),
+    birthday: () => (
+          <Feature id="birthday" emoji="🎂" title="Birthday gift" blurb="A warm greeting push on a customer's birthday (after 10 AM, never in quiet hours) and, if you set one, a small points gift once a year for people who bought lately. The gift is paid at the store they last bought at, inside a monthly budget that is a hard cap. Customers add their birthday in Profile (month and day only), and the app reminds those who have not." on={c.birthday.enabled} onToggle={toggle('birthday')} busy={save.isPending} money={c.birthday.bonusPts > 0}
+            open={!!open.birthday} setOpen={(v) => setOpen((o) => ({ ...o, birthday: v }))} summary={`${c.birthday.bonusPts > 0 ? `${c.birthday.bonusPts} pts gift` : 'Greeting only'}, budget ${usd(c.birthday.monthlyBudgetPts)} a month (${usd(R.birthday.spentThisMonth)} used). ${R.birthday.withBirthday} of ${R.birthday.customers} customers gave a birthday.`}>
+            <BirthdayEditor value={c.birthday} defaults={d.defaults.birthday} onSave={(v) => save.mutate({ birthday: v })} busy={save.isPending} results={R.birthday} />
+          </Feature>
+    ),
+    nudges: () => (
+          <Feature id="nudges" emoji="🔔" title="Smart nudges" blurb="Polite, personal pushes: 'You are 120 pts from a free coffee', 'Keep your streak', 'We miss you'. Never during quiet hours, a few a week at most per person, and each kind only once for the same thing." on={c.nudges.enabled} onToggle={toggle('nudges')} busy={save.isPending}
+            open={!!open.nudges} setOpen={(v) => setOpen((o) => ({ ...o, nudges: v }))} summary={`Quiet ${hourLabel(c.nudges.quietFrom)} to ${hourLabel(c.nudges.quietTo)}, at most ${c.nudges.maxPerWeek} a week per person`}>
+            <NudgesEditor value={c.nudges} onSave={(v) => save.mutate({ nudges: v })} busy={save.isPending} sent={R.nudges} />
+          </Feature>
+    ),
+    events: () => (
+          <div id="eng-events"><EventKit open={!!open.events} setOpen={(v) => setOpen((o) => ({ ...o, events: v }))} /></div>
+    ),
   };
+  return <div style={{ display: 'grid', gap: 14, maxWidth: 940 }}>{ids.map((id) => <Fragment key={id}>{card[id]?.()}</Fragment>)}</div>;
+}
+
+export default function Engagement() {
+  const { q } = useEngagementHq();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('tab');
+  const openAsked = params.get('open');
+  // A feature that moved to another page (an old link or bookmark): go there
+  useEffect(() => {
+    if (openAsked && FEATURE_PLACE[openAsked] && !FEATURE_PLACE[openAsked].startsWith('/engagement')) navigate(featureLink(openAsked), { replace: true });
+  }, [openAsked]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const tab: EngagementTab = ENGAGEMENT_TABS.find((t) => t.value === asked)?.value
+    ?? ENGAGEMENT_TABS.find((t) => openAsked && t.ids.includes(openAsked))?.value ?? 'habits';
+  const current = ENGAGEMENT_TABS.find((t) => t.value === tab)!;
 
   if (q.isLoading) return <Page><PageHeader title="Engagement" description="Bring customers back." /><CardSkeleton count={4} /></Page>;
   if (q.isError || !q.data) return <Page><PageHeader title="Engagement" description="Bring customers back." /><ErrorState onRetry={() => q.refetch()} /></Page>;
-  const d = q.data, c = d.config;
-  const toggle = (section: keyof Config) => (v: boolean) => save.mutate({ [section]: { enabled: v } });
+  const d = q.data;
   const R = d.results;
 
   return (
     <Page>
-      <PageHeader title="Engagement" description="Streaks, punch cards, check-ins, badges, store goals and smart nudges. Everything is off until you switch it on, and you can switch any of it off at any time." />
+      <PageHeader title="Engagement" description="Streaks, punch cards, check-ins, badges, store goals, messages and games. Everything is off until you switch it on, and you can switch any of it off at any time." />
 
       {d.suggestions.length > 0 && (
         <div style={{ marginBottom: 18 }}>
@@ -157,7 +316,7 @@ export default function Engagement() {
               <Card key={s.id} padding={16} style={{ borderLeft: `4px solid ${s.tone === 'tip' ? C.primary : C.border}` }}>
                 <div style={{ fontWeight: 700, color: C.text, marginBottom: 4 }}>{s.title}</div>
                 <div style={{ fontSize: FONT.small, color: TEXT_MUTED, marginBottom: 8 }}>{s.detail}</div>
-                <Button size="sm" variant="secondary" onClick={() => go(s.feature)}>Open {FEATURE_NAMES[s.feature] ?? 'it'}</Button>
+                <Button size="sm" variant="secondary" onClick={() => navigate(featureLink(s.feature))}>Open {FEATURE_NAMES[s.feature] ?? 'it'}</Button>
               </Card>
             ))}
           </div>
@@ -173,97 +332,15 @@ export default function Engagement() {
         <StatTile label="Gas price alerts set" value={R.gasAlerts} />
       </div>
 
-      <div style={{ display: 'grid', gap: 14, maxWidth: 940 }}>
-        <Feature id="streaks" emoji="🔥" title="Visit streaks" blurb="A bonus for visiting every week: 3 weeks in a row, 6, 12. Customers see their streak on Home, and a nudge warns them before it ends. Weeks before you switch it on do not count, so nobody is paid for old history." on={c.streaks.enabled} onToggle={toggle('streaks')} busy={save.isPending} money
-          open={!!open.streaks} setOpen={(v) => setOpen((o) => ({ ...o, streaks: v }))} summary={c.streaks.milestones.map((m) => `${m.weeks} weeks: ${m.pts} pts`).join(' · ')}>
-          <StreaksEditor value={c.streaks} defaults={d.defaults.streaks} onSave={(v) => save.mutate({ streaks: v })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="punchCards" emoji="🎟️" title="Punch cards" blurb="Shows a repeating 'every Nth purchase earns points' challenge as a card of stamps ('buy 8, the 9th pays'). Create one below, or on Offers, Challenges." on={c.punchCards.enabled} onToggle={toggle('punchCards')} busy={save.isPending}
-          open={!!open.punchCards} setOpen={(v) => setOpen((o) => ({ ...o, punchCards: v }))}>
-          <PunchCardMaker />
-        </Feature>
-
-        <Feature id="checkIn" emoji="📅" title="Daily check-in" blurb="A small daily reward for opening the app, with a bonus on day 7. A customer must have bought recently to check in, and a monthly cap keeps the cost fixed." on={c.checkIn.enabled} onToggle={toggle('checkIn')} busy={save.isPending} money
-          open={!!open.checkIn} setOpen={(v) => setOpen((o) => ({ ...o, checkIn: v }))} summary={`${c.checkIn.mode === 'FIXED' ? `${c.checkIn.pts} pts a day` : 'A mystery prize each day'}, day 7 bonus ${c.checkIn.weekBonusPts} pts, at most ${usd(c.checkIn.monthlyCapPts)} per customer a month`}>
-          <CheckInEditor value={c.checkIn} defaults={d.defaults.checkIn} onSave={(v) => save.mutate({ checkIn: v })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="badges" emoji="🏅" title="Badges" blurb="Things to earn: First stop, Hot food fan, Early bird, Explorer and more. They cost nothing and nobody is paid for a badge." on={c.badges.enabled} onToggle={toggle('badges')} busy={save.isPending}
-          open={!!open.badges} setOpen={(v) => setOpen((o) => ({ ...o, badges: v }))} summary={`${d.badges.length - c.badges.off.length} of ${d.badges.length} badges shown`}>
-          <BadgesEditor value={c.badges} all={d.badges} onSave={(off) => save.mutate({ badges: { off } })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="storeGoals" emoji="🏪" title="Store goals" blurb="'If Katy makes 200 sales this week, everyone who bought there gets 50 pts.' Customers see the store's progress. The reward is paid once, after the goal ends, only if it was reached. Only sales of $2 or more count, and customers whose account is closed or restricted are not paid." on={c.storeGoals.enabled} onToggle={toggle('storeGoals')} busy={save.isPending} money
-          open={!!open.storeGoals} setOpen={(v) => setOpen((o) => ({ ...o, storeGoals: v }))} summary={`${d.goals.filter((g) => g.isActive && !g.paidAt && new Date(g.endDate) > new Date()).length} running`}>
-          <GoalsEditor goals={d.goals} stores={d.stores} />
-        </Feature>
-
-        <Feature id="reorder" emoji="🍗" title="Order your usual" blurb="A one-tap 'Your usual' row on Hot Food, built from each customer's own past orders. It costs nothing." on={c.reorder.enabled} onToggle={toggle('reorder')} busy={save.isPending} open={false} setOpen={() => {}} />
-
-        <Feature id="gasAlerts" emoji="⛽" title="Gas price alerts" blurb="Customers pick a store and a price ('tell me when regular is $2.89 or less'). They are told when the price you enter at that store reaches it, at most once a day." on={c.gasAlerts.enabled} onToggle={toggle('gasAlerts')} busy={save.isPending} open={false} setOpen={() => {}} summary={`${R.gasAlerts} alerts set`} />
-
-        <Feature id="sharing" emoji="📣" title="Sharing" blurb="A 'Share' button on a streak or badge sends a friendly message with the app link. Free word of mouth." on={c.sharing.enabled} onToggle={toggle('sharing')} busy={save.isPending}
-          open={!!open.sharing} setOpen={(v) => setOpen((o) => ({ ...o, sharing: v }))}>
-          <SharingEditor value={c.sharing} onSave={(message) => save.mutate({ sharing: { message } })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="ratePrompt" emoji="⭐" title="Rate the app" blurb="Asks a customer, once ever, to rate the app, with the phone's own rating sheet. It only comes right after a good moment (a reward redeemed or a check-in paid), never at launch, and only once they have bought a few times. Free, and the best way to get real reviews." on={c.ratePrompt.enabled} onToggle={toggle('ratePrompt')} busy={save.isPending}
-          open={!!open.ratePrompt} setOpen={(v) => setOpen((o) => ({ ...o, ratePrompt: v }))} summary={`After ${c.ratePrompt.minPurchases} purchases and ${c.ratePrompt.minDays} days, asked ${R.ratePrompt} so far`}>
-          <RateEditor value={c.ratePrompt} onSave={(v) => save.mutate({ ratePrompt: v })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="welcome" emoji="👋" title="Welcome series" blurb="Up to three friendly pushes in a new customer's first days: how to earn at the register (and their welcome treats), then order ahead or check in daily, then invite a friend or see their tier. Each one is skipped when they have already done it, and only people who join after you switch it on get it. Never in quiet hours." on={c.welcome.enabled} onToggle={toggle('welcome')} busy={save.isPending}
-          open={!!open.welcome} setOpen={(v) => setOpen((o) => ({ ...o, welcome: v }))} summary={`${c.welcome.steps.filter((s) => s.enabled).map((s) => `day ${s.day}`).join(', ') || 'No steps on'}${c.welcome.since ? `, for people who joined from ${day(`${c.welcome.since}T12:00:00`)}` : ''}. Sent in the last 30 days: ${R.welcome.sent}`}>
-          <WelcomeEditor value={c.welcome} defaults={d.defaults.welcome} onSave={(v) => save.mutate({ welcome: v })} busy={save.isPending} sent={R.welcome.byStep} />
-        </Feature>
-
-        <Feature id="flashDeals" emoji="⚡" title="Flash deals" blurb="A short message with a countdown ('Double points on hot food until 2 PM'), pushed once to the people you pick and shown at the top of their Home until it ends. It changes no prices or points by itself: make the offer first, then point the flash deal to the offers. Quiet hours and each person's weekly nudge limit apply to the push." on={c.flashDeals.enabled} onToggle={toggle('flashDeals')} busy={save.isPending}
-          open={!!open.flashDeals} setOpen={(v) => setOpen((o) => ({ ...o, flashDeals: v }))} summary={`At most ${c.flashDeals.maxPerWeek} a week, one at a time. Pushes sent in the last 30 days: ${R.nudges.flash ?? 0}`}>
-          <FlashEditor value={c.flashDeals} stores={d.stores} onSave={(v) => save.mutate({ flashDeals: v })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="weeklyChallenge" emoji="🏆" title="Challenge of the week" blurb="Feature one challenge each week (Monday to Sunday). It shows first in the app with a countdown to the end of the week, and a Monday morning push tells customers about it (a smart nudge: quiet hours and the weekly limit apply). Featuring pays nothing extra: the challenge pays its own reward." on={c.weeklyChallenge.enabled} onToggle={toggle('weeklyChallenge')} busy={save.isPending}
-          open={!!open.weeklyChallenge} setOpen={(v) => setOpen((o) => ({ ...o, weeklyChallenge: v }))}
-          summary={(() => { const now = d.weekly.schedule.find((e) => e.weekOf === d.weekly.thisWeek); const st = d.weekly.thisWeekStats; return now?.title ? `This week: ${now.title}${st ? `, ${st.customers} taking part, earned ${st.earned} times` : ''}` : 'Nothing is featured this week.'; })()}>
-          <WeeklyEditor value={c.weeklyChallenge} weekly={d.weekly} stores={d.stores} onSave={(schedule) => save.mutate({ weeklyChallenge: { schedule } })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="tierUp" emoji="🏆" title="Tier celebration" blurb="When a customer reaches a higher tier, the app shows a short celebration with the perks they unlocked and a button to Rewards, once per tier per half year, on whichever phone they use. The tier-up push always goes out, in their language, and opens Rewards. It costs nothing." on={c.tierUp.enabled} onToggle={toggle('tierUp')} busy={save.isPending} open={false} setOpen={() => {}}
-          summary={`Last 30 days: ${R.tierUp.reached} reached a higher tier, ${R.tierUp.celebrated} saw the celebration`} />
-
-        <Feature id="friendsBoard" emoji="🏁" title="Friends leaderboard" blurb="A private race inside each invite circle (a customer, the friends who joined with their code, and the friend who invited them), on the app's Leaderboard. Only people who tap Join show up. Names show only along invite lines, as 'Maria G.'; friends of the same inviter see each other as 'A friend'. A circle opens once enough people joined, which nudges people to invite more. It pays nothing." on={c.friendsBoard.enabled}
-          onToggle={(v) => { if (v && !window.confirm('Turn on the friends leaderboard? It shows first names and last initials to friends, so update the privacy policy first.')) return; toggle('friendsBoard')(v); }} busy={save.isPending}
-          open={!!open.friendsBoard} setOpen={(v) => setOpen((o) => ({ ...o, friendsBoard: v }))} summary={`${c.friendsBoard.metric === 'POINTS' ? 'Points from purchases' : 'Days with a purchase'}, ${c.friendsBoard.period === 'MONTH' ? 'by month' : 'by week'}, opens at ${c.friendsBoard.minMembers} joined. ${R.friendsBoard.joined} ${R.friendsBoard.joined === 1 ? 'customer has' : 'customers have'} joined.`}>
-          <FriendsEditor value={c.friendsBoard} onSave={(v) => save.mutate({ friendsBoard: v })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="mascot" emoji="🍀" title={`${c.mascot.name}, the mascot`} blurb={`Lucky Stop's clover mascot in the app: a short tip of the day on customers' Home (a reward that is ready, one nearly there, or an everyday tip), ${c.mascot.name} in place of the plain icon on empty screens, and if you like, ${c.mascot.name}'s name in front of the automated pushes. It costs nothing.`}
-          on={c.mascot.enabled} onToggle={toggle('mascot')} busy={save.isPending} open={!!open.mascot} setOpen={(v) => setOpen((o) => ({ ...o, mascot: v }))}
-          summary={[c.mascot.guide !== false && 'On-screen guide', c.mascot.homeCard && 'a tip on Home', c.mascot.emptyStates && 'empty screens', c.mascot.pushVoice && 'signs the automated pushes'].filter(Boolean).join(', ') || 'Nothing picked: open Settings'}>
-          <MascotEditor value={c.mascot} onSave={(v) => save.mutate({ mascot: v })} busy={save.isPending} />
-          <LinesEditor value={c.mascot.lines ?? []} who={c.mascot.name || 'Cuatro'} guideOn={c.mascot.guide !== false} onSave={(lines) => save.mutate({ mascot: { lines } })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="games" emoji="🎡" title="Prize game" blurb="Spin the wheel, a scratch card or a lucky number: one free play a day for every customer, with no purchase needed and the same odds for everyone. Prizes are points, drawn by the server, inside a hard monthly budget. The app shows the official rules." money
-          confirmOn="Turn on the prize game? It pays real points. Before you do, have a lawyer review the official rules the app shows (game promotions have their own rules in Texas)."
-          on={c.games.enabled} onToggle={toggle('games')} busy={save.isPending} open={!!open.games} setOpen={(v) => setOpen((o) => ({ ...o, games: v }))}
-          summary={`${GAME_NAMES[c.games.game]}${c.games.since ? ` since ${day(`${c.games.since}T12:00:00`)}` : ''}${c.games.endsOn ? `, until ${day(`${c.games.endsOn}T12:00:00`)}` : ''}. Last 30 days: ${R.games.plays} plays, ${R.games.wins} won, ${usd(R.games.pts)} paid. This month ${usd(R.games.spentThisMonth)} of ${usd(c.games.monthlyBudgetPts)}.`}>
-          <GamesEditor value={c.games} onSave={(v) => save.mutate({ games: v })} busy={save.isPending} />
-        </Feature>
-
-        <Feature id="birthday" emoji="🎂" title="Birthday gift" blurb="A warm greeting push on a customer's birthday (after 10 AM, never in quiet hours) and, if you set one, a small points gift once a year for people who bought lately. The gift is paid at the store they last bought at, inside a monthly budget that is a hard cap. Customers add their birthday in Profile (month and day only), and the app reminds those who have not." on={c.birthday.enabled} onToggle={toggle('birthday')} busy={save.isPending} money={c.birthday.bonusPts > 0}
-          open={!!open.birthday} setOpen={(v) => setOpen((o) => ({ ...o, birthday: v }))} summary={`${c.birthday.bonusPts > 0 ? `${c.birthday.bonusPts} pts gift` : 'Greeting only'}, budget ${usd(c.birthday.monthlyBudgetPts)} a month (${usd(R.birthday.spentThisMonth)} used). ${R.birthday.withBirthday} of ${R.birthday.customers} customers gave a birthday.`}>
-          <BirthdayEditor value={c.birthday} defaults={d.defaults.birthday} onSave={(v) => save.mutate({ birthday: v })} busy={save.isPending} results={R.birthday} />
-        </Feature>
-
-        <Feature id="nudges" emoji="🔔" title="Smart nudges" blurb="Polite, personal pushes: 'You are 120 pts from a free coffee', 'Keep your streak', 'We miss you'. Never during quiet hours, a few a week at most per person, and each kind only once for the same thing." on={c.nudges.enabled} onToggle={toggle('nudges')} busy={save.isPending}
-          open={!!open.nudges} setOpen={(v) => setOpen((o) => ({ ...o, nudges: v }))} summary={`Quiet ${hourLabel(c.nudges.quietFrom)} to ${hourLabel(c.nudges.quietTo)}, at most ${c.nudges.maxPerWeek} a week per person`}>
-          <NudgesEditor value={c.nudges} onSave={(v) => save.mutate({ nudges: v })} busy={save.isPending} sent={R.nudges} />
-        </Feature>
-
-        <div id="eng-events"><EventKit open={!!open.events} setOpen={(v) => setOpen((o) => ({ ...o, events: v }))} /></div>
-      </div>
+      <Tabs ariaLabel="Engagement" value={tab} onChange={(v) => setParams({ tab: v as EngagementTab }, { replace: true })}
+        tabs={ENGAGEMENT_TABS.map((t) => ({ value: t.value, label: t.label }))} />
+      {/* Signpost to what moved (2026-11-27), so nobody hunts for it here */}
+      <p style={{ margin: '0 0 14px', fontSize: FONT.small, color: TEXT_MUTED, maxWidth: 940 }}>
+        On other pages: <Link to="/cuatro" style={LINK}>{d.config.mascot.name || 'Cuatro'}, the mascot</Link> has his own page.{' '}
+        <Link to={featureLink('flashDeals')} style={LINK}>Flash deals</Link>, the <Link to={featureLink('weeklyChallenge')} style={LINK}>challenge of the week</Link> and
+        the <Link to={featureLink('birthday')} style={LINK}>birthday gift</Link> are on Offers, with the other things that give customers points.
+      </p>
+      <EngagementCards ids={current.ids} />
     </Page>
   );
 }
@@ -712,7 +789,7 @@ function GamesEditor({ value, onSave, busy }: { value: Config['games']; onSave: 
   );
 }
 
-function MascotEditor({ value, onSave, busy }: { value: Config['mascot']; onSave: (v: Omit<Config['mascot'], 'enabled'>) => void; busy: boolean }) {
+export function MascotEditor({ value, onSave, busy }: { value: Config['mascot']; onSave: (v: Omit<Config['mascot'], 'enabled'>) => void; busy: boolean }) {
   const [name, setName] = useState(value.name);
   const [home, setHome] = useState(value.homeCard);
   const [empty, setEmpty] = useState(value.emptyStates);
@@ -744,7 +821,7 @@ function MascotEditor({ value, onSave, busy }: { value: Config['mascot']; onSave
 
 /** What HQ writes for Cuatro to say (2026-11-17). Each line: the words (Spanish optional), the screen his button opens, the dates, the
  *  stores, urgent or not, on or off. Saved together with the Save under the list. */
-function LinesEditor({ value, who, guideOn, onSave, busy }: { value: CuatroLine[]; who: string; guideOn: boolean; onSave: (v: CuatroLine[]) => void; busy: boolean }) {
+export function LinesEditor({ value, who, guideOn, onSave, busy }: { value: CuatroLine[]; who: string; guideOn: boolean; onSave: (v: CuatroLine[]) => void; busy: boolean }) {
   const [lines, setLines] = useState<CuatroLine[]>(value);
   const [translating, setTranslating] = useState<string | null>(null);
   const saved = JSON.stringify(value);
