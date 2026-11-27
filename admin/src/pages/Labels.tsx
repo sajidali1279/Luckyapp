@@ -1264,9 +1264,15 @@ export default function Labels() {
                   toast.success(`Set on ${plural(n || selectedIds.size, 'item', 'items')}. Press Save to keep it (you will see which stores reprint first).`);
                 }}>Apply to ticked</Button>
                 {printableTicked > 0 && (
-                  <Button size="sm" variant="primary" style={{ marginLeft: 'auto' }} onClick={handlePrintSelected} disabled={savingAll} icon={<Printer size={14} strokeWidth={2.25} />}>
-                    Print {plural(printableTicked, 'label', 'labels')}
-                  </Button>
+                  <span style={s.bulkPrint}>
+                    {/* the print box goes under the table on a laptop: this takes you to it */}
+                    <Button size="sm" variant="ghost" onClick={() => document.querySelector('[role="region"][aria-label="Labels to print"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                      Copies and prices
+                    </Button>
+                    <Button size="sm" variant="primary" onClick={handlePrintSelected} disabled={savingAll} icon={<Printer size={14} strokeWidth={2.25} />}>
+                      Print {plural(printableTicked, 'label', 'labels')}
+                    </Button>
+                  </span>
                 )}
               </div>
             )}
@@ -1481,7 +1487,10 @@ const s: Record<string, CSSProperties> = {
   designStack: { display: 'flex', flexDirection: 'column', gap: 4, width: 160 },
   designSelect: { width: '100%', maxWidth: 'none' },
   sizeHint: { fontSize: 11.5, color: TEXT_MUTED },
-  bulkBar: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 12px', margin: 0, border: '1px solid #d3dcea', borderRadius: 10, background: '#eef2f7' },
+  // stays in view under the page's top bar while the table scrolls, so Print is always one click away (owner 2026-11-26)
+  bulkBar: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 12px', margin: 0, border: '1px solid #d3dcea', borderRadius: 10, background: '#eef2f7',
+    position: 'sticky', top: 60, zIndex: 25, boxShadow: '0 6px 16px rgba(15,23,42,0.10)' },
+  bulkPrint: { marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' },
   bulkText: { fontSize: 13, fontWeight: 600, color: '#374151' },
   inner: { display: 'flex', flexDirection: 'column', gap: 20 },
 

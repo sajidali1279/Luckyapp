@@ -166,9 +166,10 @@ export default function PrintTray({
 
 const s: Record<string, CSSProperties> = {
   tray: {
-    width: 300, maxWidth: '100%', flexShrink: 0, position: 'sticky' as const, top: 20, alignSelf: 'flex-start',
+    // top 64: clear of the page's own top bar (52 px, sticky); at 20 the "Selected" line and Clear slid under it (2026-11-26)
+    width: 300, maxWidth: '100%', flexShrink: 0, position: 'sticky' as const, top: 64, alignSelf: 'flex-start', scrollMarginTop: 72,
     background: '#fff', borderRadius: 12, border: '1px solid #e4e7ec', boxShadow: '0 1px 2px rgba(16, 24, 40, 0.05)',
-    display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 60px)',
+    display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 84px)',
   },
   header: {
     display: 'flex', flexDirection: 'column', gap: 10,
