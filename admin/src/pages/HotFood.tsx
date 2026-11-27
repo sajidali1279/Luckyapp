@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { RulesCard } from '../components/SettingsCards';
 import { serverMessage } from '../lib/apiError';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
@@ -25,7 +27,8 @@ import Glyph from '../components/Glyph';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MainView   = 'orders' | 'catalog' | 'menus' | 'times' | 'combos' | 'availability';
+type MainView   = 'orders' | 'catalog' | 'menus' | 'times' | 'combos' | 'availability' | 'rules';
+const MAIN_VIEWS: MainView[] = ['orders', 'catalog', 'menus', 'times', 'combos', 'availability', 'rules'];
 type OrderTab   = 'PENDING' | 'ACCEPTED' | 'READY' | 'ALL';
 type OrderStatus = 'PENDING' | 'ACCEPTED' | 'READY' | 'COMPLETED' | 'CANCELLED';
 
@@ -505,7 +508,11 @@ export default function HotFood() {
   const { user }  = useAuthStore();
   const qc        = useQueryClient();
 
-  const [view,        setView]        = useState<MainView>('orders');
+  // ?tab= opens a tab (links from Settings and old bookmarks, 2026-11-27)
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('tab') as MainView | null;
+  const [view, setViewState] = useState<MainView>(asked && MAIN_VIEWS.includes(asked) ? asked : 'orders');
+  const setView = (v: MainView) => { setViewState(v); setParams(v === 'orders' ? {} : { tab: v }, { replace: true }); };
   const [orderTab,    setOrderTab]    = useState<OrderTab>('PENDING');
   const [filterStore, setFilterStore] = useState('');
   const [updatingId,  setUpdatingId]  = useState<string | null>(null);
@@ -658,6 +665,8 @@ export default function HotFood() {
           ? 'Hot food with a drink, one price; featured ones lead the app menu'
           : view === 'times'
           ? 'Breakfast and other parts of the day: what the app serves when'
+          : view === 'rules'
+          ? 'When orders are cancelled, reminded and closed, and how much one customer can order'
           : `${stores.filter(s => s.hotFoodEnabled).length} of ${stores.length} stores taking orders`}
         actions={view === 'orders' ? (
           <Button icon={<RefreshCw style={isRefetching ? { animation: 'spin 1s linear infinite' } : {}} />} onClick={() => refetch()}>Refresh</Button>
@@ -681,6 +690,7 @@ export default function HotFood() {
           { value: 'times', label: 'Menus by time' },
           { value: 'combos', label: 'Combos' },
           { value: 'availability', label: 'Stores and hours' },
+          { value: 'rules', label: 'Rules' },
         ]}
       />
 
@@ -845,6 +855,14 @@ export default function HotFood() {
       {showCatOrder && <HotFoodCategoryOrder onClose={() => setShowCatOrder(false)} />}
 
       {view === 'combos' && <HotFoodCombosPanel catalog={catalogItems} stores={stores} />}
+
+      {/* Hot food rules, moved here from Settings (2026-11-27) so everything about hot food is on one page */}
+      {view === 'rules' && (
+        <div style={{ maxWidth: 820, display: 'grid', gap: 16 }}>
+          <RulesCard group="hotFood" title="Hot food orders" intro="Times count from when the order was placed (or marked ready)." />
+          <p style={{ margin: 0, fontSize: 13, color: TEXT_MUTED }}>Each store's hot food hours are on the <Link to="/hot-food?tab=availability" onClick={() => setView('availability')} style={{ color: PRIMARY, fontWeight: 700 }}>Stores and hours</Link> tab.</p>
+        </div>
+      )}
 
       {view === 'availability' && (
         <>

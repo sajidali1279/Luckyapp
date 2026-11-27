@@ -8,7 +8,8 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { CheckCircle2, Printer, Sparkles, Wrench, Link2, Lightbulb, RotateCcw } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { LastChanged } from './SettingsCards';
 import { labelsApi } from '../services/api';
 import { serverMessage } from '../lib/apiError';
 import { useUnsaved } from '../lib/unsaved';
@@ -46,7 +47,9 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 type DealsView = 'todo' | 'ideas' | 'list' | 'settings';
 
 export default function DealsPanel({ labels }: { labels: Label[] }) {
-  const [chosenView, setView] = useState<DealsView | null>(null);
+  const [params] = useSearchParams();
+  const askedView = params.get('view') as DealsView | null;
+  const [chosenView, setView] = useState<DealsView | null>(askedView && ['todo', 'ideas', 'list', 'settings'].includes(askedView) ? askedView : null);
   const qc = useQueryClient();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['deal-recos'], queryFn: () => labelsApi.getDealRecommendations() });
   const recos: Reco[] = data?.data?.data?.recommendations ?? [];
@@ -259,7 +262,8 @@ export default function DealsPanel({ labels }: { labels: Label[] }) {
               </details>
             </Card>
           )}
-          {view === 'settings' && <Notice style={{ marginBottom: 12 }}>Deal limits (how much a suggestion may take off, per category) are in <Link to="/settings?tab=deals">Settings &gt; Deals</Link>.</Notice>}
+          {/* The deal limits live here, beside the suggestions they shape (moved from Settings > Deals, 2026-11-27) */}
+          {view === 'settings' && <div style={{ marginBottom: 12 }}><DealLimitsCard /><LastChanged actions={['DEAL_LIMITS']} /></div>}
           {view === 'settings' && learning.length > 0 && (
             <Card padding={0}>
               <details open data-testid="deal-learning">

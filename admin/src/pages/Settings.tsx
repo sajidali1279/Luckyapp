@@ -11,29 +11,29 @@ import { C, FONT, INPUT, PRIMARY } from '../lib/theme';
 import AppVersionsCard from '../components/AppVersionsCard';
 import ReceiptScanPanel from '../components/ReceiptScanPanel';
 import ReferralsPanel from '../components/ReferralsPanel';
-import { DealLimitsCard } from '../components/DealsPanel';
 import ConfirmModal from '../components/ConfirmModal';
 import { RulesCard, FeaturesCard, BusinessCard, HistoryCard, LastChanged, useSettings } from '../components/SettingsCards';
-import AppThemeSettings from '../components/AppThemeSettings';
 import { useAnyUnsaved } from '../lib/unsaved';
 import PointsExpirySettings from '../components/PointsExpirySettings';
 
-type Tab = 'features' | 'hotfood' | 'review' | 'receipts' | 'rewards' | 'care' | 'deals' | 'staff' | 'app' | 'history';
+type Tab = 'features' | 'review' | 'receipts' | 'rewards' | 'care' | 'staff' | 'app' | 'history';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'features', label: 'Features' },
-  { value: 'hotfood', label: 'Hot food' },
   { value: 'review', label: 'Sales review' },
   { value: 'receipts', label: 'Receipt scanning' },
   { value: 'rewards', label: 'Rewards & offers' },
   { value: 'care', label: 'Customer care' },
-  { value: 'deals', label: 'Deals' },
   { value: 'staff', label: 'Staff' },
   { value: 'app', label: 'App' },
   { value: 'history', label: 'History' },
 ];
 // Links made before the tabs were split still land somewhere sensible
 const OLD: Record<string, Tab> = { app: 'app' };
-const GROUP_TAB: Record<string, Tab> = { hotFood: 'hotfood', review: 'review', receipts: 'receipts', offers: 'rewards', perks: 'rewards', care: 'care', staff: 'staff' };
+// Tabs that moved to the page they belong to (HQ menu reorganised 2026-11-27): an old link or bookmark goes there
+const MOVED: Record<string, string> = { hotfood: '/hot-food?tab=rules', deals: '/labels?tab=deals&view=settings' };
+const GROUP_TAB: Record<string, Tab> = { review: 'review', receipts: 'receipts', offers: 'rewards', perks: 'rewards', care: 'care', staff: 'staff' };
+// Rule groups shown on another page
+const GROUP_PAGE: Record<string, { href: string; where: string }> = { hotFood: { href: '/hot-food?tab=rules', where: 'Hot food page (Rules)' } };
 const TAB_LABEL = Object.fromEntries(TABS.map((t) => [t.value, t.label])) as Record<Tab, string>;
 
 const narrow = { maxWidth: 820, display: 'grid', gap: 16 } as const;
@@ -46,12 +46,36 @@ const FIXED: Hit[] = [
   { label: 'App updates (oldest version allowed)', words: 'version update force old app store', tab: 'app', where: 'App' },
   { label: 'Receipt scanning: on or off, who can use it, latest scans', words: 'receipt scan photo test phones everyone', tab: 'receipts', where: 'Receipt scanning' },
   { label: 'Refer a friend: rewards, minimum purchase, limits', words: 'referral invite friend code reward', tab: 'rewards', where: 'Rewards & offers' },
-  { label: 'Deal limits: largest discount per category', words: 'deal discount limit category', tab: 'deals', where: 'Deals' },
+  { label: 'Deal limits: largest discount per category', words: 'deal discount limit category suggestion', href: '/labels?tab=deals&view=settings', where: 'Labels page (Deals, Settings)' },
+  { label: 'Cuatro, the mascot: on or off, where he shows up, his name', words: 'cuatro mascot clover guide tip home empty push voice name', href: '/cuatro', where: 'Cuatro page' },
+  { label: "What Cuatro says: HQ's own lines", words: 'cuatro mascot lines says message tip words', href: '/cuatro?tab=says', where: 'Cuatro page' },
+  { label: 'Seasonal app theme (Halloween, Thanksgiving, Christmas)', words: 'theme season seasonal look halloween thanksgiving christmas holiday colors', href: '/cuatro?tab=look', where: 'Cuatro page (App look)' },
+  { label: 'Flash deals', words: 'flash deal countdown push', href: '/offers?tab=flash', where: 'Offers page' },
+  { label: 'Challenge of the week', words: 'weekly challenge featured week', href: '/offers?tab=challenges&open=weeklyChallenge', where: 'Offers page (Challenges)' },
+  { label: 'Birthday gift', words: 'birthday gift greeting points', href: '/offers?tab=welcome&open=birthday', where: 'Offers page (Joining & birthday)' },
+  { label: 'Streaks, check-in, badges, nudges, prize game and more', words: 'engagement streak punch check-in badges goals nudges welcome series game spin', href: '/engagement', where: 'Engagement page' },
+  { label: 'Hot food hours, by store', words: 'hot food hours kitchen open close', href: '/hot-food?tab=availability', where: 'Hot food page (Stores and hours)' },
   { label: 'Points expiry: on or off, days, warning push', words: 'expire expiry expiring points days old balance warning', tab: 'rewards', target: 'points-expiry', where: 'Rewards & offers' },
   { label: 'History of settings changes', words: 'history log who changed audit', tab: 'history', where: 'History' },
   { label: 'Joining bonus: free items for new customers', words: 'welcome joining bonus free item new customer days', href: '/offers?tab=welcome', where: 'Offers page' },
   { label: 'Cashback rates, tiers, gas cents per gallon, category bonuses', words: 'cashback rate tier bronze silver gold diamond platinum gas cents gallon bonus points', href: '/rates', where: 'Cashback rates page' },
 ];
+
+// Settings that live on the page they belong to (HQ menu reorganised 2026-11-27): listed here so nothing is ever hard to find
+const L = { color: PRIMARY, fontWeight: 700 } as const;
+const elsewhere = (
+  <Card padding={16}>
+    <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text, marginBottom: 6 }}>Set on other pages</div>
+    <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 4, fontSize: FONT.body, color: C.text2 }}>
+      <li><Link to="/rates" style={L}>Cashback rates</Link>: tier cashback, gas cents per gallon, points to reach a tier, category bonuses</li>
+      <li><Link to="/offers" style={L}>Offers</Link>: promotions, deals, challenges and the challenge of the week, flash deals, the joining bonus and the birthday gift</li>
+      <li><Link to="/engagement" style={L}>Engagement</Link>: streaks, punch cards, check-in, badges, store goals, smart nudges, the welcome series, the prize game</li>
+      <li><Link to="/cuatro" style={L}>Cuatro</Link>: the mascot, his lines, and the app's seasonal look</li>
+      <li><Link to="/hot-food?tab=rules" style={L}>Hot food › Rules</Link>: order times and limits; <Link to="/hot-food?tab=availability" style={L}>Stores and hours</Link>: each store's hot food hours</li>
+      <li><Link to="/labels?tab=deals&view=settings" style={L}>Labels › Deals › Settings</Link>: deal limits for the deal suggestions</li>
+    </ul>
+  </Card>
+);
 
 export default function Settings() {
   const { user } = useAuthStore();
@@ -60,6 +84,7 @@ export default function Settings() {
   const [params, setParams] = useSearchParams();
   const asked = params.get('tab') ?? '';
   const tab = (TABS.some((t) => t.value === asked) ? asked : OLD[asked] ?? 'features') as Tab;
+  useEffect(() => { if (MOVED[asked]) navigate(MOVED[asked], { replace: true }); }, [asked]);   // eslint-disable-line react-hooks/exhaustive-deps
   const unsaved = useAnyUnsaved();
   const [leaving, setLeaving] = useState<null | (() => void)>(null);
   // Switching tabs throws the open tab's form away: ask first when it has edits nobody saved
@@ -74,8 +99,9 @@ export default function Settings() {
     if (!words.length) return [];
     const data = q.data?.data?.data;
     const all: Hit[] = [
-      ...((data?.rules ?? []) as { key: string; group: string; label: string; help: string; section?: string }[]).map((r) => ({
-        label: r.label, words: `${r.help} ${r.section ?? ''}`, tab: GROUP_TAB[r.group], target: `rule-${r.key}-row`, where: TAB_LABEL[GROUP_TAB[r.group]] })),
+      ...((data?.rules ?? []) as { key: string; group: string; label: string; help: string; section?: string }[]).map((r) => (GROUP_PAGE[r.group]
+        ? { label: r.label, words: `${r.help} ${r.section ?? ''}`, href: GROUP_PAGE[r.group].href, where: GROUP_PAGE[r.group].where }
+        : { label: r.label, words: `${r.help} ${r.section ?? ''}`, tab: GROUP_TAB[r.group], target: `rule-${r.key}-row`, where: TAB_LABEL[GROUP_TAB[r.group]] })),
       ...((data?.features ?? []) as { key: string; label: string; help: string }[]).map((f) => ({
         label: `${f.label} (switch)`, words: f.help, tab: 'features' as Tab, target: `feature-${f.key}-row`, where: 'Features' })),
       ...FIXED,
@@ -134,13 +160,7 @@ export default function Settings() {
 
       <Tabs ariaLabel="Settings" value={tab} onChange={(v) => goTab(v as Tab)} tabs={TABS} />
 
-      {tab === 'features' && <div style={narrow}><FeaturesCard /></div>}
-
-      {tab === 'hotfood' && (
-        <div style={narrow}>
-          <RulesCard group="hotFood" title="Hot food orders" intro="Times count from when the order was placed (or marked ready). Hot food hours are set per store on the Stores page." />
-        </div>
-      )}
+      {tab === 'features' && <div style={narrow}><FeaturesCard />{elsewhere}</div>}
 
       {tab === 'review' && (
         <div style={narrow}>
@@ -157,14 +177,7 @@ export default function Settings() {
 
       {tab === 'rewards' && (
         <div style={narrow}>
-          <Card padding={16}>
-            <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text, marginBottom: 6 }}>Set on other pages</div>
-            <ul style={{ margin: 0, paddingLeft: 18, listStyle: 'disc', display: 'grid', gap: 4, fontSize: FONT.body, color: C.text2 }}>
-              <li><Link to="/rates" style={{ color: PRIMARY, fontWeight: 700 }}>Cashback rates</Link>: tier cashback, gas cents per gallon, points to reach a tier, category bonuses</li>
-              <li><Link to="/offers?tab=welcome" style={{ color: PRIMARY, fontWeight: 700 }}>Offers › Joining bonus</Link>: free items for new customers</li>
-              <li><Link to="/offers" style={{ color: PRIMARY, fontWeight: 700 }}>Offers</Link>: promotions, deals and challenges themselves</li>
-            </ul>
-          </Card>
+          {elsewhere}
           <PointsExpirySettings />
           <RulesCard group="perks" title="Tier perks and rewards" intro="What each tier gets beyond cashback, how long a reward code from the app lasts, and the invite-code window. The app shows these numbers to customers." />
           <div>
@@ -181,15 +194,6 @@ export default function Settings() {
         </div>
       )}
 
-      {tab === 'deals' && (
-        <div style={narrow}>
-          <div>
-            <DealLimitsCard />
-            <LastChanged actions={['DEAL_LIMITS']} />
-          </div>
-        </div>
-      )}
-
       {tab === 'staff' && (
         <div style={narrow}>
           <RulesCard group="staff" title="Staff" intro="When someone counts as working (check-ins, Who's where, hot food alerts), and when managers are reminded about an old gas price." />
@@ -199,7 +203,10 @@ export default function Settings() {
       {tab === 'app' && (
         <div style={narrow}>
           <BusinessCard />
-          <AppThemeSettings />
+          <Card padding={16}>
+            <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text }}>Seasonal look</div>
+            <p style={{ fontSize: FONT.small, color: C.muted, margin: '6px 0 0' }}>The app's seasonal theme (Halloween, Thanksgiving, Christmas) moved to <Link to="/cuatro?tab=look">Cuatro &gt; App look</Link>.</p>
+          </Card>
           {isDevAdmin ? (
             <div>
               <AppVersionsCard />
