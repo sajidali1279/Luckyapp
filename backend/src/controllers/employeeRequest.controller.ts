@@ -59,7 +59,9 @@ const submitSchema = z.object({
     quantity: z.string().max(60).optional(),
     category: z.string().max(80).optional(),
     notes:    z.string().max(300).optional(),
-  })).min(1).max(30),
+  // No real cap on how many items one request has (owner 2026-11-26: 30 was too few). 1000 only stops a broken or hostile app from
+  // sending a request no store could have; a person never gets near it.
+  })).min(1).max(1000, 'A request can have at most 1000 items.'),
 });
 
 /**
@@ -94,7 +96,8 @@ export async function submitRequest(req: AuthRequest, res: Response) {
     data: {
       storeId: where.storeId, submittedById: user.id, note: parsed.data.note,
       requestType: parsed.data.requestType as EmployeeRequestType,
-      lines: { create: parsed.data.lines.map((l: any) => ({ name: l.name.trim(), quantity: l.quantity?.trim(), category: l.category?.trim(), notes: l.notes?.trim() })) },
+      // one insert for all the lines (a long request was one insert per line)
+      lines: { createMany: { data: parsed.data.lines.map((l: any) => ({ name: l.name.trim(), quantity: l.quantity?.trim(), category: l.category?.trim(), notes: l.notes?.trim() })) } },
     },
     include: { submittedBy: { select: { id: true, name: true } }, lines: true, store: { select: { name: true } } },
   });
