@@ -26,7 +26,7 @@ import Modal from '../components/Modal';
 import { failureMessage } from '../lib/apiError';
 import { useSingleFlight } from '../hooks/useSingleFlight';
 import { canonicalPrice, priceProblem, priceChangePercent, BIG_PRICE_CHANGE_PERCENT } from '../lib/labelPrice';
-import { Copy, Trash2, RotateCcw, Download, Upload } from 'lucide-react';
+import { Copy, Trash2, RotateCcw, Download, Upload, Printer } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { labelsCsv, downloadCsv, CsvCoverage } from '../utils/labelsCsv';
 import { Page, PageHeader, Button, Tabs } from '../components/kit';
@@ -409,6 +409,9 @@ export default function Labels() {
         quantity: quantities[l.id] ?? 1,
       }));
   }
+
+  // Copies to print for the ticked items that have a price (the print box's count)
+  const printableTicked = labels.filter(l => selectedIds.has(l.id) && l.priceText != null).reduce((n, l) => n + (quantities[l.id] ?? 1), 0);
 
   function handlePrintSelected() {
     const entries = buildCatalogPrintEntries();
@@ -1238,6 +1241,35 @@ export default function Labels() {
               </div>
             )}
 
+            {/* under the filters, beside the ticks it acts on (2026-11-26: it sat under the table, beside the print box) */}
+            {selectedIds.size > 0 && (
+              <div style={s.bulkBar} role="group" aria-label="Design for the ticked items">
+                <span style={s.bulkText}>Design for the {plural(selectedIds.size, 'ticked item', 'ticked items')}:</span>
+                <select style={s.cellSelect} value={bulkLook} onChange={(e) => setBulkLook(e.target.value)} aria-label="Design for the ticked items">
+                  <option value="">Keep each design</option>
+                  <optgroup label="Built in">{TEMPLATE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</optgroup>
+                  {designs.length > 0 && <optgroup label="HQ designs">{designs.map(d => <option key={d.id} value={`design:${d.id}`}>{d.name}</option>)}</optgroup>}
+                </select>
+                <select style={{ ...s.cellSelect, width: 140 }} value={bulkSize} onChange={(e) => setBulkSize(e.target.value)} aria-label="Text size for the ticked items">
+                  <option value="">Keep each size</option>
+                  {SIZE_OPTIONS.map(v => <option key={v} value={v}>{sizeText(v)}</option>)}
+                </select>
+                <Button size="sm" disabled={(!bulkLook && !bulkSize) || savingAll} onClick={() => {
+                  let n = 0;
+                  labels.filter(l => selectedIds.has(l.id)).forEach(l => {
+                    if (bulkLook && stage(l, 'look', bulkLook)) n++;
+                    if (bulkSize) stage(l, 'size', bulkSize);
+                  });
+                  setBulkLook(''); setBulkSize('');
+                  toast.success(`Set on ${plural(n || selectedIds.size, 'item', 'items')}. Press Save to keep it (you will see which stores reprint first).`);
+                }}>Apply to ticked</Button>
+                {printableTicked > 0 && (
+                  <Button size="sm" variant="primary" style={{ marginLeft: 'auto' }} onClick={handlePrintSelected} disabled={savingAll} icon={<Printer size={14} strokeWidth={2.25} />}>
+                    Print {plural(printableTicked, 'label', 'labels')}
+                  </Button>
+                )}
+              </div>
+            )}
             {isError ? (
               <ErrorState message="Failed to load labels." onRetry={refetch} />
             ) : isLoading ? (
@@ -1259,15 +1291,16 @@ export default function Labels() {
                 <Table style={s.table}>
                   <TableHeader>
                     <TableRow>
-                      <TableHead style={s.th}>
+                      <TableHead style={{ ...s.th, ...s.thTight }}>
                         <span className="sr-only">Select</span>
                         <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll} aria-label={allFilteredSelected ? 'Deselect all labels' : 'Select all labels'} />
                       </TableHead>
+                      {/* Every column but the name as narrow as its boxes, so spare room goes to the names (2026-11-26) */}
                       {['Product', 'Category', 'Base price', 'Deal', 'Design', 'Updated'].map(h => (
-                        <TableHead key={h} style={s.th} className={h === 'Updated' ? 'ui-wide-only' : undefined}>{h}</TableHead>
+                        <TableHead key={h} style={{ ...s.th, ...(h === 'Product' ? {} : s.thTight) }} className={h === 'Updated' ? 'ui-wide-only' : undefined}>{h}</TableHead>
                       ))}
                       {/* The row buttons' column: no visible title, but a screen reader names it */}
-                      <TableHead style={s.th}><span className="sr-only">Actions</span></TableHead>
+                      <TableHead style={{ ...s.th, ...s.thTight }}><span className="sr-only">Actions</span></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1289,7 +1322,7 @@ export default function Labels() {
                               <input type="checkbox" checked={checked} onChange={() => toggleSelected(label.id)} aria-label={`Select ${label.productName}`} />
                             )}
                           </TableCell>
-                          <TableCell style={{ ...s.td, minWidth: 250 }}>
+                          <TableCell style={{ ...s.td, minWidth: 280 }}>
                             <InlineText
                               {...cell('productName')} bold ariaLabel={`Name of ${label.productName}`} placeholder="Product name" maxLength={40}
                               normalize={v => (v.trim() ? { value: v.trim() } : { error: 'Enter the product name.' })}
@@ -1300,13 +1333,13 @@ export default function Labels() {
                             />
                             {saveErrors[label.id] && <span style={s.cellError} role="alert">Not saved: {saveErrors[label.id]}</span>}
                           </TableCell>
-                          <TableCell style={{ ...s.td, minWidth: 130 }}>
+                          <TableCell style={{ ...s.td, minWidth: 160 }}>
                             <InlineText
                               {...cell('category')} ariaLabel={`Category of ${label.productName}`} placeholder="Add category" maxLength={100} list="label-category-options"
                               normalize={v => ({ value: v.trim() || null })}
                             />
                           </TableCell>
-                          <TableCell style={{ ...s.td, minWidth: 120 }}>
+                          <TableCell style={{ ...s.td, minWidth: 110 }}>
                             {label.priceText != null ? (
                               <InlineText
                                 {...cell('priceText')} prefix="$" ariaLabel={`Price of ${label.productName}`} placeholder="0.00" maxLength={8} inputMode="decimal"
@@ -1323,16 +1356,18 @@ export default function Labels() {
                               />
                             )}
                           </TableCell>
-                          <TableCell style={{ ...s.td, minWidth: 120 }}>
+                          <TableCell style={{ ...s.td, minWidth: 100 }}>
                             <InlineText
                               {...cell('dealText')} ariaLabel={`Deal for ${label.productName}`} placeholder="Add deal" maxLength={20}
                               normalize={v => ({ value: v.trim() || null })}
                             />
                           </TableCell>
                           <TableCell style={s.td}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            {/* The design over its text size (2026-11-26): side by side they pushed the table past a laptop screen, cut the names
+                                and categories short and slid the size box under the pinned buttons */}
+                            <div style={s.designStack}>
                               <select
-                                style={{ ...s.cellSelect, ...(isChanged(label, 'look') ? s.cellChanged : {}) }}
+                                style={{ ...s.cellSelect, ...s.designSelect, ...(isChanged(label, 'look') ? s.cellChanged : {}) }}
                                 value={cellValue(label, 'look') ?? label.look}
                                 disabled={savingAll}
                                 onChange={e => { stage(label, 'look', e.target.value); }}
@@ -1349,8 +1384,9 @@ export default function Labels() {
                                 )}
                                 {label.look.startsWith('design:') && !designs.some(d => `design:${d.id}` === label.look) && <option value={label.look}>Own design</option>}
                               </select>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                               <select
-                                style={{ ...s.cellSelect, width: 66, ...(isChanged(label, 'size') ? s.cellChanged : {}) }}
+                                style={{ ...s.cellSelect, width: 72, ...(isChanged(label, 'size') ? s.cellChanged : {}) }}
                                 value={cellValue(label, 'size') ?? label.size}
                                 disabled={savingAll}
                                 onChange={e => { stage(label, 'size', e.target.value); }}
@@ -1365,7 +1401,9 @@ export default function Labels() {
                                   <RotateCcw size={12} strokeWidth={2.5} />
                                 </button>
                               )}
-                            </span>
+                              <span style={s.sizeHint} aria-hidden>text size</span>
+                              </span>
+                            </div>
                           </TableCell>
                           <TableCell className="ui-wide-only" style={{ ...s.td, color: TEXT_MUTED, fontSize: 13, whiteSpace: 'nowrap' }}>{new Date(label.updatedAt).toLocaleDateString()}</TableCell>
                           <TableCell style={s.td}>
@@ -1397,29 +1435,6 @@ export default function Labels() {
             )}
           </div>
 
-          {selectedIds.size > 0 && (
-            <div style={s.bulkBar} role="group" aria-label="Design for the ticked items">
-              <span style={s.bulkText}>Design for the {plural(selectedIds.size, 'ticked item', 'ticked items')}:</span>
-              <select style={s.cellSelect} value={bulkLook} onChange={(e) => setBulkLook(e.target.value)} aria-label="Design for the ticked items">
-                <option value="">Keep each design</option>
-                <optgroup label="Built in">{TEMPLATE_OPTIONS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</optgroup>
-                {designs.length > 0 && <optgroup label="HQ designs">{designs.map(d => <option key={d.id} value={`design:${d.id}`}>{d.name}</option>)}</optgroup>}
-              </select>
-              <select style={{ ...s.cellSelect, width: 140 }} value={bulkSize} onChange={(e) => setBulkSize(e.target.value)} aria-label="Text size for the ticked items">
-                <option value="">Keep each size</option>
-                {SIZE_OPTIONS.map(v => <option key={v} value={v}>{sizeText(v)}</option>)}
-              </select>
-              <Button size="sm" disabled={(!bulkLook && !bulkSize) || savingAll} onClick={() => {
-                let n = 0;
-                labels.filter(l => selectedIds.has(l.id)).forEach(l => {
-                  if (bulkLook && stage(l, 'look', bulkLook)) n++;
-                  if (bulkSize) stage(l, 'size', bulkSize);
-                });
-                setBulkLook(''); setBulkSize('');
-                toast.success(`Set on ${plural(n || selectedIds.size, 'item', 'items')}. Press Save to keep it (you will see which stores reprint first).`);
-              }}>Apply to ticked</Button>
-            </div>
-          )}
           {selectedIds.size > 0 && (
             <PrintTray
               items={labels
@@ -1463,7 +1478,10 @@ export default function Labels() {
 }
 
 const s: Record<string, CSSProperties> = {
-  bulkBar: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 12px', margin: '12px 0 0', border: '1px solid #d3dcea', borderRadius: 10, background: '#eef2f7' },
+  designStack: { display: 'flex', flexDirection: 'column', gap: 4, width: 160 },
+  designSelect: { width: '100%', maxWidth: 'none' },
+  sizeHint: { fontSize: 11.5, color: TEXT_MUTED },
+  bulkBar: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '10px 12px', margin: 0, border: '1px solid #d3dcea', borderRadius: 10, background: '#eef2f7' },
   bulkText: { fontSize: 13, fontWeight: 600, color: '#374151' },
   inner: { display: 'flex', flexDirection: 'column', gap: 20 },
 
@@ -1479,7 +1497,9 @@ const s: Record<string, CSSProperties> = {
     color: '#111827', fontSize: 14, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
   },
   catalogLayout: { display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' },
-  catalogMain: { flex: '1 1 480px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
+  // The table keeps 1000 px: on a narrower screen the print box goes under it instead of squeezing it (2026-11-26: ticking one item
+  // squeezed the table to 800 px on a 1440 screen and it scrolled sideways), and the ticked-items bar above the table has a Print button
+  catalogMain: { flex: '1 1 1000px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 },
 
   viewToggleRow: { display: 'flex', gap: 8 },
   viewToggleChip: {
@@ -1504,11 +1524,12 @@ const s: Record<string, CSSProperties> = {
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: {
-    padding: '10px 14px', textAlign: 'left',
+    padding: '10px 10px', textAlign: 'left',
     fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
     color: TEXT_MUTED, background: '#f7f8fa', borderBottom: '1px solid #e4e7ec',
   },
-  td: { padding: '13px 14px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle', fontSize: 14 },
+  thTight: { width: '1%', whiteSpace: 'nowrap' },
+  td: { padding: '13px 10px', borderBottom: '1px solid #f1f3f6', verticalAlign: 'middle', fontSize: 14 },
 
   emptyBox: {
     background: '#fff', borderRadius: 12, padding: 60,

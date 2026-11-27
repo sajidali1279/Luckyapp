@@ -4,7 +4,7 @@
 import { useRef, useState, CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { Plus, Pencil, Trash2, Printer, ImagePlus, Flame } from 'lucide-react';
+import { Plus, Pencil, Trash2, Printer, ImagePlus, Flame, Upload } from 'lucide-react';
 import { labelsApi, storesApi, hotFoodCombosApi } from '../services/api';
 import { failureMessage } from '../lib/apiError';
 import { C, FONT, INPUT, RADIUS, TEXT_MUTED } from '../lib/theme';
@@ -166,7 +166,10 @@ function PictureLibrary({ images, loading }: { images: LibImage[]; loading: bool
       <SectionTitle count={images.length}>Picture library</SectionTitle>
       <Card padding={12} style={{ marginBottom: 12 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" aria-label="Picture file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          {/* the browser's own "Choose File / No file chosen" box looked out of place (2026-11-26): a kit button, the picked file's name beside it */}
+          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" aria-label="Picture file" style={{ display: 'none' }} onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <Button icon={<Upload />} onClick={() => fileRef.current?.click()}>{file ? 'Change picture' : 'Choose picture'}</Button>
+          <span style={{ fontSize: FONT.small, color: file ? C.text : TEXT_MUTED, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file?.name}>{file ? file.name : 'No picture chosen'}</span>
           <input aria-label="Picture name" style={{ ...INPUT, width: 220 }} maxLength={40} placeholder='Name, e.g. "Chips bag"' value={name} onChange={(e) => setName(e.target.value)} />
           <Button variant="primary" icon={<ImagePlus />} disabled={!file || !name.trim() || tooBig || add.isPending} onClick={() => add.mutate()}>{add.isPending ? 'Adding…' : 'Add picture'}</Button>
         </div>
