@@ -135,37 +135,21 @@ The most recent qualifying transactions across all stores, showing:
 
 ### 3.2 Navigating the Dashboard
 
-The sidebar navigation on the left side of the Admin Portal contains links to all major sections. The navigation includes:
+The sidebar on the left of the Admin Portal groups the pages by what they are for (reorganised November 2026). Anything that moved has a short note with a link in its old place, and the old links still work.
 
-| Section | What It Contains |
+| Group | Pages |
 |---|---|
-| **Overview** | Dashboard, Analytics, Inventory Intelligence |
-| **Transactions** | All transactions, filtering, review |
-| **Customers** | Customer list, search, management, dispute review |
-| **Staff** | Employee and manager accounts |
-| **Stores** | Store locations and configuration |
-| **Offers** | Promotional offer management |
-| **Banners** | Promotional banner management |
-| **Notices** | Pinned HQ announcements shown in store chat |
-| **Catalog** | Redemption catalog management |
-| **Promotions** | Business promotion requests |
-| **Hot Food** | Hot food menu/order oversight (SuperAdmin only) |
-| **Chat** | Store chat monitoring |
-| **Scheduling** | Schedule overview |
-| **Requests** | Unified hub: Alerts, Stock, Product requests |
-| **Order List** | Store procurement order lists |
-| **Scanned Products** | Chain-wide barcode → product catalog |
-| **Careers** | Job applications |
-| **Daily Reports** | Employee opening/closing shift reports |
-| **Daily Tasks** | Configure shift task checklists |
-| **Rates** | Tier and category cashback rates |
-| **Leaderboard** | Rankings |
-| **Activity Log** | Audit trail |
-| **Billing** | Invoices (SuperAdmin view) |
-| **Notifications** | Broadcast notifications |
-| **Support** | Support ticket inbox |
-| **Docs** | Legal documents, manuals, technical docs |
-| **Profile** | Your account settings |
+| **Overview** | Dashboard, Inventory Intelligence (Analytics for the Dev Admin) |
+| **Mascot** | **Cuatro**: switch him on or off; How he shows up (on-screen guide, tip on Home, empty screens, signing the automated pushes, his name); What he says (your own lines); App look (the seasonal theme) |
+| **Customers & rewards** | **Offers** (Promotions, Deals, Challenges with the challenge of the week, Flash deals, Joining & birthday, Promotion requests, Calendar), **Engagement** (Visits & habits, Messages, Games & events), Rewards catalog, Notices, Missing persons |
+| **Hot food** | Orders, Catalog, Store menus, Menus by time, Combos, Stores and hours, Rules (order times and limits) |
+| **Products & stock** | Items, Labels (deal limits are under Deals, Settings), Scanned products, Invoices to PDI, Order list, Requests (alerts, stock and product requests) |
+| **People** | Chat, Scheduling, Staff, Customers, Grant & Redeem, Careers |
+| **Reports** | Transactions, Daily reports, Daily tasks, Leaderboard (Activity log for the Dev Admin) |
+| **Setup** | Stores, Cashback rates, Settings, Billing, Notifications |
+| (bottom) | Support, Docs, and your Profile |
+
+Settings keeps the general rules (features, sales review, receipt scanning, rewards and offers, customer care, staff, app details, history). Its **Set on other pages** card and its **Find a setting** box point to everything that lives on another page.
 
 ### 3.3 Analytics: Trends and Comparisons
 
@@ -752,7 +736,7 @@ There is nothing to type for a new release. **Billing** → **Platform Settings*
 
 ### 16.1 Viewing the rates
 
-Navigate to **Cashback Rates** in the sidebar (Reports). The page shows:
+Navigate to **Cashback Rates** in the sidebar (Setup). The page shows:
 
 **Tier table**: for Bronze, Silver, Gold, Diamond and Platinum: the cashback percentage earned on every purchase, an optional gas rate in cents per gallon, and the **points to reach the tier** in a half-year (100 points = $1 of cashback, so 5,000 points is $50.00). Under the table it says who last changed a rate and what they changed.
 

@@ -58,7 +58,7 @@ import {
   ChevronRight,
   Barcode,
   Printer,
-  SlidersHorizontal, UserSearch, Sparkles,
+  SlidersHorizontal, UserSearch, Sparkles, Clover,
 } from 'lucide-react';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -307,22 +307,37 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        {/* Content */}
+        {/* Menu groups reorganised 2026-11-27 (owner): Cuatro on his own near the top; products and stock together (they were under
+            People); hot food on its own; Cashback rates with the other setup pages (it was under Reports). Keep lib/navItems.ts the same. */}
+
+        {(isDevAdmin || isSuperAdmin) && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Mascot</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarNavItem to="/cuatro" icon={<Clover size={16} color="#4ade80" />} label="Cuatro" />
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
+
+        <SidebarSeparator />
+
         <SidebarGroup>
-          <SidebarGroupLabel>Content</SidebarGroupLabel>
+          <SidebarGroupLabel>Customers & rewards</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarNavItem to="/offers" icon={<Tag size={16} />} label="Offers" badge={offerRequestsPendingCount} />
-              <SidebarNavItem to="/notices" icon={<Pin size={16} />} label="Notices" />
-              <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Rewards catalog" />
-              {isDevAdmin && (
-                <SidebarNavItem to="/promotions" icon={<Megaphone size={16} />} label="Promotions" badge={promotionsPendingCount} />
-              )}
-              {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot food" badge={hotFoodPendingCount} />
-              )}
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/engagement" icon={<Sparkles size={16} />} label="Engagement" />
+              )}
+              <SidebarNavItem to="/catalog" icon={<Gift size={16} />} label="Rewards catalog" />
+              <SidebarNavItem to="/notices" icon={<Pin size={16} />} label="Notices" />
+              {isDevAdmin && (
+                <SidebarNavItem to="/promotions" icon={<Megaphone size={16} />} label="Promotions" badge={promotionsPendingCount} />
               )}
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/missing-persons" icon={<UserSearch size={16} />} label="Missing persons" badge={missingRequestsPendingCount} />
@@ -331,9 +346,40 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {(isDevAdmin || isSuperAdmin) && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Hot food</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarNavItem to="/hot-food" icon={<Flame size={16} />} label="Hot food" badge={hotFoodPendingCount} />
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
+
         <SidebarSeparator />
 
-        {/* People */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Products & stock</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarNavItem to="/items" icon={<Boxes size={16} />} label="Items" />
+              <SidebarNavItem to="/labels" icon={<Printer size={16} />} label="Labels" />
+              <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned products" />
+              <SidebarNavItem to="/pdi-invoices" icon={<ReceiptText size={16} />} label="Invoices to PDI" />
+              {(isDevAdmin || isSuperAdmin) && (
+                <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order list" badge={categoriesPendingCount} />
+              )}
+              <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
         <SidebarGroup>
           <SidebarGroupLabel>People</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -349,14 +395,6 @@ export function AppSidebar() {
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/grant-redeem" icon={<ScanLine size={16} />} label="Grant & Redeem" />
               )}
-              <SidebarNavItem to="/store-requests" icon={<ClipboardList size={16} />} label="Requests" badge={requestsPendingCount} />
-              {(isDevAdmin || isSuperAdmin) && (
-                <SidebarNavItem to="/order-list" icon={<ShoppingCart size={16} />} label="Order list" badge={categoriesPendingCount} />
-              )}
-              <SidebarNavItem to="/scanned-products" icon={<Barcode size={16} />} label="Scanned products" />
-              <SidebarNavItem to="/items" icon={<Boxes size={16} />} label="Items" />
-              <SidebarNavItem to="/labels" icon={<Printer size={16} />} label="Labels" />
-              <SidebarNavItem to="/pdi-invoices" icon={<ReceiptText size={16} />} label="Invoices to PDI" />
               {(isDevAdmin || isSuperAdmin) && (
                 <SidebarNavItem to="/careers" icon={<Briefcase size={16} />} label="Careers" badge={careersNewCount} />
               )}
@@ -366,7 +404,6 @@ export function AppSidebar() {
 
         <SidebarSeparator />
 
-        {/* Reports */}
         <SidebarGroup>
           <SidebarGroupLabel>Reports</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -375,10 +412,7 @@ export function AppSidebar() {
               <SidebarNavItem to="/daily-reports" icon={<ClipboardCheck size={16} />} label="Daily reports" />
               <SidebarNavItem to="/daily-tasks" icon={<ListChecks size={16} />} label="Daily tasks" />
               {(isDevAdmin || isSuperAdmin) && (
-                <>
-                  <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Cashback rates" />
-                  <SidebarNavItem to="/leaderboard" icon={<Trophy size={16} />} label="Leaderboard" />
-                </>
+                <SidebarNavItem to="/leaderboard" icon={<Trophy size={16} />} label="Leaderboard" />
               )}
               {isDevAdmin && (
                 <SidebarNavItem to="/activity" icon={<Activity size={16} />} label="Activity log" />
@@ -387,28 +421,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Admin */}
         {(isDevAdmin || isSuperAdmin) && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
-              <SidebarGroupLabel>Admin</SidebarGroupLabel>
+              <SidebarGroupLabel>Setup</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarNavItem to="/stores" icon={<Store size={16} />} label="Stores" />
+                  <SidebarNavItem to="/rates" icon={<Percent size={16} />} label="Cashback rates" />
+                  <SidebarNavItem to="/settings" icon={<SlidersHorizontal size={16} />} label="Settings" />
                   {isDevAdmin && (
                     <SidebarNavItem to="/billing" icon={<CreditCard size={16} />} label="Billing" badge={billingPendingCount} />
                   )}
                   {isSuperAdmin && (
                     <SidebarNavItem to="/my-billing" icon={<CreditCard size={16} />} label="Billing" badge={billingPendingCount} />
                   )}
-                  <SidebarNavItem to="/settings" icon={<SlidersHorizontal size={16} />} label="Settings" />
-                  <SidebarNavItem
-                    to="/notifications"
-                    icon={<Bell size={16} />}
-                    label="Notifications"
-                    badge={unreadCount}
-                  />
+                  <SidebarNavItem to="/notifications" icon={<Bell size={16} />} label="Notifications" badge={unreadCount} />
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
