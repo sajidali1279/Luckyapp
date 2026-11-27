@@ -27,10 +27,11 @@ function esc(s: string): string {
 
 // Rendered statically at HTML-build time (not via a runtime <script> once
 // the page is loaded), see code128.ts for why.
+// Short bars with the digits beside them (owner 2026-11-26: at least 30 items a page; rows were about 14 a page)
 function renderBarcodeSvg(barcode: string): string {
-  const HEIGHT = 36;
+  const HEIGHT = 20;
   const { rects, modules } = code128ToSvg(barcode, HEIGHT, 2);
-  return `<svg viewBox="0 0 ${modules} ${HEIGHT}" fill="#1F2937">${rects}</svg>`;
+  return `<svg viewBox="0 0 ${modules} ${HEIGHT}" preserveAspectRatio="none" fill="#000">${rects}</svg>`;
 }
 
 function renderItem(item: PrintItem, idx: number, barcode: string | undefined): string {
@@ -43,13 +44,11 @@ function renderItem(item: PrintItem, idx: number, barcode: string | undefined): 
       <div class="item-num">${idx}</div>
       <div class="item-barcode">${barcodeCell}</div>
       <div class="item-body">
-        <div class="item-name">${esc(item.name)}</div>
-        <div class="item-meta">
-          ${item.quantity ? `<span class="item-qty">Qty: ${esc(item.quantity)}</span>` : ''}
-          ${item.category ? `<span class="item-cat">${esc(item.category)}</span>` : ''}
-          ${item.source === 'EMPLOYEE_REQUEST' ? '<span class="item-staff">Staff request</span>' : ''}
-          ${item.priority === 'URGENT' ? '<span class="urgent-tag">URGENT</span>' : ''}
-        </div>
+        <span class="item-name">${esc(item.name)}</span>
+        ${item.quantity ? `<span class="item-qty">Qty: ${esc(item.quantity)}</span>` : ''}
+        ${item.category ? `<span class="item-cat">${esc(item.category)}</span>` : ''}
+        ${item.source === 'EMPLOYEE_REQUEST' ? '<span class="item-staff">Staff request</span>' : ''}
+        ${item.priority === 'URGENT' ? '<span class="urgent-tag">URGENT</span>' : ''}
       </div>
       <div class="checkbox"></div>
     </div>`;
@@ -67,7 +66,7 @@ function renderSection(
     .join('');
   return `
     <div class="section-header section-${cls}">
-      ${esc(label)} &mdash; ${sectionItems.length} item${sectionItems.length !== 1 ? 's' : ''}
+      ${esc(label)} &middot; ${sectionItems.length} item${sectionItems.length !== 1 ? 's' : ''}
     </div>
     ${rows}`;
 }
@@ -98,42 +97,42 @@ function buildHTML(opts: {
 <meta charset="utf-8">
 <title>${esc(listName)}</title>
 <style>
+@page{margin:10mm}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#1F2937;background:#fff}
 
-.header{background:#1E3A5F;color:#fff;padding:18px 20px}
-.store-name{font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:.7;margin-bottom:3px}
-.list-name{font-size:20px;font-weight:800;margin-bottom:4px}
-.print-meta{font-size:10px;opacity:.65}
+.header{background:#1E3A5F;color:#fff;padding:8px 12px}
+.store-name{font-size:9px;text-transform:uppercase;letter-spacing:1px;opacity:.7;margin-bottom:1px}
+.list-name{font-size:16px;font-weight:800;margin-bottom:1px}
+.print-meta{font-size:9px;opacity:.65}
 
 .stats{display:flex;background:#F8FAFC;border-bottom:1px solid #E5E7EB}
-.stat{flex:1;text-align:center;padding:9px 4px;border-right:1px solid #E5E7EB}
+.stat{flex:1;text-align:center;padding:3px 4px;border-right:1px solid #E5E7EB;display:flex;align-items:baseline;justify-content:center;gap:4px}
 .stat:last-child{border-right:none}
-.stat-num{font-size:16px;font-weight:800}
-.stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#6B7280;margin-top:1px}
+.stat-num{font-size:13px;font-weight:800}
+.stat-label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#6B7280}
 
-.section-header{padding:5px 16px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #E5E7EB}
+.section-header{padding:2px 10px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #E5E7EB}
 .section-urgent{background:#FFF7ED;color:#C2410C}
 .section-needed{background:#FFFBEB;color:#92400E}
 .section-ordered{background:#F0FDF4;color:#166534}
 .section-received{background:#F8FAFC;color:#6B7280}
 
-.item{display:flex;align-items:center;padding:9px 16px;border-bottom:1px solid #F3F4F6;gap:10px;page-break-inside:avoid}
+.item{display:flex;align-items:center;padding:1px 10px;border-bottom:1px solid #F3F4F6;gap:8px;page-break-inside:avoid;min-height:24px}
 .item:nth-child(even){background:#FAFAFA}
-.item-num{width:22px;font-size:11px;color:#9CA3AF;font-weight:600;text-align:right;flex-shrink:0}
-.item-barcode{width:90px;flex-shrink:0;text-align:center}
-.item-barcode svg{max-width:90px;height:42px}
-.barcode-val{font-size:8px;color:#9CA3AF;margin-top:1px;word-break:break-all}
-.no-barcode{height:42px;display:flex;align-items:center;justify-content:center;color:#D1D5DB;font-size:10px;font-style:italic}
-.item-body{flex:1;min-width:0}
-.item-name{font-size:13px;font-weight:700;color:#1F2937}
-.item-meta{display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;align-items:center}
-.item-qty{font-size:11px;color:#6B7280}
-.item-cat{font-size:10px;font-weight:600;color:#4F46E5;background:#EEF2FF;padding:2px 7px;border-radius:10px}
-.item-staff{font-size:10px;font-weight:600;color:#16A34A;background:#F0FDF4;padding:2px 7px;border-radius:10px}
-.urgent-tag{font-size:10px;font-weight:700;color:#EA580C}
-.checkbox{width:18px;height:18px;border:2px solid #D1D5DB;border-radius:4px;flex-shrink:0}
-.footer{padding:10px 16px;text-align:center;font-size:10px;color:#9CA3AF;border-top:1px solid #E5E7EB;margin-top:12px}
+.item-num{width:20px;font-size:10px;color:#9CA3AF;font-weight:600;text-align:right;flex-shrink:0}
+.item-barcode{width:225px;flex-shrink:0;display:flex;align-items:center;gap:6px}
+.item-barcode svg{width:130px;height:20px;flex-shrink:0}
+.barcode-val{font-size:10px;font-family:Menlo,Consolas,monospace;color:#374151;white-space:nowrap}
+.no-barcode{height:22px;display:flex;align-items:center;color:#D1D5DB;font-size:10px;font-style:italic}
+.item-body{flex:1;min-width:0;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.item-name{font-size:12px;font-weight:700;color:#1F2937}
+.item-qty{font-size:11px;color:#4B5563}
+.item-cat{font-size:9px;font-weight:600;color:#4F46E5;background:#EEF2FF;padding:0 6px;border-radius:10px}
+.item-staff{font-size:9px;font-weight:600;color:#16A34A;background:#F0FDF4;padding:0 6px;border-radius:10px}
+.urgent-tag{font-size:9px;font-weight:700;color:#EA580C}
+.checkbox{width:15px;height:15px;border:1.5px solid #6B7280;border-radius:3px;flex-shrink:0}
+.footer{padding:6px 10px;text-align:center;font-size:9px;color:#9CA3AF;border-top:1px solid #E5E7EB;margin-top:8px}
 
 @media print{
   .section-header,.item-cat,.item-staff{-webkit-print-color-adjust:exact;print-color-adjust:exact}
