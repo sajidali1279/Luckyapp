@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   FlatList,
@@ -84,7 +84,14 @@ export default function AdsScreen() {
   const hasMore = featuredAds.length < allAds.length;
   const listed = hasMore && tab === 'featured' ? featuredAds : allAds;
   // opened from Cuatro's sign (2026-11-08): that promotion first, outlined
-  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const { focus, promote } = useLocalSearchParams<{ focus?: string; promote?: string }>();
+  // Cuatro's "promote your business" button (2026-11-27) opens the request form right away (once per tap), unless one is in already
+  const promoteAsked = useRef<string | null>(null);
+  useEffect(() => {
+    if (!promote || promoteAsked.current === promote || myPromoData === undefined) return;
+    promoteAsked.current = promote;
+    if (myPromoStatus !== 'PENDING' && myPromoStatus !== 'APPROVED') setShowPromoteModal(true);
+  }, [promote, myPromoData, myPromoStatus]);
   const focused = focus ? allAds.find((a) => a.id === focus) : undefined;
   const ads = focused ? [focused, ...listed.filter((a) => a.id !== focused.id)] : listed;
   // counted for the business: a card seen (half of it on screen), and a tap on its directions or website

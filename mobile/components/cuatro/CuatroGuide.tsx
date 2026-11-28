@@ -16,6 +16,10 @@
 // him across the bottom bar and both run off the left edge; he peeks back in out of breath, in his pilgrim hat.
 // Christmas (2026-11-08, the owner's pick): the same once a day on Home, he sleds across the bar in his Santa hat, a bump throws a gift
 // onto the bar, he skids off and peeks back ("That one's for you"); a tap on the gift pops it open and opens the Rewards catalog.
+// More gestures and feeling (2026-11-27, the owner): a big hug, happy tears, a jump for joy, clapping, a little dance, point and tap,
+// double thumbs up, a blown kiss, a shrug, a bow and a shout; "I missed you" when a customer comes back after days away (a hello, a hug,
+// or happy tears, HQ's days on the Cuatro page > Moments), then what is new; every live offer in turn, last days, new ones and the
+// coming-soon teasers; and "promote your business" every few days (HQ's number) with his own "Your business here" sign or a shout.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Animated, AppState, BackHandler, Easing, Keyboard, PanResponder, Pressable, StyleSheet, TouchableOpacity, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,7 +40,7 @@ import { useAppTheme } from '../../hooks/useAppTheme';
 import { useGuideCovered } from './guideCover';
 import { useNotificationPermission } from '../../hooks/useNotificationPermission';
 import { introSettled } from '../seasonal/introState';
-import { tips, answer, TOPICS, type Ctx, type Line, type Topic, TOUR, tourStop, type TourStop } from './guideTips';
+import { tips, answer, TOPICS, type Ctx, type Line, type Topic, TOUR, tourStop, type TourStop, type Gesture } from './guideTips';
 import { hasGuideEvent, takeGuideEvent } from './guideEvents';
 import RunningTurkey, { TURKEY_H } from './RunningTurkey';
 import { Sled, Gift, SLED_W, SLED_H, SLED_DECK, GIFT_W, GIFT_H } from './ChristmasSled';
@@ -59,7 +63,10 @@ type Mood = 'sad' | 'mad';
 type Mode = 'off' | 'peek' | 'bar' | 'held' | 'busy' | 'tab';
 // pitchMonth: the month he last said "Own a local business?" (once a month, 2026-11-17). tourDone: first-week tour stops already shown;
 // tourDay: the day the last one was (one stop a day)
-interface Saved { introduced: boolean; away: boolean; mood: Mood | null; spot: number; tipDay: string; tipKeys: string[]; lastAd?: string | null; pitchMonth?: string; tourDone?: number; tourDay?: string }
+// lastSeenAt: when this customer last used the app on this phone (ms), for "I missed you"; pitchDay/pitchN: the day he last asked about
+// promoting a business and how many times he has asked (2026-11-27)
+interface Saved { introduced: boolean; away: boolean; mood: Mood | null; spot: number; tipDay: string; tipKeys: string[]; lastAd?: string | null; pitchMonth?: string; tourDone?: number; tourDay?: string;
+  lastSeenAt?: number; pitchDay?: string; pitchN?: number }
 const FRESH: Saved = { introduced: false, away: false, mood: null, spot: 1, tipDay: '', tipKeys: [] };
 
 // What the phone remembers, per customer, read once per app run
@@ -81,7 +88,17 @@ function remember(patch: Partial<Saved>) {
 // Where he was this app run, so leaving a screen and coming back puts him back there
 // The balance he last saw and the points that landed since (cheered once he is on the bar), so he notices points that arrived while
 // a pop-up or another screen hid him
-const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false, balance: null as number | null, balanceFor: null as string | null, cheer: 0, promo: false };
+const run = { where: null as null | 'peek' | 'bar' | 'tab', peeks: 0, tips: 0, nextTipAt: 0, greeted: false, balance: null as number | null, balanceFor: null as string | null, cheer: 0, promo: false,
+  // "I missed you" (2026-11-27): the greeting due this time, how many days they were away, and when they last used the app before now
+  welcome: null as null | 'hello' | 'hug' | 'tears', awayDays: 0, prevSeenAt: null as number | null, welcomeChecked: false };
+type Welcome = { enabled: boolean; hello: number; hug: number; tears: number };
+/** Whole calendar days from a to b on the phone's clock */
+const daysBetween = (a: number, b: number) => {
+  const day = (v: number) => { const d = new Date(v); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  return Math.round((day(b) - day(a)) / 86_400_000);
+};
+/** A YYYY-MM-DD day as the phone's midnight */
+const dayMs = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1).getTime(); };
 const SLEEP_AFTER = 60_000, SLEEP_AFTER_NIGHT = 25_000;   // untouched this long on the bar, he dozes off
 const TURKEY_KEY = 'cuatro_turkey_day';   // the day the Thanksgiving chase last played on this phone (once a day per phone)
 // the holiday scenes on Home, once a day per phone each: the day each last played
@@ -290,7 +307,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     gasAlerts: !!flags?.gasAlerts, hotFood: app.features.hotFoodOrdering,
     lastAd: saved?.lastAd ?? null, promoDone: run.promo,
     birthdayOn: !!flags?.birthday, birthdaySet: useAuthStore.getState().user?.birthMonth != null,
-    notifOff: notif.isOff, pitchDue: saved?.pitchMonth !== dayKey().slice(0, 7),
+    notifOff: notif.isOff, pitchDue: !saved?.pitchDay || daysBetween(dayMs(saved.pitchDay), Date.now()) >= (flags?.mascot?.pitchEveryDays ?? 3),
+    pitchN: saved?.pitchN ?? 0, prevSeenAt: run.prevSeenAt,
     hqLines: flags?.mascot?.lines ?? [], today: isoDay(),
   });
   /** Today's first-week tour stop (none if one was already shown today, the tour is over, or he has not been introduced yet) */
@@ -465,6 +483,169 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     settle(my, 3500);
   };
 
+  // ------------------------------------------------------------ gestures (2026-11-27, the owner: "more gestures")
+  /** One of his gestures. Starts his face, gloves and arms at once (so a line's own face can follow it), then moves; resolves when the
+   *  move is over. With reduce motion he only takes the pose. Arms: 0 is straight out to the side, more is up, -62 hangs at rest. */
+  const gesture = async (g: Gesture, my: number): Promise<void> => {
+    const calm = dims.current.reduce;
+    switch (g) {
+      case 'jumpJoy': {
+        setFace('joy'); setGloves(['open', 'open']); if (!calm) setBits({ confetti: Date.now() });
+        play(arms(64, 64, 180));   // above about 70 his arms go behind his head
+        if (calm || !(await hop(my))) return;
+        // a spinning jump, landing where he took off
+        const { x: px, y: py } = pos.current;
+        const ok = await play(Animated.parallel([lift(-46, 560), to(spin, 360, 560)]));
+        spin.setValue(0);
+        if (!still(my)) return;
+        if (ok) place(px, py);
+        await land(my);
+        return;
+      }
+      case 'hug': {
+        // arms wide, he comes up close to the screen and squeezes (his hug is for the person holding the phone)
+        setFace('love'); setGloves(['open', 'open']); setBits({ hearts: true });
+        haptic.success();
+        await play(arms(28, 28, 260));
+        if (calm || !still(my)) return;
+        await play(Animated.parallel([to(sx, 1.22, 340, Easing.out(Easing.back(1.6))), to(sy, 1.22, 340, Easing.out(Easing.back(1.6)))]));
+        if (!still(my)) return;
+        haptic.press();
+        await play(Animated.parallel([arms(-24, -24, 240), to(sx, 1.3, 240), to(sy, 1.13, 240)]));
+        if (!still(my)) return;
+        loop(Animated.sequence([to(lean, -4, 280), to(lean, 4, 280)]), 3);
+        await pause(1700);
+        if (!still(my)) return;
+        await play(Animated.parallel([to(lean, 0, 200), spring(sx, 1, { friction: 6 }), spring(sy, 1, { friction: 6 }), arms(40, 40, 320)]));
+        return;
+      }
+      case 'joyTears': {
+        // so happy he cries: smiling with his eyes shut, tears flying, rocking with his arms up
+        setFace('joy'); setFx({ tears: 'cry' }); setGloves(['open', 'open']); setBits({ hearts: true });
+        haptic.success();
+        play(arms(60, 60, 320));
+        if (calm) return;
+        loop(Animated.sequence([Animated.parallel([to(lean, -6, 380), arms(66, 44, 380)]), Animated.parallel([to(lean, 6, 380), arms(44, 66, 380)])]), 3);
+        await pause(2350);
+        if (still(my)) play(to(lean, 0, 200));
+        return;
+      }
+      case 'clap': {
+        // jazz hands, flapping with excitement (arms over his head would be hidden behind it)
+        setFace('joy'); setGloves(['open', 'open']);
+        await play(arms(40, 40, 200));
+        if (calm || !still(my)) return;
+        loop(Animated.sequence([arms(60, 60, 110), arms(32, 32, 110)]), 6);
+        await pause(1300);
+        return;
+      }
+      case 'dance': {
+        setFace('cool'); setGloves(['fist', 'fist']);
+        if (calm) { play(arms(70, -30)); return; }
+        loop(Animated.sequence([
+          Animated.parallel([to(lean, -8, 220), arms(80, -30, 220), to(rig.legL, 22, 220), to(rig.legR, 0, 220)]),
+          Animated.parallel([to(lean, 8, 220), arms(-30, 80, 220), to(rig.legL, 0, 220), to(rig.legR, 22, 220)]),
+        ]), 4, () => play(Animated.parallel([to(lean, 0, 160), to(rig.legL, 0, 160), to(rig.legR, 0, 160)])));
+        await pause(1900);
+        return;
+      }
+      case 'pointTap': {
+        // pointing at it and tapping the air: "look here!"
+        setGloves(['point', 'fist']);
+        play(arms(30, -62));
+        if (calm) return;
+        loop(Animated.sequence([to(rig.armL, 42, 140), to(rig.armL, 26, 140)]), 3);
+        await hop(my);
+        return;
+      }
+      case 'thumbs': {
+        setFace('wink'); setGloves(['thumb', 'thumb']);
+        play(arms(46, 46));
+        if (!calm) await hop(my);
+        return;
+      }
+      case 'kiss': {
+        // a kiss blown off his glove, hearts floating up
+        setFace('love'); setGloves(['open', 'fist']); setBits({ hearts: true });
+        await play(arms(14, -62, 200));
+        if (calm || !still(my)) return;
+        await pause(200);
+        await play(to(rig.armL, 64, 240, Easing.out(Easing.quad)));
+        return;
+      }
+      case 'shrug': {
+        setGloves(['open', 'open']);
+        play(arms(8, 8, 220));
+        if (calm) return;
+        await play(Animated.sequence([to(sy, 0.93, 160), Animated.delay(550), spring(sy, 1, { friction: 6 })]));
+        return;
+      }
+      case 'bow': {
+        setFace('happy'); setGloves(['fist', 'fist']);
+        play(arms(-62, -62));
+        if (calm) return;
+        await play(Animated.parallel([to(sy, 0.84, 280), to(rig.gazeY, 5, 280)]));
+        await pause(500);
+        if (still(my)) await play(Animated.parallel([spring(sy, 1, { friction: 6 }), to(rig.gazeY, 0, 200)]));
+        return;
+      }
+      case 'shout': {
+        // calling it out: one arm up high, the other waving people over, leaning in
+        setFace('wow'); setGloves(['open', 'open']);
+        play(arms(64, 30, 220));
+        if (calm) return;
+        loop(Animated.sequence([to(rig.armR, 60, 200), to(rig.armR, 26, 200)]), 3);
+        play(Animated.sequence([to(lean, 6, 200), Animated.delay(1000), to(lean, 0, 200)]));
+        await pause(1300);
+        return;
+      }
+    }
+  };
+
+  // ------------------------------------------------------------ "I missed you" (2026-11-27)
+  const welcomeConf = useRef<Welcome | undefined>(undefined);
+  welcomeConf.current = flags?.mascot?.welcomeBack;
+  /** When the app is opened (or comes back to the front): how long since this customer last used it on this phone, and the greeting due. */
+  const checkWelcome = () => {
+    const prev = saved?.lastSeenAt ?? null, now = Date.now();
+    remember({ lastSeenAt: now });
+    if (prev && prev < now) run.prevSeenAt = prev;
+    const wb = welcomeConf.current;
+    if (!wb?.enabled || !prev || !saved?.introduced) return;
+    const days = daysBetween(prev, now);
+    if (days < wb.hello) return;
+    run.welcome = days >= wb.tears ? 'tears' : days >= wb.hug ? 'hug' : 'hello';
+    run.awayDays = days;
+  };
+  const firstName = () => (useAuthStore.getState().user?.name ?? '').trim().split(/\s+/)[0] || t('guide.friend');
+  const pickLine = (base: string, count: number) => t(`guide.${base}${1 + Math.floor(Math.random() * count)}`, { name: firstName(), days: run.awayDays });
+  /** The greeting itself, once: a jump for joy, a big hug, or happy tears and then a hug. Then what is new comes soon after. */
+  const welcomeBack = async () => {
+    const level = run.welcome;
+    if (!level) return;
+    run.welcome = null;
+    const my = fresh(); stopLoops(); closeBubble(); touched(); stirAwake();
+    sulking.current = false;
+    setMode('busy');
+    if (level === 'hello') { say(pickLine('wbHello', 3), 3800); await gesture('jumpJoy', my); }
+    else if (level === 'hug') { say(pickLine('wbHug', 4), 4400); await gesture('hug', my); }
+    else {
+      say(pickLine('wbTears', 3), 4400);
+      await gesture('joyTears', my);
+      if (!still(my)) return;
+      await pause(500);
+      if (!still(my)) return;
+      setFx({}); say(t('guide.wbTearsAfter'), 4000);
+      await gesture('hug', my);
+    }
+    if (!still(my)) return;
+    setMode('bar'); run.where = 'bar';
+    settle(my, 2600);
+    // what is new while they were away: the next tip comes soon, and this one does not count against the few a run
+    run.nextTipAt = Date.now() + 7000;
+    run.tips = Math.max(0, run.tips - 1);
+  };
+
   // ------------------------------------------------------------ where he goes
   const showTab = (mood: Mood | null) => {
     fresh(); stopAll(); closeBubble();
@@ -620,7 +801,11 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       run.nextTipAt = Math.max(run.nextTipAt, Date.now() + 30_000);
       // in costume: a holiday hello, once each time the app is opened
       const c = costumeRef.current;
-      if (c && !run.greeted) {
+      if (run.welcome) {
+        // back after days away: "I missed you" comes before any other hello
+        run.greeted = true;
+        later(500, () => { if (modeRef.current === 'bar') welcomeBack(); });
+      } else if (c && !run.greeted) {
         run.greeted = true;
         later(600, () => { if (modeRef.current === 'bar' && !bubbleRef.current) { setFace('joy'); say(t(`guide.greet_${c}`), 3400); later(3500, () => { if (modeRef.current === 'bar') setFace('happy'); }); } });
       } else if (!run.greeted) {
@@ -639,7 +824,10 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     if (!(await leap(my, spotX(), floorY(), 80))) return;
     setFace('happy'); setMode('bar'); run.where = 'bar';
     if (!saved?.introduced) later(700, () => { if (modeRef.current === 'bar' && !bubbleRef.current) say(t('guide.tapAgain'), 4000); });
-    else run.nextTipAt = Math.max(run.nextTipAt, Date.now() + 30_000);
+    else {
+      run.nextTipAt = Math.max(run.nextTipAt, Date.now() + 30_000);
+      if (run.welcome) later(700, () => { if (modeRef.current === 'bar') welcomeBack(); });
+    }
   };
 
   /** Out of the tab, sulking if he was thrown out, then back to normal. */
@@ -663,6 +851,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     setMode('bar'); run.where = 'bar';
     if (mood) {
       // still sulking: arms crossed, until a tap makes up (or he gets over it by himself after a while)
+      run.welcome = null;   // a short time away while he sulks: the sulk wins
       sulking.current = true;
       play(arms(-20, -20, 200));
       say(t(mood === 'mad' ? 'guide.backMad' : 'guide.backSad'), 2600);
@@ -671,6 +860,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
     } else if (!saved?.introduced) {
       setFace('happy');
       say(t('guide.tapAgain'), 4000);
+    } else if (run.welcome) {
+      later(300, () => { if (modeRef.current === 'bar') welcomeBack(); });
     } else {
       setFace('joy');
       say(t('guide.backHi'), 2800);
@@ -711,17 +902,25 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   const present = async (line: Line, tip: boolean) => {
     const my = fresh(); stopLoops();
     if (tip && !line.serious && !dims.current.reduce) { haptic.tap(); if (!(await hop(my))) return; }
-    if (line.key === 'pitch') remember({ pitchMonth: dayKey().slice(0, 7) });   // once a month
+    if (line.key === 'pitch') remember({ pitchDay: isoDay(), pitchN: (saved?.pitchN ?? 0) + 1 });   // every few days, the next line each time
     if (line.sign) {
-      // a business promotion: he holds its sign up on the side with room (counted as seen for the business), once per app opening
-      run.promo = true;
-      remember({ lastAd: line.sign.adId });
-      promoSeen(line.sign.adId, 'VIEW', 'cuatro');
+      // a business promotion: he holds its sign up on the side with room (counted as seen for the business), once per app opening;
+      // with no promotion on it, his own "Your business here" sign (2026-11-27)
+      if (line.sign.adId) {
+        run.promo = true;
+        remember({ lastAd: line.sign.adId });
+        promoSeen(line.sign.adId, 'VIEW', 'cuatro');
+      }
       const right = pos.current.x + SIZE / 2 < dims.current.w / 2;
       setSignSide(right ? 'right' : 'left');
       setFace(line.face); setGloves(right ? ['fist', 'open'] : ['open', 'fist']); play(right ? arms(-62, 18) : arms(18, -62));
     } else if (line.serious) { setFace(line.face); setFx({}); setBits({}); setGloves(['fist', 'fist']); rest(); }   // no fun pose
-    else { setFace(line.face); setGloves(['point', 'fist']); play(arms(30, -62)); }
+    else if (line.gesture) {
+      gesture(line.gesture, my);
+      setFace(line.face);
+      // hearts, confetti and tears last a moment, not the whole time the bubble is up
+      later(2800, () => { if (scene.current === my) { setBits({}); setFx({}); } });
+    } else { setFace(line.face); setGloves(['point', 'fist']); play(arms(30, -62)); }
     openBubble({ kind: 'line', line, tip });
     if (tip) later(10_000, () => { const b = bubbleRef.current; if (b?.kind === 'line' && b.tip && b.line.key === line.key) { closeBubble(); setFace('happy'); rest(); } });
   };
@@ -746,7 +945,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   };
   const follow = (line: Line) => {
     if (!line.cta) return;
-    if (line.sign) promoSeen(line.sign.adId, 'TAP', 'cuatro');
+    if (line.sign?.adId) promoSeen(line.sign.adId, 'TAP', 'cuatro');
     haptic.tap();
     closeBubble(); setFace('joy'); rest();
     router.navigate(line.cta.go as any);
@@ -1007,6 +1206,12 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
       Animated.loop(Animated.sequence([to(breath, 1.03, 1300), to(breath, 1, 1300)])).start();
       Animated.loop(Animated.sequence([to(rig.sprout, 7, 1500), to(rig.sprout, -5, 1500)])).start();
     }
+    if (!run.welcomeChecked) {
+      run.welcomeChecked = true;
+      checkWelcome();
+      // a week or more away: he forgets he was sulking in his tab and comes out to greet them
+      if (saved?.away && (run.welcome === 'hug' || run.welcome === 'tears')) remember({ away: false, mood: null });
+    }
     const s = saved;
     const start = () => {
       if (s?.away) showTab(s.mood);
@@ -1047,6 +1252,8 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
         if (r < 0.4) look();
         else if (r < 0.6) wave(Math.random() < 0.5 ? 'L' : 'R', 2);
         else if (r < 0.75 && !dims.current.reduce) hop(scene.current);
+        else if (r < 0.8 && !dims.current.reduce) { const my = scene.current; gesture('dance', my); settle(my, 2300); }
+        else if (r < 0.83 && !dims.current.reduce) { const my = scene.current; gesture('clap', my); settle(my, 1800); }
       }
       idle();
     });
@@ -1108,8 +1315,15 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
   // the screen changed size (the bar grew with bigger text, say): back onto the bar (mid-move, setMode('bar') seats him at the end)
   useEffect(() => { if (modeRef.current === 'bar') place(spotX(), floorY()); }, [w, h]);   // eslint-disable-line react-hooks/exhaustive-deps
   // back from the background: a move cut short there can leave him off the bar's edge
+  // also: going to the background marks when the app was last used, and coming back after days away brings "I missed you" (2026-11-27)
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (st) => { if (st === 'active' && modeRef.current === 'bar') seat(); });
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') {
+        if (modeRef.current === 'bar') seat();
+        checkWelcome();
+        if (run.welcome) later(900, () => { if (modeRef.current === 'bar' && !bubbleRef.current) welcomeBack(); });
+      } else remember({ lastSeenAt: Date.now() });
+    });
     return () => sub.remove();
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   // reduce motion switched on: no more breathing and swaying
@@ -1161,7 +1375,7 @@ function Guide({ name, w, h, menuOpen }: { name: string; w: number; h: number; m
 
       {bubble?.kind === 'line' && bubble.line.sign ? (
         <Animated.View pointerEvents="none" style={[s.sign, { transform: [{ translateX: Animated.add(x, signSide === 'right' ? SIZE * 0.78 : SIZE * 0.22 - SIGN_W) }, { translateY: Animated.add(y, hopY) }] }]}>
-          <PromoSign business={bubble.line.sign.business} adLabel={t('guide.signAd')} />
+          <PromoSign business={bubble.line.sign.business} adLabel={bubble.line.sign.tag ?? t('guide.signAd')} />
         </Animated.View>
       ) : null}
 

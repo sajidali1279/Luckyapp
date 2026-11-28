@@ -11,7 +11,7 @@ export default function PromoSign({ business, adLabel }: { business: string; adL
     <View style={s.wrap} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <View style={s.board}>
         <View style={s.tag}><Text style={s.tagText}>{adLabel}</Text></View>
-        <Text style={s.name} numberOfLines={2}>{business}</Text>
+        <Text style={s.name} numberOfLines={3}>{business}</Text>
       </View>
       <View style={s.stick} />
     </View>

@@ -9,9 +9,16 @@ import type { HqLine } from '../../hooks/useEngagement';
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
 export type Go = { pathname: string; params?: Record<string, string> };
-// sign: a business promotion he holds up on a sign (2026-11-08)
+// sign: a business promotion he holds up on a sign (2026-11-08); with no adId it is his own "Your business here" sign (2026-11-27)
 // serious: no hop or fun pose when he says it (a missing person, 2026-11-17)
-export interface Line { key: string; text: string; face: Face; cta?: { label: string; go: Go }; prio: number; sign?: { business: string; adId: string }; serious?: boolean }
+// gesture: what he does while he says it (2026-11-27, the owner: "more gestures"); none = he points at it as before
+export type Gesture = 'hug' | 'joyTears' | 'jumpJoy' | 'clap' | 'dance' | 'pointTap' | 'thumbs' | 'kiss' | 'shrug' | 'bow' | 'shout';
+export interface Line {
+  key: string; text: string; face: Face; cta?: { label: string; go: Go }; prio: number;
+  sign?: { business: string; adId?: string; tag?: string }; serious?: boolean; gesture?: Gesture;
+}
+/** How many different "promote your business" lines there are (tipPitch1..6) */
+export const PITCH_LINES = 6;
 export type Topic = 'offers' | 'challenges' | 'deals' | 'rewards' | 'earn' | 'surprise';
 export const TOPICS: Topic[] = ['offers', 'challenges', 'deals', 'rewards', 'earn', 'surprise'];
 
@@ -26,7 +33,10 @@ export interface Ctx {
   birthdayOn?: boolean;    // HQ's birthday treats switched on
   birthdaySet?: boolean;   // the customer gave their birthday
   notifOff?: boolean;      // notifications are off on this phone
-  pitchDue?: boolean;      // "Own a local business?" not said yet this month
+  pitchDue?: boolean;      // "Own a local business?" is due (every few days, HQ's number, 2026-11-27)
+  pitchN?: number;         // how many times he has asked: picks the next of his lines
+  prevSeenAt?: number | null;   // when the app was last used before this time (ms): offers that started since are "new"
+  now?: number;             // the time to judge "last day" by (tests)
   hqLines?: HqLine[];      // what HQ wrote for him to say (admin Engagement > Cuatro)
   tour?: TourStop | null;  // today's first-week tour stop, if any (tourStop below)
   today?: string;          // the phone's day, YYYY-MM-DD (HQ's lines are checked against their dates again here)
@@ -92,7 +102,7 @@ function cached<D>(qc: QueryClient, key: string): D | undefined {
   return found[0]?.state.data as D | undefined;
 }
 
-type Offer = { id: string; title: string; dealText?: string | null; requires21?: boolean; bonusRate?: number | null; tierBonusRates?: Record<string, number> | null; gasBonusCentsPerGallon?: number | null };
+type Offer = { id: string; title: string; dealText?: string | null; requires21?: boolean; bonusRate?: number | null; tierBonusRates?: Record<string, number> | null; gasBonusCentsPerGallon?: number | null; startDate?: string | null; endDate?: string | null };
 type Challenge = { id: string; kind: 'SPEND' | 'VISITS'; title: string; titleEs: string | null; target: number; progress: number; reward: number; done: boolean };
 
 // Never put on his sign: alcohol, tobacco and vape businesses (Google Play and the App Store forbid those ads). Promotions have no
@@ -139,6 +149,32 @@ function flash(c: Ctx): { id: string; title: string; titleEs: string | null } | 
 }
 const n = (v: number) => v.toLocaleString('en-US');
 
+/** Its last day is today, on the phone's calendar (stores and customers are on Central time) */
+function lastDay(o: Offer, now: number): boolean {
+  if (!o.endDate) return false;
+  const end = new Date(o.endDate), d = new Date(now);
+  return end.getTime() > now && end.getFullYear() === d.getFullYear() && end.getMonth() === d.getMonth() && end.getDate() === d.getDate();
+}
+/** Started since the customer last used the app */
+const isNew = (o: Offer, since: number | null | undefined) => !!since && !!o.startDate && new Date(o.startDate).getTime() > since;
+type Soon = { id: string; kind: string; title: string; titleEs: string | null; startsAt: string };
+/** The next coming-soon teaser (2026-11-22) for the store Home shows, if it has not started yet */
+function comingSoon(c: Ctx, now: number): Soon | null {
+  const list: Soon[] = cached<any>(c.qc, 'coming-soon') ?? [];
+  const ahead = (Array.isArray(list) ? list : []).filter((x) => x?.id && x.title && new Date(x.startsAt).getTime() > now)
+    .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  return ahead[0] ?? null;
+}
+/** "today", "tomorrow" or the weekday it starts, in the customer's language */
+function whenWords(c: Ctx, iso: string, now: number): string {
+  const at = new Date(iso), d = new Date(now);
+  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(at) - day(d)) / 86_400_000);
+  if (diff <= 0) return c.t('guide.whenToday');
+  if (diff === 1) return c.t('guide.whenTomorrow');
+  return at.toLocaleDateString(c.es ? 'es-US' : 'en-US', { weekday: 'long' });
+}
+
 function nearReward(c: Ctx) {
   const rs = rewards(c);
   const ready = rs.filter((r) => c.pts >= r.pointsCost).sort((a, b) => b.pointsCost - a.pointsCost)[0];
@@ -152,32 +188,41 @@ export function tips(c: Ctx): Line[] {
   const { t } = c;
   const out: Line[] = [];
   const f = flash(c);
-  if (f) out.push({ key: `flash:${f.id}`, prio: 9, face: 'wow', text: t('guide.tipFlash', { title: (c.es && f.titleEs) || f.title }), cta: { label: t('guide.ctaDeals'), go: HOME_OFFERS } });
+  if (f) out.push({ key: `flash:${f.id}`, prio: 9, face: 'wow', gesture: 'shout', text: t('guide.tipFlash', { title: (c.es && f.titleEs) || f.title }), cta: { label: t('guide.ctaDeals'), go: HOME_OFFERS } });
   const { ready, next } = nearReward(c);
-  if (ready) out.push({ key: `ready:${ready.id}`, prio: 8, face: 'love', text: t('guide.tipReady', { reward: ready.title }), cta: { label: t('guide.ctaRewards'), go: go('/(customer)/rewards') } });
+  if (ready) out.push({ key: `ready:${ready.id}`, prio: 8, face: 'love', gesture: 'clap', text: t('guide.tipReady', { reward: ready.title }), cta: { label: t('guide.ctaRewards'), go: go('/(customer)/rewards') } });
   else if (next && next.pointsCost - c.pts <= Math.max(150, next.pointsCost * 0.25)) {
     out.push({ key: `near:${next.id}`, prio: 6, face: 'wow', text: t('guide.tipNear', { need: n(next.pointsCost - c.pts), reward: next.title }), cta: { label: t('guide.ctaRewards'), go: go('/(customer)/rewards') } });
   }
   const g = cached<any>(c.qc, 'prize-game');
-  if (g?.enabled && g.open && !g.played) out.push({ key: 'game', prio: 7, face: 'joy', text: t('guide.tipGame'), cta: { label: t('guide.ctaPlay'), go: go('/(customer)/games') } });
+  if (g?.enabled && g.open && !g.played) out.push({ key: 'game', prio: 7, face: 'joy', gesture: 'jumpJoy', text: t('guide.tipGame'), cta: { label: t('guide.ctaPlay'), go: go('/(customer)/games') } });
   const e = cached<any>(c.qc, 'engagement');
-  if (e?.checkIn?.available) out.push({ key: 'checkin', prio: 7, face: 'joy', text: t('guide.tipCheckIn'), cta: { label: t('guide.ctaCheckIn'), go: go('/(customer)/home') } });
+  if (e?.checkIn?.available) out.push({ key: 'checkin', prio: 7, face: 'joy', gesture: 'dance', text: t('guide.tipCheckIn'), cta: { label: t('guide.ctaCheckIn'), go: go('/(customer)/home') } });
   if (e?.streak?.atRisk) out.push({ key: 'streak', prio: 7, face: 'wow', text: t('guide.tipStreak', { weeks: e.streak.weeks }), cta: { label: t('guide.ctaStreak'), go: go('/(customer)/progress') } });
   const open = challenges(c).filter((x) => !x.done);
   const doing = open.filter((x) => x.progress > 0).sort((a, b) => b.progress / b.target - a.progress / a.target)[0];
-  if (doing) out.push({ key: `ch:${doing.id}`, prio: 6, face: 'joy', text: t('guide.tipChallenge', { title: chTitle(doing, c), progress: progress(doing, c), pts: chPts(doing) }), cta: { label: t('guide.ctaChallenges'), go: HOME_CHALLENGES } });
+  if (doing) out.push({ key: `ch:${doing.id}`, prio: 6, face: 'joy', gesture: 'thumbs', text: t('guide.tipChallenge', { title: chTitle(doing, c), progress: progress(doing, c), pts: chPts(doing) }), cta: { label: t('guide.ctaChallenges'), go: HOME_CHALLENGES } });
   else if (open[0]) out.push({ key: `chnew:${open[0].id}`, prio: 5, face: 'wow', text: t('guide.tipChallengeNew', { title: chTitle(open[0], c), pts: chPts(open[0]) }), cta: { label: t('guide.ctaChallenges'), go: HOME_CHALLENGES } });
+  // Offers (2026-11-27, the owner: "more about offers"): every live one in turn (each once a day), the last day and the new ones first
   const all = offers(c);
-  const promo = all.find(isPromo);
-  if (promo) {
+  const now = c.now ?? Date.now();
+  for (const promo of all.filter(isPromo).slice(0, 8)) {
     const b = bonus(promo, c);
-    out.push({ key: `offer:${promo.id}`, prio: 5, face: 'wow', text: b ? t('guide.tipOffer', { title: promo.title, bonus: b }) : t('guide.tipOfferPlain', { title: promo.title }), cta: { label: t('guide.ctaOffers'), go: HOME_OFFERS } });
+    const what = b ? `${promo.title} (${b})` : promo.title;
+    if (lastDay(promo, now)) out.push({ key: `offer:${promo.id}`, prio: 8, face: 'wow', gesture: 'shout', text: t('guide.tipOfferLastDay', { title: what }), cta: { label: t('guide.ctaOffers'), go: HOME_OFFERS } });
+    else if (isNew(promo, c.prevSeenAt)) out.push({ key: `offer:${promo.id}`, prio: 7, face: 'joy', gesture: 'jumpJoy', text: t('guide.tipOfferNew', { title: what }), cta: { label: t('guide.ctaOffers'), go: HOME_OFFERS } });
+    else out.push({ key: `offer:${promo.id}`, prio: 5, face: 'wow', gesture: 'pointTap', text: b ? t('guide.tipOffer', { title: promo.title, bonus: b }) : t('guide.tipOfferPlain', { title: promo.title }), cta: { label: t('guide.ctaOffers'), go: HOME_OFFERS } });
   }
-  const deal = all.find((o) => o.dealText);
-  if (deal) out.push({ key: `deal:${deal.id}`, prio: 5, face: 'cool', text: t('guide.tipDeal', { title: deal.title, deal: deal.dealText }), cta: { label: t('guide.ctaDeals'), go: HOME_OFFERS } });
+  for (const deal of all.filter((o) => o.dealText).slice(0, 6)) {
+    if (lastDay(deal, now)) out.push({ key: `deal:${deal.id}`, prio: 7, face: 'wow', gesture: 'shout', text: t('guide.tipDealLastDay', { title: deal.title, deal: deal.dealText }), cta: { label: t('guide.ctaDeals'), go: HOME_OFFERS } });
+    else if (isNew(deal, c.prevSeenAt)) out.push({ key: `deal:${deal.id}`, prio: 6, face: 'joy', gesture: 'clap', text: t('guide.tipDealNew', { title: deal.title, deal: deal.dealText }), cta: { label: t('guide.ctaDeals'), go: HOME_OFFERS } });
+    else out.push({ key: `deal:${deal.id}`, prio: 5, face: 'cool', gesture: 'thumbs', text: t('guide.tipDeal', { title: deal.title, deal: deal.dealText }), cta: { label: t('guide.ctaDeals'), go: HOME_OFFERS } });
+  }
+  const soon = comingSoon(c, now);
+  if (soon) out.push({ key: `soon:${soon.id}`, prio: 6, face: 'wink', gesture: 'dance', text: t('guide.tipComingSoon', { title: (c.es && soon.titleEs) || soon.title, when: whenWords(c, soon.startsAt, now) }), cta: { label: t('guide.ctaSeeIt'), go: HOME_OFFERS } });
   const hf = cached<any>(c.qc, 'hot-food-customer-menu')?.data;
   if (c.hotFood && hf && hf.hours?.open !== false && ((hf.data ?? []).length > 0 || (hf.combos ?? []).length > 0)) {
-    out.push({ key: 'hotfood', prio: 4, face: 'love', text: t('guide.tipHotFood'), cta: { label: t('guide.ctaOrder'), go: go('/(customer)/hot-food') } });
+    out.push({ key: 'hotfood', prio: 4, face: 'love', gesture: 'kiss', text: t('guide.tipHotFood'), cta: { label: t('guide.ctaOrder'), go: go('/(customer)/hot-food') } });
   }
   // a business promotion on his sign (2026-11-08): one per app opening, featured ones first, not the one he showed last time. (It read
   // ad.title, which promotions do not have, so it never showed before.)
@@ -238,7 +283,16 @@ export function tips(c: Ctx): Line[] {
       text: t(poster.urgent ? 'guide.tipMissingUrgent' : 'guide.tipMissing', { name: poster.name }),
       cta: { label: t('guide.ctaMissing'), go: { pathname: '/(customer)/missing/[id]', params: { id: poster.id } } } });
   }
-  if (c.pitchDue) out.push({ key: 'pitch', prio: 1, face: 'wink', text: t('guide.tipPitch'), cta: { label: t('guide.ctaPitch'), go: go('/(customer)/ads') } });
+  if (c.pitchDue) {
+    // the owner (2026-11-27): "more focus on letting people know to promote their businesses": every few days (HQ's number), up with
+    // the offers, his own "Your business here" sign or a shout, a different line each time; right after a promotion on his sign, "yours too?"
+    const v = (c.pitchN ?? 0) % PITCH_LINES;
+    const promote: Go = { pathname: '/(customer)/ads', params: { promote: String(now) } };
+    const signed = c.promoDone || v % 2 === 0;
+    out.push({ key: 'pitch', prio: 5, face: c.promoDone ? 'wink' : v % 2 ? 'wow' : 'joy', ...(signed ? {} : { gesture: 'shout' as Gesture }),
+      text: c.promoDone ? t('guide.tipPitchAfterAd') : t(`guide.tipPitch${v + 1}`), cta: { label: t('guide.ctaPitch'), go: promote },
+      ...(signed ? { sign: { business: t('guide.signYours'), tag: t('guide.signYoursTag') } } : {}) });
+  }
 
   // the everyday ones
   out.push({ key: 'qr', prio: 2, face: 'happy', text: t('guide.tipQr'), cta: { label: t('guide.ctaCode'), go: go('/(customer)/home') } });
@@ -263,9 +317,9 @@ export function answer(topic: Topic, c: Ctx): Line {
   }
   if (topic === 'offers') {
     const ps = offers(c).filter(isPromo);
-    if (!ps.length) return { key: 'a:offers', prio: 0, face: 'sad', text: t('guide.offersNone') };
+    if (!ps.length) return { key: 'a:offers', prio: 0, face: 'sad', gesture: 'shrug', text: t('guide.offersNone') };
     const b = bonus(ps[0], c);
-    return { key: 'a:offers', prio: 0, face: 'wow', text: t('guide.offersSome', { count: ps.length, title: b ? `${ps[0].title} (${b})` : ps[0].title }), cta: { label: t('guide.ctaOffers'), go: HOME_OFFERS } };
+    return { key: 'a:offers', prio: 0, face: 'wow', gesture: 'pointTap', text: t('guide.offersSome', { count: ps.length, title: b ? `${ps[0].title} (${b})` : ps[0].title }), cta: { label: t('guide.ctaOffers'), go: HOME_OFFERS } };
   }
   if (topic === 'challenges') {
     const all = challenges(c);
@@ -288,7 +342,7 @@ export function answer(topic: Topic, c: Ctx): Line {
     if (c.hotFood && hf && hf.hours?.open !== false && (hf.combos ?? []).length > 0) {
       return { key: 'a:deals', prio: 0, face: 'love', text: t('guide.dealsCombos'), cta: { label: t('guide.ctaOrder'), go: go('/(customer)/hot-food') } };
     }
-    return { key: 'a:deals', prio: 0, face: 'wink', text: t('guide.dealsNone'), cta: { label: t('guide.ctaAds'), go: go('/(customer)/ads') } };
+    return { key: 'a:deals', prio: 0, face: 'wink', gesture: 'shrug', text: t('guide.dealsNone'), cta: { label: t('guide.ctaAds'), go: go('/(customer)/ads') } };
   }
   if (topic === 'rewards') {
     const { ready, next } = nearReward(c);
