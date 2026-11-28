@@ -41,7 +41,8 @@ export interface Config {
   weeklyChallenge: { enabled: boolean; schedule: { weekOf: string; challengeId: string }[] };
   flashDeals: { enabled: boolean; maxPerWeek: number };
   tierUp: { enabled: boolean };
-  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide?: boolean; lines?: CuatroLine[] };
+  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide?: boolean; lines?: CuatroLine[];
+    welcomeBack?: { enabled: boolean; hello: number; hug: number; tears: number }; pitchEveryDays?: number };
   games: { enabled: boolean; game: GameKind; prizes: { pts: number; weight: number }[]; monthlyBudgetPts: number; since: string | null; endsOn: string | null };
   friendsBoard: { enabled: boolean; metric: 'VISITS' | 'POINTS'; period: 'WEEK' | 'MONTH'; minMembers: number; maxRows: number };
   birthday: { enabled: boolean; bonusPts: number; needBoughtDays: number; monthlyBudgetPts: number; gift: PushText; greeting: PushText };

@@ -1,18 +1,20 @@
 // Cuatro, the mascot (HQ, 2026-11-27): his own page, moved out of Engagement at the owner's request so he is easy to find and has room
 // to grow. Tabs: how he shows up in the app, what he says (HQ's own lines), and the app's seasonal look. A new tab is one entry in TABS.
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Page, PageHeader, Card, Badge, Tabs } from '../components/kit';
+import { Page, PageHeader, Card, Badge, Tabs, Button, Field, Notice } from '../components/kit';
 import ErrorState from '../components/ErrorState';
 import CardSkeleton from '../components/CardSkeleton';
 import AppThemeSettings from '../components/AppThemeSettings';
-import { C, FONT, TEXT_MUTED } from '../lib/theme';
-import { useEngagementHq, MascotEditor, LinesEditor, Switch } from './Engagement';
+import { C, FONT, INPUT, TEXT_MUTED } from '../lib/theme';
+import { useEngagementHq, MascotEditor, LinesEditor, Switch, type Config } from './Engagement';
 import cuatroWave from '../assets/cuatro-wave.png';
 
-type Tab = 'shows' | 'says' | 'look';
+type Tab = 'shows' | 'says' | 'moments' | 'look';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'shows', label: 'How he shows up' },
   { value: 'says', label: 'What he says' },
+  { value: 'moments', label: 'Moments' },
   { value: 'look', label: 'App look' },
 ];
 
@@ -69,8 +71,87 @@ export default function Cuatro() {
             </div>
           </Card>
         )}
+        {tab === 'moments' && (
+          <Card padding={18}>
+            <MomentsEditor value={m} who={who} onSave={(v) => save.mutate({ mascot: v })} busy={save.isPending} />
+          </Card>
+        )}
         {tab === 'look' && <AppThemeSettings />}
       </div>
     </Page>
+  );
+}
+
+const WB_DEFAULT = { enabled: true, hello: 3, hug: 7, tears: 21 };
+const DAYS_MAX = 120, PITCH_MAX = 60;
+const digits = (v: string) => v.replace(/\D/g, '').slice(0, 3);
+
+/** Moments (2026-11-27, the owner): his "I missed you" when a customer comes back after days away, and how often he asks local business
+ *  owners to promote their business in the app. The server keeps the days in order and in range too. */
+function MomentsEditor({ value, who, onSave, busy }: { value: Config['mascot']; who: string; onSave: (v: Partial<Config['mascot']>) => void; busy: boolean }) {
+  const saved = value.welcomeBack ?? WB_DEFAULT;
+  const savedPitch = value.pitchEveryDays ?? 3;
+  const [on, setOn] = useState(saved.enabled);
+  const [hello, setHello] = useState(String(saved.hello));
+  const [hug, setHug] = useState(String(saved.hug));
+  const [tears, setTears] = useState(String(saved.tears));
+  const [pitch, setPitch] = useState(String(savedPitch));
+  useEffect(() => { setOn(saved.enabled); setHello(String(saved.hello)); setHug(String(saved.hug)); setTears(String(saved.tears)); setPitch(String(savedPitch)); },
+    [saved.enabled, saved.hello, saved.hug, saved.tears, savedPitch]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const h = Number(hello), g = Number(hug), t = Number(tears), p = Number(pitch);
+  const inRange = (n: number, max: number) => Number.isInteger(n) && n >= 1 && n <= max;
+  const problem = !inRange(h, DAYS_MAX) || !inRange(g, DAYS_MAX) || !inRange(t, DAYS_MAX) ? `Each number of days must be from 1 to ${DAYS_MAX}.`
+    : !(h < g && g < t) ? 'Each step must start later than the one before it (for example 3, 7 and 21 days).'
+    : !inRange(p, PITCH_MAX) ? `The business ask can be every 1 to ${PITCH_MAX} days.` : null;
+  const changed = on !== saved.enabled || h !== saved.hello || g !== saved.hug || t !== saved.tears || p !== savedPitch;
+  const box = { ...INPUT, width: 90 };
+  const step = (title: string, words: string) => (
+    <div style={{ fontSize: FONT.small, color: TEXT_MUTED }}><strong style={{ color: C.text }}>{title}</strong> {words}</div>
+  );
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <div>
+        <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text }}>"I missed you"</div>
+        <p style={{ margin: '4px 0 10px', fontSize: FONT.small, color: TEXT_MUTED }}>
+          When a customer opens the app after some days away, {who} greets them with real feeling, then shows what is new (offers, points
+          waiting). Counted from the last time they opened the app on that phone. Costs nothing.
+        </p>
+        <label htmlFor="wb-on" style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', color: C.text, fontWeight: 600 }}>
+          <input id="wb-on" type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />
+          Greet customers who come back
+        </label>
+      </div>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', opacity: on ? 1 : 0.6 }}>
+        <Field label="A short hello after" htmlFor="wb-hello" hint="days away">
+          <input id="wb-hello" style={box} inputMode="numeric" value={hello} disabled={!on} onChange={(e) => setHello(digits(e.target.value))} />
+        </Field>
+        <Field label="A big hug after" htmlFor="wb-hug" hint="days away">
+          <input id="wb-hug" style={box} inputMode="numeric" value={hug} disabled={!on} onChange={(e) => setHug(digits(e.target.value))} />
+        </Field>
+        <Field label="Happy tears after" htmlFor="wb-tears" hint="days away">
+          <input id="wb-tears" style={box} inputMode="numeric" value={tears} disabled={!on} onChange={(e) => setTears(digits(e.target.value))} />
+        </Field>
+      </div>
+      <div style={{ display: 'grid', gap: 4 }}>
+        {step('Short hello:', 'he jumps for joy: "Hey, you\'re back!"')}
+        {step('Big hug:', 'he runs in, hugs, heart eyes and hearts: "I missed you!"')}
+        {step('Happy tears:', 'tears of joy and a long hug: "I missed you SO much! Don\'t stay away that long again!"')}
+      </div>
+
+      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
+        <div style={{ fontSize: FONT.section, fontWeight: 700, color: C.text }}>Promote your business</div>
+        <p style={{ margin: '4px 0 10px', fontSize: FONT.small, color: TEXT_MUTED }}>
+          How often {who} tells customers who own a local business that they can promote it in the app, holding a "Your business here" sign
+          or calling it out. His button opens Local businesses, where they ask to be featured.
+        </p>
+        <Field label="Ask once every" htmlFor="wb-pitch" hint="days (per customer)">
+          <input id="wb-pitch" style={box} inputMode="numeric" value={pitch} onChange={(e) => setPitch(digits(e.target.value))} />
+        </Field>
+      </div>
+
+      {problem && <Notice tone="warning">{problem}</Notice>}
+      <div><Button variant="primary" disabled={!changed || !!problem || busy} onClick={() => onSave({ welcomeBack: { enabled: on, hello: h, hug: g, tears: t }, pitchEveryDays: p })}>Save</Button></div>
+      <p style={{ margin: 0, fontSize: FONT.small, color: TEXT_MUTED }}>Customers see it once they have the app version with these moments (the next app update).</p>
+    </div>
   );
 }

@@ -13,6 +13,7 @@ export const ENGAGEMENT_LIMITS = {
   welcomeDay: { min: 1, max: 30 }, welcomeTitle: 60, welcomeBody: 200,
   weeklySlots: 12, flashPerWeek: { min: 1, max: 14 }, friendsMinMembers: { min: 3, max: 20 }, friendsMaxRows: { min: 5, max: 50 },
   birthdayPts: { min: 0, max: 500 }, birthdayBoughtDays: { min: 0, max: 365 }, birthdayBudget: { min: 0, max: 200000 }, pushTitle: 60, pushBody: 200, mascotName: 20, mascotLines: 20, mascotLineText: 160,
+  welcomeBackDays: { min: 1, max: 120 }, pitchEveryDays: { min: 1, max: 60 },
   gamePrizes: { min: 2, max: 8 }, gamePts: { min: 0, max: 500 }, gameWeight: { min: 1, max: 10000 }, gameBudget: { min: 0, max: 200000 },
 } as const;
 
@@ -65,7 +66,10 @@ export interface EngagementConfig {
   // Cuatro, the mascot (2026-10-25): a "Cuatro says" tip card on Home, Cuatro in the empty screens, and (pushVoice) the mascot's name in
   // front of the automated pushes ("Cuatro: 🎁 So close!", utils/mascot.ts). name: what the app calls it, so a new name needs no build.
   // guide (2026-10-27): the animated Cuatro on the customer's main screens, who introduces himself, gives tips and can be thrown away.
-  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide: boolean; lines: MascotLine[] };
+  // Moments (2026-11-27, the owner): welcomeBack = his "I missed you" when a customer opens the app after days away (hello, a hug, happy
+  // tears: the days each starts at, in order); pitchEveryDays = how often he asks local business owners to promote their business
+  mascot: { enabled: boolean; name: string; homeCard: boolean; emptyStates: boolean; pushVoice: boolean; guide: boolean; lines: MascotLine[];
+    welcomeBack: { enabled: boolean; hello: number; hug: number; tears: number }; pitchEveryDays: number };
   // Prize game (2026-10-25): spin the wheel, a scratch card or a lucky number (utils/engagementGames.ts). One free play per customer per
   // store day, no purchase needed, the same odds for everyone; prizes are points inside a hard monthly budget, and the game closes for the
   // month once what is left could not pay the top prize. since: set by the server when HQ switches it on; endsOn: an optional last day.
@@ -109,7 +113,8 @@ export const DEFAULT_ENGAGEMENT: EngagementConfig = {
   flashDeals: { enabled: false, maxPerWeek: 3 },
   friendsBoard: { enabled: false, metric: 'VISITS', period: 'WEEK', minMembers: 3, maxRows: 15 },
   tierUp: { enabled: false },
-  mascot: { enabled: false, name: 'Cuatro', homeCard: true, emptyStates: true, pushVoice: false, guide: true, lines: [] },
+  mascot: { enabled: false, name: 'Cuatro', homeCard: true, emptyStates: true, pushVoice: false, guide: true, lines: [],
+    welcomeBack: { enabled: true, hello: 3, hug: 7, tears: 21 }, pitchEveryDays: 3 },
   games: { enabled: false, game: 'SPIN', prizes: [{ pts: 0, weight: 400 }, { pts: 2, weight: 300 }, { pts: 5, weight: 180 }, { pts: 10, weight: 90 }, { pts: 25, weight: 25 }, { pts: 100, weight: 5 }], monthlyBudgetPts: 20000, since: null, endsOn: null },
   birthday: {
     enabled: false, bonusPts: 25, needBoughtDays: 180, monthlyBudgetPts: 5000,
@@ -138,6 +143,15 @@ const num = (v: unknown, r: { min: number; max: number }, def: number) => {
   const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v * 100) / 100 : NaN;
   return Number.isNaN(n) ? def : Math.min(r.max, Math.max(r.min, n));
 };
+/** The welcome-back days, each a whole number in range and each later than the one before (hello < hug < tears) */
+function cleanWelcomeBack(v: unknown, d: EngagementConfig['mascot']['welcomeBack']): EngagementConfig['mascot']['welcomeBack'] {
+  const w: any = isObj(v) ? v : {};
+  const R = ENGAGEMENT_LIMITS.welcomeBackDays;
+  const hello = Math.min(int(w.hello, R, d.hello), R.max - 2);
+  const hug = Math.min(Math.max(int(w.hug, R, d.hug), hello + 1), R.max - 1);
+  const tears = Math.max(int(w.tears, R, d.tears), hug + 1);
+  return { enabled: bool(w.enabled, d.enabled), hello, hug, tears };
+}
 /** A line of text: trimmed, spaces squeezed, cut to `max` characters (whole emoji, never half of one); empty keeps the default. */
 const text = (v: unknown, max: number, def: string) => {
   const t = typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '';
@@ -273,7 +287,8 @@ export function cleanEngagement(stored: unknown): EngagementConfig {
       const m = isObj(s.mascot) ? s.mascot : {};
       return { enabled: bool(m.enabled, false), name: text(m.name, L.mascotName, d.mascot.name), homeCard: bool(m.homeCard, d.mascot.homeCard),
         emptyStates: bool(m.emptyStates, d.mascot.emptyStates), pushVoice: bool(m.pushVoice, d.mascot.pushVoice), guide: bool(m.guide, d.mascot.guide),
-        lines: cleanLines(m.lines) };
+        lines: cleanLines(m.lines), welcomeBack: cleanWelcomeBack(m.welcomeBack, d.mascot.welcomeBack),
+        pitchEveryDays: int(m.pitchEveryDays, L.pitchEveryDays, d.mascot.pitchEveryDays) };
     })(),
     games: (() => {
       const g = isObj(s.games) ? s.games : {};
@@ -322,7 +337,8 @@ export function publicEngagement(c: EngagementConfig, today?: string) {
     weeklyChallenge: c.weeklyChallenge.enabled,
     flashDeals: c.flashDeals.enabled,
     friendsBoard: { enabled: c.friendsBoard.enabled, metric: c.friendsBoard.metric, period: c.friendsBoard.period },
-    mascot: { home: c.mascot.enabled && c.mascot.homeCard, empty: c.mascot.enabled && c.mascot.emptyStates, name: c.mascot.name, guide: c.mascot.enabled && c.mascot.guide, lines },
+    mascot: { home: c.mascot.enabled && c.mascot.homeCard, empty: c.mascot.enabled && c.mascot.emptyStates, name: c.mascot.name, guide: c.mascot.enabled && c.mascot.guide, lines,
+      welcomeBack: c.mascot.welcomeBack, pitchEveryDays: c.mascot.pitchEveryDays },
     games: c.games.enabled,   // the app asks GET /engagement/games for the rest (the odds, and whether this customer has played today)
   };
 }
