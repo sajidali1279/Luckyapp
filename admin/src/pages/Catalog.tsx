@@ -53,6 +53,16 @@ const CATEGORY_OPTIONS = [
 
 const KNOWN_CHAINS = ['Lucky Stop'];
 
+// The points ranges the filter offers (100 pts = $1)
+const POINT_BANDS = [
+  { key: 'u300', label: 'Under 300 pts ($3)', min: 0, max: 299 },
+  { key: '300', label: '300 to 699 pts', min: 300, max: 699 },
+  { key: '700', label: '700 to 1,499 pts', min: 700, max: 1499 },
+  { key: '1500', label: '1,500 to 2,999 pts', min: 1500, max: 2999 },
+  { key: '3000', label: '3,000 pts and up', min: 3000, max: Number.MAX_SAFE_INTEGER },
+];
+type SortKey = 'low' | 'high' | 'popular' | 'name' | 'newest';
+
 function CatalogModal({
   item,
   isDevAdmin,
@@ -261,7 +271,7 @@ function CatalogModal({
               value={shownPts} onChange={e => { setPointsCost(e.target.value); if (linkedPts != null) setFollowPrice(false); }}
               placeholder="e.g. 400" type="number" min={1} />
           </Field>
-          <Field label="Sort order" htmlFor="reward-sort" hint="Lower numbers show first">
+          <Field label="Sort order" htmlFor="reward-sort" hint="Customers always see rewards from the fewest points to the most; this number only orders rewards with the same points (lower first)">
             <input id="reward-sort" className="ui-input" style={INPUT} value={sortOrder} onChange={e => setSortOrder(e.target.value)} type="number" min={0} placeholder="0" />
           </Field>
         </div>
@@ -294,12 +304,14 @@ function ChainSection({
   onEdit,
   onDelete,
   deletingId,
+  emptyText = 'No items in this company yet',
 }: {
   chain: string;
   items: CatalogItem[];
   onEdit: (item: CatalogItem) => void;
   onDelete: (item: CatalogItem) => void;
   deletingId: string | null;
+  emptyText?: string;
 }) {
   const meta = CHAIN_META[chain] || { icon: '🏪', color: '#374151' };
   // what each reward costs the store, from the PDI item lists (2026-11-11; nothing shows while the lists are not uploaded)
@@ -314,14 +326,16 @@ function ChainSection({
         </div>
       </div>
       {items.length === 0 ? (
-        <div style={cs.emptyChain}>No items in this company yet</div>
+        <div style={cs.emptyChain}>{emptyText}</div>
       ) : (
         <div style={cs.tableWrap}>
           <Table style={cs.table}>
             <TableHeader>
               <TableRow>
-                {['Title', 'Where', 'Category', 'Description', 'Points cost', 'Redeemed', 'Status', 'Actions'].map(h => (
-                  <TableHead key={h} style={cs.th}>{h}</TableHead>
+                {/* 2026-11-27: Status went into the title cell ("Inactive" tag) and Description shows only on a wide screen, so Points and
+                    Redeemed no longer slide under the pinned Actions on a laptop */}
+                {['Title', 'Where', 'Category', 'Description', 'Points cost', 'Redeemed', 'Actions'].map(h => (
+                  <TableHead key={h} style={cs.th} className={h === 'Description' ? 'ui-wide-only' : undefined}>{h}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -334,7 +348,7 @@ function ChainSection({
                     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                       <span style={{ fontSize: 22, lineHeight: 1 }} aria-hidden="true">{item.emoji}</span>
                       <div>
-                        <span style={cs.itemTitle}>{item.title}</span>
+                        <span style={cs.itemTitle}>{item.title}{!item.isActive && <span style={{ ...cs.statusBadge, ...cs.statusInactive, marginLeft: 8, fontSize: 12, padding: '2px 8px', whiteSpace: 'nowrap' }}>Inactive</span>}</span>
                         {item.label && <span style={{ display: 'block', fontSize: 12, color: TEXT_MUTED }}>Linked: {item.label.productName}{item.label.priceText ? ` · $${item.label.priceText}` : ''}</span>}
                       </div>
                     </div>
@@ -347,7 +361,7 @@ function ChainSection({
                       {CATEGORY_OPTIONS.find((c) => c.value === item.category)?.label || item.category}
                     </span>
                   </TableCell>
-                  <TableCell style={{ ...cs.td, whiteSpace: 'normal' }}><span style={cs.itemDesc}>{item.description}</span></TableCell>
+                  <TableCell className="ui-wide-only" style={{ ...cs.td, whiteSpace: 'normal' }}><span style={cs.itemDesc}>{item.description}</span></TableCell>
                   <TableCell style={cs.td}>
                     <span style={cs.ptsBadge}>{item.pointsCost.toLocaleString()} pts</span>
                     <span style={{ display: 'block', fontSize: 12, color: TEXT_MUTED, marginTop: 4 }}>${(item.pointsCost / 100).toFixed(2)} value</span>
@@ -361,11 +375,6 @@ function ChainSection({
                   <TableCell style={cs.td}>
                     <span style={{ fontWeight: 600, color: '#111827' }}>{(item.redeemedTotal ?? 0).toLocaleString()}</span>
                     <span style={{ display: 'block', fontSize: 12, color: TEXT_MUTED }}>{(item.redeemed30d ?? 0).toLocaleString()} in 30 days</span>
-                  </TableCell>
-                  <TableCell style={cs.td}>
-                    <span style={{ ...cs.statusBadge, ...(item.isActive ? cs.statusActive : cs.statusInactive) }}>
-                      {item.isActive ? 'Active' : 'Inactive'}
-                    </span>
                   </TableCell>
                   <TableCell style={cs.td}>
                     {item.canManage === false ? (
@@ -417,11 +426,51 @@ export default function CatalogPage() {
   const { data: labelsData } = useQuery({ queryKey: ['labels'], queryFn: () => labelsApi.getAll(), staleTime: 60_000 });
   const catalog: RewardMatchItem[] = useMemo(() => (labelsData?.data?.data || []).map((l: any) => ({ id: l.id, productName: l.productName, priceText: l.priceText, category: l.category })), [labelsData]);
 
+  // Filters (2026-11-27, the owner): words, category, on or off, which stores, points, and the order (fewest points first by default,
+  // the order customers see)
+  const [q, setQ] = useState('');
+  const [cat, setCat] = useState('');
+  const [status, setStatus] = useState<'' | 'on' | 'off'>('');
+  const [where, setWhere] = useState('');            // '' any, 'ALL' every store, or a store id
+  const [band, setBand] = useState('');              // a points range key from POINT_BANDS
+  const [link, setLink] = useState<'' | 'linked' | 'own' | 'none'>('');
+  const [sort, setSort] = useState<SortKey>('low');
+  const filtering = !!(q.trim() || cat || status || where || band || link);
+  const clearFilters = () => { setQ(''); setCat(''); setStatus(''); setWhere(''); setBand(''); setLink(''); };
+  const shown = useMemo(() => {
+    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+    const range = POINT_BANDS.find((b) => b.key === band);
+    const list = items.filter((i) => {
+      if (words.length && !words.every((w) => `${i.title} ${i.description ?? ''} ${i.label?.productName ?? ''}`.toLowerCase().includes(w))) return false;
+      if (cat && i.category !== cat) return false;
+      if (status === 'on' && !i.isActive) return false;
+      if (status === 'off' && i.isActive) return false;
+      if (where === 'ALL' && i.storeId) return false;
+      if (where && where !== 'ALL' && i.storeId !== where) return false;
+      if (range && (i.pointsCost < range.min || i.pointsCost > range.max)) return false;
+      if (link === 'linked' && !(i.labelId && i.followPrice !== false)) return false;
+      if (link === 'own' && !(i.labelId && i.followPrice === false)) return false;
+      if (link === 'none' && i.labelId) return false;
+      return true;
+    });
+    const byName = (a: CatalogItem, b: CatalogItem) => a.title.localeCompare(b.title);
+    const order: Record<SortKey, (a: CatalogItem, b: CatalogItem) => number> = {
+      low: (a, b) => a.pointsCost - b.pointsCost || a.sortOrder - b.sortOrder || byName(a, b),
+      high: (a, b) => b.pointsCost - a.pointsCost || byName(a, b),
+      popular: (a, b) => (b.redeemed30d ?? 0) - (a.redeemed30d ?? 0) || (b.redeemedTotal ?? 0) - (a.redeemedTotal ?? 0) || byName(a, b),
+      name: byName,
+      newest: (a, b) => b.createdAt.localeCompare(a.createdAt),
+    };
+    return [...list].sort(order[sort]);
+  }, [items, q, cat, status, where, band, link, sort]);
+  const catsInUse = CATEGORY_OPTIONS.filter((c) => items.some((i) => i.category === c.value));
+  const storesInUse = Array.from(new Map(items.filter((i) => i.store).map((i) => [i.store!.id, i.store!.name])).entries()).sort((a, b) => a[1].localeCompare(b[1]));
+
   // Group by chain
   const chains = Array.from(new Set(items.map(i => i.chain))).sort();
   // DevAdmin sees all chains; SuperAdmin sees only Lucky Stop
   const visibleChains = isDevAdmin ? chains : ['Lucky Stop'];
-  const itemsByChain = (chain: string) => items.filter(i => i.chain === chain);
+  const itemsByChain = (chain: string) => shown.filter(i => i.chain === chain);
 
   const createMutation = useMutation({
     mutationFn: (d: object) => catalogApi.create(d),
@@ -500,6 +549,48 @@ export default function CatalogPage() {
 
         {!isLoading && catalog.length > 0 && <MatchPanel items={visibleItems} catalog={catalog} onEdit={openEdit} />}
 
+        {!isLoading && visibleItems.length > 0 && (
+          <div style={s.filterBar} role="search" aria-label="Filter the rewards">
+            <input className="ui-input" style={{ ...INPUT, flex: '1 1 220px', minWidth: 180 }} type="search" value={q} onChange={(e) => setQ(e.target.value)}
+              placeholder="Search rewards…" aria-label="Search rewards by name" />
+            <select className="ui-input" style={s.filterSelect} value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Category">
+              <option value="">All categories</option>
+              {catsInUse.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+            <select className="ui-input" style={s.filterSelect} value={status} onChange={(e) => setStatus(e.target.value as typeof status)} aria-label="Active or not">
+              <option value="">Active and inactive</option>
+              <option value="on">Active only</option>
+              <option value="off">Inactive only</option>
+            </select>
+            <select className="ui-input" style={s.filterSelect} value={where} onChange={(e) => setWhere(e.target.value)} aria-label="Which stores">
+              <option value="">Any store</option>
+              <option value="ALL">Every store (chain-wide)</option>
+              {storesInUse.map(([id, name]) => <option key={id} value={id}>Only {name}</option>)}
+            </select>
+            <select className="ui-input" style={s.filterSelect} value={band} onChange={(e) => setBand(e.target.value)} aria-label="Points">
+              <option value="">Any points</option>
+              {POINT_BANDS.map((b) => <option key={b.key} value={b.key}>{b.label}</option>)}
+            </select>
+            <select className="ui-input" style={s.filterSelect} value={link} onChange={(e) => setLink(e.target.value as typeof link)} aria-label="Points from a price">
+              <option value="">Any points source</option>
+              <option value="linked">Follows a shelf price</option>
+              <option value="own">Linked, own points</option>
+              <option value="none">Not linked to an item</option>
+            </select>
+            <select className="ui-input" style={s.filterSelect} value={sort} onChange={(e) => setSort(e.target.value as SortKey)} aria-label="Order">
+              <option value="low">Fewest points first (as customers see it)</option>
+              <option value="high">Most points first</option>
+              <option value="popular">Most redeemed (30 days)</option>
+              <option value="name">Name A to Z</option>
+              <option value="newest">Newest first</option>
+            </select>
+            <span style={s.filterCount} aria-live="polite">
+              {filtering ? `${shown.filter((i) => isDevAdmin || i.chain === 'Lucky Stop').length} of ${visibleItems.length} rewards` : `${visibleItems.length} rewards`}
+            </span>
+            {filtering && <Button size="sm" onClick={clearFilters}>Clear filters</Button>}
+          </div>
+        )}
+
         {/* Content */}
         {isLoading ? (
           <TableSkeleton columns={8} />
@@ -520,6 +611,7 @@ export default function CatalogPage() {
                 onEdit={openEdit}
                 onDelete={handleDelete}
                 deletingId={deletingId}
+                emptyText={filtering ? 'No rewards match these filters.' : undefined}
               />
             ))}
             {/* Show chains that exist in DB but aren't in our visible list (shouldn't happen but safety) */}
@@ -557,6 +649,9 @@ export default function CatalogPage() {
 
 const s: Record<string, React.CSSProperties> = {
   inner: { display: 'flex', flexDirection: 'column', gap: 24 },
+  filterBar: { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: -8 },
+  filterSelect: { ...INPUT, width: 'auto', minWidth: 0, flex: '0 1 auto', cursor: 'pointer' },
+  filterCount: { fontSize: 13, color: TEXT_MUTED, fontWeight: 600, marginLeft: 4 },
 
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' },
   pageTitle: { fontSize: 26, fontWeight: 700, color: PRIMARY, margin: 0 },
@@ -642,11 +737,11 @@ const cs: Record<string, React.CSSProperties> = {
   statusInactive: { background: '#f8d7da', color: '#721c24' },
   editBtn: {
     background: '#eef2f7', color: PRIMARY, border: 'none',
-    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 15, fontWeight: 600,
+    borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 13.5, fontWeight: 600,
   },
   deleteBtn: {
     background: '#fdf2f2', color: '#c42130', border: 'none',
-    borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 15, fontWeight: 600,
+    borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: 13.5, fontWeight: 600,
   },
 };
 
