@@ -28,7 +28,9 @@ export async function getCatalog(req: AuthRequest, res: Response) {
   const items = await prisma.redemptionCatalogItem.findMany({
     where: { isActive: true },
     include: { store: { select: { id: true, name: true } } },
-    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    // fewest points first (2026-11-27, the owner), as the customer app already showed them; HQ's sort order only breaks a tie. The
+    // cashier's list on the phone shows them in this order too.
+    orderBy: [{ pointsCost: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
   });
   res.json({ success: true, data: items });
 }
